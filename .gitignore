@@ -1,0 +1,24 @@
+# Environment variables — bài học từ bản v1: file .env.py từng bị lộ vì .gitignore
+# chỉ có pattern *.env, không khớp .env.py. Chặn mọi biến thể ở đây.
+.env
+.env.*
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

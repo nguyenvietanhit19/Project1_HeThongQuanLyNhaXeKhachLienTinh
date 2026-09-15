@@ -1,0 +1,181 @@
+@startuml UseCase_HeThongQuanLyNhaXe
+left to right direction
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+
+actor "Khách hàng" as KH
+actor "Phụ xe" as PX
+actor "Tài xế" as TX
+actor "Nhân viên quầy vé" as NVQV
+actor "Nhân viên gửi hàng" as NVGH
+actor "Điều độ viên" as DDV
+actor "Kế toán" as KT
+actor "Quản lý" as QL
+actor "Cổng thanh toán" as CTT
+
+rectangle "Hệ thống Quản lý Nhà xe Khách" {
+
+  usecase "UC-01 Đăng ký tài khoản" as UC01
+  usecase "UC-02 Đăng nhập" as UC02
+  usecase "UC-03 Quên mật khẩu" as UC03
+  usecase "UC-04 Tra cứu chuyến công khai" as UC04
+  usecase "UC-05 Đặt vé online\n(chọn ghế, giữ chỗ, thanh toán)" as UC05
+  usecase "UC-08 Hủy giữ chỗ trước\nkhi thanh toán" as UC08
+
+  usecase "UC-09 Bán vé tại quầy" as UC09
+  usecase "UC-10 Bán vé qua hotline" as UC10
+  usecase "UC-11 In vé cứng cho khách\nđặt online/hotline" as UC11
+  usecase "UC-22 Kế toán chuyển khoản\nhoàn tiền" as UC22
+
+  usecase "UC-12 Xác nhận khách lên xe" as UC12
+  usecase "UC-13 Xác nhận khách xuống xe" as UC13
+  usecase "UC-14 Đánh dấu no-show\ntự động ⏱" as UC14
+  usecase "UC-15 Xác nhận xuất phát" as UC15
+  usecase "UC-16 Xác nhận đến điểm\n(trung gian/cuối cùng)" as UC16
+  usecase "UC-17 Báo sự cố giữa đường" as UC17
+  usecase "UC-26 Xác nhận chất hàng lên xe" as UC26
+  usecase "UC-27 Xác nhận dỡ hàng khỏi xe" as UC27
+  usecase "UC-28 Báo thất lạc/\như hỏng hàng" as UC28
+
+  usecase "UC-19 Xử lý sự cố giữa đường\n(ngoại lệ)" as UC19
+  usecase "UC-20 Đổi xe trước\ngiờ khởi hành (ngoại lệ)" as UC20
+  usecase "UC-21 Tự động tính & thông\nbáo hoàn tiền ⏱" as UC21
+  usecase "UC-40 Gán lại xe gốc cho\nchuyến đang chạy thay (ngoại lệ)" as UC40
+  usecase "UC-41 Hủy vé nhận hoàn\ntoàn bộ khi chuyến đang hoãn (ngoại lệ)" as UC41
+  usecase "UC-42 Hủy vé nhận hoàn toàn bộ\nkhi sự cố lỗi nhà xe giữa đường (ngoại lệ)" as UC42
+  usecase "UC-43 Tự động hoàn tiền khi\nchờ quá 3 tiếng do lỗi nhà xe ⏱" as UC43
+  usecase "UC-44 Gán xe cho chuyến" as UC44
+
+  usecase "UC-23 Nhận/gửi hàng tại quầy,\ntính cước" as UC23
+  usecase "UC-24 Giao hàng cho người\nnhận, thu COD" as UC24
+  usecase "UC-25 Xử lý hàng quá\nhạn lưu kho" as UC25
+
+  usecase "UC-29 Quản lý khu vực" as UC29
+  usecase "UC-30 Quản lý điểm đón/trả" as UC30
+  usecase "UC-31 Tạo tuyến" as UC31
+  usecase "UC-32 Quản lý loại xe" as UC32
+  usecase "UC-33 Cấu hình giá vé" as UC33
+  usecase "UC-18 Thiết lập lịch\nchạy định kỳ" as UC18
+  usecase "UC-34 Quản lý xe" as UC34
+  usecase "UC-35 Quản lý biên chế xe" as UC35
+  usecase "UC-36 Tạo tài khoản cán bộ" as UC36
+  usecase "UC-37 Khóa tài khoản" as UC37
+  usecase "UC-38 Mở khóa tài khoản" as UC38
+
+  usecase "UC-39 Xem thống kê\ndoanh thu/vận hành" as UC39
+}
+
+' ===== Khách hàng =====
+KH --> UC01
+KH --> UC02
+KH --> UC03
+KH --> UC04
+KH --> UC05
+KH --> UC08
+KH --> UC41
+KH --> UC42
+
+' ===== Phụ xe =====
+PX --> UC02
+PX --> UC12
+PX --> UC13
+PX --> UC15
+PX --> UC16
+PX --> UC17
+PX --> UC26
+PX --> UC27
+PX --> UC28
+PX --> UC39
+
+' ===== Tài xế: không có use case hệ thống nào =====
+' (không có tài khoản, không tương tác trực tiếp — chỉ cung cấp
+'  thông tin bằng lời cho phụ xe trong UC-17)
+
+' ===== Nhân viên quầy vé =====
+NVQV --> UC02
+NVQV --> UC08
+NVQV --> UC09
+NVQV --> UC10
+NVQV --> UC11
+NVQV --> UC41
+NVQV --> UC42
+NVQV --> UC39
+
+' ===== Nhân viên gửi hàng =====
+NVGH --> UC02
+NVGH --> UC23
+NVGH --> UC24
+NVGH --> UC25
+NVGH --> UC39
+
+' ===== Điều độ viên =====
+DDV --> UC02
+DDV --> UC44
+DDV --> UC19
+DDV --> UC20
+DDV --> UC40
+DDV --> UC39
+
+' ===== Kế toán =====
+KT --> UC02
+KT --> UC22
+
+' ===== Quản lý =====
+QL --> UC02
+QL --> UC29
+QL --> UC30
+QL --> UC31
+QL --> UC32
+QL --> UC33
+QL --> UC18
+QL --> UC34
+QL --> UC35
+QL --> UC36
+QL --> UC37
+QL --> UC38
+QL --> UC39
+
+' ===== Actor phụ / hệ thống ngoài =====
+CTT --> UC05
+
+' ===== Quan hệ <<include>> (tiền điều kiện đăng nhập) =====
+' UC-05 gồm 2 nhánh nội bộ (thanh toán ngay / tại quầy) trong cùng 1 activity diagram — không tách UC riêng.
+UC05 ..> UC02 : <<include>>
+UC09 ..> UC02 : <<include>>
+UC10 ..> UC02 : <<include>>
+UC11 ..> UC02 : <<include>>
+UC12 ..> UC02 : <<include>>
+UC13 ..> UC02 : <<include>>
+UC15 ..> UC02 : <<include>>
+UC16 ..> UC02 : <<include>>
+UC17 ..> UC02 : <<include>>
+UC18 ..> UC02 : <<include>>
+UC44 ..> UC02 : <<include>>
+UC19 ..> UC02 : <<include>>
+UC20 ..> UC02 : <<include>>
+UC40 ..> UC02 : <<include>>
+UC41 ..> UC02 : <<include>>
+UC42 ..> UC02 : <<include>>
+UC22 ..> UC02 : <<include>>
+UC23 ..> UC02 : <<include>>
+UC24 ..> UC02 : <<include>>
+UC25 ..> UC02 : <<include>>
+UC26 ..> UC02 : <<include>>
+UC27 ..> UC02 : <<include>>
+UC28 ..> UC02 : <<include>>
+UC29 ..> UC02 : <<include>>
+UC30 ..> UC02 : <<include>>
+UC31 ..> UC02 : <<include>>
+UC32 ..> UC02 : <<include>>
+UC33 ..> UC02 : <<include>>
+UC34 ..> UC02 : <<include>>
+UC35 ..> UC02 : <<include>>
+UC36 ..> UC02 : <<include>>
+UC37 ..> UC02 : <<include>>
+UC38 ..> UC02 : <<include>>
+UC39 ..> UC02 : <<include>>
+
+@enduml

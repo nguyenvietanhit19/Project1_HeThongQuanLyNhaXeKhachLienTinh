@@ -1,0 +1,1 @@
+Giao diện dùng chung cho cán bộ: phụ xe (di động, `NGHIEP_VU.md` mục 8.2), nhân viên quầy vé (8.4), nhân viên gửi hàng (8.5), điều độ viên (8.6), kế toán (8.8), quản lý (8.7). HTML/CSS/JS tĩnh, chưa cần framework — xem `ARCHITECTURE.md` mục 3.

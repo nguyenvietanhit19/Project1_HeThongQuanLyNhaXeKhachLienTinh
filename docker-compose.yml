@@ -1,0 +1,17 @@
+services:
+  backend:
+    build: ./backend
+    ports: ["8000:8000"]
+    env_file: ./backend/.env
+    depends_on: [db]
+    volumes: ["./backend:/app"]
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: nha_xe
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_dev_only
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    ports: ["5432:5432"]
+volumes:
+  pgdata:
