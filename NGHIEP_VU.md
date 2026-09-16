@@ -28,9 +28,10 @@ Một nhà xe khách liên tỉnh vận hành nhiều **tuyến cố định** (
 | `nhan_vien_gui_hang` | Được **quản lý** tạo trực tiếp, gắn cố định 1 văn phòng | Nhận/gửi hàng, tính cước, giao hàng cho người nhận, thu COD (mục 10) — tách riêng khỏi bán vé hành khách |
 | `dieu_do_vien` | Được **quản lý** tạo trực tiếp, gắn cố định 1 văn phòng (nơi xuất phát) | Gán xe cho các chuyến đã được hệ thống tự sinh sẵn từ lịch chạy định kỳ, xử lý phát sinh vận hành |
 | `ke_toan` | Được **quản lý** tạo trực tiếp, **không gắn văn phòng nào** (phạm vi toàn hệ thống, giống `quan_ly`) | Xử lý hoàn tiền cho khách trả tiền mặt (mục 7) — trường hợp không tự động hoàn được qua cổng thanh toán. Không bán vé, không vận hành xe |
-| `quan_ly` | Tài khoản gốc, seed lúc khởi tạo hệ thống, có thể tạo thêm | Toàn quyền: tuyến, giá, đội xe, nhân sự, khuyến mãi, thống kê toàn hệ thống |
+| `quan_ly_nhan_su` | Được **quản lý gốc** tạo trực tiếp, **không gắn văn phòng nào** (phạm vi toàn hệ thống) | Tạo/khóa/mở khóa tài khoản cho `nhan_vien_van_hanh` (phụ xe), `nhan_vien_quay_ve`, `nhan_vien_gui_hang`, `dieu_do_vien` — **không** quản lý tài khoản `ke_toan`, `quan_ly`, hay `quan_ly_nhan_su` khác (mục 8.9). Xem thống kê toàn hệ thống. Không có quyền nghiệp vụ nào khác (tuyến, giá, xe, khuyến mãi) |
+| `quan_ly` | Tài khoản **gốc** (`la_tai_khoan_goc = true`), seed lúc khởi tạo hệ thống — **không thể bị khóa bởi bất kỳ ai**, và là `quan_ly` **duy nhất** tạo thêm được `quan_ly` khác hoặc `quan_ly_nhan_su`. Các `quan_ly` tạo thêm sau (không phải gốc) toàn quyền nghiệp vụ ngang tài khoản gốc, trừ 2 việc trên | Toàn quyền: tuyến, giá, đội xe, nhân sự, khuyến mãi, thống kê toàn hệ thống |
 
-**Nguyên tắc xuyên suốt**: giống bản trước — cán bộ (nhân viên vận hành, nhân viên quầy vé, nhân viên gửi hàng, điều độ viên, kế toán, quản lý) luôn do `quan_ly` **tạo trực tiếp** qua cơ chế mời (email + vai trò, tự đặt mật khẩu lần đầu), không ai tự đăng ký rồi được thăng cấp. Khác với bản trước: đây là **1 công ty duy nhất** (không chia theo tỉnh/thành hành chính) nên `quan_ly` thấy **toàn bộ hệ thống**, còn `dieu_do_vien`/`nhan_vien_quay_ve`/`nhan_vien_gui_hang` bị giới hạn theo **điểm đón/trả** họ được gán (không phải theo tỉnh) — riêng `ke_toan` cũng thấy toàn bộ hệ thống như `quan_ly` vì hoàn tiền có thể phát sinh ở bất kỳ chuyến nào.
+**Nguyên tắc xuyên suốt**: cán bộ (nhân viên vận hành, nhân viên quầy vé, nhân viên gửi hàng, điều độ viên, kế toán, quản lý, quản lý nhân sự) luôn được **cấp tài khoản** qua cơ chế mời (email + vai trò, tự đặt mật khẩu lần đầu) — không ai tự đăng ký rồi được thăng cấp; chỉ `khach_hang` tự đăng ký công khai. Người cấp cụ thể theo từng vai trò: `quan_ly` (bất kỳ, gốc hay không) cấp cho `nhan_vien_van_hanh`/`nhan_vien_quay_ve`/`nhan_vien_gui_hang`/`dieu_do_vien`/`ke_toan`; `quan_ly_nhan_su` cũng cấp được cho 4 vai trò đầu (không `ke_toan`); riêng tài khoản `quan_ly` mới và `quan_ly_nhan_su` **chỉ `quan_ly` gốc** mới tạo được — tránh trường hợp 1 tài khoản cấp cao bị lộ vẫn tự mint thêm tài khoản ngang hàng (mục 8.9). Khác với bản trước: đây là **1 công ty duy nhất** (không chia theo tỉnh/thành hành chính) nên `quan_ly`/`quan_ly_nhan_su` thấy **toàn bộ hệ thống**, còn `dieu_do_vien`/`nhan_vien_quay_ve`/`nhan_vien_gui_hang` bị giới hạn theo **điểm đón/trả** họ được gán (không phải theo tỉnh) — riêng `ke_toan` cũng thấy toàn bộ hệ thống vì hoàn tiền có thể phát sinh ở bất kỳ chuyến nào.
 
 ### 2.1. Đăng ký/đăng nhập của khách hàng — kế thừa cơ chế OTP qua email của bản trước
 
@@ -67,7 +68,7 @@ Toàn hệ thống chỉ có **2 tầng địa điểm**, không hơn:
 - **Giá vé chỉ phụ thuộc cặp điểm đi/điểm đến, không phụ thuộc điểm đón/trả cụ thể**: quan sát thực tế — 2 vé cùng tuyến, khác điểm trả ("Văn phòng 025 Nguyễn Huệ Cửa Khẩu" và "Văn phòng Km 224 Phố Lu") — nhưng cùng giá 290.000đ vì cùng thuộc điểm đến "Lào Cai (TP...)". Mô hình: `gia_ve(tuyen_id, diem_di_id, diem_den_id) → gia_goc`, `quan_ly` **nhập tay** theo từng cặp điểm đi/đến — không suy ra tự động từ khoảng cách km, không hard-code.
 - **Nhiều loại xe khác nhau cùng chạy 1 tuyến, giá khác nhau — xử lý bằng hệ số, không nhân dòng dữ liệu**: `loai_xe(ten, he_so_gia)` là danh mục `quan_ly` **tự thêm/sửa tùy ý** (VD "Ghế ngồi", "Giường đơn", "Giường cabin đôi"...), mỗi loại có 1 hệ số nhân giá cấu hình **1 lần dùng chung cho toàn hệ thống** (không phải theo từng tuyến). Mỗi `xe` gắn với đúng 1 `loai_xe`. **Giá bán thực tế của 1 chuyến = `gia_ve.gia_goc × loai_xe.he_so_gia` của xe đang chạy chuyến đó** — tính lúc hiển thị/bán vé, không lưu thành cột riêng. Nhờ vậy `quan_ly` chỉ cần nhập giá gốc theo `(tuyến, cặp điểm)` như trên (không nhân thêm theo loại xe) + hệ số theo từng loại xe (không nhân thêm theo tuyến) — tổng số lượt nhập là **phép cộng**, không phải phép nhân giữa 3 chiều (tuyến × cặp điểm × loại xe). Khi nhà xe bổ sung 1 loại xe mới: chỉ cần thêm 1 dòng `loai_xe` (hệ số) — `quan_ly` chọn loại xe này khi thiết lập lịch chạy định kỳ (mục 3.5), giá tự động áp dụng đúng hệ số ngay từ lúc chuyến được sinh ra, không cần cấu hình gì thêm cho từng tuyến.
 - **Tách biệt rõ với chống trùng ghế (mục 6)**: chống trùng ghế vẫn phải tính theo vị trí vật lý thật của khách trên xe (`thu_tu` của đúng điểm đón/trả khách chọn) — vì đó là câu hỏi "khách ngồi ghế này từ lúc nào đến lúc nào", khác hẳn câu hỏi "khách trả bao nhiêu tiền". Hai cơ chế độc lập, không dùng chung 1 công thức.
-- `xe`: biển số, `loai_xe` (danh mục do `quan_ly` tự quản trị — **quyết định luôn cả hệ số giá, sơ đồ ghế thật, và sức chứa khoang hàng**; 2 xe cùng `loai_xe` giống hệt nhau về mọi mặt, chỉ khác biển số, xem mục 3.3), trạng thái `hoat_dong` / `bao_tri` / `ngung_su_dung`, `diem_goc_id` (điểm `loai = 'van_phong'` được gán khi thêm xe vào hệ thống — dùng làm vị trí khởi điểm, xem mục 3.3), `nhom_tuyen_id` (**nullable** — nếu có, xe chỉ chạy cố định trong nhóm tuyến này, xem mục 3.2; để trống nếu xe dùng linh hoạt cho nhiều tuyến, VD xe dự phòng). Xe `bao_tri`/`ngung_su_dung` không thể được gán vào chuyến mới.
+- `xe`: biển số, `loai_xe` (danh mục do `quan_ly` tự quản trị — **quyết định luôn cả hệ số giá và sơ đồ ghế thật**; 2 xe cùng `loai_xe` giống hệt nhau về mọi mặt, chỉ khác biển số, xem mục 3.3), trạng thái `hoat_dong` / `bao_tri` / `ngung_su_dung`, `diem_goc_id` (điểm `loai = 'van_phong'` được gán khi thêm xe vào hệ thống — dùng làm vị trí khởi điểm, xem mục 3.3), `nhom_tuyen_id` (**nullable** — nếu có, xe chỉ chạy cố định trong nhóm tuyến này, xem mục 3.2; để trống nếu xe dùng linh hoạt cho nhiều tuyến, VD xe dự phòng). Xe `bao_tri`/`ngung_su_dung` không thể được gán vào chuyến mới.
 
 ### 3.2. Biên chế cố định theo xe
 
@@ -120,6 +121,8 @@ Một xe không "dịch chuyển tức thời" — chuyến tiếp theo gán cho
      - **> 30 phút, hoặc chưa tìm được xe nào ở cả 2 nguồn ngay lúc xử lý** → chuyển sang cơ chế **"đang hoãn"** ở điểm 9, thay vì hủy.
   9. **Cơ chế "đang hoãn" — thay thế hoàn toàn cho việc hủy chuyến trước giờ chạy**: chuyến vẫn giữ `chua_khoi_hanh`, chỉ cập nhật `gio_khoi_hanh` sang thời điểm dự kiến mới tốt nhất hiện có (mục 4) — có thể cập nhật lại nhiều lần khi có thông tin mới, cho tới khi thực sự tìm được xe (nguồn a hoặc b ở bước 1). Nhà xe đặt mục tiêu vận hành **tối đa 6 tiếng** để tìm được xe thay thế — ngưỡng này `quan_ly` cấu hình được, chỉ dùng để **cảnh báo lên `quan_ly`** khi vượt quá (biết mà hỗ trợ thêm nguồn xe), **không** dùng để tự động hủy hay ép buộc hành động gì — điều độ viên tiếp tục tìm xe tới khi có, không có giới hạn cứng nào buộc phải dừng lại. Trong suốt thời gian "đang hoãn": mọi vé `da_thanh_toan` của chuyến (bất kể trả qua kênh nào) được khách **chủ động hủy nhận hoàn 100%** nếu không muốn/không thể chờ (mục 7, UC-41) — đây là ngoại lệ **duy nhất** phá vỡ quy tắc "vé đã thanh toán không hủy"; khách không hủy thì giữ nguyên vé, chờ chuyến chạy theo giờ mới. Hệ thống chỉ hoàn đúng 100% **giá vé** — không có cơ chế bồi thường thiệt hại phát sinh khác (lỡ chuyến bay, chi phí phát sinh...), theo đúng giới hạn trách nhiệm tiêu chuẩn của hợp đồng vận chuyển hành khách, ngoài phạm vi hệ thống. Khi cuối cùng tìm được xe: cập nhật `gio_khoi_hanh` chính thức, tắt cờ "đang hoãn", chuyến tiếp tục vòng đời bình thường — khách chưa hủy giữ nguyên đúng ghế/đoạn đã đặt.
 
+- **Chuyến chưa từng được gán xe mà đã tới giờ khởi hành (`xe_id` vẫn `NULL`)** — nguồn gốc **khác hẳn** tình huống trên: không có "xe gốc" nào để giữ nguyên, vì lịch chạy định kỳ sinh chuyến ra với `xe_id = NULL` ngay từ đầu, chỉ được điều độ viên gán trong cửa sổ trước giờ chạy (mục 3.5) — nếu tìm mãi không ra xe, tới đúng giờ khởi hành mà vẫn chưa gán được. Đây là 1 tình huống khác về **trigger** (thời gian, không phải sự cố hay hành động điều độ viên) nhưng bản chất vấn đề giống hệt trên ("chuyến sắp/đã tới giờ mà không có xe") nên **dùng chung 100% cơ chế "đang hoãn"** vừa mô tả — hệ thống **tự động** (không cần điều độ viên thao tác) chuyển sang "đang hoãn" ngay khi tới `gio_khoi_hanh` mà `xe_id` vẫn `NULL` (UC-45 ⏱): dời giờ, cảnh báo `quan_ly` sau 6 tiếng, khách được chủ động hủy nhận hoàn 100% qua UC-41 — y hệt như trên. Khác biệt duy nhất: khi điều độ viên cuối cùng tìm được xe qua UC-44, gán **thẳng vào `xe_id`** (không qua `xe_thuc_te_id` — không có xe gốc nào để giữ nguyên cả).
+
 ### 3.4. Luồng tìm & đặt vé — chọn ghế trước, điểm đón/trả sau
 
 1. **Tìm kiếm**: khách chọn **điểm đi** + **điểm đến** (cả hai tham chiếu `khu_vuc`, mục 3.1) + ngày — Service tìm mọi `chuyen_xe` chạy ngày đó có ít nhất 1 điểm **`van_phong`** thuộc khu_vực điểm đi (vì điểm đón bắt buộc là văn phòng, mục 3.1), đứng trước (theo `thu_tu`) ít nhất 1 điểm đón/trả bất kỳ (`van_phong` hoặc `diem_dung`) thuộc khu_vực điểm đến.
@@ -159,6 +162,7 @@ chua_khoi_hanh   ← KHÔNG BAO GIỜ hủy vì lý do kinh doanh (ít/không c�
   ├─ [Xe hỏng đột xuất, chưa tìm được xe thay thế kịp (lệch >30 phút) — mục 3.3 điểm 9] → vẫn chua_khoi_hanh, chỉ dời gio_khoi_hanh + gắn cờ "đang hoãn"
   │      ├─ [Khách đã thanh toán không muốn/không thể chờ — mục 7, UC-41] → vé đó chuyển da_huy, hoàn 100% (chuyến vẫn tiếp tục hoãn cho các khách khác)
   │      └─ [Cuối cùng tìm được xe (nội bộ hoặc thuê ngoài) — mục 3.3] → tắt cờ "đang hoãn", tiếp tục bình thường
+  ├─ [Tới giờ khởi hành mà chưa từng gán được xe, xe_id vẫn NULL — mục 3.3, UC-45 ⏱] → vẫn chua_khoi_hanh, TỰ ĐỘNG gắn cờ "đang hoãn" (dùng chung nhánh xử lý y hệt trên; khi có xe thì gán thẳng xe_id, không qua xe_thuc_te_id)
   └─ [Đến giờ khởi hành, phụ xe xác nhận xuất phát] → dang_chay
                                                          ├─ [Phụ xe báo sự cố, phân loại nguyên nhân — UC-17] → gap_su_co (loai_su_co = loi_nha_xe / loi_khach_quan)
                                                          │      ├─ [loi_nha_xe, ≤1 tiếng tự khắc phục — UC-19] → quay lại dang_chay, không hoàn
@@ -276,6 +280,7 @@ Phụ xe là **người duy nhất trong đội vận hành thao tác trực ti�
 - Sau đăng nhập, hệ thống **tự hiển thị đúng chuyến đang/sắp chạy của xe mình thuộc biên chế** (mục 3.2) — không cần tự tìm/chọn chuyến giữa hàng loạt chuyến của toàn hệ thống.
 - **Không quét mã (không QR, không camera)** — khách xuất trình **vé cứng** (in tại văn phòng khi khách tới lấy, mục 8.1 điểm 5), phụ xe nhìn thông tin trên vé (số ghế, họ tên) rồi **thao tác trực tiếp trên màn hình**: danh sách khách cần lên/xuống tại điểm hiện tại (điểm 1) đã hiển thị sẵn theo số ghế — phụ xe tìm đúng dòng khớp với vé, bấm xác nhận → hệ thống tự đánh dấu `da_len_xe`/`da_xuong_xe` tương ứng. Nếu không tìm thấy đúng dòng ngay (VD trùng tên), tra thêm theo mã vé dạng chữ in trên vé cứng để chắc chắn đúng người.
 - Cách này đơn giản hơn cơ chế quét (không cần camera hoạt động tốt/ánh sáng đủ), phù hợp thao tác nhanh khi khách xếp hàng lên xe — chỉ cần màn hình hiển thị danh sách và vài lần chạm.
+- **Chất hàng gửi (mục 10.2, UC-26) dùng đúng kiểu thao tác này, chỉ khác thứ để khớp**: màn hình hiển thị danh sách đơn hàng đang chờ tại điểm hiện tại, cùng `tuyen_id` với chuyến mình đang chạy, sắp theo thời gian nhận hàng (đơn cũ hiện trước, chỉ để tham khảo thứ tự ưu tiên). Mỗi dòng hiện `mã vận đơn` + tên người nhận + điểm đến + cân nặng (tham khảo khi ước lượng còn chỗ). Phụ xe cầm từng kiện hàng, đọc **mã vận đơn in trên nhãn dán** (mục 10.4.1), tìm đúng dòng khớp trong danh sách — không bắt buộc theo đúng thứ tự hiển thị, có thể bỏ qua 1 đơn không xếp vừa để chọn đơn khác — bấm xác nhận ngay khi đã đặt lên xe, hệ thống tự gán `chuyen_id` = đúng chuyến mình đang chạy cho đơn đó.
 - **Giả định có sóng di động dọc tuyến** (hợp lý với hạ tầng viễn thông hiện tại) — không làm đồng bộ offline phức tạp trong phạm vi BTL; nếu nhóm dư thời gian có thể nâng cấp cache danh sách vé trước khi xuất phát + đồng bộ lại khi có mạng.
 
 ### 8.3. Tài xế (`chuc_danh = tai_xe`) — không có tài khoản
@@ -300,16 +305,16 @@ Chỉ thao tác trong phạm vi văn phòng mình được gán.
 
 Vai trò **tách riêng** khỏi `nhan_vien_quay_ve` — không bán vé, không soát vé hành khách. Chỉ thao tác trong phạm vi văn phòng mình được gán.
 
-1. **Tại điểm gửi**: nhận hàng từ người gửi, cân/đo, kiểm tra không thuộc danh mục hàng cấm (mục 10.1), chọn chuyến + điểm nhận, **tự quyết định và nhập giá cước** dựa trên cân nặng/loại hàng/điểm đến, tạo `don_hang` trạng thái `cho_van_chuyen`, in mã vận đơn, thu tiền nếu `nguoi_gui_tra_truoc`.
+1. **Tại điểm gửi**: nhận hàng từ người gửi, cân/đo, kiểm tra không thuộc danh mục hàng cấm (mục 10.1), chọn **tuyến** (không phải chuyến cụ thể, mục 10.2) + điểm nhận, **tự quyết định và nhập giá cước** dựa trên cân nặng/loại hàng/điểm đến, tạo `don_hang` trạng thái `cho_van_chuyen`, in mã vận đơn, thu tiền nếu `nguoi_gui_tra_truoc`.
 2. **Tại điểm nhận**: **chủ động gọi điện thoại báo người nhận** khi hàng vừa tới (mục 10.3.1 — không còn SMS, đây là kênh báo tin duy nhất). Khi người nhận tới lấy, nhập `ma_van_don` họ đọc lại để xác minh, thu COD nếu `cod_nguoi_nhan_tra`, đánh dấu `da_giao`.
-3. Xử lý hàng quá hạn lưu kho (mục 10.3) — báo lên `quan_ly` nếu không liên hệ được người gửi.
+3. Xử lý hàng chờ quá lâu tại điểm nhận (mục 10.3/10.3.1, UC-25) — theo cờ cảnh báo (7 ngày) hoặc "hàng tồn" (14 ngày) hệ thống tự bật, gọi lại người nhận hoặc người gửi tùy tình huống, báo lên `quan_ly` nếu không liên hệ được ai.
 
 ### 8.6. Điều độ viên (`dieu_do_vien`)
 
 Chỉ thao tác chuyến **xuất phát từ** văn phòng mình được gán.
 
-1. **Gán xe cho chuyến** (UC-44, mục 3.5): các chuyến đã được hệ thống tự sinh sẵn từ lịch chạy định kỳ do `quan_ly` thiết lập (UC-18) — điều độ viên **chọn 1 xe cụ thể** đúng `loai_xe` đã cam kết, trong số xe đủ điều kiện — hệ thống chặn nếu trùng lịch (mục 3.2), sai nhóm tuyến (mục 3.2), hoặc xe không có mặt đúng điểm khởi hành (mục 3.3). Có thể gán lại (đổi xe) bất cứ lúc nào trước giờ khởi hành. Hệ thống nhắc nếu chuyến còn ≤48 tiếng mà chưa gán xe. **Không cần chọn tài xế/phụ xe** — cả hai đều tự suy ra từ biên chế cố định của xe (mục 3.2), không phải thao tác của điều độ viên. Điều độ viên **không tự tạo chuyến hay tuyến mới**.
-2. **Theo dõi tỷ lệ lấp đầy ghế và khối lượng hàng**: chỉ mang tính thống kê/tham khảo (VD để cân nhắc điều xe lớn/nhỏ hơn cho các chuyến sau, hoặc cảnh báo gần đầy khoang hàng — mục 10.2) — **không dùng để hủy chuyến**, vì chuyến đã lên lịch luôn phải chạy dù ít khách đến đâu (mục 1).
+1. **Gán xe cho chuyến** (UC-44, mục 3.5): các chuyến đã được hệ thống tự sinh sẵn từ lịch chạy định kỳ do `quan_ly` thiết lập (UC-18) — điều độ viên **chọn 1 xe cụ thể** đúng `loai_xe` đã cam kết, trong số xe đủ điều kiện — hệ thống chặn nếu trùng lịch (mục 3.2), sai nhóm tuyến (mục 3.2), hoặc xe không có mặt đúng điểm khởi hành (mục 3.3). Có thể gán lại (đổi xe) bất cứ lúc nào trước giờ khởi hành. Hệ thống nhắc nếu chuyến còn ≤48 tiếng mà chưa gán xe. **Không cần chọn tài xế/phụ xe** — cả hai đều tự suy ra từ biên chế cố định của xe (mục 3.2), không phải thao tác của điều độ viên. Điều độ viên **không tự tạo chuyến hay tuyến mới**. Nếu tìm mãi không ra xe và chuyến đã tới đúng giờ khởi hành mà vẫn chưa gán được → hệ thống **tự động** chuyển sang "đang hoãn" (UC-45 ⏱, mục 3.3) — điều độ viên tiếp tục gán xe qua UC-44 như bình thường cho tới khi có, không có gì thay đổi trong thao tác gán, chỉ khác lúc gán thành công thì tắt luôn cờ "đang hoãn".
+2. **Theo dõi tỷ lệ lấp đầy ghế**: chỉ mang tính thống kê/tham khảo (VD để cân nhắc điều xe lớn/nhỏ hơn cho các chuyến sau) — **không dùng để hủy chuyến**, vì chuyến đã lên lịch luôn phải chạy dù ít khách đến đâu (mục 1). Khối lượng hàng **không do điều độ viên theo dõi** — việc xếp hàng hoàn toàn do phụ xe tự đánh giá trực tiếp lúc chất hàng (mục 10.2).
 3. **Cho xe khác chạy thay trước giờ khởi hành** (VD xe hỏng đột xuất khi chuyến còn `chua_khoi_hanh`): gán `chuyen_xe.xe_thuc_te_id` sang xe khác đủ điều kiện, bắt buộc cùng `loai_xe` — **không đổi `xe_id` gốc**, nên biên chế tài xế/phụ xe không đổi. Áp dụng cho cả chuỗi chuyến tương lai của xe hỏng, tới khi điều độ viên chủ động gán lại — chi tiết cơ chế (ưu tiên xe dự phòng nội bộ, sau đó xe thuê ngoài, chưa tìm được kịp thì hoãn giờ khởi hành chứ **không bao giờ hủy chuyến**) ở mục 3.3.
 3b. **Gán lại xe gốc khi đã sửa xong**: khi xe hỏng chuyển lại `hoat_dong` (UC-34), điều độ viên nhận thông báo, tự xem lại các chuyến đang gắn cờ "chạy thay" và chọn thời điểm phù hợp để trả `xe_thuc_te_id` về đúng xe gốc — hoàn toàn thủ công, hệ thống chỉ nhắc, không tự đổi.
 4. **Xử lý sự cố giữa đường** (`gap_su_co`, chuyến đã `dang_chay`): đánh giá theo nguyên nhân (`loi_nha_xe`/`loi_khach_quan`) và mức độ (nhẹ tự khắc phục, hay cần điều xe thay thế) — chi tiết đầy đủ cơ chế ở mục 3.3/4. Lỗi nhà xe luôn tìm được xe thay thế cuối cùng, chỉ khách quan mới có thể phải hủy phần còn lại (hoàn 100%, mục 7) khi thực sự không thể tiếp tục.
@@ -318,12 +323,12 @@ Chỉ thao tác chuyến **xuất phát từ** văn phòng mình được gán.
 
 ### 8.7. Quản lý (`quan_ly`)
 
-1. Quản lý danh mục: `khu_vuc` (điểm đi/đến), `diem_don_tra` (điểm đón/trả, kể cả văn phòng), `tuyen`/`nhom_tuyen` (kể cả thứ tự + thời gian dự kiến từng điểm trong `tuyen_diem_don_tra`), `loai_xe` (danh mục loại xe — quyết định chung hệ số giá, sơ đồ ghế, sức chứa hàng cho mọi xe cùng loại, tự thêm tùy ý — mục 3.1), `gia_ve` theo từng cặp điểm đi/điểm đến (giá gốc, không phân biệt loại xe — nhân với hệ số của `loai_xe` lúc bán, mục 3.1; kể cả giá theo mùa/dịp lễ; **không áp dụng cho hàng gửi**, mục 10.1, do nhân viên gửi hàng tự quyết định giá), danh mục `loai_hang` (kể cả hàng cấm), `xe` (thêm/sửa/đổi trạng thái bảo trì, gán/gỡ `nhom_tuyen_id` cố định, gán `loai_xe`, quản lý biên chế **cố định** `xe_nhan_su` (`loai = co_dinh`) — 2 tài xế + phụ xe mỗi xe; các thay đổi **tạm thời** (`loai = tam_thoi`, khi có người nghỉ) do điều độ viên tự xử lý (mục 3.2, mục 8.6), chỉ báo lên `quan_ly` khi không tìm được người thay).
+1. Quản lý danh mục: `khu_vuc` (điểm đi/đến), `diem_don_tra` (điểm đón/trả, kể cả văn phòng), `tuyen`/`nhom_tuyen` (kể cả thứ tự + thời gian dự kiến từng điểm trong `tuyen_diem_don_tra`), `loai_xe` (danh mục loại xe — quyết định chung hệ số giá, sơ đồ ghế cho mọi xe cùng loại, tự thêm tùy ý — mục 3.1), `gia_ve` theo từng cặp điểm đi/điểm đến (giá gốc, không phân biệt loại xe — nhân với hệ số của `loai_xe` lúc bán, mục 3.1; kể cả giá theo mùa/dịp lễ; **không áp dụng cho hàng gửi**, mục 10.1, do nhân viên gửi hàng tự quyết định giá), danh mục `loai_hang` (kể cả hàng cấm), `xe` (thêm/sửa/đổi trạng thái bảo trì, gán/gỡ `nhom_tuyen_id` cố định, gán `loai_xe`, quản lý biên chế **cố định** `xe_nhan_su` (`loai = co_dinh`) — 2 tài xế + phụ xe mỗi xe; các thay đổi **tạm thời** (`loai = tam_thoi`, khi có người nghỉ) do điều độ viên tự xử lý (mục 3.2, mục 8.6), chỉ báo lên `quan_ly` khi không tìm được người thay).
 1b. **Thiết lập lịch chạy định kỳ** (UC-18, mục 3.5): chọn tuyến + giờ khởi hành + loại xe dự kiến — hệ thống tự động sinh sẵn chuyến cho N ngày tới (N do `quan_ly` cấu hình), chưa gán xe cụ thể. Đây là cách duy nhất để có chuyến mới trong hệ thống — điều độ viên không tự tạo chuyến, chỉ gán xe (mục 8.6).
-2. Tạo tài khoản cán bộ (nhân viên vận hành, nhân viên quầy vé, nhân viên gửi hàng, điều độ viên, kế toán) — riêng `ke_toan` không cần gán văn phòng (mục 2).
+2. Tạo tài khoản cán bộ (nhân viên vận hành, nhân viên quầy vé, nhân viên gửi hàng, điều độ viên, kế toán) — riêng `ke_toan` không cần gán văn phòng (mục 2). **Chỉ tài khoản `quan_ly` gốc** (`la_tai_khoan_goc = true`, seed lúc khởi tạo, mục 2) mới tạo thêm được tài khoản `quan_ly` khác hoặc `quan_ly_nhan_su` — các `quan_ly` không phải gốc không tạo được 2 loại tài khoản này (mục 8.9).
 3. Cấu hình các tham số nghiệp vụ: 2 mốc hạn giữ ghế (thanh toán ngay / thanh toán tại quầy — mục 6), ngưỡng giá trị + tỷ lệ bắt buộc đặt cọc cho lô nhiều vé (mặc định 600.000đ / 50%, mục 3.4), ngưỡng no-show, **số ngày sinh chuyến trước và ngưỡng nhắc gán xe (mặc định 48 tiếng, mục 3.5)**.
 4. Xem thống kê toàn hệ thống: doanh thu theo tuyến/điểm/ngày, tỷ lệ lấp đầy trung bình, chuyến bị hủy/sự cố, hiệu suất tài xế, **tổng tiền đã/đang chờ hoàn theo lý do** (từ `lich_su_hoan_tien`, mục 7) — biết được có bao nhiêu khoản còn tồn đọng chưa xử lý.
-5. Xử lý khiếu nại nghiêm trọng, khóa/mở khóa tài khoản (khách hàng lẫn cán bộ) — không xóa vĩnh viễn, giữ lịch sử.
+5. Xử lý khiếu nại nghiêm trọng, khóa/mở khóa tài khoản (khách hàng lẫn cán bộ) — không xóa vĩnh viễn, giữ lịch sử. **Tài khoản `quan_ly` gốc không thể bị khóa bởi bất kỳ ai, kể cả `quan_ly` khác** — tránh trường hợp toàn bộ `quan_ly` lỡ khóa lẫn nhau, không còn ai vào được hệ thống.
 6. Xem xét gỡ hạn chế đặt vé cho khách hàng bị khóa do no-show (mục 9) — thao tác thủ công, tương tự cơ chế "xem xét gỡ cấm" ở bản trước.
 
 ### 8.8. Kế toán (`ke_toan`)
@@ -335,6 +340,15 @@ Phạm vi **toàn hệ thống** (không gắn văn phòng, mục 2) — chỉ x
 3. Không bán vé, không thao tác gì liên quan vận hành xe/chuyến.
 
 **Kế toán không có hotline riêng, không nhận cuộc gọi đến từ khách** — chỉ **gọi đi** theo đúng số đã lưu sẵn trong hệ thống. Khách muốn hỏi về hoàn tiền vẫn gọi vào hotline của nhân viên quầy vé như bình thường (mục 8.4) — nhân viên quầy vé tra cứu tình trạng trả lời khách, không chuyển máy hay đưa số kế toán cho khách. Thiết kế này vừa giữ đúng 1 đầu mối liên hệ duy nhất cho khách, vừa tránh bị mạo danh gọi tới yêu cầu chuyển khoản.
+
+### 8.9. Quản lý nhân sự (`quan_ly_nhan_su`)
+
+Phạm vi **toàn hệ thống** (không gắn văn phòng, giống `ke_toan`/`quan_ly`, mục 2) — sinh ra để san bớt việc tạo/khóa tài khoản nhân sự vận hành khỏi `quan_ly` khi quy mô công ty lớn (nhiều văn phòng, hàng trăm nhân sự). Chỉ xử lý tài khoản/nhân sự cấp vận hành — **không có quyền nghiệp vụ nào khác** (không sửa tuyến, giá, xe, khuyến mãi, lịch chạy định kỳ).
+
+1. Tạo tài khoản cho đúng **4 vai trò**: `nhan_vien_van_hanh` (phụ xe), `nhan_vien_quay_ve`, `nhan_vien_gui_hang`, `dieu_do_vien` — qua đúng cơ chế mời như `quan_ly` (mục 8.7 điểm 2). **Không** tạo được tài khoản `ke_toan`, `quan_ly`, hay `quan_ly_nhan_su` khác — các vai trò này nhạy cảm hơn (tiền, hoặc chính quyền quản trị), chỉ `quan_ly` (với `ke_toan`) hoặc `quan_ly` gốc (với `quan_ly`/`quan_ly_nhan_su`) mới tạo được.
+2. Khóa/mở khóa tài khoản cho đúng 4 vai trò trên — không đụng được tới `ke_toan`/`quan_ly`/`quan_ly_nhan_su` khác.
+3. Xem thống kê toàn hệ thống (UC-39), cùng phạm vi như `quan_ly`.
+4. Chỉ **tài khoản `quan_ly` gốc** (mục 2, mục 8.7 điểm 2) mới tạo được tài khoản `quan_ly_nhan_su` — không tự đăng ký, không được `quan_ly_nhan_su` khác hay `quan_ly` không phải gốc tạo hộ.
 
 ---
 
@@ -352,27 +366,29 @@ Ngoài chở khách, nhà xe còn nhận gửi hàng hóa độc lập — ngư�
 
 ### 10.1. Mô hình dữ liệu
 
-- `don_hang`: `chuyen_id`, `diem_gui_id`/`diem_nhan_id` (tham chiếu `diem_don_tra` — **khác vé hành khách**: cả 2 đầu **bắt buộc là `van_phong`**, không được là `diem_dung`, vì gửi/nhận hàng luôn cần nhân viên gửi hàng thao tác tại quầy ở cả 2 đầu, mục 3.1), `can_nang_kg`, kích thước (dài×rộng×cao hoặc quy đổi thể tích), `loai_hang` (thường/dễ vỡ/hàng lạnh/tài liệu — `quan_ly` cấu hình danh mục; hàng cấm bị chặn ngay khi tạo đơn), `gia_cuoc`, `nguoi_gui`/`nguoi_nhan` (tên + SĐT, không cần tài khoản — **không thu email**, vì đây là người vãng lai không đăng ký tài khoản, khác khách hàng ở mục 2.1), `phuong_thuc_thanh_toan` (`nguoi_gui_tra_truoc` / `cod_nguoi_nhan_tra`), `ma_van_don` (mã tra cứu **duy nhất mỗi đơn**, in trên biên nhận đưa cho người gửi lúc tạo đơn — không gửi qua SMS/email tự động, vì không có kênh nào phù hợp cho người nhận không có tài khoản; dùng làm mã xác minh khi giao hàng, mục 10.3), `trang_thai`.
+- `don_hang`: `tuyen_id` (tuyến khách muốn gửi qua — chọn lúc nhận hàng, **thay vì** chọn 1 chuyến cụ thể, mục 10.2), `chuyen_id` (**nullable** — chỉ có giá trị **sau khi** phụ xe thực sự chất hàng lên 1 chuyến cụ thể, mục 10.2/UC-26; `NULL` nghĩa là đơn còn đang chờ, chưa biết đi chuyến nào), `diem_gui_id`/`diem_nhan_id` (tham chiếu `diem_don_tra` — **khác vé hành khách**: cả 2 đầu **bắt buộc là `van_phong`**, không được là `diem_dung`, vì gửi/nhận hàng luôn cần nhân viên gửi hàng thao tác tại quầy ở cả 2 đầu, mục 3.1), `can_nang_kg`, kích thước (dài×rộng×cao hoặc quy đổi thể tích — vẫn cân đo để nhân viên tham khảo lúc định giá, mục 10.2, **không** dùng để tính sức chứa xe), `loai_hang` (thường/dễ vỡ/hàng lạnh/tài liệu — `quan_ly` cấu hình danh mục; hàng cấm bị chặn ngay khi tạo đơn), `gia_cuoc`, `nguoi_gui`/`nguoi_nhan` (tên + SĐT, không cần tài khoản — **không thu email**, vì đây là người vãng lai không đăng ký tài khoản, khác khách hàng ở mục 2.1), `phuong_thuc_thanh_toan` (`nguoi_gui_tra_truoc` / `cod_nguoi_nhan_tra`), `ma_van_don` (mã tra cứu **duy nhất mỗi đơn**, in trên biên nhận đưa cho người gửi lúc tạo đơn — không gửi qua SMS/email tự động, vì không có kênh nào phù hợp cho người nhận không có tài khoản; dùng làm mã xác minh khi giao hàng, mục 10.3), `trang_thai`.
 - **Chỉ tạo được tại quầy** (`nhan_vien_gui_hang`, mục 8.5 — tách riêng khỏi `nhan_vien_quay_ve`) — không có luồng khách tự đặt gửi hàng online, vì cần cân/đo/kiểm tra hàng thực tế trước khi nhận (quyết định đơn giản hóa có chủ đích, cùng tinh thần với mục 3.4 — nếu nhóm dư thời gian có thể mở thêm luồng "đặt hẹn gửi hàng online" sau, không đổi mô hình dữ liệu ở trên).
-- `loai_xe.suc_chua_hang_kg`: sức chứa khoang hàng tối đa — tách biệt hoàn toàn với sơ đồ ghế, cấu hình theo từng **loại xe** (mục 3.1) chứ không theo từng xe riêng lẻ, vì mọi xe cùng loại giống hệt nhau.
+- **Không còn khái niệm "sức chứa khoang hàng" tính bằng hệ thống** (bỏ hẳn `loai_xe.suc_chua_hang_kg` so với thiết kế trước, mục 10.2) — xếp hàng lên xe thực tế phụ thuộc hình dạng/thể tích, không thể tính đúng chỉ bằng số kg cộng dồn (khác ghế, vốn là 1 vị trí rời rạc đếm được); việc "còn chỗ hay không" giao hẳn cho phụ xe đánh giá trực tiếp lúc chất hàng, hệ thống không tự động chặn/tính toán gì cả.
 - **Giá cước KHÔNG tính tự động** (khác hẳn `gia_ve` — mục 3.1, vốn cố định do `quan_ly` cấu hình): `nhan_vien_gui_hang` **tự nhập tay** `gia_cuoc` trực tiếp khi tạo đơn, dựa trên kinh nghiệm về cân nặng/kích thước/loại hàng/điểm đến — hệ thống chỉ lưu lại đúng số nhân viên nhập, không có công thức hay bảng giá nào ràng buộc/gợi ý.
 
-### 10.2. Chống quá tải theo chặng — biến thể của mục 6: cộng dồn thay vì loại trừ
+### 10.2. Chất hàng lên xe — chọn tuyến trước, xác định chuyến cụ thể lúc xếp hàng thực tế
 
-Khác với ghế (1 ghế chỉ 1 khách/thời điểm — loại trừ lẫn nhau), nhiều đơn hàng **được phép cùng tồn tại** trên 1 đoạn, miễn tổng khối lượng không vượt sức chứa:
+Khác với ghế (mục 6 — hệ thống tự tính chống trùng chính xác bằng số liệu vì ghế là vị trí rời rạc, đếm được), việc "xe còn chỗ chứa hàng hay không" **không tính đúng được chỉ bằng số kg cộng dồn** — 2 kiện hàng nặng bằng nhau có thể khác hẳn về hình dạng/thể tích, chỉ con người đứng trước khoang hàng thực tế mới biết có xếp vừa hay không. Vì vậy hệ thống **không tự động chống quá tải** như với ghế — toàn bộ quyết định "được xếp hay không, xếp được bao nhiêu" thuộc về con người (phụ xe):
 
-- Biểu diễn mỗi đơn hàng bằng khoảng `[thu_tu(diem_gui), thu_tu(diem_nhan))`, giống hệt cách làm với vé (mục 6).
-- Khi tạo đơn hàng mới, trong 1 transaction: khóa toàn bộ đơn hàng active cùng `chuyen_id`, tính **tổng khối lượng các đơn hàng có đoạn giao với đoạn mới** (không phải toàn chuyến), cộng thêm khối lượng đơn mới — nếu vượt `suc_chua_hang_kg` → chặn, báo hết chỗ chứa cho đúng đoạn đó (các đoạn khác của cùng chuyến có thể vẫn còn dư chỗ).
-- **Phương án đơn giản hơn nếu nhóm không đủ thời gian làm chính xác theo đoạn**: kiểm tra tổng khối lượng **toàn chuyến** (không phân biệt đoạn) thay vì theo đoạn giao nhau — an toàn hơn (có thể từ chối oan 1 đơn thực ra vẫn vừa) nhưng cài đặt đơn giản hơn nhiều. `quan_ly`/nhóm tự chọn mức độ phù hợp thời gian còn lại.
+- **Lúc nhận hàng (UC-23, nhân viên gửi hàng)**: khách chỉ cần cho biết muốn gửi tới đâu — nhân viên chọn **tuyến** phù hợp (không phải 1 chuyến cụ thể với giờ chạy nhất định). Đơn hàng tạo ra ở trạng thái `cho_van_chuyen`, gắn `tuyen_id`, **`chuyen_id` để trống** — chưa biết sẽ đi chuyến nào, xe gì, loại xe gì; **bất kỳ xe nào, loại xe nào chạy đúng tuyến này đều hợp lệ để chở**, không ràng buộc gì thêm.
+- **Lúc chất hàng thực tế (UC-26, phụ xe)**: mỗi khi có 1 chuyến (bất kỳ xe/loại xe nào) chuẩn bị xuất phát hoặc đi qua điểm đang đứng, phụ xe xem danh sách đơn hàng đang `cho_van_chuyen` cùng đúng `tuyen_id` với chuyến này, sắp theo **thứ tự thời gian tạo đơn (đơn cũ hiện trước)** — đây là **thứ tự ưu tiên hiển thị để tham khảo, không phải ràng buộc cứng**: phụ xe có thể bỏ qua 1 đơn không xếp vừa (hàng cồng kềnh) để lấy đơn tiếp theo trong danh sách, tùy đánh giá thực tế của mình. Xếp được bao nhiêu đơn hoàn toàn do phụ xe tự quyết theo khoang hàng thực tế của xe đang chạy chuyến đó.
+- Với mỗi đơn phụ xe xác nhận đã xếp lên xe → hệ thống mới gán `chuyen_id` = chuyến đó, chuyển `da_len_xe` (UC-26). Đơn chưa được chọn vẫn giữ nguyên `cho_van_chuyen`, `chuyen_id` vẫn để trống, tự động còn hợp lệ cho chuyến tiếp theo cùng tuyến — **không cần thao tác "dời chuyến" nào**, vì đơn chưa từng gắn với 1 chuyến cụ thể để phải dời.
+- Vẫn cân/đo hàng lúc nhận (`can_nang_kg`, kích thước, mục 10.1) — chỉ để nhân viên gửi hàng tham khảo khi tự định giá cước, **không** dùng để tính toán/chặn sức chứa nào cả.
 
 ### 10.3. Vòng đời đơn hàng
 
 ```
-cho_van_chuyen (đã nhận hàng tại quầy gửi, chờ xe khởi hành)
-  └─ [Chất lên xe khi xe xuất phát/qua điểm gửi] → da_len_xe
-                                                       └─ [Xe tới điểm nhận, phụ xe xác nhận đã dỡ hàng — mục 8.2] → cho_lay
+cho_van_chuyen (đã nhận hàng tại quầy gửi, chuyen_id còn để trống, chờ 1 chuyến bất kỳ cùng tuyen_id có chỗ)
+  └─ [Phụ xe chọn xếp lên 1 chuyến cụ thể — mục 10.2/UC-26, lúc này chuyen_id mới được gán] → da_len_xe
+                                                       └─ [Xe tới điểm nhận, phụ xe xác nhận đã dỡ hàng — mục 8.2] → cho_lay (bắt đầu tính mốc thời gian chờ, mục 10.3.1)
                                                                                    ├─ [Người nhận ra lấy, giao đúng theo mục 10.3.1] → da_giao
-                                                                                   └─ [Quá hạn lưu kho (VD 7 ngày, cấu hình được) không ai lấy] → qua_han_luu_kho (báo `quan_ly` xử lý thủ công — liên hệ người gửi/thanh lý)
+                                                                                   ├─ [Đủ 7 ngày kể từ lúc tới điểm nhận, vẫn chưa ai lấy — UC-46 ⏱] → vẫn cho_lay, chỉ bật cờ cảnh báo, nhắc nhân viên gọi lại (mục 10.3.1)
+                                                                                   └─ [Đủ 14 ngày kể từ lúc tới điểm nhận, vẫn chưa ai lấy — UC-46 ⏱] → qua_han_luu_kho ("hàng tồn", KHÔNG tự hủy — nhân viên xử lý thủ công qua UC-25, liên hệ người gửi/thanh lý)
 ```
 
 #### 10.3.1. Thông báo & xác minh khi giao hàng — không còn kênh tự động (SMS/email), toàn bộ thủ công
@@ -380,10 +396,12 @@ cho_van_chuyen (đã nhận hàng tại quầy gửi, chờ xe khởi hành)
 Khác với khách hàng (có tài khoản + email, mục 2.1), **người gửi/người nhận hàng không có tài khoản và không thu email** — hệ thống không có kênh nào để tự động báo tin cho họ. Toàn bộ khâu thông báo đổi thành thủ công, dựa trên 2 điểm chạm đã có sẵn:
 
 1. **Lúc tạo đơn** (mục 10.4.1): ngoài nhãn dán lên kiện hàng, hệ thống in thêm **1 biên nhận riêng đưa cho người gửi**, ghi rõ `ma_van_don` + điểm nhận + thông tin liên hệ điểm nhận. Người gửi **tự báo mã này cho người nhận** qua liên lạc cá nhân của họ (điện thoại, tin nhắn riêng...) — ngoài phạm vi hệ thống, đúng thói quen thực tế phổ biến khi gửi hàng qua xe khách.
-2. **Khi hàng tới điểm nhận** (`cho_lay`): `nhan_vien_gui_hang` **chủ động gọi điện thoại** cho người nhận theo SĐT trên đơn để báo hàng đã tới (không còn là bước "dự phòng khi cần" như trước — giờ là bước bắt buộc duy nhất để báo tin, vì không còn kênh tự động nào khác). Nhân viên có thể đọc lại `ma_van_don` qua điện thoại nếu người nhận chưa có/quên mã từ người gửi.
-3. Khi người nhận tới quầy, họ đọc `ma_van_don` (đã biết từ người gửi hoặc từ cuộc gọi của nhân viên) cho `nhan_vien_gui_hang` để tra đúng đơn — nếu quên mã, tra theo SĐT + xác minh thêm tên.
-4. Nếu `phuong_thuc_thanh_toan = cod_nguoi_nhan_tra` → thu tiền COD trước khi giao; nếu `nguoi_gui_tra_truoc` → giao thẳng, không thu thêm.
-5. Xác nhận giao → `da_giao`, ghi nhận thời điểm + nhân viên xử lý.
+2. **Khi hàng tới điểm nhận** (`cho_lay`): `nhan_vien_gui_hang` **chủ động gọi điện thoại** cho người nhận theo SĐT trên đơn để báo hàng đã tới (không còn là bước "dự phòng khi cần" như trước — giờ là bước bắt buộc duy nhất để báo tin, vì không còn kênh tự động nào khác). Nhân viên có thể đọc lại `ma_van_don` qua điện thoại nếu người nhận chưa có/quên mã từ người gửi. **Gọi thành công thì tích xác nhận "đã thông báo được người nhận" trên hệ thống** — hệ thống chỉ lưu đúng 1 cờ này (đã/chưa), không đếm số cuộc gọi cụ thể; nếu chưa gọi được ngay, nhân viên tự chủ động thử gọi lại thêm vài lần trong 1-2 ngày đầu theo kinh nghiệm thực tế (không phải quy tắc cứng của hệ thống) trước khi tích được.
+3. **Nếu quá 7 ngày kể từ lúc hàng tới mà vẫn chưa có ai tới lấy** (UC-46 ⏱, tự động): hệ thống bật cờ cảnh báo, nhắc nhân viên xử lý tiếp — nếu **đã** tích "đã thông báo được" trước đó → gọi lại người nhận hỏi khi nào tới lấy, hoặc gọi người gửi nếu cần; nếu **chưa từng** thông báo được (mất liên lạc hoàn toàn với người nhận ngay từ đầu) → chuyển hẳn sang gọi **người gửi** để hỏi hướng xử lý luôn, không cần tiếp tục cố liên lạc người nhận nữa.
+4. **Nếu quá 14 ngày** vẫn chưa ai tới lấy (UC-46 ⏱) → đơn chuyển hẳn "hàng tồn" (`qua_han_luu_kho`) — **không tự hủy**, chờ nhân viên xử lý thủ công theo đúng UC-25 (liên hệ người gửi theo thỏa thuận, hoặc báo `quan_ly` thanh lý nếu không liên hệ được ai).
+5. Khi người nhận tới quầy, họ đọc `ma_van_don` (đã biết từ người gửi hoặc từ cuộc gọi của nhân viên) cho `nhan_vien_gui_hang` để tra đúng đơn — nếu quên mã, tra theo SĐT + xác minh thêm tên.
+6. Nếu `phuong_thuc_thanh_toan = cod_nguoi_nhan_tra` → thu tiền COD trước khi giao; nếu `nguoi_gui_tra_truoc` → giao thẳng, không thu thêm.
+7. Xác nhận giao → `da_giao`, ghi nhận thời điểm + nhân viên xử lý.
 
 ### 10.4. Thao tác cụ thể của nhân viên gửi hàng trên hệ thống
 
@@ -392,16 +410,16 @@ Khác với khách hàng (có tài khoản + email, mục 2.1), **người gửi
 1. Đăng nhập bằng tài khoản `nhan_vien_gui_hang` — hệ thống tự biết điểm gửi = văn phòng nhân viên đang gắn (mục 2), không cần chọn lại.
 2. Vào màn "Tạo đơn gửi hàng" → nhập người gửi (tên + SĐT) và người nhận (tên + SĐT, dùng để nhân viên điểm nhận gọi điện báo khi hàng tới — mục 10.3.1) — cả hai không cần có tài khoản, không thu email.
 3. Chọn **điểm đến** (khu_vực) rồi **văn phòng nhận cụ thể** (`diem_nhan_id`, chỉ được chọn `loai = 'van_phong'`, mục 10.1) trong khu_vực đó — cùng cơ chế 2 tầng điểm đi/đến → điểm đón/trả như đặt vé (mục 3.4).
-4. Hệ thống liệt kê các **chuyến khả dụng** đi từ đúng điểm gửi tới điểm nhận đã chọn (còn nhận hàng — chưa quá giờ chốt trước khi khởi hành, `dieu_do_vien` cấu hình mốc này tương tự chốt danh sách hành khách mục 8.2) → nhân viên chọn 1 chuyến.
-5. Cân/đo hàng thực tế, nhập `can_nang_kg` + kích thước + chọn `loai_hang` từ danh mục có sẵn → hệ thống **tự chặn ngay** nếu là hàng cấm, hoặc nếu vượt sức chứa còn lại của đúng đoạn `[diem_gui, diem_nhan)` trên chuyến đã chọn (mục 10.2) — báo rõ lý do, gợi ý chọn chuyến khác nếu hết chỗ.
+4. Hệ thống xác định **tuyến** đi từ đúng điểm gửi tới điểm nhận đã chọn (nếu có nhiều tuyến cùng nối 2 điểm này, nhân viên chọn 1) — **không chọn chuyến cụ thể nào cả** (mục 10.2): bất kỳ chuyến nào sau này chạy đúng tuyến này, dù xe gì, loại xe gì, cũng hợp lệ để chở đơn hàng.
+5. Cân/đo hàng thực tế, nhập `can_nang_kg` + kích thước + chọn `loai_hang` từ danh mục có sẵn → hệ thống **tự chặn ngay** nếu là hàng cấm (mục 10.2 — **không** còn kiểm tra sức chứa gì ở bước này, việc đó để phụ xe tự đánh giá lúc chất hàng thực tế).
 6. Nhân viên **tự nhập `gia_cuoc`** dựa trên cân nặng, loại hàng, điểm đến vừa chọn (kinh nghiệm cá nhân — hệ thống không tự tính, không gợi ý), rồi báo giá cho khách xác nhận trước khi tạo đơn.
 7. Chọn `phuong_thuc_thanh_toan`: `nguoi_gui_tra_truoc` (thu tiền mặt ngay tại đây) hoặc `cod_nguoi_nhan_tra` (không thu, để người nhận trả).
 8. Xác nhận tạo đơn → hệ thống sinh `ma_van_don`, đơn chuyển `cho_van_chuyen`, in **2 bản**: (a) nhãn dán lên kiện hàng (mã vận đơn + điểm đến + SĐT người nhận) để phụ xe và nhân viên điểm nhận đối chiếu, và (b) **biên nhận riêng đưa cho người gửi** (mục 10.3.1) để họ tự báo mã vận đơn cho người nhận.
-9. Nhân viên dán nhãn, xếp hàng vào khu vực chờ đúng chuyến.
+9. Nhân viên dán nhãn, xếp hàng vào khu vực chờ đúng **tuyến** (chưa biết chuyến cụ thể nào, mục 10.2) — chờ phụ xe chọn xếp lên 1 chuyến bất kỳ đi tuyến này (UC-26).
 
 #### 10.4.2. Khi khách tới **nhận** hàng
 
-1. Đăng nhập bằng tài khoản `nhan_vien_gui_hang` tại điểm nhận. Xem "Danh sách đơn đang chờ lấy tại điểm mình" (trạng thái `cho_lay`) — với đơn vừa chuyển sang trạng thái này, **chủ động gọi điện báo người nhận ngay** (mục 10.3.1, không còn kênh tự động nào khác) thay vì chờ họ tự tới.
+1. Đăng nhập bằng tài khoản `nhan_vien_gui_hang` tại điểm nhận. Xem "Danh sách đơn đang chờ lấy tại điểm mình" (trạng thái `cho_lay`, có đánh dấu riêng đơn nào đang cảnh báo chờ quá 7 ngày — mục 10.3.1) — với đơn vừa chuyển sang trạng thái này, **chủ động gọi điện báo người nhận ngay** (mục 10.3.1, không còn kênh tự động nào khác) thay vì chờ họ tự tới, rồi **tích xác nhận "đã thông báo được"** trên hệ thống nếu gọi thành công.
 2. Vào màn "Tra cứu / Giao hàng" → nhập `ma_van_don` người nhận đọc (đã biết từ người gửi hoặc từ cuộc gọi ở điểm 1). Nếu người nhận làm mất/quên mã, tra theo SĐT + xác minh thêm tên để tìm đúng đơn.
 3. Hệ thống hiện chi tiết đơn (người gửi/nhận, cân nặng, cước, phương thức thanh toán) — chỉ cho giao tiếp nếu trạng thái đúng là `cho_lay` (chặn nếu hàng chưa tới hoặc đã giao rồi, tránh giao nhầm/giao 2 lần).
 4. Nếu `cod_nguoi_nhan_tra` → hệ thống hiện số tiền cần thu, nhân viên thu tiền mặt, xác nhận đã thu trên hệ thống trước khi cho giao.
@@ -409,7 +427,7 @@ Khác với khách hàng (có tài khoản + email, mục 2.1), **người gửi
 
 ### 10.5. Luồng theo vai trò
 
-Trách nhiệm cụ thể theo từng vai trò đã mô tả tại đúng mục của vai trò đó, không lặp lại ở đây: `nhan_vien_gui_hang` (mục 8.5, và chi tiết thao tác ở mục 10.4 — nhận/giao hàng, tính cước, xử lý quá hạn lưu kho), `nhan_vien_van_hanh`/phụ xe (mục 8.2, điểm 9 — xác nhận chất/dỡ hàng song song soát vé), `dieu_do_vien` (mục 8.6, điểm 2 — theo dõi khối lượng hàng theo chuyến), `quan_ly` (mục 8.7, điểm 1 — cấu hình sức chứa/cước/danh mục hàng).
+Trách nhiệm cụ thể theo từng vai trò đã mô tả tại đúng mục của vai trò đó, không lặp lại ở đây: `nhan_vien_gui_hang` (mục 8.5, và chi tiết thao tác ở mục 10.4 — nhận/giao hàng, tính cước, xử lý quá hạn lưu kho), `nhan_vien_van_hanh`/phụ xe (mục 8.2, điểm 9 — xác nhận chất/dỡ hàng song song soát vé, **tự quyết định chọn đơn nào lên xe** theo mục 10.2), `quan_ly` (mục 8.7, điểm 1 — cấu hình danh mục hàng cấm/loại hàng; **không còn cấu hình sức chứa** vì đã bỏ cơ chế tính tự động, mục 10.2).
 
 ---
 
@@ -417,50 +435,52 @@ Trách nhiệm cụ thể theo từng vai trò đã mô tả tại đúng mục 
 
 **Nguyên tắc đánh số lại (quan trọng)**: mỗi use case dưới đây chỉ ứng với **đúng 1 trigger và 1 luồng liên tục** — không gộp nhiều sự kiện độc lập (khác thời điểm/khác actor kích hoạt) vào chung 1 use case, để mỗi use case vẽ được **đúng 1 activity diagram hoàn chỉnh**, không bị rẽ nhánh không cùng phiên hoặc lai giữa nhiều đích khác nhau. Ký hiệu `⏱` = trigger là thời gian (job hệ thống), không phải actor người dùng bấm — không nối actor nào trên sơ đồ use case, nhưng vẫn cần 1 activity diagram riêng (mục 12). Ký hiệu `⚠` = **use case ngoại lệ**: chỉ xảy ra khi có sự cố bất thường (xe hỏng, tai nạn...), **không phải thao tác thường ngày** của actor — vẫn vẽ như use case bình thường trên sơ đồ (actor có thực hiện), chỉ khác ở chỗ tần suất/điều kiện kích hoạt, đã ghi rõ trong "Tiền điều kiện" của từng UC.
 
-| # | Use case | khách hàng | phụ xe | tài xế | nhân viên quầy vé | nhân viên gửi hàng | điều độ viên | kế toán | quản lý |
-|---|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| UC-01 | Đăng ký tài khoản | ✅ | — | — | — | — | — | — | — |
-| UC-02 | Đăng nhập | ✅ | ✅ | — (không có tài khoản) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| UC-03 | Quên mật khẩu | ✅ | ✅ | — (không có tài khoản) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| UC-04 | Tra cứu chuyến công khai | ✅ (không cần đăng nhập) | — | — | — | — | — | — | — |
-| UC-05 | Đặt vé online (chọn ghế, giữ chỗ, thanh toán) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| UC-08 | Hủy giữ chỗ trước khi thanh toán | ✅ (của mình) | ❌ | ❌ | ✅ (thay khách hotline) | ❌ | ❌ | ❌ | ❌ |
-| UC-09 | Bán vé tại quầy | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| UC-10 | Bán vé qua hotline | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| UC-11 | In vé cứng cho khách đặt online/hotline | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| UC-12 | Xác nhận khách lên xe | ❌ | ✅ | — (không có tài khoản) | ❌ | ❌ | ❌ | ❌ | ❌ |
-| UC-13 | Xác nhận khách xuống xe | ❌ | ✅ | — (không có tài khoản) | ❌ | ❌ | ❌ | ❌ | ❌ |
-| UC-14 | Đánh dấu no-show tự động ⏱ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| UC-15 | Xác nhận xuất phát | ❌ | ✅ | — (không có tài khoản) | ❌ | ❌ | ❌ | ❌ | ❌ |
-| UC-16 | Xác nhận đến điểm (trung gian/cuối cùng) | ❌ | ✅ | — (không có tài khoản) | ❌ | ❌ | ❌ | ❌ | ❌ |
-| UC-17 | Báo sự cố giữa đường | ❌ | ✅ | — (không có tài khoản) | ❌ | ❌ | ❌ | ❌ | ❌ |
-| UC-18 | Thiết lập lịch chạy định kỳ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| UC-19 | Xử lý sự cố giữa đường ⚠ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| UC-20 | Đổi xe trước giờ khởi hành ⚠ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| UC-21 | Tự động tính & thông báo hoàn tiền ⏱ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| UC-22 | Kế toán chuyển khoản hoàn tiền | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| UC-23 | Nhận/gửi hàng tại quầy, tính cước | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| UC-24 | Giao hàng cho người nhận, thu COD | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| UC-25 | Xử lý hàng quá hạn lưu kho | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| UC-26 | Xác nhận chất hàng lên xe | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| UC-27 | Xác nhận dỡ hàng khỏi xe | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| UC-28 | Báo thất lạc/hư hỏng hàng | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| UC-29 | Quản lý khu vực | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| UC-30 | Quản lý điểm đón/trả | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| UC-31 | Tạo tuyến | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| UC-32 | Quản lý loại xe | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| UC-33 | Cấu hình giá vé | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| UC-34 | Quản lý xe | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| UC-35 | Quản lý biên chế xe | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| UC-36 | Tạo tài khoản cán bộ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| UC-37 | Khóa tài khoản | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| UC-38 | Mở khóa tài khoản | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| UC-39 | Xem thống kê doanh thu/vận hành | ❌ | ✅ (chuyến mình) | — (không có tài khoản) | ✅ (vé, điểm mình) | ✅ (hàng, điểm mình) | ✅ (điểm/tuyến mình) | ❌ | ✅ (toàn hệ thống) |
-| UC-40 | Gán lại xe gốc cho chuyến đang chạy thay ⚠ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| UC-41 | Hủy vé nhận hoàn toàn bộ khi chuyến đang hoãn ⚠ | ✅ (của mình) | ❌ | ❌ | ✅ (thay khách hotline) | ❌ | ❌ | ❌ | ❌ |
-| UC-42 | Hủy vé nhận hoàn toàn bộ khi chuyến gặp sự cố do lỗi nhà xe giữa đường ⚠ | ✅ (của mình) | ❌ | ❌ | ✅ (thay khách hotline) | ❌ | ❌ | ❌ | ❌ |
-| UC-43 | Tự động hoàn tiền cho khách chờ quá 3 tiếng do lỗi nhà xe (vẫn phục vụ) ⏱ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| UC-44 | Gán xe cho chuyến | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| # | Use case | khách hàng | phụ xe | tài xế | nhân viên quầy vé | nhân viên gửi hàng | điều độ viên | kế toán | quản lý nhân sự | quản lý |
+|---|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| UC-01 | Đăng ký tài khoản | ✅ | — | — | — | — | — | — | — | — |
+| UC-02 | Đăng nhập | ✅ | ✅ | — (không có tài khoản) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| UC-03 | Quên mật khẩu | ✅ | ✅ | — (không có tài khoản) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| UC-04 | Tra cứu chuyến công khai | ✅ (không cần đăng nhập) | — | — | — | — | — | — | — | — |
+| UC-05 | Đặt vé online (chọn ghế, giữ chỗ, thanh toán) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| UC-08 | Hủy giữ chỗ trước khi thanh toán | ✅ (của mình) | ❌ | ❌ | ✅ (thay khách hotline) | ❌ | ❌ | ❌ | ❌ | ❌ |
+| UC-09 | Bán vé tại quầy | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| UC-10 | Bán vé qua hotline | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| UC-11 | In vé cứng cho khách đặt online/hotline | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| UC-12 | Xác nhận khách lên xe | ❌ | ✅ | — (không có tài khoản) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| UC-13 | Xác nhận khách xuống xe | ❌ | ✅ | — (không có tài khoản) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| UC-14 | Đánh dấu no-show tự động ⏱ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| UC-15 | Xác nhận xuất phát | ❌ | ✅ | — (không có tài khoản) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| UC-16 | Xác nhận đến điểm (trung gian/cuối cùng) | ❌ | ✅ | — (không có tài khoản) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| UC-17 | Báo sự cố giữa đường | ❌ | ✅ | — (không có tài khoản) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| UC-18 | Thiết lập lịch chạy định kỳ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| UC-19 | Xử lý sự cố giữa đường ⚠ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| UC-20 | Đổi xe trước giờ khởi hành ⚠ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| UC-21 | Tự động tính & thông báo hoàn tiền ⏱ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| UC-22 | Kế toán chuyển khoản hoàn tiền | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| UC-23 | Nhận/gửi hàng tại quầy, tính cước | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| UC-24 | Giao hàng cho người nhận, thu COD | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| UC-25 | Xử lý hàng quá hạn lưu kho | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| UC-26 | Xác nhận chất hàng lên xe | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| UC-27 | Xác nhận dỡ hàng khỏi xe | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| UC-28 | Báo thất lạc/hư hỏng hàng | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| UC-29 | Quản lý khu vực | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| UC-30 | Quản lý điểm đón/trả | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| UC-31 | Tạo tuyến | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| UC-32 | Quản lý loại xe | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| UC-33 | Cấu hình giá vé | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| UC-34 | Quản lý xe | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| UC-35 | Quản lý biên chế xe | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| UC-36 | Tạo tài khoản cán bộ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ (4 vai trò vận hành, không `ke_toan`/`quan_ly`/`quan_ly_nhan_su`) | ✅ (mọi vai trò; `quan_ly`/`quan_ly_nhan_su` chỉ tài khoản gốc tạo được) |
+| UC-37 | Khóa tài khoản | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ (4 vai trò vận hành, không `ke_toan`/`quan_ly`/`quan_ly_nhan_su`) | ✅ (mọi tài khoản; riêng `quan_ly` gốc không ai khóa được) |
+| UC-38 | Mở khóa tài khoản | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ (4 vai trò vận hành, không `ke_toan`/`quan_ly`/`quan_ly_nhan_su`) | ✅ (mọi tài khoản) |
+| UC-39 | Xem thống kê doanh thu/vận hành | ❌ | ✅ (chuyến mình) | — (không có tài khoản) | ✅ (vé, điểm mình) | ✅ (hàng, điểm mình) | ✅ (điểm/tuyến mình) | ❌ | ✅ (toàn hệ thống) | ✅ (toàn hệ thống) |
+| UC-40 | Gán lại xe gốc cho chuyến đang chạy thay ⚠ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| UC-41 | Hủy vé nhận hoàn toàn bộ khi chuyến đang hoãn ⚠ | ✅ (của mình) | ❌ | ❌ | ✅ (thay khách hotline) | ❌ | ❌ | ❌ | ❌ | ❌ |
+| UC-42 | Hủy vé nhận hoàn toàn bộ khi chuyến gặp sự cố do lỗi nhà xe giữa đường ⚠ | ✅ (của mình) | ❌ | ❌ | ✅ (thay khách hotline) | ❌ | ❌ | ❌ | ❌ | ❌ |
+| UC-43 | Tự động hoàn tiền cho khách chờ quá 3 tiếng do lỗi nhà xe (vẫn phục vụ) ⏱ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| UC-44 | Gán xe cho chuyến | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| UC-45 | Tự động chuyển "đang hoãn" khi tới giờ chạy mà chưa gán được xe ⏱ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| UC-46 | Tự động cảnh báo và chuyển "hàng tồn" khi hàng chờ quá lâu tại điểm nhận ⏱ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 **Về "tài xế"**: không có dòng nào tài xế thực hiện — đúng như mục 8.3, chỉ cung cấp thông tin bằng lời cho phụ xe trong UC-17.
 
@@ -709,9 +729,21 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
   4. Chọn 1 xe cụ thể.
   5. Hệ thống cập nhật `xe_id` cho chuyến — tài xế/phụ xe **tự suy ra** từ biên chế cố định của xe, không có bước chọn người nào. Biển số xe từ đây hiển thị cho khách đã đặt vé trên chuyến này.
 - **Luồng rẽ nhánh**:
-  - Tại bước 3: không có xe nào đủ điều kiện → báo lỗi, gợi ý chờ xe khác rảnh → kết thúc/thử lại.
+  - Tại bước 3: không có xe nào đủ điều kiện → báo lỗi, gợi ý chờ xe khác rảnh → kết thúc/thử lại. Nếu đã tới đúng `gio_khoi_hanh` mà vẫn chưa gán được → hệ thống tự động chuyển "đang hoãn" (UC-45 ⏱) — điều độ viên tiếp tục quay lại bước 1 cho tới khi có xe.
   - Chuyến đã có `xe_id` từ trước (điều độ viên muốn đổi xe) → thực hiện lại bước 3-5 để gán xe khác, không giới hạn số lần đổi, miễn còn trước giờ khởi hành và đúng `loai_xe`.
+  - Chuyến đang "đang hoãn" do UC-45 (chưa từng có `xe_id`) → gán xe vẫn qua đúng bước 3-5, chỉ khác lúc thành công thì tắt luôn cờ "đang hoãn" thay vì chỉ cập nhật `xe_id` đơn thuần.
 - **Hậu điều kiện**: Chuyến có `xe_id` cụ thể, sẵn sàng cho các bước vận hành tiếp theo (UC-15 trở đi).
+
+### UC-45. Tự động chuyển "đang hoãn" khi tới giờ chạy mà chưa gán được xe ⏱
+
+- **Actor**: Hệ thống (job định kỳ — không phải actor người dùng thao tác trực tiếp).
+- **Tiền điều kiện**: Chuyến `chua_khoi_hanh`, đã tới đúng `gio_khoi_hanh` đã lên lịch mà `xe_id` vẫn `NULL` (điều độ viên chưa gán được xe nào qua UC-44, dù đã có nhắc từ ngưỡng 48 tiếng, mục 3.5).
+- **Mục đích**: đảm bảo chuyến chưa từng có xe cũng được đối xử công bằng như chuyến có xe rồi hỏng (UC-20) — không âm thầm trễ vô thời hạn mà không ai biết, khách đã trả tiền vẫn có quyền lợi hủy nhận hoàn rõ ràng như mọi trường hợp "đang hoãn" khác.
+- **Luồng chính** (mục 3.3):
+  1. Job quét các chuyến `chua_khoi_hanh` có `gio_khoi_hanh ≤ now()` và `xe_id IS NULL`.
+  2. Bật cờ `dang_hoan = true`, cập nhật `gio_khoi_hanh` sang thời điểm dự kiến mới (tạm thời — điều độ viên cập nhật lại khi có ước tính cụ thể hơn).
+  3. Gửi thông báo WebSocket cho khách đã có vé trên chuyến này.
+- **Hậu điều kiện**: Chuyến ở đúng trạng thái "đang hoãn" như UC-20 — điều độ viên tiếp tục tìm xe qua UC-44; khi tìm được, gán **thẳng vào `xe_id`** (không qua `xe_thuc_te_id` — chưa từng có xe gốc nào để giữ nguyên), tắt cờ "đang hoãn". Vé `da_thanh_toan` trên chuyến này có quyền chủ động hủy nhận hoàn 100% trong lúc chờ (UC-41).
 
 ### UC-19. Xử lý sự cố giữa đường ⚠
 
@@ -735,7 +767,7 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
 ### UC-20. Đổi xe trước giờ khởi hành ⚠
 
 - **Actor**: Điều độ viên. **Use case ngoại lệ ⚠** — chỉ chạy khi xe gán cho chuyến không thể có mặt đúng vị trí/giờ khởi hành, không phải thao tác thường ngày (chuyến bình thường giữ nguyên xe đã gán ở UC-44).
-- **Tiền điều kiện**: Chuyến `chua_khoi_hanh`, xe gốc không thể có mặt đúng vị trí/giờ khởi hành — do **xe hỏng đột xuất** (trực tiếp), hoặc do **chuyến trước đó của cùng xe gặp sự cố giữa đường** khiến xe bị delay/lệch vị trí không tới kịp (mục 3.3, gắn cờ cảnh báo xung đột vị trí).
+- **Tiền điều kiện**: Chuyến `chua_khoi_hanh`, **đã có `xe_id`** (đã từng gán xe qua UC-44) nhưng xe gốc không thể có mặt đúng vị trí/giờ khởi hành — do **xe hỏng đột xuất** (trực tiếp), hoặc do **chuyến trước đó của cùng xe gặp sự cố giữa đường** khiến xe bị delay/lệch vị trí không tới kịp (mục 3.3, gắn cờ cảnh báo xung đột vị trí). Trường hợp chuyến **chưa từng được gán xe** (`xe_id` vẫn `NULL`) mà đã tới giờ khởi hành xem UC-45 — không dùng UC này vì không có "xe gốc" nào để giữ nguyên.
 - **Mục đích**: gán 1 **xe thực tế** (`xe_thuc_te_id`) tạm thời chạy thay — **không đổi xe gốc** (`chuyen_xe.xe_id`) của chuyến, để biên chế tài xế/phụ xe (suy ra từ xe gốc, mục 3.2) không bị xáo trộn. **Chuyến không bao giờ bị hủy vì lý do này** (mục 1, mục 3.3) — chỉ hoãn giờ khởi hành nếu chưa tìm được xe kịp.
 - **Luồng chính** (mục 3.3):
   1. Hệ thống liệt kê xe thay thế đủ điều kiện theo thứ tự ưu tiên: xe dự phòng cùng `loai_xe` trong đội xe trước, rồi tới xe thuê/mượn ngoài đội xe (điều độ viên thêm tạm nếu cần) — cả 2 đều bắt buộc cùng `loai_xe` với xe gốc, đúng vị trí, không trùng lịch riêng.
@@ -785,20 +817,18 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
 - **Luồng chính** (mục 8.5 điểm 1, mục 10.4.1):
   1. Nhập thông tin người gửi + người nhận (tên + SĐT).
   2. Chọn điểm đến (khu_vực) → chọn văn phòng nhận cụ thể.
-  3. Hệ thống liệt kê các chuyến khả dụng (đi từ điểm gửi tới điểm nhận, còn nhận hàng theo giờ chốt).
-  4. Chọn 1 chuyến.
-  5. Cân/đo hàng thực tế, nhập cân nặng + kích thước, chọn loại hàng.
-  6. Hệ thống kiểm tra hàng cấm và sức chứa còn lại của đoạn.
-  7. Nhập giá cước, báo giá cho khách xác nhận.
-  8. Chọn phương thức thanh toán.
-  9. Tạo `don_hang` trạng thái `cho_van_chuyen`, in biên nhận + mã vận đơn cho người gửi.
+  3. Hệ thống xác định **tuyến** đi từ điểm gửi tới điểm nhận (nếu có nhiều tuyến cùng nối 2 điểm này, nhân viên chọn 1) — **không chọn chuyến cụ thể** (mục 10.2).
+  4. Cân/đo hàng thực tế, nhập cân nặng + kích thước, chọn loại hàng.
+  5. Hệ thống kiểm tra hàng cấm.
+  6. Nhập giá cước, báo giá cho khách xác nhận.
+  7. Chọn phương thức thanh toán.
+  8. Tạo `don_hang` trạng thái `cho_van_chuyen` (gắn `tuyen_id`, `chuyen_id` để trống), in biên nhận + mã vận đơn cho người gửi.
 - **Luồng rẽ nhánh**:
-  - Tại bước 3: không có chuyến nào khả dụng → báo lỗi, hẹn khách chọn ngày khác → kết thúc.
-  - Tại bước 6: hàng cấm → chặn ngay, từ chối nhận → kết thúc.
-  - Tại bước 6: vượt sức chứa đoạn đó → báo hết chỗ, gợi ý chọn chuyến khác → quay lại bước 4.
-  - Tại bước 8: người gửi trả trước → thu tiền mặt ngay.
-  - Tại bước 8: COD → không thu, để người nhận trả sau.
-- **Hậu điều kiện**: Đơn hàng `cho_van_chuyen`, sẵn sàng chờ chất lên xe (UC-26).
+  - Tại bước 3: không có tuyến nào nối 2 điểm này → báo lỗi, từ chối nhận → kết thúc.
+  - Tại bước 5: hàng cấm → chặn ngay, từ chối nhận → kết thúc.
+  - Tại bước 7: người gửi trả trước → thu tiền mặt ngay.
+  - Tại bước 7: COD → không thu, để người nhận trả sau.
+- **Hậu điều kiện**: Đơn hàng `cho_van_chuyen`, chưa gắn chuyến cụ thể nào, sẵn sàng chờ phụ xe chọn xếp lên 1 chuyến cùng tuyến bất kỳ (UC-26).
 
 ### UC-24. Giao hàng cho người nhận, thu COD
 
@@ -815,29 +845,44 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
   - Tại bước 3: người gửi đã trả trước → giao thẳng, không thu thêm → sang bước 4.
 - **Hậu điều kiện**: Đơn hàng `da_giao`.
 
-### UC-25. Xử lý hàng quá hạn lưu kho
+### UC-25. Xử lý hàng chờ quá lâu tại điểm nhận
 
 - **Actor**: Nhân viên gửi hàng.
-- **Tiền điều kiện**: Đơn hàng `cho_lay` quá X ngày (VD 7 ngày, cấu hình được) mà không ai tới lấy (mục 10.3).
+- **Tiền điều kiện**: Đơn hàng `cho_lay` đang có cờ cảnh báo (đủ 7 ngày, UC-46) hoặc đã chuyển `qua_han_luu_kho`/"hàng tồn" (đủ 14 ngày, UC-46) mà chưa ai tới lấy (mục 10.3/10.3.1).
 - **Luồng chính**:
-  1. Hệ thống/nhân viên phát hiện đơn hàng quá hạn lưu kho.
-  2. Đơn hàng chuyển `qua_han_luu_kho`.
-  3. Nhân viên gửi hàng liên hệ người gửi.
+  1. Xem danh sách đơn đang cảnh báo/hàng tồn tại điểm mình.
+  2. Kiểm tra đơn này trước đó đã từng thông báo được người nhận chưa (mục 10.3.1).
+  3. Liên hệ theo đúng tình huống (xem luồng rẽ nhánh).
 - **Luồng rẽ nhánh**:
-  - Liên hệ được người gửi → xử lý theo thỏa thuận (gửi lại/hoàn/hủy hàng) → kết thúc.
-  - Không liên hệ được → báo `quan_ly` xử lý thủ công (thanh lý) → kết thúc.
-- **Hậu điều kiện**: Đơn hàng `qua_han_luu_kho`, xử lý xong hoặc chờ `quan_ly`.
+  - Đã từng thông báo được người nhận → gọi lại người nhận, hỏi khi nào tới lấy hoặc hướng xử lý khác (VD nhờ người khác lấy hộ).
+  - Chưa từng thông báo được người nhận (mất liên lạc hoàn toàn từ đầu) → gọi thẳng người gửi để hỏi hướng xử lý.
+  - Liên hệ được (người nhận hoặc người gửi), có hướng xử lý rõ ràng → xử lý theo thỏa thuận (chờ thêm, gửi lại, hoàn, hoặc hủy hàng) → kết thúc.
+  - Không liên hệ được ai (cả người nhận lẫn người gửi) → báo `quan_ly` xử lý thủ công (thanh lý) → kết thúc.
+- **Hậu điều kiện**: Đơn hàng được xử lý theo thỏa thuận, hoặc chờ `quan_ly` thanh lý nếu không liên hệ được ai.
+
+### UC-46. Tự động cảnh báo và chuyển "hàng tồn" khi hàng chờ quá lâu tại điểm nhận ⏱
+
+- **Actor**: Hệ thống (job định kỳ — không phải actor người dùng thao tác trực tiếp).
+- **Tiền điều kiện**: Đơn hàng `cho_lay`, đã đủ 7 ngày hoặc 14 ngày kể từ lúc hàng thực sự tới điểm nhận (phụ xe xác nhận dỡ hàng, UC-27) mà vẫn chưa `da_giao`.
+- **Luồng chính** (mục 10.3/10.3.1):
+  1. Job quét các đơn hàng `cho_lay` đã đủ 7 ngày kể từ lúc tới điểm nhận, chưa có cờ cảnh báo → bật cờ cảnh báo, gửi thông báo nhắc nhân viên gửi hàng tại điểm đó xử lý (dẫn sang UC-25).
+  2. Job quét các đơn hàng `cho_lay` đã đủ 14 ngày kể từ lúc tới điểm nhận → chuyển hẳn `qua_han_luu_kho` ("hàng tồn").
+- **Luồng rẽ nhánh**: Không có nhánh nào tự động hủy hay thanh lý — cả 2 mốc trên chỉ đổi cờ/trạng thái để **nhắc con người xử lý** (UC-25), đúng nguyên tắc không tự động hủy hàng của khách.
+- **Hậu điều kiện**: Đơn có cờ cảnh báo (mốc 7 ngày) hoặc chuyển `qua_han_luu_kho` (mốc 14 ngày) — hàng vẫn được giữ nguyên, không mất, chờ xử lý thủ công.
 
 ### UC-26. Xác nhận chất hàng lên xe
 
-- **Actor**: Phụ xe. **Lưu ý**: việc bê/chất hàng lên xe là hành động vật lý ngoài hệ thống (do phụ xe hoặc nhân viên bốc xếp thực hiện tay chân) — thao tác **trên hệ thống** chỉ là bấm xác nhận sau khi đã chất xong, y hệt cách UC-12 không phải là hành động khách tự bước lên xe.
-- **Tiền điều kiện**: Đơn hàng `cho_van_chuyen`, xe đang tại/đi qua điểm gửi lúc xuất phát, hàng đã được chất lên xe trên thực tế.
-- **Luồng chính** (mục 8.2 điểm 9, mục 10.3):
-  1. Xác nhận chất hàng lên xe.
-  2. Đơn hàng chuyển `da_len_xe`.
+- **Actor**: Phụ xe. **Lưu ý**: việc bê/chất hàng lên xe là hành động vật lý ngoài hệ thống (do phụ xe hoặc nhân viên bốc xếp thực hiện tay chân) — thao tác **trên hệ thống** chỉ là bấm xác nhận sau khi đã chất xong, y hệt cách UC-12 không phải là hành động khách tự bước lên xe. **Đây cũng là bước duy nhất xác định đơn hàng đi chuyến nào** (mục 10.2) — trước đó đơn chỉ gắn `tuyen_id`, chưa có `chuyen_id`.
+- **Tiền điều kiện**: Chuyến `chua_khoi_hanh`/`dang_chay` đang tại hoặc chuẩn bị đi qua điểm gửi, có đơn hàng `cho_van_chuyen` cùng `tuyen_id` đang chờ tại điểm đó.
+- **Luồng chính** (mục 8.2 điểm 9, mục 10.2, mục 10.3):
+  1. Xem danh sách đơn hàng đang `cho_van_chuyen` cùng `tuyen_id` với chuyến này, còn chờ tại điểm đang đứng — sắp theo thứ tự thời gian tạo đơn (đơn cũ hiện trước, chỉ mang tính tham khảo).
+  2. Phụ xe tự đánh giá khoang hàng thực tế, chọn lần lượt từng đơn để chất lên xe (có thể bỏ qua 1 đơn không xếp vừa, chọn đơn khác trong danh sách).
+  3. Với mỗi đơn đã chất xong ngoài thực tế → bấm xác nhận trên hệ thống.
+  4. Hệ thống gán `chuyen_id` = chuyến này cho đơn đó, chuyển `da_len_xe`.
 - **Luồng rẽ nhánh**:
   - Phát hiện hư hỏng ngay lúc chất hàng → xem UC-28 (không chặn luồng chính).
-- **Hậu điều kiện**: Đơn hàng `da_len_xe`.
+  - Đơn hàng không được chọn (hết chỗ, hoặc không xếp vừa) → giữ nguyên `cho_van_chuyen`, `chuyen_id` vẫn để trống, tiếp tục hợp lệ cho chuyến sau cùng tuyến — không cần thao tác gì thêm.
+- **Hậu điều kiện**: Đơn hàng được chọn chuyển `da_len_xe`, gắn đúng `chuyen_id`; đơn chưa được chọn vẫn `cho_van_chuyen`, chờ chuyến tiếp theo.
 
 ### UC-27. Xác nhận dỡ hàng khỏi xe
 
@@ -845,7 +890,7 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
 - **Tiền điều kiện**: Đơn hàng `da_len_xe`, xe tới điểm nhận, hàng đã được dỡ khỏi xe trên thực tế.
 - **Luồng chính** (mục 8.2 điểm 9, mục 10.3):
   1. Xác nhận dỡ hàng khỏi xe.
-  2. Đơn hàng chuyển `cho_lay` (dẫn sang UC-24).
+  2. Đơn hàng chuyển `cho_lay`, ghi nhận thời điểm này (mốc bắt đầu tính 7/14 ngày cho UC-46, mục 10.3.1) — dẫn sang UC-24.
 - **Luồng rẽ nhánh**:
   - Phát hiện thất lạc/hư hỏng lúc dỡ hàng → xem UC-28 (không chặn luồng chính).
 - **Hậu điều kiện**: Đơn hàng `cho_lay`.
@@ -935,37 +980,49 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
 
 ### UC-36. Tạo tài khoản cán bộ
 
-- **Actor**: Quản lý.
-- **Luồng chính** (mục 8.7 điểm 2):
-  1. Nhập email + vai trò (nhân viên vận hành/quầy vé/gửi hàng/điều độ viên/kế toán) + văn phòng phụ trách (bắt buộc trừ `ke_toan`/`quan_ly` — không gắn văn phòng, mục 2).
-  2. Hệ thống tạo tài khoản trạng thái "chưa đặt mật khẩu", gửi email mời.
-  3. Cán bộ nhận email, bấm liên kết, tự đặt mật khẩu lần đầu.
+- **Actor**: Quản lý (bất kỳ, gốc hay không), hoặc Quản lý nhân sự (phạm vi hẹp hơn).
+- **Luồng chính** (mục 8.7 điểm 2, mục 8.9):
+  1. Nhập email + vai trò muốn tạo (nhân viên vận hành/quầy vé/gửi hàng/điều độ viên/kế toán/quản lý/quản lý nhân sự) + văn phòng phụ trách (bắt buộc trừ `ke_toan`/`quan_ly`/`quan_ly_nhan_su` — không gắn văn phòng, mục 2).
+  2. Hệ thống kiểm tra actor đang đăng nhập có quyền tạo đúng vai trò vừa chọn hay không (xem luồng rẽ nhánh).
+  3. Hệ thống tạo tài khoản trạng thái "chưa đặt mật khẩu", gửi email mời.
+  4. Cán bộ nhận email, bấm liên kết, tự đặt mật khẩu lần đầu.
 - **Luồng rẽ nhánh**:
-  - Tại bước 2: email đã tồn tại → báo lỗi → nhập lại.
+  - Tại bước 1: email đã tồn tại → báo lỗi → nhập lại.
+  - Tại bước 2: actor là `quan_ly_nhan_su` nhưng vai trò muốn tạo là `ke_toan`/`quan_ly`/`quan_ly_nhan_su` → chặn, báo "không đủ quyền" → kết thúc.
+  - Tại bước 2: actor là `quan_ly` **không phải tài khoản gốc** nhưng vai trò muốn tạo là `quan_ly` hoặc `quan_ly_nhan_su` → chặn, báo "chỉ tài khoản quản lý gốc mới tạo được" → kết thúc.
+  - Tại bước 2: các trường hợp còn lại (đúng quyền) → tiếp tục bước 3.
 - **Hậu điều kiện**: Cán bộ có tài khoản, đăng nhập được (UC-02).
 
 ### UC-37. Khóa tài khoản
 
-- **Actor**: Quản lý.
-- **Luồng chính** (mục 8.7 điểm 5):
+- **Actor**: Quản lý (bất kỳ), hoặc Quản lý nhân sự (phạm vi hẹp hơn).
+- **Luồng chính** (mục 8.7 điểm 5, mục 8.9):
   1. Tìm tài khoản (khách hàng hoặc cán bộ) cần khóa.
-  2. Nhập lý do (nếu có).
-  3. Đặt `dang_hoat_dong = false` (hoặc `bi_khoa = true` với khách hàng no-show, mục 9).
+  2. Hệ thống kiểm tra actor có quyền khóa đúng tài khoản mục tiêu hay không (xem luồng rẽ nhánh).
+  3. Nhập lý do (nếu có).
+  4. Đặt `dang_hoat_dong = false` (hoặc `bi_khoa = true` với khách hàng no-show, mục 9).
+- **Luồng rẽ nhánh**:
+  - Tại bước 2: tài khoản mục tiêu là `quan_ly` gốc (`la_tai_khoan_goc = true`) → chặn tuyệt đối, không ai khóa được, kể cả `quan_ly` khác → kết thúc.
+  - Tại bước 2: actor là `quan_ly_nhan_su` nhưng mục tiêu là `ke_toan`/`quan_ly`/`quan_ly_nhan_su` khác → chặn, báo "không đủ quyền" → kết thúc.
+  - Tại bước 2: các trường hợp còn lại → tiếp tục bước 3.
 - **Hậu điều kiện**: Tài khoản không đăng nhập được nữa; lịch sử vẫn được giữ (không xóa cứng).
 
 ### UC-38. Mở khóa tài khoản
 
-- **Actor**: Quản lý.
+- **Actor**: Quản lý (bất kỳ), hoặc Quản lý nhân sự (phạm vi hẹp hơn).
 - **Tiền điều kiện**: Tài khoản đang bị khóa (UC-37 hoặc tự động do no-show, mục 9).
-- **Luồng chính** (mục 8.7 điểm 6):
+- **Luồng chính** (mục 8.7 điểm 6, mục 8.9):
   1. Tìm tài khoản đang khóa.
-  2. Xem xét lý do bị khóa trước đó.
-  3. Đặt lại `dang_hoat_dong = true`/`bi_khoa = false`.
+  2. Hệ thống kiểm tra actor có quyền mở khóa đúng tài khoản mục tiêu hay không (cùng quy tắc UC-37).
+  3. Xem xét lý do bị khóa trước đó.
+  4. Đặt lại `dang_hoat_dong = true`/`bi_khoa = false`.
+- **Luồng rẽ nhánh**:
+  - Tại bước 2: actor là `quan_ly_nhan_su` nhưng tài khoản mục tiêu là `ke_toan`/`quan_ly`/`quan_ly_nhan_su` khác → chặn, báo "không đủ quyền" → kết thúc.
 - **Hậu điều kiện**: Tài khoản đăng nhập lại được.
 
 ### UC-39. Xem thống kê doanh thu/vận hành
 
-- **Actor**: Phụ xe, Nhân viên quầy vé, Nhân viên gửi hàng, Điều độ viên, hoặc Quản lý (phạm vi khác nhau).
+- **Actor**: Phụ xe, Nhân viên quầy vé, Nhân viên gửi hàng, Điều độ viên, Quản lý, hoặc Quản lý nhân sự (phạm vi khác nhau).
 - **Luồng chính**:
   1. Chọn khoảng thời gian + loại báo cáo muốn xem.
   2. Hệ thống lọc dữ liệu theo phạm vi của vai trò đang đăng nhập.
@@ -976,7 +1033,7 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
   - Nhân viên quầy vé → chỉ vé, điểm mình.
   - Nhân viên gửi hàng → chỉ hàng, điểm mình.
   - Điều độ viên → điểm/tuyến mình phụ trách.
-  - Quản lý → toàn hệ thống.
+  - Quản lý, Quản lý nhân sự → toàn hệ thống.
 - **Hậu điều kiện**: Không thay đổi dữ liệu, chỉ đọc.
 
 ### UC-40. Gán lại xe gốc cho chuyến đang chạy thay ⚠

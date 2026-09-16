@@ -205,6 +205,13 @@ UC39 ..> UC02 : <<include>>
 @startuml UseCase_QuanLy
 left to right direction
 actor "Quản lý" as QL
+note right of QL
+  Riêng việc tạo tài khoản quản lý mới
+  hoặc quản lý nhân sự mới: chỉ tài khoản
+  quản lý gốc (khởi tạo hệ thống) làm được.
+  Cũng chỉ tài khoản gốc mới không thể
+  bị khóa bởi bất kỳ ai.
+end note
 
 rectangle "Hệ thống" {
   usecase "Đăng nhập" as UC02
@@ -216,7 +223,7 @@ rectangle "Hệ thống" {
   usecase "Thiết lập lịch chạy định kỳ\n(tuyến, giờ, loại xe)" as UC18
   usecase "Quản lý xe" as UC34
   usecase "Phân tài xế và phụ xe\ncố định cho từng xe" as UC35
-  usecase "Tạo tài khoản\ncho nhân viên" as UC36
+  usecase "Tạo tài khoản\ncho nhân viên/quản lý khác" as UC36
   usecase "Khóa tài khoản" as UC37
   usecase "Mở khóa tài khoản" as UC38
   usecase "Xem thống kê\ntoàn hệ thống" as UC39
@@ -269,6 +276,36 @@ KT --> UC02
 KT --> UC22
 
 UC22 ..> UC02 : <<include>>
+@enduml
+```
+
+### 1.8. Quản lý nhân sự
+
+*Chỉ tạo/khóa/mở khóa tài khoản cho nhân viên vận hành, không đụng tới tài khoản kế toán hay quản lý — không có quyền nghiệp vụ nào khác (không sửa tuyến, giá, xe). Không gắn văn phòng nào, thấy toàn bộ hệ thống.*
+
+```plantuml
+@startuml UseCase_QuanLyNhanSu
+left to right direction
+actor "Quản lý nhân sự" as QLNS
+
+rectangle "Hệ thống" {
+  usecase "Đăng nhập" as UC02
+  usecase "Tạo tài khoản\ncho nhân viên vận hành" as UC36
+  usecase "Khóa tài khoản\nnhân viên vận hành" as UC37
+  usecase "Mở khóa tài khoản\nnhân viên vận hành" as UC38
+  usecase "Xem thống kê\ntoàn hệ thống" as UC39
+}
+
+QLNS --> UC02
+QLNS --> UC36
+QLNS --> UC37
+QLNS --> UC38
+QLNS --> UC39
+
+UC36 ..> UC02 : <<include>>
+UC37 ..> UC02 : <<include>>
+UC38 ..> UC02 : <<include>>
+UC39 ..> UC02 : <<include>>
 @enduml
 ```
 
@@ -617,12 +654,12 @@ stop
 
 ### UC-44. Gán xe cho chuyến
 
-*Điều độ viên chỉ chọn xe — tài xế và phụ xe đi theo xe sẵn rồi, không phải chọn người. Xe chọn phải đúng loại xe đã cam kết khi lập lịch định kỳ (use case trên).*
+*Điều độ viên chỉ chọn xe — tài xế và phụ xe đi theo xe sẵn rồi, không phải chọn người. Xe chọn phải đúng loại xe đã cam kết khi lập lịch định kỳ (use case trên). Nếu để trễ tới đúng giờ chạy mà vẫn chưa gán được, hệ thống tự chuyển chuyến sang trạng thái đang hoãn (xem use case riêng bên dưới) — vẫn tiếp tục gán xe qua use case này bình thường cho tới khi có.*
 
 ```plantuml
 @startuml AD_UC44_GanXe
 start
-:Xem danh sách chuyến của văn phòng mình\n(có đánh dấu chuyến sắp chạy mà chưa gán xe);
+:Xem danh sách chuyến của văn phòng mình\n(có đánh dấu chuyến sắp chạy mà chưa gán xe,\nkể cả chuyến đang hoãn vì chưa có xe);
 :Chọn 1 chuyến cần gán xe;
 :Hệ thống lọc ra những xe đủ điều kiện\n(đúng loại xe đã cam kết, đang có mặt đúng chỗ,\nkhông trùng lịch);
 if (Có xe nào đủ điều kiện không?) then (không có)
@@ -631,6 +668,28 @@ if (Có xe nào đủ điều kiện không?) then (không có)
 endif
 :Chọn một xe cụ thể;
 :Gán xe cho chuyến — tài xế và phụ xe lấy luôn\ntheo biên chế cố định của xe đó, biển số\nbắt đầu hiển thị cho khách đã đặt vé;
+if (Chuyến này đang ở trạng thái hoãn vì trước đó\nchưa gán được xe không?) then (đúng)
+  :Tắt trạng thái hoãn, cập nhật lại đúng giờ chạy;
+endif
+stop
+@enduml
+```
+
+### UC-45. Tự động chuyển sang đang hoãn khi tới giờ chạy mà chưa có xe
+
+*Khác với use case "cho xe khác chạy thay tạm thời" (dành cho chuyến ĐÃ có xe rồi xe đó hỏng): đây là chuyến chưa từng có xe nào cả, không phải chờ điều độ viên phát hiện — hệ thống tự nhận ra và xử lý ngay khi tới đúng giờ. Dùng chung đúng cơ chế "đang hoãn" đã có ở use case đó (báo khách, cảnh báo quản lý sau 6 tiếng, khách được chủ động hủy nhận hoàn toàn bộ tiền).*
+
+```plantuml
+@startuml AD_UC45_TuDongHoanKhiChuaCoXe
+start
+:Một chuyến đã tới đúng giờ khởi hành đã lên lịch\nmà vẫn chưa có xe nào được gán;
+:Hệ thống tự động đánh dấu chuyến này là "đang hoãn",\ncập nhật giờ dự kiến mới tạm thời;
+:Báo cho khách đã đặt vé trên chuyến này biết;
+:Điều độ viên tiếp tục tìm xe gán vào chuyến\n(xem use case gán xe cho chuyến) cho tới khi có;
+if (Trong lúc chờ, khách đã trả tiền có muốn\nhủy lấy lại tiền thay vì chờ không?) then (có, muốn hủy)
+  :Khách hủy vé, nhận lại toàn bộ tiền\n(xem use case "Hủy vé nhận hoàn toàn bộ tiền\nkhi chuyến đang bị hoãn");
+else (không, đợi tiếp)
+endif
 stop
 @enduml
 ```
@@ -685,7 +744,7 @@ endif
 
 ### UC-20. Cho xe khác chạy thay tạm thời khi xe hỏng trước giờ chạy (ngoại lệ)
 
-*Áp dụng cho cả 2 tình huống: xe tự hỏng đột xuất, HOẶC xe không kịp về đúng chỗ vì chuyến ngay trước đó của chính xe này gặp sự cố dọc đường (dù cuối cùng chuyến trước đó tự khắc phục được, delay lâu, hay bị hủy hẳn giữa đường) — bản chất vấn đề như nhau: xe không có mặt đúng nơi đúng giờ. Chỉ đổi "xe đang thực sự lăn bánh" — không đổi xe gốc của chuyến, nên tài xế và phụ xe vẫn là đúng người của xe hỏng, không ai bị xáo trộn lịch làm việc. Chuyến KHÔNG BAO GIỜ bị hủy vì lý do hết xe thay thế — vé là một cam kết chắc chắn với khách, nhất là dịp cao điểm khi khách không còn lựa chọn nào khác nếu bị hủy hẳn; hết xe ngay lúc đó chỉ khiến chuyến bị hoãn giờ chạy.*
+*Áp dụng cho cả 2 tình huống: xe tự hỏng đột xuất, HOẶC xe không kịp về đúng chỗ vì chuyến ngay trước đó của chính xe này gặp sự cố dọc đường (dù cuối cùng chuyến trước đó tự khắc phục được, delay lâu, hay bị hủy hẳn giữa đường) — bản chất vấn đề như nhau: xe không có mặt đúng nơi đúng giờ. Cả 2 tình huống đều giả định chuyến **đã có xe được gán từ trước** — trường hợp chuyến chưa từng có xe nào cả xem use case "Tự động chuyển sang đang hoãn khi tới giờ chạy mà chưa có xe" riêng bên dưới. Chỉ đổi "xe đang thực sự lăn bánh" — không đổi xe gốc của chuyến, nên tài xế và phụ xe vẫn là đúng người của xe hỏng, không ai bị xáo trộn lịch làm việc. Chuyến KHÔNG BAO GIỜ bị hủy vì lý do hết xe thay thế — vé là một cam kết chắc chắn với khách, nhất là dịp cao điểm khi khách không còn lựa chọn nào khác nếu bị hủy hẳn; hết xe ngay lúc đó chỉ khiến chuyến bị hoãn giờ chạy.*
 
 ```plantuml
 @startuml AD_UC20_DoiXe
@@ -760,24 +819,21 @@ stop
 
 ### UC-23. Nhận hàng gửi tại quầy và tính tiền cước
 
+*Chỉ chọn được tuyến muốn gửi qua, không chọn chuyến cụ thể nào — bất kỳ xe nào chạy đúng tuyến này sau đó đều có thể chở hàng (xem use case xác nhận chất hàng lên xe).*
+
 ```plantuml
 @startuml AD_UC23_NhanHangGui
 start
 :Nhập tên, số điện thoại của người gửi và người nhận;
 :Chọn nơi nhận hàng và văn phòng nhận cụ thể;
-:Hệ thống liệt kê những chuyến còn nhận hàng đi tới đó;
-if (Có chuyến nào còn nhận hàng không?) then (không có)
-  :Hẹn khách gửi vào ngày khác;
+:Hệ thống xác định tuyến đi từ điểm gửi tới điểm nhận;
+if (Có tuyến nào nối 2 điểm này không?) then (không có)
+  :Từ chối nhận, không thể gửi hàng đi tuyến này;
   stop
 endif
-:Chọn một chuyến;
 :Cân đo hàng và chọn loại hàng;
 if (Có phải hàng cấm gửi không?) then (phải)
   :Từ chối nhận hàng;
-  stop
-endif
-if (Khoang hàng của chuyến còn chỗ không?) then (hết chỗ)
-  :Gợi ý khách chọn chuyến khác;
   stop
 endif
 :Nhân viên tự tính và nhập tiền cước, báo giá cho khách;
@@ -786,7 +842,7 @@ if (Ai trả tiền cước?) then (người gửi trả trước)
 else (người nhận trả khi lấy hàng)
   :Chưa thu tiền, để người nhận trả sau;
 endif
-:Tạo đơn hàng chờ chuyển đi và in biên nhận cho người gửi;
+:Tạo đơn hàng chờ chuyển đi (chưa gắn chuyến cụ thể\nnào) và in biên nhận cho người gửi;
 stop
 @enduml
 ```
@@ -812,36 +868,64 @@ stop
 @enduml
 ```
 
-### UC-25. Xử lý hàng để quá lâu không ai tới lấy
+### UC-25. Xử lý hàng chờ quá lâu tại điểm nhận
+
+*Ứng với 2 mốc hệ thống tự động cảnh báo (xem use case riêng bên dưới): mốc đầu (7 ngày) chỉ nhắc xử lý, mốc sau (14 ngày) mới coi là "hàng tồn" chính thức — cả 2 mốc đều không tự hủy hàng, chỉ nhắc nhân viên.*
 
 ```plantuml
 @startuml AD_UC25_HangQuaHan
 start
-:Hàng nằm ở quầy quá lâu mà không ai tới lấy;
-:Đánh dấu đơn hàng này là quá hạn lưu kho;
-:Gọi điện liên hệ người gửi;
-if (Có liên hệ được người gửi không?) then (được)
-  :Xử lý theo ý người gửi (gửi trả lại, hủy, hoặc giữ tiếp);
+:Nhận cảnh báo hàng chờ quá lâu tại điểm mình;
+if (Trước đó đã từng gọi thông báo được người nhận chưa?) then (đã từng)
+  :Gọi lại người nhận, hỏi khi nào tới lấy\nhoặc hướng xử lý khác;
+else (chưa từng liên lạc được từ đầu)
+  :Gọi thẳng cho người gửi, không tiếp tục\ncố liên lạc người nhận nữa;
+endif
+if (Liên lạc được không?) then (được)
+  :Xử lý theo thỏa thuận (chờ thêm, gửi trả lại,\nhủy, hoặc giữ tiếp);
   stop
-else (không liên hệ được)
-  :Báo quản lý xử lý thủ công;
+else (không liên lạc được ai cả)
+  :Báo quản lý xử lý thủ công (thanh lý);
   stop
 endif
 @enduml
 ```
 
+### UC-46. Tự động cảnh báo và chuyển "hàng tồn" khi hàng chờ quá lâu
+
+*Không hủy hàng ở bất kỳ mốc nào — chỉ đổi cờ/trạng thái để nhắc nhân viên gửi hàng xử lý (xem use case trên).*
+
+```plantuml
+@startuml AD_UC46_TuDongCanhBaoHangTon
+start
+:Một đơn hàng đã tới điểm nhận nhưng chưa ai tới lấy;
+if (Đã đủ 7 ngày kể từ lúc hàng tới chưa?) then (đủ rồi, và chưa từng cảnh báo)
+  :Bật cờ cảnh báo, báo nhân viên gửi hàng\ntại điểm này xử lý;
+endif
+if (Đã đủ 14 ngày kể từ lúc hàng tới chưa?) then (đủ rồi)
+  :Chuyển hẳn sang "hàng tồn"\n— hàng vẫn được giữ nguyên, không hủy;
+endif
+stop
+@enduml
+```
+
 ### UC-26. Xác nhận đã chất hàng lên xe
 
-*Việc bê hàng lên xe là làm tay chân ngoài thực tế — trên hệ thống chỉ bấm xác nhận sau khi đã chất xong.*
+*Việc bê hàng lên xe là làm tay chân ngoài thực tế — trên hệ thống chỉ bấm xác nhận sau khi đã chất xong. Đây cũng là lúc duy nhất xác định đơn hàng đi đúng chuyến nào — trước đó đơn chỉ biết đi tuyến nào, chưa biết xe nào chở. Việc xe còn chỗ hay không hoàn toàn do phụ xe tự nhìn thực tế mà quyết định, hệ thống không tính toán hộ.*
 
 ```plantuml
 @startuml AD_UC26_ChatHang
 start
-:Hàng đã được chất lên xe xong ngoài thực tế;
-:Phụ xe bấm xác nhận đã chất hàng lên xe;
-if (Có phát hiện hàng hư hỏng lúc chất không?) then (có)
-  :Báo hàng hư hỏng cho nhân viên gửi hàng và quản lý;
-endif
+:Xem danh sách đơn hàng đang chờ tại điểm này,\ncùng đi tuyến với chuyến đang chuẩn bị xuất phát,\nsắp theo thứ tự hàng cũ gửi trước;
+repeat
+  :Nhìn khoang hàng thực tế, chọn 1 đơn tiếp theo\nphù hợp để chất lên xe (có thể bỏ qua đơn nào\nquá cồng kềnh, chọn đơn khác trong danh sách);
+  :Chất hàng lên xe xong ngoài thực tế;
+  :Phụ xe bấm xác nhận đơn này đã lên xe\n— hệ thống ghi nhận đơn này đi đúng chuyến hiện tại;
+  if (Có phát hiện hàng hư hỏng lúc chất không?) then (có)
+    :Báo hàng hư hỏng cho nhân viên gửi hàng và quản lý;
+  endif
+repeat while (Còn muốn chất thêm đơn nào nữa,\nvà khoang hàng còn chỗ không?) is (còn)
+:Các đơn chưa được chọn vẫn giữ nguyên, tiếp tục\nchờ chuyến sau cùng tuyến — không cần làm gì thêm;
 stop
 @enduml
 ```
@@ -920,7 +1004,7 @@ endif
 
 ### UC-32. Quản lý loại xe
 
-*Mọi xe cùng loại phải giống hệt nhau — cùng sơ đồ ghế, cùng sức chứa khoang hàng, cùng hệ số giá — chỉ khác biển số. Nhờ vậy khi 1 xe hỏng, đổi sang xe khác cùng loại luôn an toàn tuyệt đối, không ai bị ảnh hưởng.*
+*Mọi xe cùng loại phải giống hệt nhau — cùng sơ đồ ghế, cùng hệ số giá — chỉ khác biển số. Nhờ vậy khi 1 xe hỏng, đổi sang xe khác cùng loại luôn an toàn tuyệt đối, không ai bị ảnh hưởng.*
 
 ```plantuml
 @startuml AD_UC32_QuanLyLoaiXe
@@ -928,7 +1012,7 @@ start
 :Chọn thêm mới hoặc sửa một loại xe;
 :Nhập tên loại xe (ghế ngồi, giường đơn, cabin đôi...);
 :Nhập hệ số giá của loại xe đó so với giá gốc;
-:Nhập sơ đồ ghế ngồi và sức chứa khoang hàng\náp dụng chung cho mọi xe thuộc loại này;
+:Nhập sơ đồ ghế ngồi áp dụng chung cho mọi xe thuộc loại này;
 :Lưu lại;
 stop
 @enduml
@@ -978,15 +1062,28 @@ stop
 @enduml
 ```
 
-### UC-36. Tạo tài khoản cho nhân viên
+### UC-36. Tạo tài khoản cho nhân viên/quản lý khác
+
+*Quản lý nhân sự cũng thực hiện được use case này, nhưng phạm vi hẹp hơn quản lý — xem nhánh rẽ.*
 
 ```plantuml
 @startuml AD_UC36_TaoTaiKhoanNhanVien
 start
-:Nhập email, chọn vai trò và văn phòng phụ trách cho nhân viên mới;
+:Nhập email, chọn vai trò muốn tạo và văn phòng phụ trách (nếu cần);
 if (Email này đã có tài khoản chưa?) then (có rồi)
   :Báo lỗi email đã tồn tại;
   stop
+endif
+if (Người đang thao tác là ai?) then (Quản lý nhân sự)
+  if (Vai trò muốn tạo có phải nhân viên vận hành\n(phụ xe/quầy vé/gửi hàng/điều độ viên) không?) then (không, là kế toán/quản lý/quản lý nhân sự)
+    :Từ chối, báo không đủ quyền;
+    stop
+  endif
+else (Quản lý)
+  if (Vai trò muốn tạo là quản lý hoặc quản lý nhân sự,\nVÀ người thao tác không phải tài khoản quản lý gốc?) then (đúng, chặn lại)
+    :Từ chối, báo chỉ tài khoản quản lý gốc mới tạo được;
+    stop
+  endif
 endif
 :Tạo tài khoản và gửi thư mời qua email;
 :Nhân viên bấm liên kết trong thư và tự đặt mật khẩu lần đầu;
@@ -997,10 +1094,20 @@ stop
 
 ### UC-37. Khóa tài khoản
 
+*Quản lý nhân sự cũng thực hiện được use case này, nhưng phạm vi hẹp hơn quản lý — xem nhánh rẽ.*
+
 ```plantuml
 @startuml AD_UC37_KhoaTaiKhoan
 start
 :Tìm tài khoản cần khóa;
+if (Tài khoản này có phải quản lý gốc\n(tài khoản khởi tạo hệ thống) không?) then (phải)
+  :Từ chối tuyệt đối — không ai khóa được tài khoản này;
+  stop
+endif
+if (Người đang thao tác là quản lý nhân sự,\nVÀ tài khoản mục tiêu là kế toán/quản lý/quản lý nhân sự khác?) then (đúng, chặn lại)
+  :Từ chối, báo không đủ quyền;
+  stop
+endif
 :Nhập lý do khóa;
 :Khóa tài khoản lại — người này không đăng nhập được nữa,\nnhưng dữ liệu cũ vẫn giữ nguyên;
 stop
@@ -1009,10 +1116,16 @@ stop
 
 ### UC-38. Mở khóa tài khoản
 
+*Quản lý nhân sự cũng thực hiện được use case này, nhưng phạm vi hẹp hơn quản lý — xem nhánh rẽ.*
+
 ```plantuml
 @startuml AD_UC38_MoKhoaTaiKhoan
 start
 :Tìm tài khoản đang bị khóa;
+if (Người đang thao tác là quản lý nhân sự,\nVÀ tài khoản mục tiêu là kế toán/quản lý/quản lý nhân sự khác?) then (đúng, chặn lại)
+  :Từ chối, báo không đủ quyền;
+  stop
+endif
 :Xem lại lý do bị khóa trước đó;
 :Mở khóa để người này đăng nhập lại được;
 stop
@@ -1034,7 +1147,7 @@ case (Nhân viên gửi hàng)
   :Chỉ lấy dữ liệu hàng của văn phòng mình;
 case (Điều độ viên)
   :Chỉ lấy dữ liệu điểm và tuyến mình phụ trách;
-case (Quản lý)
+case (Quản lý hoặc Quản lý nhân sự)
   :Lấy dữ liệu toàn hệ thống;
 endswitch
 :Tính các con số cần xem\n(doanh thu, tỷ lệ lấp đầy ghế, số chuyến hủy hoặc gặp sự cố);

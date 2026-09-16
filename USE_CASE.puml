@@ -13,6 +13,7 @@ actor "Nhân viên quầy vé" as NVQV
 actor "Nhân viên gửi hàng" as NVGH
 actor "Điều độ viên" as DDV
 actor "Kế toán" as KT
+actor "Quản lý nhân sự" as QLNS
 actor "Quản lý" as QL
 actor "Cổng thanh toán" as CTT
 
@@ -48,10 +49,12 @@ rectangle "Hệ thống Quản lý Nhà xe Khách" {
   usecase "UC-42 Hủy vé nhận hoàn toàn bộ\nkhi sự cố lỗi nhà xe giữa đường (ngoại lệ)" as UC42
   usecase "UC-43 Tự động hoàn tiền khi\nchờ quá 3 tiếng do lỗi nhà xe ⏱" as UC43
   usecase "UC-44 Gán xe cho chuyến" as UC44
+  usecase "UC-45 Tự động chuyển đang hoãn\nkhi tới giờ chạy mà chưa có xe ⏱" as UC45
 
   usecase "UC-23 Nhận/gửi hàng tại quầy,\ntính cước" as UC23
   usecase "UC-24 Giao hàng cho người\nnhận, thu COD" as UC24
-  usecase "UC-25 Xử lý hàng quá\nhạn lưu kho" as UC25
+  usecase "UC-25 Xử lý hàng chờ quá\nlâu tại điểm nhận" as UC25
+  usecase "UC-46 Tự động cảnh báo/chuyển\nhàng tồn khi hàng chờ quá lâu ⏱" as UC46
 
   usecase "UC-29 Quản lý khu vực" as UC29
   usecase "UC-30 Quản lý điểm đón/trả" as UC30
@@ -61,7 +64,7 @@ rectangle "Hệ thống Quản lý Nhà xe Khách" {
   usecase "UC-18 Thiết lập lịch\nchạy định kỳ" as UC18
   usecase "UC-34 Quản lý xe" as UC34
   usecase "UC-35 Quản lý biên chế xe" as UC35
-  usecase "UC-36 Tạo tài khoản cán bộ" as UC36
+  usecase "UC-36 Tạo tài khoản cán bộ\n(quản lý: mọi vai trò, gốc mới tạo\nquản lý/quản lý nhân sự;\nquản lý nhân sự: chỉ 4 vai trò vận hành)" as UC36
   usecase "UC-37 Khóa tài khoản" as UC37
   usecase "UC-38 Mở khóa tài khoản" as UC38
 
@@ -122,6 +125,14 @@ DDV --> UC39
 ' ===== Kế toán =====
 KT --> UC02
 KT --> UC22
+
+' ===== Quản lý nhân sự =====
+' Phạm vi hẹp hơn quản lý: chỉ 4 vai trò vận hành (không kế toán/quản lý/quản lý nhân sự khác) — xem NGHIEP_VU.md mục 8.9.
+QLNS --> UC02
+QLNS --> UC36
+QLNS --> UC37
+QLNS --> UC38
+QLNS --> UC39
 
 ' ===== Quản lý =====
 QL --> UC02
