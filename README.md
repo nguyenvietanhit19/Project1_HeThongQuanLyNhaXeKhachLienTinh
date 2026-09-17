@@ -10,6 +10,7 @@
 4. [`UML_DIAGRAMS.md`](./UML_DIAGRAMS.md) — sơ đồ use case theo từng tác nhân + activity diagram (PlantUML), viết bằng văn nói thường.
 5. [`USE_CASE.puml`](./USE_CASE.puml) — sơ đồ use case toàn hệ thống.
 6. [`CI_CD_VA_DEPLOY.md`](./CI_CD_VA_DEPLOY.md) — giải thích CI/CD và quy trình deploy, dành cho ai chưa từng làm.
+7. [`CONTRIBUTING.md`](./CONTRIBUTING.md) — cách nhóm 5 người chia việc code (theo domain, không theo role/tầng), quy ước Git/migration/PR.
 
 ## Công nghệ
 
