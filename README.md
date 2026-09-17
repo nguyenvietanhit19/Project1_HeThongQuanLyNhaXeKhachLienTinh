@@ -11,6 +11,7 @@
 5. [`USE_CASE.puml`](./USE_CASE.puml) — sơ đồ use case toàn hệ thống.
 6. [`CI_CD_VA_DEPLOY.md`](./CI_CD_VA_DEPLOY.md) — giải thích CI/CD và quy trình deploy, dành cho ai chưa từng làm.
 7. [`CONTRIBUTING.md`](./CONTRIBUTING.md) — cách nhóm 5 người chia việc code (theo domain, không theo role/tầng), quy ước Git/migration/PR.
+8. [`HUONG_DAN_LAM_VIEC.md`](./HUONG_DAN_LAM_VIEC.md) — hướng dẫn thao tác cụ thể (Git/PR/Docker/migration/xem database), dành cho người mới chưa quen quy trình.
 
 ## Công nghệ
 
