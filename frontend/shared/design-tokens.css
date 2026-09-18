@@ -1,0 +1,133 @@
+/*
+ * Design tokens — trích xuất từ tham khảo Dribbble (app đặt vé xe khách),
+ * xem lý do/cách dùng đầy đủ ở THIET_KE_UI.md.
+ *
+ * Mọi trang HTML (frontend/khach-hang/ và frontend/nhan-vien/) nên nhúng
+ * file này TRƯỚC file CSS riêng của trang:
+ *   <link rel="stylesheet" href="/shared/design-tokens.css">
+ *
+ * Chỉ sửa file này khi cả nhóm đồng ý đổi màu/token chung — không copy giá
+ * trị hex ra dùng lẻ trong file khác, luôn dùng qua biến var(--ten-bien).
+ */
+
+:root {
+  /* ===== Màu chủ đạo ===== */
+  --color-primary: #F5A623;        /* Cam — CTA, trạng thái active/đã chọn, badge nổi bật */
+  --color-primary-dark: #D98C1A;   /* Cam đậm — hover/pressed state */
+  --color-secondary: #5B3E96;      /* Tím — nền thẻ hero, header, minh họa bản đồ */
+  --color-secondary-dark: #3F2B6B;
+
+  /* ===== Nền ===== */
+  --color-bg-canvas: #DAD7E3;      /* Nền tổng thể (ngoài card) — tạo hiệu ứng thẻ nổi */
+  --color-bg-surface: #FFFFFF;     /* Nền thẻ/card nội dung chính */
+  --color-bg-dark: #1A1A1E;        /* Nền nút icon phụ (đóng, chia sẻ, zoom, cài đặt) */
+
+  /* ===== Trạng thái ===== */
+  --color-success: #22C55E;        /* Đúng giờ / hoàn thành / khả dụng */
+  --color-danger: #EF4444;         /* Đã đặt / không khả dụng — dùng làm màu VIỀN, tránh fill đặc */
+  --color-warning: var(--color-primary);
+
+  /* ===== Chữ ===== */
+  --color-text-primary: #17171A;   /* Chữ chính trên nền sáng */
+  --color-text-muted: #6B7280;     /* Chữ phụ, ghi chú */
+  --color-text-on-dark: #FFFFFF;   /* Chữ trên nền tím/đen */
+
+  /* ===== Bo góc ===== */
+  --radius-pill: 999px;            /* Pill/chip/tag/nút tròn — bo hoàn toàn */
+  --radius-card: 24px;             /* Card lớn (trip card, seat map card...) */
+  --radius-button: 16px;           /* Nút chữ nhật thường (không phải pill) */
+
+  /* ===== Đổ bóng — luôn mềm, lan tỏa, không dùng bóng cứng ===== */
+  --shadow-soft: 0 8px 24px rgba(20, 20, 30, 0.08);   /* Card lớn */
+  --shadow-float: 0 4px 12px rgba(20, 20, 30, 0.12);  /* Nút icon tròn nổi */
+}
+
+/* ===== Component dùng chung — copy class, không copy giá trị hex ===== */
+
+.btn-icon-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-surface);
+  box-shadow: var(--shadow-float);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-icon-circle--dark {
+  background: var(--color-bg-dark);
+  color: var(--color-text-on-dark);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  font-size: 14px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  border: none;
+}
+
+.pill--primary {
+  background: var(--color-primary);
+  color: var(--color-text-primary);
+}
+
+.pill--dark {
+  background: var(--color-bg-dark);
+  color: var(--color-text-on-dark);
+}
+
+.pill--success {
+  background: var(--color-success);
+  color: var(--color-text-on-dark);
+}
+
+.card {
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: 20px;
+}
+
+.card--hero {
+  background: var(--color-secondary);
+  color: var(--color-text-on-dark);
+}
+
+/* Ghế trong sơ đồ chọn ghế (NGHIEP_VU.md mục 6) — 3 trạng thái đúng nghiệp vụ */
+.seat {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.seat--trong {
+  background: var(--color-bg-surface);
+  border: 1.5px solid #E5E5E8;
+  color: var(--color-text-muted);
+}
+
+.seat--da-chon {
+  background: var(--color-primary);
+  color: var(--color-text-primary);
+  border: none;
+}
+
+.seat--da-dat {
+  background: var(--color-bg-surface);
+  border: 1.5px solid var(--color-danger);
+  color: var(--color-danger);
+}
