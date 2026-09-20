@@ -1,0 +1,351 @@
+/*
+ * CSS riêng cho các trang xác thực (đăng ký/đăng nhập/quên mật khẩu/tài khoản)
+ * — bố cục "1 thẻ nằm giữa màn hình", chỉ hợp cho nhóm trang này, KHÔNG đưa vào
+ * frontend/shared/design-tokens.css (xem THIET_KE_UI.md mục 4). Dùng chung
+ * cho nhiều trang trong frontend/khach-hang/ nên vẫn để 1 file, không tách
+ * mỗi trang 1 file riêng vì bố cục giống hệt nhau.
+ */
+
+body.auth-page {
+  background: var(--color-bg-canvas);
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  margin: 0;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+/* ===== Thẻ đơn giản, căn giữa (tai-khoan.html — không có minh họa) ===== */
+
+.auth-card {
+  max-width: 400px;
+  width: 100%;
+}
+
+.auth-card h1 {
+  font-size: 26px;
+  margin-bottom: 4px;
+}
+
+.auth-card p.subtitle {
+  color: var(--color-text-muted);
+  margin-bottom: 20px;
+}
+
+.auth-card--wide {
+  max-width: 480px;
+}
+
+.auth-card hr {
+  border: none;
+  border-top: 1px solid #E5E5E8;
+  margin: 24px 0;
+}
+
+/* ===== Thẻ chia đôi có minh họa (đăng ký/đăng nhập/quên mật khẩu) ===== */
+
+.auth-shell {
+  display: flex;
+  width: 100%;
+  max-width: 880px;
+  min-height: 560px;
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+}
+
+.auth-illustration {
+  flex: 0 0 42%;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, var(--color-secondary), var(--color-secondary-dark));
+  color: var(--color-text-on-dark);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 40px 32px;
+}
+
+.auth-illustration::before,
+.auth-illustration::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.auth-illustration::before {
+  width: 200px;
+  height: 200px;
+  top: -70px;
+  right: -70px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.auth-illustration::after {
+  width: 130px;
+  height: 130px;
+  bottom: -50px;
+  left: -30px;
+  background: rgba(245, 166, 35, 0.16);
+}
+
+.auth-illustration__art {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.auth-illustration__art svg {
+  width: 100%;
+  max-width: 240px;
+  height: auto;
+  animation: auth-float 4s ease-in-out infinite;
+}
+
+@keyframes auth-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.auth-illustration__badge {
+  position: absolute;
+  right: 8px;
+  bottom: 18px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-float);
+  animation: auth-badge-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: 0.2s;
+}
+
+@keyframes auth-badge-pop {
+  from { transform: scale(0) rotate(-30deg); opacity: 0; }
+  to { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+.auth-illustration__text {
+  position: relative;
+}
+
+.auth-illustration__text h2 {
+  font-size: 22px;
+  margin: 0 0 8px;
+}
+
+.auth-illustration__text p {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.auth-form-panel {
+  flex: 1;
+  min-width: 0;
+  padding: 48px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.auth-form-panel h1 {
+  font-size: 26px;
+  margin: 0 0 4px;
+}
+
+.auth-form-panel p.subtitle {
+  color: var(--color-text-muted);
+  margin: 0 0 24px;
+}
+
+.auth-form-panel form {
+  animation: auth-fade-in 0.35s ease both;
+}
+
+@keyframes auth-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 760px) {
+  .auth-shell {
+    flex-direction: column;
+    max-width: 420px;
+    min-height: 0;
+  }
+
+  .auth-illustration {
+    flex: none;
+    padding: 24px 28px 18px;
+  }
+
+  .auth-illustration__art svg {
+    max-width: 130px;
+  }
+
+  .auth-illustration__text p {
+    display: none;
+  }
+
+  .auth-illustration__badge {
+    width: 44px;
+    height: 44px;
+    right: 6px;
+    bottom: 6px;
+  }
+
+  .auth-form-panel {
+    padding: 32px 28px 36px;
+  }
+}
+
+/* ===== Hiệu ứng hover/focus cho input & nút — chỉ áp trong .auth-page,
+   không sửa .input-field/.btn-primary gốc ở design-tokens.css ===== */
+
+.auth-page .input-field {
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.auth-page .input-field:hover {
+  border-color: #C9C9D1;
+}
+
+.auth-page .input-field:focus {
+  box-shadow: 0 0 0 4px rgba(245, 166, 35, 0.15);
+}
+
+.auth-page .btn-primary {
+  position: relative;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.auth-page .btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-float);
+}
+
+.auth-page .btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.auth-page .btn-primary.is-loading {
+  color: transparent;
+  pointer-events: none;
+}
+
+.auth-page .btn-primary.is-loading::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(23, 23, 26, 0.25);
+  border-top-color: var(--color-text-primary);
+  animation: auth-spin 0.7s linear infinite;
+}
+
+@keyframes auth-spin {
+  to { transform: rotate(360deg); }
+}
+
+.auth-page .text-link {
+  transition: color 0.15s ease;
+}
+
+.auth-page .text-link:hover {
+  color: var(--color-secondary-dark);
+}
+
+/* ===== Ô nhập mã xác nhận — 6 ô, mỗi ô 1 số ===== */
+
+.otp-group {
+  display: flex;
+  gap: 10px;
+  margin: 4px 0 16px;
+}
+
+.otp-box {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface);
+  border: 1.5px solid #E5E5E8;
+  border-radius: var(--radius-button);
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.otp-box:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(245, 166, 35, 0.15);
+  transform: translateY(-2px);
+}
+
+.otp-box.is-filled {
+  border-color: var(--color-secondary);
+}
+
+.otp-box.is-error {
+  border-color: var(--color-danger);
+  animation: otp-shake 0.3s ease;
+}
+
+@keyframes otp-shake {
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.otp-hint {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  margin: 0 0 4px;
+}
+
+.otp-hint strong {
+  color: var(--color-text-primary);
+}
+
+.otp-resend {
+  text-align: center;
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.otp-resend .text-link.is-disabled {
+  color: var(--color-text-muted);
+  pointer-events: none;
+  text-decoration: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-page *,
+  .auth-page *::before,
+  .auth-page *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

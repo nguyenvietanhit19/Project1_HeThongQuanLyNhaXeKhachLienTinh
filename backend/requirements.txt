@@ -6,7 +6,8 @@ email-validator==2.2.0
 python-dotenv==1.0.1
 PyJWT==2.9.0
 passlib[bcrypt]==1.7.4
-setuptools<70
+bcrypt==4.0.1  # passlib 1.7.4 (khong con bao tri) khong tuong thich bcrypt>=4.1, gay loi "password cannot be longer than 72 bytes"
+setuptools==75.1.0  # yoyo-migrations cần pkg_resources (thuộc setuptools) — python:3.12-slim không có sẵn
 yoyo-migrations==8.2.0
 APScheduler==3.10.4
 python-multipart==0.0.9
