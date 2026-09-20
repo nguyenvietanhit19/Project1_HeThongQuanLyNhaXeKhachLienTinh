@@ -28,6 +28,16 @@ const MENU_QUAN_LY = [
     href: "/nhan-vien/quan-ly/tuyen.html",
     icon: '<circle cx="6" cy="19" r="2.3"/><circle cx="18" cy="5" r="2.3"/><path d="M6 16.7V13a4 4 0 0 1 4-4h2a4 4 0 0 0 4-4V5.3" stroke-dasharray="2.6 2.6"/>',
   },
+  {
+    label: "Loại xe",
+    href: "/nhan-vien/quan-ly/loai-xe.html",
+    icon: '<rect x="3" y="7" width="18" height="9" rx="3"/><path d="M7 16v2M17 16v2"/><path d="M3 12h18"/>',
+  },
+  {
+    label: "Giá vé",
+    href: "/nhan-vien/quan-ly/gia-ve.html",
+    icon: '<circle cx="12" cy="12" r="9"/><path d="M9 15V9l1.8 1.8L12 9l1.2 1.8L15 9v6"/>',
+  },
 ];
 
 const NHAN_VAI_TRO_QUAN_LY = {

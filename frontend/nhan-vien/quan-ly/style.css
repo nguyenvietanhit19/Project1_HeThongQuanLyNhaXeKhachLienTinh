@@ -853,6 +853,178 @@ body.nhan-vien-shell {
   flex-shrink: 0;
 }
 
+/* ===== Bộ dựng sơ đồ ghế (form Loại xe) ===== */
+
+.nv-tang-cau-hinh {
+  display: grid;
+  grid-template-columns: auto 90px 90px 130px auto;
+  gap: 10px;
+  align-items: end;
+  padding: 14px;
+  background: var(--color-bg-canvas);
+  border-radius: var(--radius-button);
+  margin-bottom: 14px;
+}
+
+.nv-tang-cau-hinh label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-bottom: 4px;
+}
+
+.nv-tang-cau-hinh input {
+  margin-bottom: 0;
+  padding: 8px 10px;
+}
+
+.nv-tang-cau-hinh__nhan-tang {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-secondary-dark);
+  padding-bottom: 9px;
+}
+
+.nv-btn-sinh-so-do {
+  padding: 9px 16px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--color-secondary);
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.nv-btn-sinh-so-do:hover {
+  background: var(--color-secondary-dark);
+}
+
+.nv-so-do-ghe-preview {
+  padding: 16px;
+  border: 1.5px solid #E5E5E8;
+  border-radius: var(--radius-button);
+  margin-bottom: 8px;
+}
+
+.nv-so-do-ghe-preview__trong {
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  padding: 20px;
+}
+
+.nv-tang-preview:not(:last-child) {
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px dashed #E5E5E8;
+}
+
+.nv-tang-preview__nhan {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin-bottom: 10px;
+}
+
+.nv-hang-ghe {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+  justify-content: center;
+}
+
+.nv-hang-ghe__khoang-trong {
+  width: 36px;
+  flex-shrink: 0;
+}
+
+.nv-ghe-builder {
+  border: none;
+  font-family: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+
+.nv-ghe-builder:hover {
+  transform: scale(1.08);
+}
+
+.nv-ghe-builder--an {
+  opacity: 0.3;
+  background: transparent !important;
+  border: 1.5px dashed #C9C9D1 !important;
+  color: transparent !important;
+}
+
+.nv-so-do-ghe-tong {
+  text-align: right;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 0 0 14px;
+}
+
+.nv-so-do-ghe-tong strong {
+  color: var(--color-secondary-dark);
+}
+
+/* ===== Giá vé ===== */
+
+.nv-chon-tuyen-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.nv-chon-tuyen-card .nv-label {
+  margin: 0 14px 0 0;
+  white-space: nowrap;
+}
+
+.nv-chon-tuyen-card select {
+  margin-bottom: 0;
+  max-width: 420px;
+}
+
+.nv-thoi-han-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 14px 0 10px;
+  cursor: pointer;
+}
+
+.nv-thoi-han-toggle input {
+  width: auto;
+  margin: 0;
+}
+
+.nv-khoang-ngay {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.pill--gia-vinh-vien {
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803D;
+}
+
+.pill--gia-thoi-han {
+  background: rgba(217, 140, 26, 0.14);
+  color: #B45309;
+}
+
 /* ===== Responsive: sidebar thành thanh ngang cuộn được trên màn hẹp ===== */
 
 @media (max-width: 880px) {
@@ -904,5 +1076,18 @@ body.nhan-vien-shell {
   .nv-diem-row,
   .nv-khu-vuc-row {
     grid-template-columns: 1fr;
+  }
+
+  .nv-tang-cau-hinh {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .nv-chon-tuyen-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .nv-chon-tuyen-card select {
+    max-width: none;
   }
 }
