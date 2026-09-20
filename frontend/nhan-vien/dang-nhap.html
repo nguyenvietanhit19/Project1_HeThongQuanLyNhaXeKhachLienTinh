@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Đăng nhập cán bộ — Nhà xe khách</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/khach-hang/auth.css" />
+</head>
+<body class="auth-page">
+  <div class="auth-shell">
+    <div class="auth-illustration">
+      <div class="auth-illustration__art">
+        <svg viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="170" cy="46" r="34" fill="var(--color-primary)" opacity="0.9"/>
+          <circle cx="170" cy="46" r="34" fill="#fff" opacity="0.12"/>
+          <ellipse cx="44" cy="38" rx="22" ry="10" fill="#fff" opacity="0.25"/>
+          <ellipse cx="64" cy="32" rx="16" ry="8" fill="#fff" opacity="0.25"/>
+          <line x1="0" y1="150" x2="220" y2="150" stroke="#fff" stroke-opacity="0.3" stroke-width="2"/>
+          <line x1="10" y1="185" x2="40" y2="185" stroke="#fff" stroke-opacity="0.4" stroke-width="4" stroke-linecap="round"/>
+          <line x1="60" y1="185" x2="90" y2="185" stroke="#fff" stroke-opacity="0.4" stroke-width="4" stroke-linecap="round"/>
+          <line x1="110" y1="185" x2="140" y2="185" stroke="#fff" stroke-opacity="0.4" stroke-width="4" stroke-linecap="round"/>
+          <line x1="160" y1="185" x2="190" y2="185" stroke="#fff" stroke-opacity="0.4" stroke-width="4" stroke-linecap="round"/>
+          <rect x="28" y="96" width="140" height="66" rx="18" fill="#fff"/>
+          <rect x="28" y="96" width="140" height="20" rx="10" fill="var(--color-primary)"/>
+          <rect x="44" y="124" width="28" height="22" rx="6" fill="var(--color-secondary-dark)" opacity="0.55"/>
+          <rect x="80" y="124" width="28" height="22" rx="6" fill="var(--color-secondary-dark)" opacity="0.55"/>
+          <rect x="116" y="124" width="28" height="22" rx="6" fill="var(--color-secondary-dark)" opacity="0.55"/>
+          <circle cx="60" cy="168" r="13" fill="#1A1A1E"/>
+          <circle cx="60" cy="168" r="5" fill="#fff"/>
+          <circle cx="136" cy="168" r="13" fill="#1A1A1E"/>
+          <circle cx="136" cy="168" r="5" fill="#fff"/>
+        </svg>
+      </div>
+      <div class="auth-illustration__badge" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M9 6l6 6-6 6" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="auth-illustration__text">
+        <h2>Cổng cán bộ</h2>
+        <p>Dành cho quản lý, điều độ viên, nhân viên quầy vé/gửi hàng và phụ xe.</p>
+      </div>
+    </div>
+
+    <div class="auth-form-panel">
+      <h1>Đăng nhập cán bộ</h1>
+      <p class="subtitle">Dùng đúng email đã được cấp tài khoản</p>
+
+      <form id="form-dang-nhap">
+        <input class="input-field" type="email" id="email" placeholder="Email" required />
+        <input class="input-field" type="password" id="mat_khau" placeholder="Mật khẩu" required />
+        <div id="loi" class="text-error" hidden></div>
+        <div id="thanh-cong" class="text-success" hidden></div>
+        <button class="btn-primary" type="submit">Đăng nhập</button>
+      </form>
+
+      <p style="text-align:center; margin-top:16px; font-size:14px; color:var(--color-text-muted);">
+        Tài khoản cán bộ do quản lý cấp qua email mời — không tự đăng ký ở đây.
+      </p>
+    </div>
+  </div>
+
+  <script src="/nhan-vien/shared/api-client.js"></script>
+  <script>
+    const VE_TRANG_SAU_DANG_NHAP = {
+      quan_ly: "/nhan-vien/quan-ly/khu-vuc.html",
+      quan_ly_nhan_su: "/nhan-vien/quan-ly/khu-vuc.html",
+    };
+
+    const btnSubmit = document.querySelector("#form-dang-nhap button[type=submit]");
+
+    document.getElementById("form-dang-nhap").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const loiEl = document.getElementById("loi");
+      const thanhCongEl = document.getElementById("thanh-cong");
+      loiEl.hidden = true;
+      thanhCongEl.hidden = true;
+      btnSubmit.classList.add("is-loading");
+
+      try {
+        const ketQua = await apiPost("/auth/dang-nhap", {
+          email: document.getElementById("email").value.trim(),
+          mat_khau: document.getElementById("mat_khau").value,
+        });
+
+        localStorage.setItem("token", ketQua.token);
+        localStorage.setItem("vai_tro", ketQua.vai_tro);
+        localStorage.setItem("ho_ten", ketQua.ho_ten);
+
+        const trangDich = VE_TRANG_SAU_DANG_NHAP[ketQua.vai_tro];
+        if (trangDich) {
+          thanhCongEl.textContent = `Xin chào ${ketQua.ho_ten}! Đăng nhập thành công.`;
+          thanhCongEl.hidden = false;
+          setTimeout(() => { window.location.href = trangDich; }, 600);
+        } else {
+          thanhCongEl.textContent = `Đăng nhập thành công, nhưng giao diện cho vai trò "${ketQua.vai_tro}" chưa sẵn sàng — sẽ sớm được bổ sung.`;
+          thanhCongEl.hidden = false;
+          btnSubmit.classList.remove("is-loading");
+        }
+      } catch (err) {
+        loiEl.textContent = err.message;
+        loiEl.hidden = false;
+        btnSubmit.classList.remove("is-loading");
+      }
+    });
+  </script>
+</body>
+</html>

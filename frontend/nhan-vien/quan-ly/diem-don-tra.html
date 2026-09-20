@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Điểm đón/trả — Quản lý</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/nhan-vien/shared/nhan-vien.css" />
+</head>
+<body class="nhan-vien-shell">
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
+
+    <div class="nv-main">
+      <header class="nv-topbar">
+        <h1>Điểm đón/trả</h1>
+        <div class="nv-topbar__user">
+          <span class="ho-ten" id="topbar-ho-ten"></span>
+          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
+        </div>
+      </header>
+
+      <main class="nv-content">
+        <div class="nv-card">
+          <div class="nv-card__header">
+            <h2>Danh sách điểm đón/trả</h2>
+            <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Thêm điểm</button>
+          </div>
+          <div id="bang-diem">Đang tải...</div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="nv-modal-overlay" id="modal-overlay" hidden>
+    <div class="nv-modal">
+      <h2 id="modal-tieu-de">Thêm điểm đón/trả</h2>
+      <form id="form-diem">
+        <input type="hidden" id="diem_id" />
+        <select class="input-field" id="khu_vuc_id" required></select>
+        <input class="input-field" type="text" id="ten" placeholder='Tên điểm, VD "Bến xe Yên Nghĩa"' required />
+        <input class="input-field" type="text" id="dia_chi" placeholder="Địa chỉ cụ thể" required />
+        <select class="input-field" id="loai" required>
+          <option value="van_phong">Văn phòng (có quầy vé, hợp lệ đón & trả)</option>
+          <option value="diem_dung">Điểm dừng (không quầy vé, chỉ hợp lệ trả khách)</option>
+        </select>
+        <div id="loi-form" class="text-error" hidden></div>
+        <div class="nv-modal__actions">
+          <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
+          <button type="submit" class="btn-primary">Lưu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/nhan-vien/shared/api-client.js"></script>
+  <script src="/nhan-vien/shared/auth-check.js"></script>
+  <script src="/nhan-vien/shared/nav-quan-ly.js"></script>
+  <script src="/nhan-vien/shared/data-table.js"></script>
+  <script>
+    const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
+    if (nguoiDung) {
+      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-ly/diem-don-tra.html");
+      document.getElementById("topbar-ho-ten").textContent = localStorage.getItem("ho_ten") || "";
+    }
+    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+
+    const bangDiem = document.getElementById("bang-diem");
+    const selectKhuVuc = document.getElementById("khu_vuc_id");
+    let dsKhuVuc = [];
+    let dsDiem = [];
+
+    function tenKhuVuc(khu_vuc_id) {
+      return dsKhuVuc.find((k) => k.id === khu_vuc_id)?.ten || "—";
+    }
+
+    function nhanLoai(loai) {
+      return loai === "van_phong"
+        ? '<span class="pill pill--primary">Văn phòng</span>'
+        : '<span class="pill">Điểm dừng</span>';
+    }
+
+    async function taiKhuVuc() {
+      dsKhuVuc = await apiGet("/quan-ly/khu-vuc");
+      selectKhuVuc.innerHTML = dsKhuVuc
+        .map((k) => `<option value="${k.id}">${k.ten} (${k.tinh_thanh})</option>`)
+        .join("");
+    }
+
+    async function taiDanhSach() {
+      try {
+        dsDiem = await apiGet("/quan-ly/diem-don-tra");
+        renderDataTable(
+          bangDiem,
+          [
+            { key: "ten", label: "Tên điểm" },
+            { key: "khu_vuc_id", label: "Khu vực", render: (r) => tenKhuVuc(r.khu_vuc_id) },
+            { key: "dia_chi", label: "Địa chỉ" },
+            { key: "loai", label: "Loại", render: (r) => nhanLoai(r.loai) },
+          ],
+          dsDiem,
+          { onEdit: moModalSua }
+        );
+      } catch (err) {
+        bangDiem.innerHTML = `<div class="text-error">${err.message}</div>`;
+      }
+    }
+
+    (async () => {
+      try {
+        await taiKhuVuc();
+        await taiDanhSach();
+      } catch (err) {
+        bangDiem.innerHTML = `<div class="text-error">${err.message}</div>`;
+      }
+    })();
+
+    const modalOverlay = document.getElementById("modal-overlay");
+    const form = document.getElementById("form-diem");
+    const loiForm = document.getElementById("loi-form");
+
+    function moModal() {
+      loiForm.hidden = true;
+      modalOverlay.hidden = false;
+    }
+
+    function moModalThem() {
+      if (!dsKhuVuc.length) {
+        alert("Cần tạo ít nhất 1 khu vực trước (mục Khu vực ở menu bên trái)");
+        return;
+      }
+      document.getElementById("modal-tieu-de").textContent = "Thêm điểm đón/trả";
+      form.reset();
+      document.getElementById("diem_id").value = "";
+      moModal();
+    }
+
+    function moModalSua(diem) {
+      document.getElementById("modal-tieu-de").textContent = "Sửa điểm đón/trả";
+      document.getElementById("diem_id").value = diem.id;
+      document.getElementById("khu_vuc_id").value = diem.khu_vuc_id;
+      document.getElementById("ten").value = diem.ten;
+      document.getElementById("dia_chi").value = diem.dia_chi;
+      document.getElementById("loai").value = diem.loai;
+      moModal();
+    }
+
+    document.getElementById("btn-them").addEventListener("click", moModalThem);
+    document.getElementById("btn-huy").addEventListener("click", () => { modalOverlay.hidden = true; });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loiForm.hidden = true;
+
+      const id = document.getElementById("diem_id").value;
+      const duLieu = {
+        khu_vuc_id: selectKhuVuc.value,
+        ten: document.getElementById("ten").value.trim(),
+        dia_chi: document.getElementById("dia_chi").value.trim(),
+        loai: document.getElementById("loai").value,
+      };
+
+      const btnSubmit = form.querySelector("button[type=submit]");
+      btnSubmit.classList.add("is-loading");
+      try {
+        if (id) {
+          await apiPut(`/quan-ly/diem-don-tra/${id}`, duLieu);
+        } else {
+          await apiPost("/quan-ly/diem-don-tra", duLieu);
+        }
+        modalOverlay.hidden = true;
+        taiDanhSach();
+      } catch (err) {
+        loiForm.textContent = err.message;
+        loiForm.hidden = false;
+      } finally {
+        btnSubmit.classList.remove("is-loading");
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Khu vực — Quản lý</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/nhan-vien/shared/nhan-vien.css" />
+</head>
+<body class="nhan-vien-shell">
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
+
+    <div class="nv-main">
+      <header class="nv-topbar">
+        <h1>Khu vực</h1>
+        <div class="nv-topbar__user">
+          <span class="ho-ten" id="topbar-ho-ten"></span>
+          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
+        </div>
+      </header>
+
+      <main class="nv-content">
+        <div class="nv-card">
+          <div class="nv-card__header">
+            <h2>Danh sách khu vực</h2>
+            <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Thêm khu vực</button>
+          </div>
+          <div id="bang-khu-vuc">Đang tải...</div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="nv-modal-overlay" id="modal-overlay" hidden>
+    <div class="nv-modal">
+      <h2 id="modal-tieu-de">Thêm khu vực</h2>
+      <form id="form-khu-vuc">
+        <input type="hidden" id="khu_vuc_id" />
+        <input class="input-field" type="text" id="ten" placeholder='Tên khu vực, VD "Lào Cai (TP, Bến Đền, Phố Lu)"' required />
+        <input class="input-field" type="text" id="tinh_thanh" placeholder="Tỉnh/thành" required />
+        <div id="loi-form" class="text-error" hidden></div>
+        <div class="nv-modal__actions">
+          <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
+          <button type="submit" class="btn-primary">Lưu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/nhan-vien/shared/api-client.js"></script>
+  <script src="/nhan-vien/shared/auth-check.js"></script>
+  <script src="/nhan-vien/shared/nav-quan-ly.js"></script>
+  <script src="/nhan-vien/shared/data-table.js"></script>
+  <script>
+    const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
+    if (nguoiDung) {
+      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-ly/khu-vuc.html");
+      document.getElementById("topbar-ho-ten").textContent = localStorage.getItem("ho_ten") || "";
+    }
+    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+
+    const bangKhuVuc = document.getElementById("bang-khu-vuc");
+    let dsKhuVuc = [];
+
+    async function taiDanhSach() {
+      try {
+        dsKhuVuc = await apiGet("/quan-ly/khu-vuc");
+        renderDataTable(
+          bangKhuVuc,
+          [
+            { key: "ten", label: "Tên khu vực" },
+            { key: "tinh_thanh", label: "Tỉnh/thành" },
+          ],
+          dsKhuVuc,
+          { onEdit: moModalSua }
+        );
+      } catch (err) {
+        bangKhuVuc.innerHTML = `<div class="text-error">${err.message}</div>`;
+      }
+    }
+    taiDanhSach();
+
+    const modalOverlay = document.getElementById("modal-overlay");
+    const form = document.getElementById("form-khu-vuc");
+    const loiForm = document.getElementById("loi-form");
+
+    function moModal() {
+      loiForm.hidden = true;
+      modalOverlay.hidden = false;
+    }
+
+    function moModalThem() {
+      document.getElementById("modal-tieu-de").textContent = "Thêm khu vực";
+      form.reset();
+      document.getElementById("khu_vuc_id").value = "";
+      moModal();
+    }
+
+    function moModalSua(khuVuc) {
+      document.getElementById("modal-tieu-de").textContent = "Sửa khu vực";
+      document.getElementById("khu_vuc_id").value = khuVuc.id;
+      document.getElementById("ten").value = khuVuc.ten;
+      document.getElementById("tinh_thanh").value = khuVuc.tinh_thanh;
+      moModal();
+    }
+
+    document.getElementById("btn-them").addEventListener("click", moModalThem);
+    document.getElementById("btn-huy").addEventListener("click", () => { modalOverlay.hidden = true; });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loiForm.hidden = true;
+
+      const id = document.getElementById("khu_vuc_id").value;
+      const duLieu = {
+        ten: document.getElementById("ten").value.trim(),
+        tinh_thanh: document.getElementById("tinh_thanh").value.trim(),
+      };
+
+      const btnSubmit = form.querySelector("button[type=submit]");
+      btnSubmit.classList.add("is-loading");
+      try {
+        if (id) {
+          await apiPut(`/quan-ly/khu-vuc/${id}`, duLieu);
+        } else {
+          await apiPost("/quan-ly/khu-vuc", duLieu);
+        }
+        modalOverlay.hidden = true;
+        taiDanhSach();
+      } catch (err) {
+        loiForm.textContent = err.message;
+        loiForm.hidden = false;
+      } finally {
+        btnSubmit.classList.remove("is-loading");
+      }
+    });
+  </script>
+</body>
+</html>
