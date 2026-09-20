@@ -192,6 +192,44 @@ body.nhan-vien-shell {
   background: #FFF8ED;
 }
 
+.nv-hang-hanh-dong {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.nv-btn-xoa {
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid #E5E5E8;
+  background: var(--color-bg-surface);
+  color: var(--color-danger);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.nv-btn-xoa:hover {
+  border-color: var(--color-danger);
+  background: #FEF2F2;
+}
+
+/* ===== Label cho ô nhập trong form ===== */
+
+.nv-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 6px;
+}
+
+.nv-label:not(:first-child) {
+  margin-top: 14px;
+}
+
 /* ===== Nút "+ Thêm" trên topbar của card ===== */
 
 .nv-btn-them {

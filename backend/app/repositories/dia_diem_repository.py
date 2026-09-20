@@ -70,6 +70,23 @@ def danh_sach_khu_vuc() -> list[dict]:
         release_connection(conn)
 
 
+def xoa_khu_vuc(khu_vuc_id: str) -> None:
+    """Có thể ném psycopg2.errors.ForeignKeyViolation nếu còn diem_don_tra
+    thuộc khu vực này — service.py bắt lỗi này để báo thông báo thân thiện.
+    Rollback trước khi trả connection về pool, tránh để pool giữ connection
+    đang ở trạng thái transaction lỗi."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM khu_vuc WHERE id = %s", (khu_vuc_id,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
 # ---------------------------------------------------------
 # 2. Điểm đón/trả
 # ---------------------------------------------------------
@@ -149,6 +166,22 @@ def danh_sach_diem_don_tra(khu_vuc_id: str | None = None) -> list[dict]:
             else:
                 cur.execute("SELECT id, khu_vuc_id, ten, dia_chi, loai FROM diem_don_tra ORDER BY ten")
             return _thanh_list(cur, cur.fetchall())
+    finally:
+        release_connection(conn)
+
+
+def xoa_diem_don_tra(diem_id: str) -> None:
+    """Có thể ném psycopg2.errors.ForeignKeyViolation nếu điểm này đang
+    được tuyen_diem_don_tra/xe/don_hang/ve tham chiếu — service.py bắt lỗi
+    này để báo thông báo thân thiện."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM diem_don_tra WHERE id = %s", (diem_id,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         release_connection(conn)
 

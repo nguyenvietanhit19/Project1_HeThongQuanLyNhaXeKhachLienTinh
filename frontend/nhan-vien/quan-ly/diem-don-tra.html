@@ -37,13 +37,22 @@
       <h2 id="modal-tieu-de">Thêm điểm đón/trả</h2>
       <form id="form-diem">
         <input type="hidden" id="diem_id" />
+
+        <label class="nv-label" for="khu_vuc_id">Khu vực</label>
         <select class="input-field" id="khu_vuc_id" required></select>
-        <input class="input-field" type="text" id="ten" placeholder='Tên điểm, VD "Bến xe Yên Nghĩa"' required />
-        <input class="input-field" type="text" id="dia_chi" placeholder="Địa chỉ cụ thể" required />
+
+        <label class="nv-label" for="ten">Tên điểm</label>
+        <input class="input-field" type="text" id="ten" placeholder='VD "Bến xe Yên Nghĩa"' required />
+
+        <label class="nv-label" for="dia_chi">Địa chỉ cụ thể</label>
+        <input class="input-field" type="text" id="dia_chi" placeholder='VD "Km số 4, Quang Trung, Hà Đông"' required />
+
+        <label class="nv-label" for="loai">Loại điểm</label>
         <select class="input-field" id="loai" required>
           <option value="van_phong">Văn phòng (có quầy vé, hợp lệ đón & trả)</option>
           <option value="diem_dung">Điểm dừng (không quầy vé, chỉ hợp lệ trả khách)</option>
         </select>
+
         <div id="loi-form" class="text-error" hidden></div>
         <div class="nv-modal__actions">
           <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
@@ -99,10 +108,19 @@
             { key: "loai", label: "Loại", render: (r) => nhanLoai(r.loai) },
           ],
           dsDiem,
-          { onEdit: moModalSua }
+          { onEdit: moModalSua, onDelete: xoaDiem, tenXoa: (r) => r.ten }
         );
       } catch (err) {
         bangDiem.innerHTML = `<div class="text-error">${err.message}</div>`;
+      }
+    }
+
+    async function xoaDiem(diem) {
+      try {
+        await apiDelete(`/quan-ly/diem-don-tra/${diem.id}`);
+        taiDanhSach();
+      } catch (err) {
+        alert(err.message);
       }
     }
 

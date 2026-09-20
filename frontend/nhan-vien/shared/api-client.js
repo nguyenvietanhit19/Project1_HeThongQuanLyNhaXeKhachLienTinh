@@ -35,3 +35,7 @@ function apiPost(duong_dan, body) {
 function apiPut(duong_dan, body) {
   return apiFetch(duong_dan, { method: "PUT", body: JSON.stringify(body) });
 }
+
+function apiDelete(duong_dan) {
+  return apiFetch(duong_dan, { method: "DELETE" });
+}

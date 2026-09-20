@@ -4,6 +4,8 @@
 Repository chỉ đọc/ghi SQL thuần.
 """
 
+import psycopg2.errors
+
 from app.repositories import dia_diem_repository as repo
 from app.utils.loi import GiaTriLoi
 
@@ -24,6 +26,15 @@ def sua_khu_vuc(khu_vuc_id: str, ten: str, tinh_thanh: str) -> None:
 
 def danh_sach_khu_vuc() -> list[dict]:
     return repo.danh_sach_khu_vuc()
+
+
+def xoa_khu_vuc(khu_vuc_id: str) -> None:
+    if not repo.tim_khu_vuc_theo_id(khu_vuc_id):
+        raise GiaTriLoi("Không tìm thấy khu vực")
+    try:
+        repo.xoa_khu_vuc(khu_vuc_id)
+    except psycopg2.errors.ForeignKeyViolation:
+        raise GiaTriLoi("Không thể xóa: khu vực này đang có điểm đón/trả thuộc về nó")
 
 
 # ---------------------------------------------------------
@@ -47,6 +58,15 @@ def sua_diem_don_tra(diem_id: str, khu_vuc_id: str, ten: str, dia_chi: str, loai
 
 def danh_sach_diem_don_tra(khu_vuc_id: str | None = None) -> list[dict]:
     return repo.danh_sach_diem_don_tra(khu_vuc_id)
+
+
+def xoa_diem_don_tra(diem_id: str) -> None:
+    if not repo.tim_diem_don_tra_theo_id(diem_id):
+        raise GiaTriLoi("Không tìm thấy điểm đón/trả")
+    try:
+        repo.xoa_diem_don_tra(diem_id)
+    except psycopg2.errors.ForeignKeyViolation:
+        raise GiaTriLoi("Không thể xóa: điểm này đang được dùng trong tuyến, xe, đơn hàng hoặc vé")
 
 
 # ---------------------------------------------------------

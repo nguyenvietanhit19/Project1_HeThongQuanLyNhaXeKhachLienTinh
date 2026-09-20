@@ -42,6 +42,12 @@ def danh_sach_khu_vuc():
     return service.danh_sach_khu_vuc()
 
 
+@router.delete("/khu-vuc/{khu_vuc_id}")
+def xoa_khu_vuc(khu_vuc_id: UUID):
+    service.xoa_khu_vuc(str(khu_vuc_id))
+    return {"thong_bao": "Xóa khu vực thành công"}
+
+
 # ---------------------------------------------------------
 # 2. Điểm đón/trả (UC-30)
 # ---------------------------------------------------------
@@ -59,6 +65,12 @@ def sua_diem_don_tra(diem_id: UUID, du_lieu: DiemDonTraRequest):
 @router.get("/diem-don-tra", response_model=list[DiemDonTraResponse])
 def danh_sach_diem_don_tra(khu_vuc_id: UUID | None = None):
     return service.danh_sach_diem_don_tra(str(khu_vuc_id) if khu_vuc_id else None)
+
+
+@router.delete("/diem-don-tra/{diem_id}")
+def xoa_diem_don_tra(diem_id: UUID):
+    service.xoa_diem_don_tra(str(diem_id))
+    return {"thong_bao": "Xóa điểm đón/trả thành công"}
 
 
 # ---------------------------------------------------------

@@ -7,13 +7,17 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.utils.tinh_thanh import DANH_SACH_TINH_THANH
+
 
 # ---------------------------------------------------------
 # 1. Khu vực (UC-29)
 # ---------------------------------------------------------
 class KhuVucRequest(BaseModel):
     ten: str = Field(..., min_length=1)
-    tinh_thanh: str = Field(..., min_length=1)
+    tinh_thanh: Literal[tuple(DANH_SACH_TINH_THANH)] = Field(
+        ..., description="Bắt buộc đúng 1 trong 34 tỉnh/thành sau sáp nhập — không nhận giá trị tự do"
+    )
 
 
 class KhuVucResponse(BaseModel):
