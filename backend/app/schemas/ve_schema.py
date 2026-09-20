@@ -6,6 +6,7 @@ Route khai báo schema này; Service chứa logic nghiệp vụ (ARCHITECTURE.md
 
 from datetime import datetime
 
+# pyrefly: ignore [missing-import]
 from pydantic import BaseModel, field_validator
 
 
