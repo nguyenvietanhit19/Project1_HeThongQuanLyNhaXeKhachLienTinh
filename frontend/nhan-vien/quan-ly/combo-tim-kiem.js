@@ -1,8 +1,8 @@
 /*
- * Combo tìm kiếm dùng chung: 1 ô nhập gõ được để lọc/tìm (kèm <datalist>
- * gợi ý) + 1 ô ẩn giữ đúng ID thực của mục đã chọn — dùng khi số lượng lựa
- * chọn có thể nhiều, duyệt <select> thường sẽ khó tìm (VD chọn khu vực khi
- * tạo điểm đón/trả, nếu hệ thống có hàng trăm khu vực).
+ * Combo tìm kiếm — riêng cho các trang Quản lý: 1 ô nhập gõ được để lọc/tìm
+ * (kèm <datalist> gợi ý) + 1 ô ẩn giữ đúng ID thực của mục đã chọn — dùng
+ * khi số lượng lựa chọn có thể nhiều, duyệt <select> thường sẽ khó tìm
+ * (VD chọn khu vực khi tạo điểm đón/trả, nếu hệ thống có hàng trăm khu vực).
  *
  *   const combo = khoiTaoComboTimKiem(inputEl, hiddenIdEl, dsMuc, { hienThi });
  *   - dsMuc: [{ id, ... }] — danh sách mục để tìm

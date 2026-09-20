@@ -1,9 +1,9 @@
 /*
- * CSS khung dashboard dùng chung cho mọi trang nhân viên (sidebar + topbar
- * + nội dung + bảng + modal) — CONTRIBUTING.md mục 30, "Soft Card UI" theo
- * THIET_KE_UI.md. Không đưa vào frontend/shared/design-tokens.css vì bố
- * cục dashboard chỉ hợp cho nhóm trang frontend/nhan-vien/ (giống lý do
- * auth.css tách riêng cho frontend/khach-hang/).
+ * CSS khung dashboard cho các trang Quản lý (sidebar + topbar + nội dung +
+ * bảng + modal) — "Soft Card UI" theo THIET_KE_UI.md. Không đưa vào
+ * frontend/shared/design-tokens.css vì bố cục dashboard chỉ hợp cho domain
+ * này. Riêng của Quản lý — vai trò khác tự viết CSS riêng trong thư mục
+ * của họ, không import file này.
  */
 
 body.nhan-vien-shell {

@@ -1,7 +1,8 @@
 /*
- * Bảo vệ trang cần đăng nhập + kiểm tra vai trò + đăng xuất — dùng chung
- * cho mọi trang nhân viên. Bản riêng của frontend/khach-hang/auth-check.js
- * vì trang đăng nhập khác nhau (đã ghi chú sẵn ở bản đó).
+ * Bảo vệ trang cần đăng nhập + kiểm tra vai trò + đăng xuất — riêng cho
+ * các trang Quản lý. Trang đăng nhập cán bộ (frontend/nhan-vien/dang-nhap.html)
+ * là trang chung duy nhất giữa các vai trò (điểm vào hệ thống), tự viết
+ * script riêng của nó, không phụ thuộc file này.
  */
 
 function yeuCauDangNhap() {

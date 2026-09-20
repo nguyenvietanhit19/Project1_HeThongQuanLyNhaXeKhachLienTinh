@@ -1,9 +1,10 @@
 /*
  * Danh sách 34 đơn vị hành chính cấp tỉnh của Việt Nam sau sáp nhập, hiệu
  * lực từ 01/07/2025 (Nghị quyết 202/2025/QH15) — 28 tỉnh + 6 thành phố
- * trực thuộc trung ương. Dùng cho ô chọn tỉnh/thành ở trang Khu vực (UC-29),
- * và hienThiTinhThanh() dùng khi hiển thị khu vực kèm tỉnh/thành ở nơi khác
- * (VD ô chọn khu vực ở trang Điểm đón/trả, UC-30).
+ * trực thuộc trung ương. Riêng cho các trang Quản lý — dùng cho ô chọn
+ * tỉnh/thành ở trang Khu vực (UC-29), và hienThiTinhThanh() dùng khi hiển
+ * thị khu vực kèm tỉnh/thành ở nơi khác (VD ô chọn khu vực ở trang Điểm
+ * đón/trả, UC-30).
  *
  * QUAN TRỌNG: danh sách này phải khớp 100% với
  * backend/app/utils/tinh_thanh.py — sửa 1 bên phải sửa bên kia. Backend

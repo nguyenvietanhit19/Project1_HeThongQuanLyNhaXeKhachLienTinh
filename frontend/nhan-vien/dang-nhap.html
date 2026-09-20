@@ -61,8 +61,13 @@
     </div>
   </div>
 
-  <script src="/nhan-vien/shared/api-client.js"></script>
   <script>
+    // Trang đăng nhập chung cho mọi vai trò cán bộ — không phụ thuộc file
+    // JS của riêng vai trò nào (mỗi vai trò tự viết CSS/JS trong thư mục
+    // của họ, VD frontend/nhan-vien/quan-ly/), nên tự gọi API trực tiếp ở
+    // đây thay vì import apiPost() từ chỗ khác.
+    const API_BASE_URL = "http://localhost:8000";
+
     const VE_TRANG_SAU_DANG_NHAP = {
       quan_ly: "/nhan-vien/quan-ly/khu-vuc.html",
       quan_ly_nhan_su: "/nhan-vien/quan-ly/khu-vuc.html",
@@ -79,10 +84,18 @@
       btnSubmit.classList.add("is-loading");
 
       try {
-        const ketQua = await apiPost("/auth/dang-nhap", {
-          email: document.getElementById("email").value.trim(),
-          mat_khau: document.getElementById("mat_khau").value,
+        const res = await fetch(`${API_BASE_URL}/auth/dang-nhap`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: document.getElementById("email").value.trim(),
+            mat_khau: document.getElementById("mat_khau").value,
+          }),
         });
+        const ketQua = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(ketQua.loi || ketQua.detail || "Có lỗi xảy ra, thử lại sau");
+        }
 
         localStorage.setItem("token", ketQua.token);
         localStorage.setItem("vai_tro", ketQua.vai_tro);

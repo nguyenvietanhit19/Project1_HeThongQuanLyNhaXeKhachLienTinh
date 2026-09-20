@@ -1,11 +1,10 @@
 /*
- * Menu điều hướng khu vực "Quản lý" — CONTRIBUTING.md mục 5.5: mảng link
- * dùng chung, mỗi người tự thêm entry vào cuối mảng khi UC của mình xong
- * (VD UC-32 loại xe, UC-33 giá vé...), không sửa dòng người khác.
+ * Menu điều hướng cho các trang Quản lý — mảng link, tự thêm entry vào
+ * cuối mảng khi có UC mới (VD UC-32 loại xe, UC-33 giá vé...).
  *
- * Các vai trò khác (điều độ viên, quầy vé...) sẽ có file nav-<vai-tro>.js
- * riêng khi tới lượt — không dùng chung 1 mảng vì mỗi khu vực nhân viên
- * thấy menu hoàn toàn khác nhau (mục 4 CONTRIBUTING.md).
+ * Riêng của domain Quản lý — mỗi vai trò nhân viên khác (điều độ viên,
+ * quầy vé...) khi tới lượt sẽ tự viết menu + CSS/JS riêng trong đúng thư
+ * mục của họ (VD frontend/nhan-vien/dieu-do/), không dùng chung file này.
  */
 
 const MENU_QUAN_LY = [

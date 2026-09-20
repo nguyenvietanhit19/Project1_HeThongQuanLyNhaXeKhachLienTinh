@@ -1,7 +1,8 @@
 /*
- * renderDataTable — component viết tay dùng chung cho các trang danh mục
- * trong frontend/nhan-vien/quan-ly/ (CONTRIBUTING.md mục 6, ví dụ đã gợi ý
- * sẵn chữ ký hàm này). Không dùng framework, chỉ render lại innerHTML.
+ * renderDataTable — component viết tay dùng cho các trang danh mục trong
+ * frontend/nhan-vien/quan-ly/. Không dùng framework, chỉ render lại
+ * innerHTML. Riêng của domain Quản lý — vai trò khác cần bảng tương tự thì
+ * tự viết bản của họ, không import file này.
  *
  *   renderDataTable(containerEl, columns, rows, { onEdit, editLabel, onDelete, tenXoa, onRowClick })
  *   - columns: [{ key, label, render?(row) }]
@@ -11,11 +12,10 @@
  *     trước khi gọi (không cần page tự confirm() lại)
  *   - tenXoa(row): chữ hiển thị trong hộp thoại xác nhận, mặc định dùng
  *     cột đầu tiên
- *   - onRowClick(row, tdChiTietEl): optional — thay cho pattern "nút Xem
- *     chi tiết mở ở chỗ khác": bấm cả hàng để mở rộng 1 hàng chi tiết ngay
- *     bên dưới, bấm lại (hoặc mở hàng khác) để đóng — chỉ 1 hàng mở tại 1
- *     thời điểm (accordion). Hàm nhận ô <td> trống (đã có "Đang tải..."),
- *     tự điền nội dung vào đó (có thể await gọi API).
+ *   - onRowClick(row, tdChiTietEl): optional — bấm cả hàng để mở rộng 1
+ *     hàng chi tiết ngay bên dưới, bấm lại (hoặc mở hàng khác) để đóng —
+ *     chỉ 1 hàng mở tại 1 thời điểm (accordion). Hàm nhận ô <td> trống
+ *     (đã có "Đang tải..."), tự điền nội dung vào đó (có thể await gọi API).
  */
 
 function renderDataTable(containerEl, columns, rows, { onEdit, editLabel = "Sửa", onDelete, tenXoa, onRowClick } = {}) {

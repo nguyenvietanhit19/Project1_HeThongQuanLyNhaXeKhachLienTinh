@@ -1,8 +1,7 @@
 /*
- * Client gọi API dùng chung cho mọi trang nhân viên — người 1 xây, xem
- * CONTRIBUTING.md mục 6. Bản riêng cho frontend/nhan-vien/ (khác bản ở
- * frontend/shared/ dùng cho khách hàng) — logic giống hệt nhau, tách vì
- * 2 domain phục vụ 2 nhóm trang khác nhau (mục 30 CONTRIBUTING.md).
+ * Client gọi API cho các trang Quản lý — riêng của domain này, không dùng
+ * chung với frontend/khach-hang/ hay các vai trò nhân viên khác (mỗi vai
+ * trò tự viết CSS/JS riêng, không có thư mục "shared" giữa các vai trò).
  */
 
 const API_BASE_URL = "http://localhost:8000";
