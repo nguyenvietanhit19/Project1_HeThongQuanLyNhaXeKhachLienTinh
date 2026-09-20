@@ -53,8 +53,8 @@
           <div class="nv-card__header">
             <h2>Danh sách tuyến</h2>
           </div>
+          <p style="font-size:13px; color:var(--color-text-muted); margin:-8px 0 12px;">Bấm vào 1 dòng để xem chi tiết điểm dừng — bấm lại để đóng.</p>
           <div id="bang-tuyen">Đang tải...</div>
-          <div id="chi-tiet-tuyen"></div>
         </div>
       </main>
     </div>
@@ -253,7 +253,7 @@
             { key: "nhom_tuyen_id", label: "Nhóm tuyến", render: (r) => dsNhomTuyen.find((n) => n.id === r.nhom_tuyen_id)?.ten || "—" },
           ],
           dsTuyen,
-          { onEdit: xemChiTietTuyen, editLabel: "Xem chi tiết", onDelete: xoaTuyen, tenXoa: (r) => r.ten }
+          { onDelete: xoaTuyen, tenXoa: (r) => r.ten, onRowClick: xemChiTietTuyen }
         );
       } catch (err) {
         bangTuyen.innerHTML = `<div class="text-error">${err.message}</div>`;
@@ -263,21 +263,17 @@
     async function xoaTuyen(tuyen) {
       try {
         await apiDelete(`/quan-ly/tuyen/${tuyen.id}`);
-        document.getElementById("chi-tiet-tuyen").innerHTML = "";
         taiDanhSachTuyen();
       } catch (err) {
         alert(err.message);
       }
     }
 
-    async function xemChiTietTuyen(tuyen) {
-      const container = document.getElementById("chi-tiet-tuyen");
-      container.innerHTML = "Đang tải...";
+    async function xemChiTietTuyen(tuyen, container) {
       try {
         const chiTiet = await apiGet(`/quan-ly/tuyen/${tuyen.id}`);
         container.innerHTML = `
           <div class="nv-chi-tiet-tuyen">
-            <strong>${chiTiet.ten}</strong>
             ${chiTiet.danh_sach_diem
               .map(
                 (d) => `

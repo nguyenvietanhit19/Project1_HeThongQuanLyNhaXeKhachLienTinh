@@ -168,6 +168,27 @@ body.nhan-vien-shell {
   background: #FAFAFB;
 }
 
+.nv-table__hang-mo-rong {
+  cursor: pointer;
+}
+
+.nv-table__hang-mo-rong.dang-mo {
+  background: #FAFAFB;
+}
+
+.nv-table__hang-chi-tiet {
+  background: var(--color-bg-canvas);
+}
+
+.nv-table__hang-chi-tiet td {
+  padding: 16px;
+}
+
+.nv-table__dang-tai {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
 .nv-table__empty {
   text-align: center;
   color: var(--color-text-muted);
@@ -516,13 +537,6 @@ body.nhan-vien-shell {
 }
 
 /* ===== Chi tiết tuyến ===== */
-
-.nv-chi-tiet-tuyen {
-  margin-top: 16px;
-  padding: 16px;
-  background: var(--color-bg-canvas);
-  border-radius: var(--radius-button);
-}
 
 .nv-chi-tiet-tuyen__diem {
   display: flex;
