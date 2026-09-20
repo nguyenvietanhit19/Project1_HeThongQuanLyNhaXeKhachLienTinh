@@ -5,84 +5,148 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Quên mật khẩu — Nhà xe khách</title>
 <link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="auth.css" />
 </head>
 <body class="auth-page">
-  <div class="card auth-card">
-    <h1>Quên mật khẩu</h1>
-    <p class="subtitle">Nhập email để nhận mã đặt lại mật khẩu</p>
+  <div class="auth-shell">
+    <div class="auth-illustration">
+      <div class="auth-illustration__art">
+        <svg viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="170" cy="46" r="34" fill="var(--color-primary)" opacity="0.9"/>
+          <circle cx="170" cy="46" r="34" fill="#fff" opacity="0.12"/>
+          <ellipse cx="44" cy="38" rx="22" ry="10" fill="#fff" opacity="0.25"/>
+          <ellipse cx="64" cy="32" rx="16" ry="8" fill="#fff" opacity="0.25"/>
+          <line x1="0" y1="150" x2="220" y2="150" stroke="#fff" stroke-opacity="0.3" stroke-width="2"/>
+          <line x1="10" y1="185" x2="40" y2="185" stroke="#fff" stroke-opacity="0.4" stroke-width="4" stroke-linecap="round"/>
+          <line x1="60" y1="185" x2="90" y2="185" stroke="#fff" stroke-opacity="0.4" stroke-width="4" stroke-linecap="round"/>
+          <line x1="110" y1="185" x2="140" y2="185" stroke="#fff" stroke-opacity="0.4" stroke-width="4" stroke-linecap="round"/>
+          <line x1="160" y1="185" x2="190" y2="185" stroke="#fff" stroke-opacity="0.4" stroke-width="4" stroke-linecap="round"/>
+          <rect x="28" y="96" width="140" height="66" rx="18" fill="#fff"/>
+          <rect x="28" y="96" width="140" height="20" rx="10" fill="var(--color-primary)"/>
+          <rect x="44" y="124" width="28" height="22" rx="6" fill="var(--color-secondary-dark)" opacity="0.55"/>
+          <rect x="80" y="124" width="28" height="22" rx="6" fill="var(--color-secondary-dark)" opacity="0.55"/>
+          <rect x="116" y="124" width="28" height="22" rx="6" fill="var(--color-secondary-dark)" opacity="0.55"/>
+          <circle cx="60" cy="168" r="13" fill="#1A1A1E"/>
+          <circle cx="60" cy="168" r="5" fill="#fff"/>
+          <circle cx="136" cy="168" r="13" fill="#1A1A1E"/>
+          <circle cx="136" cy="168" r="5" fill="#fff"/>
+        </svg>
+      </div>
+      <div class="auth-illustration__badge" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <rect x="6" y="11" width="12" height="9" rx="2" stroke="#fff" stroke-width="2.2" fill="none"/>
+          <path d="M9 11V8a3 3 0 016 0v3" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="auth-illustration__text">
+        <h2>Quên mật khẩu?</h2>
+        <p>Đừng lo, nhập email của bạn và làm theo hướng dẫn để đặt lại mật khẩu mới.</p>
+      </div>
+    </div>
 
-    <!-- Bước 1: nhập email -->
-    <form id="form-buoc-1">
-      <input class="input-field" type="email" id="email" placeholder="Email" required />
-      <div id="loi-buoc-1" class="text-error" hidden></div>
-      <button class="btn-primary" type="submit">Gửi mã xác nhận</button>
-    </form>
+    <div class="auth-form-panel">
+      <h1>Quên mật khẩu</h1>
+      <p class="subtitle">Nhập email để nhận mã đặt lại mật khẩu</p>
 
-    <!-- Bước 2: nhập mã + mật khẩu mới -->
-    <form id="form-buoc-2" hidden>
-      <p>Nếu email tồn tại, mã xác nhận đã được gửi, có hiệu lực <strong>1 phút</strong>.</p>
-      <input class="input-field" type="text" id="ma_xac_nhan" placeholder="Mã xác nhận (6 số)" required />
-      <input class="input-field" type="password" id="mat_khau_moi" placeholder="Mật khẩu mới (tối thiểu 6 ký tự)" minlength="6" required />
-      <div id="loi-buoc-2" class="text-error" hidden></div>
-      <button class="btn-primary" type="submit">Đặt lại mật khẩu</button>
-      <p style="text-align:center; margin-top:12px;">
-        <a class="text-link" href="#" id="gui-lai-ma">Gửi lại mã</a>
+      <!-- Bước 1: nhập email -->
+      <form id="form-buoc-1">
+        <input class="input-field" type="email" id="email" placeholder="Email" required />
+        <div id="loi-buoc-1" class="text-error" hidden></div>
+        <button class="btn-primary" type="submit">Gửi mã xác nhận</button>
+      </form>
+
+      <!-- Bước 2: nhập mã + mật khẩu mới -->
+      <form id="form-buoc-2" hidden>
+        <p class="otp-hint">Nếu email tồn tại, mã xác nhận đã được gửi, có hiệu lực <strong>1 phút</strong>.</p>
+        <div class="otp-group" id="otp-group">
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" autocomplete="one-time-code" />
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" />
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" />
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" />
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" />
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" />
+        </div>
+        <input class="input-field" type="password" id="mat_khau_moi" placeholder="Mật khẩu mới (tối thiểu 6 ký tự)" minlength="6" required />
+        <div id="loi-buoc-2" class="text-error" hidden></div>
+        <button class="btn-primary" type="submit">Đặt lại mật khẩu</button>
+        <p class="otp-resend">
+          Chưa nhận được mã? <a class="text-link" href="#" id="gui-lai-ma">Gửi lại mã</a>
+        </p>
+      </form>
+
+      <p style="text-align:center; margin-top:20px;">
+        <a class="text-link" href="dang-nhap.html">Quay lại đăng nhập</a>
       </p>
-    </form>
-
-    <p style="text-align:center; margin-top:20px;">
-      <a class="text-link" href="dang-nhap.html">Quay lại đăng nhập</a>
-    </p>
+    </div>
   </div>
 
   <script src="/shared/api-client.js"></script>
+  <script src="otp-input.js"></script>
   <script>
     let emailDangXuLy = null;
+    const otp = initOtpInput(document.getElementById("otp-group"));
+    const demNguoc = initOtpResendCountdown(document.getElementById("gui-lai-ma"), 60, guiMaXacNhan);
+
+    async function guiMaXacNhan() {
+      try {
+        // Backend luôn trả về thành công dù email không tồn tại (chống dò quét — NGHIEP_VU.md mục 2.1)
+        await apiPost("/auth/quen-mat-khau", { email: emailDangXuLy });
+        return true;
+      } catch (err) {
+        return false;
+      }
+    }
 
     document.getElementById("form-buoc-1").addEventListener("submit", async (e) => {
       e.preventDefault();
       const loiEl = document.getElementById("loi-buoc-1");
+      const btn = e.target.querySelector("button[type=submit]");
       loiEl.hidden = true;
+      btn.classList.add("is-loading");
 
       emailDangXuLy = document.getElementById("email").value.trim();
 
       try {
-        // Backend luôn trả về thành công dù email không tồn tại (chống dò quét — NGHIEP_VU.md mục 2.1)
         await apiPost("/auth/quen-mat-khau", { email: emailDangXuLy });
         document.getElementById("form-buoc-1").hidden = true;
         document.getElementById("form-buoc-2").hidden = false;
+        demNguoc.batDau();
+        otp.reset();
       } catch (err) {
         loiEl.textContent = err.message;
         loiEl.hidden = false;
+      } finally {
+        btn.classList.remove("is-loading");
       }
     });
 
     document.getElementById("form-buoc-2").addEventListener("submit", async (e) => {
       e.preventDefault();
       const loiEl = document.getElementById("loi-buoc-2");
+      const btn = e.target.querySelector("button[type=submit]");
       loiEl.hidden = true;
 
+      const maXacNhan = otp.layDayDuMa();
+      if (maXacNhan.length < 6) {
+        otp.baoLoi();
+        loiEl.textContent = "Vui lòng nhập đủ 6 số";
+        loiEl.hidden = false;
+        return;
+      }
+
+      btn.classList.add("is-loading");
       try {
         await apiPost("/auth/dat-lai-mat-khau", {
           email: emailDangXuLy,
-          ma_xac_nhan: document.getElementById("ma_xac_nhan").value.trim(),
+          ma_xac_nhan: maXacNhan,
           mat_khau_moi: document.getElementById("mat_khau_moi").value,
         });
-        alert("Đổi mật khẩu thành công, vui lòng đăng nhập lại.");
         window.location.href = "dang-nhap.html";
       } catch (err) {
+        otp.baoLoi();
         loiEl.textContent = err.message;
         loiEl.hidden = false;
-      }
-    });
-
-    document.getElementById("gui-lai-ma").addEventListener("click", async (e) => {
-      e.preventDefault();
-      try {
-        await apiPost("/auth/quen-mat-khau", { email: emailDangXuLy });
-        alert("Đã gửi lại mã xác nhận.");
-      } catch (err) {
-        alert(err.message);
+        btn.classList.remove("is-loading");
       }
     });
   </script>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tài khoản của tôi — Nhà xe khách</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="auth.css" />
+</head>
+<body class="auth-page">
+  <div class="card auth-card auth-card--wide">
+    <h1>Tài khoản của tôi</h1>
+    <p class="subtitle" id="email-hien-thi">Đang tải...</p>
+
+    <!-- Thông tin cá nhân -->
+    <form id="form-ho-so">
+      <label class="pill" style="margin-bottom:6px;">Họ và tên</label>
+      <input class="input-field" type="text" id="ho_ten" required />
+      <label class="pill" style="margin-bottom:6px;">Số điện thoại</label>
+      <input class="input-field" type="text" id="so_dien_thoai" disabled />
+      <div id="loi-ho-so" class="text-error" hidden></div>
+      <div id="thanh-cong-ho-so" class="text-success" hidden></div>
+      <button class="btn-primary" type="submit">Lưu thay đổi</button>
+    </form>
+
+    <hr />
+
+    <!-- Đổi mật khẩu -->
+    <h1 style="font-size:20px;">Đổi mật khẩu</h1>
+    <form id="form-doi-mat-khau">
+      <input class="input-field" type="password" id="mat_khau_cu" placeholder="Mật khẩu hiện tại" required />
+      <input class="input-field" type="password" id="mat_khau_moi" placeholder="Mật khẩu mới (tối thiểu 6 ký tự)" minlength="6" required />
+      <div id="loi-mat-khau" class="text-error" hidden></div>
+      <div id="thanh-cong-mat-khau" class="text-success" hidden></div>
+      <button class="btn-primary" type="submit">Đổi mật khẩu</button>
+    </form>
+
+    <hr />
+
+    <button class="btn-primary" id="btn-dang-xuat" style="background: var(--color-bg-dark); color: var(--color-text-on-dark);">
+      Đăng xuất
+    </button>
+  </div>
+
+  <script src="/shared/api-client.js"></script>
+  <script src="/shared/auth-check.js"></script>
+  <script>
+    yeuCauDangNhap(); // chuyển hướng về dang-nhap.html ngay nếu chưa đăng nhập
+
+    async function taiHoSo() {
+      try {
+        const hoSo = await apiGet("/auth/toi");
+        document.getElementById("email-hien-thi").textContent = hoSo.email;
+        document.getElementById("ho_ten").value = hoSo.ho_ten;
+        document.getElementById("so_dien_thoai").value = hoSo.so_dien_thoai;
+      } catch (err) {
+        // Token hỏng/hết hạn giữa chừng — coi như chưa đăng nhập
+        dangXuat();
+      }
+    }
+    taiHoSo();
+
+    document.getElementById("form-ho-so").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const loiEl = document.getElementById("loi-ho-so");
+      const okEl = document.getElementById("thanh-cong-ho-so");
+      loiEl.hidden = true;
+      okEl.hidden = true;
+
+      try {
+        await apiPut("/auth/toi", { ho_ten: document.getElementById("ho_ten").value.trim() });
+        localStorage.setItem("ho_ten", document.getElementById("ho_ten").value.trim());
+        okEl.textContent = "Cập nhật thành công.";
+        okEl.hidden = false;
+      } catch (err) {
+        loiEl.textContent = err.message;
+        loiEl.hidden = false;
+      }
+    });
+
+    document.getElementById("form-doi-mat-khau").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const loiEl = document.getElementById("loi-mat-khau");
+      const okEl = document.getElementById("thanh-cong-mat-khau");
+      loiEl.hidden = true;
+      okEl.hidden = true;
+
+      try {
+        await apiPut("/auth/doi-mat-khau", {
+          mat_khau_cu: document.getElementById("mat_khau_cu").value,
+          mat_khau_moi: document.getElementById("mat_khau_moi").value,
+        });
+        okEl.textContent = "Đổi mật khẩu thành công.";
+        okEl.hidden = false;
+        e.target.reset();
+      } catch (err) {
+        loiEl.textContent = err.message;
+        loiEl.hidden = false;
+      }
+    });
+
+    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+  </script>
+</body>
+</html>

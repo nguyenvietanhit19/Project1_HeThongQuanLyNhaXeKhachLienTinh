@@ -1,11 +1,21 @@
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.config import CORS_ORIGINS
 from app.routes.auth import router as auth_router
 from app.routes.websocket import router as websocket_router
 from app.utils.loi import GiaTriLoi, KhongDuQuyen, LoiHeThong
 
 app = FastAPI(title="Hệ thống Quản lý Nhà xe Khách")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/")
