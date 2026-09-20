@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Đăng ký — Nhà xe khách</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+</head>
+<body class="auth-page">
+  <div class="card auth-card">
+    <h1>Tạo tài khoản</h1>
+    <p class="subtitle">Nhập thông tin để bắt đầu đặt vé online</p>
+
+    <!-- Bước 1: nhập thông tin, gửi mã xác nhận -->
+    <form id="form-buoc-1">
+      <input class="input-field" type="email" id="email" placeholder="Email" required />
+      <input class="input-field" type="password" id="mat_khau" placeholder="Mật khẩu (tối thiểu 6 ký tự)" minlength="6" required />
+      <input class="input-field" type="text" id="ho_ten" placeholder="Họ và tên" required />
+      <input class="input-field" type="tel" id="so_dien_thoai" placeholder="Số điện thoại" required />
+      <div id="loi-buoc-1" class="text-error" hidden></div>
+      <button class="btn-primary" type="submit">Gửi mã xác nhận</button>
+    </form>
+
+    <!-- Bước 2: nhập mã OTP vừa gửi về email -->
+    <form id="form-buoc-2" hidden>
+      <p>Mã xác nhận đã gửi tới <strong id="email-hien-thi"></strong>, có hiệu lực <strong>1 phút</strong>.</p>
+      <input class="input-field" type="text" id="ma_xac_nhan" placeholder="Mã xác nhận (6 số)" required />
+      <div id="loi-buoc-2" class="text-error" hidden></div>
+      <button class="btn-primary" type="submit">Xác nhận & tạo tài khoản</button>
+      <p style="text-align:center; margin-top:12px;">
+        <a class="text-link" href="#" id="gui-lai-ma">Gửi lại mã</a>
+      </p>
+    </form>
+
+    <p style="text-align:center; margin-top:20px;">
+      Đã có tài khoản? <a class="text-link" href="dang-nhap.html">Đăng nhập</a>
+    </p>
+  </div>
+
+  <script src="/shared/api-client.js"></script>
+  <script>
+    let thongTinDangKy = null;
+
+    document.getElementById("form-buoc-1").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const loiEl = document.getElementById("loi-buoc-1");
+      loiEl.hidden = true;
+
+      thongTinDangKy = {
+        email: document.getElementById("email").value.trim(),
+        mat_khau: document.getElementById("mat_khau").value,
+        ho_ten: document.getElementById("ho_ten").value.trim(),
+        so_dien_thoai: document.getElementById("so_dien_thoai").value.trim(),
+      };
+
+      try {
+        await apiPost("/auth/gui-ma-dang-ky", thongTinDangKy);
+        document.getElementById("email-hien-thi").textContent = thongTinDangKy.email;
+        document.getElementById("form-buoc-1").hidden = true;
+        document.getElementById("form-buoc-2").hidden = false;
+      } catch (err) {
+        loiEl.textContent = err.message;
+        loiEl.hidden = false;
+      }
+    });
+
+    document.getElementById("form-buoc-2").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const loiEl = document.getElementById("loi-buoc-2");
+      loiEl.hidden = true;
+
+      try {
+        await apiPost("/auth/dang-ky", {
+          email: thongTinDangKy.email,
+          ma_xac_nhan: document.getElementById("ma_xac_nhan").value.trim(),
+        });
+        window.location.href = "dang-nhap.html";
+      } catch (err) {
+        loiEl.textContent = err.message;
+        loiEl.hidden = false;
+      }
+    });
+
+    document.getElementById("gui-lai-ma").addEventListener("click", async (e) => {
+      e.preventDefault();
+      try {
+        await apiPost("/auth/gui-ma-dang-ky", thongTinDangKy);
+        alert("Đã gửi lại mã xác nhận.");
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+  </script>
+</body>
+</html>
