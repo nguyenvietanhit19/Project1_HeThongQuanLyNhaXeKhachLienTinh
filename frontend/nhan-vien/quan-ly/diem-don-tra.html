@@ -37,9 +37,10 @@
       <h2 id="modal-tieu-de">Thêm điểm đón/trả</h2>
       <form id="form-diem">
         <input type="hidden" id="diem_id" />
+        <input type="hidden" id="khu_vuc_id" />
 
-        <label class="nv-label" for="khu_vuc_id">Khu vực</label>
-        <select class="input-field" id="khu_vuc_id" required></select>
+        <label class="nv-label" for="khu_vuc_search">Khu vực</label>
+        <input class="input-field" type="text" id="khu_vuc_search" placeholder="Gõ để tìm hoặc chọn trong danh sách khu vực" required />
 
         <label class="nv-label" for="ten">Tên điểm</label>
         <input class="input-field" type="text" id="ten" placeholder='VD "Bến xe Yên Nghĩa"' required />
@@ -66,6 +67,8 @@
   <script src="/nhan-vien/shared/auth-check.js"></script>
   <script src="/nhan-vien/shared/nav-quan-ly.js"></script>
   <script src="/nhan-vien/shared/data-table.js"></script>
+  <script src="/nhan-vien/shared/tinh-thanh.js"></script>
+  <script src="/nhan-vien/shared/combo-tim-kiem.js"></script>
   <script>
     const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
     if (nguoiDung) {
@@ -75,12 +78,16 @@
     document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
 
     const bangDiem = document.getElementById("bang-diem");
-    const selectKhuVuc = document.getElementById("khu_vuc_id");
     let dsKhuVuc = [];
     let dsDiem = [];
+    let comboKhuVuc = null;
 
-    function tenKhuVuc(khu_vuc_id) {
-      return dsKhuVuc.find((k) => k.id === khu_vuc_id)?.ten || "—";
+    function tenHienThiKhuVuc(khuVuc) {
+      return `${khuVuc.ten} (${hienThiTinhThanh(khuVuc.tinh_thanh)})`;
+    }
+
+    function khuVucTheoId(khu_vuc_id) {
+      return dsKhuVuc.find((k) => k.id === khu_vuc_id);
     }
 
     function nhanLoai(loai) {
@@ -91,9 +98,12 @@
 
     async function taiKhuVuc() {
       dsKhuVuc = await apiGet("/quan-ly/khu-vuc");
-      selectKhuVuc.innerHTML = dsKhuVuc
-        .map((k) => `<option value="${k.id}">${k.ten} (${k.tinh_thanh})</option>`)
-        .join("");
+      comboKhuVuc = khoiTaoComboTimKiem(
+        document.getElementById("khu_vuc_search"),
+        document.getElementById("khu_vuc_id"),
+        dsKhuVuc,
+        { hienThi: tenHienThiKhuVuc }
+      );
     }
 
     async function taiDanhSach() {
@@ -103,8 +113,9 @@
           bangDiem,
           [
             { key: "ten", label: "Tên điểm" },
-            { key: "khu_vuc_id", label: "Khu vực", render: (r) => tenKhuVuc(r.khu_vuc_id) },
-            { key: "dia_chi", label: "Địa chỉ" },
+            { key: "khu_vuc_id", label: "Khu vực", render: (r) => khuVucTheoId(r.khu_vuc_id)?.ten || "—" },
+            { key: "tinh_thanh", label: "Tỉnh/thành", render: (r) => khuVucTheoId(r.khu_vuc_id)?.tinh_thanh || "—" },
+            { key: "dia_chi", label: "Địa chỉ chi tiết" },
             { key: "loai", label: "Loại", render: (r) => nhanLoai(r.loai) },
           ],
           dsDiem,
@@ -150,13 +161,14 @@
       document.getElementById("modal-tieu-de").textContent = "Thêm điểm đón/trả";
       form.reset();
       document.getElementById("diem_id").value = "";
+      comboKhuVuc.xoa();
       moModal();
     }
 
     function moModalSua(diem) {
       document.getElementById("modal-tieu-de").textContent = "Sửa điểm đón/trả";
       document.getElementById("diem_id").value = diem.id;
-      document.getElementById("khu_vuc_id").value = diem.khu_vuc_id;
+      comboKhuVuc.chon(diem.khu_vuc_id);
       document.getElementById("ten").value = diem.ten;
       document.getElementById("dia_chi").value = diem.dia_chi;
       document.getElementById("loai").value = diem.loai;
@@ -170,9 +182,16 @@
       e.preventDefault();
       loiForm.hidden = true;
 
+      if (!comboKhuVuc.hopLe()) {
+        loiForm.textContent = "Khu vực không hợp lệ — vui lòng chọn đúng 1 khu vực trong danh sách gợi ý.";
+        loiForm.hidden = false;
+        document.getElementById("khu_vuc_search").focus();
+        return;
+      }
+
       const id = document.getElementById("diem_id").value;
       const duLieu = {
-        khu_vuc_id: selectKhuVuc.value,
+        khu_vuc_id: document.getElementById("khu_vuc_id").value,
         ten: document.getElementById("ten").value.trim(),
         dia_chi: document.getElementById("dia_chi").value.trim(),
         loai: document.getElementById("loai").value,

@@ -1,7 +1,9 @@
 /*
  * Danh sách 34 đơn vị hành chính cấp tỉnh của Việt Nam sau sáp nhập, hiệu
  * lực từ 01/07/2025 (Nghị quyết 202/2025/QH15) — 28 tỉnh + 6 thành phố
- * trực thuộc trung ương. Dùng cho ô chọn tỉnh/thành ở trang Khu vực (UC-29).
+ * trực thuộc trung ương. Dùng cho ô chọn tỉnh/thành ở trang Khu vực (UC-29),
+ * và hienThiTinhThanh() dùng khi hiển thị khu vực kèm tỉnh/thành ở nơi khác
+ * (VD ô chọn khu vực ở trang Điểm đón/trả, UC-30).
  *
  * QUAN TRỌNG: danh sách này phải khớp 100% với
  * backend/app/utils/tinh_thanh.py — sửa 1 bên phải sửa bên kia. Backend
@@ -9,15 +11,16 @@
  * (gợi ý + chặn nhập tự do phía client).
  */
 
-const DANH_SACH_TINH_THANH = [
-  // 6 thành phố trực thuộc trung ương
+const DANH_SACH_THANH_PHO_TW = [
   "Hà Nội",
   "Hải Phòng",
   "Đà Nẵng",
   "Thành phố Hồ Chí Minh",
   "Cần Thơ",
   "Huế",
-  // 28 tỉnh
+];
+
+const DANH_SACH_TINH = [
   "Cao Bằng",
   "Điện Biên",
   "Hà Tĩnh",
@@ -47,6 +50,15 @@ const DANH_SACH_TINH_THANH = [
   "Cà Mau",
   "An Giang",
 ];
+
+const DANH_SACH_TINH_THANH = [...DANH_SACH_THANH_PHO_TW, ...DANH_SACH_TINH];
+
+/** "Nghệ An" -> "tỉnh Nghệ An", "Hà Nội" -> "Hà Nội" (thành phố trực thuộc
+ * trung ương đã có tên riêng đủ rõ, không cần thêm tiền tố) — dùng khi
+ * hiển thị khu vực kèm tỉnh/thành cho dễ phân biệt, VD "TP Vinh (tỉnh Nghệ An)". */
+function hienThiTinhThanh(tinh_thanh) {
+  return DANH_SACH_TINH.includes(tinh_thanh) ? `tỉnh ${tinh_thanh}` : tinh_thanh;
+}
 
 /** Gắn <datalist> gợi ý tỉnh/thành vào 1 <input list="..."> có sẵn —
  * cho phép gõ để lọc hoặc mở dropdown chọn, nhưng KHÔNG cho nhập tự do:
