@@ -305,3 +305,29 @@ def quet_chuyen_hang_ton_14_ngay() -> int:
     finally:
         release_connection(conn)
 
+
+def thong_ke_hang_tai_diem(diem_id: str) -> dict:
+    """UC-39: Thống kê đơn hàng và doanh thu tại văn phòng nhân viên phụ trách."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    COUNT(*) FILTER (WHERE diem_gui_id = %(diem_id)s) AS tong_don_gui_di,
+                    COALESCE(SUM(gia_cuoc) FILTER (WHERE diem_gui_id = %(diem_id)s AND phuong_thuc_thanh_toan = 'nguoi_gui_tra_truoc'), 0) AS tien_cuoc_gui_tra_truoc,
+                    COUNT(*) FILTER (WHERE diem_nhan_id = %(diem_id)s) AS tong_don_nhan_den,
+                    COUNT(*) FILTER (WHERE diem_nhan_id = %(diem_id)s AND trang_thai = 'cho_lay') AS so_don_cho_lay,
+                    COUNT(*) FILTER (WHERE diem_nhan_id = %(diem_id)s AND co_canh_bao_cho_lau = true) AS so_don_canh_bao_7_ngay,
+                    COUNT(*) FILTER (WHERE diem_nhan_id = %(diem_id)s AND trang_thai = 'qua_han_luu_kho') AS so_don_ton_kho,
+                    COUNT(*) FILTER (WHERE diem_nhan_id = %(diem_id)s AND trang_thai = 'da_giao') AS so_don_da_giao,
+                    COALESCE(SUM(gia_cuoc) FILTER (WHERE diem_nhan_id = %(diem_id)s AND trang_thai = 'da_giao' AND phuong_thuc_thanh_toan = 'cod_nguoi_nhan_tra'), 0) AS tien_cod_da_thu
+                FROM don_hang
+                WHERE diem_gui_id = %(diem_id)s OR diem_nhan_id = %(diem_id)s
+                """,
+                {"diem_id": diem_id},
+            )
+            return _thanh_dict(cur, cur.fetchone())
+    finally:
+        release_connection(conn)
+

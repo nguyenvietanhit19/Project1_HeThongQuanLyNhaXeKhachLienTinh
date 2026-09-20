@@ -52,10 +52,10 @@ def yeu_cau_dang_nhap(authorization: Annotated[str | None, Header()] = None) -> 
     dependency injection của FastAPI thay vì decorator — route khác chỉ cần
     khai báo tham số, không tự viết lại logic kiểm tra JWT.
     """
-    if not authorization or not authorization.startswith("Bearer "):
+    if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Thiếu token")
 
-    token = authorization.removeprefix("Bearer ").strip()
+    token = authorization.split(" ", 1)[1].strip()
     try:
         nguoi_dung_id = giai_ma_token(token)
     except jwt.ExpiredSignatureError:
