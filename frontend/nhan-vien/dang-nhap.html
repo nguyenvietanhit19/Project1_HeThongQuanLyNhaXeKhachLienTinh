@@ -4,9 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
-<title>Đăng nhập — Nhà xe khách</title>
+<title>Đăng nhập cán bộ — Nhà xe khách</title>
 <link rel="stylesheet" href="/shared/design-tokens.css" />
-<link rel="stylesheet" href="auth.css" />
+<link rel="stylesheet" href="/khach-hang/auth.css" />
 </head>
 <body class="auth-page">
   <div class="auth-shell">
@@ -34,19 +34,20 @@
         </svg>
       </div>
       <div class="auth-illustration__badge" aria-hidden="true">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <path d="M4 12l8-8 8 8M6 10v10h12V10" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M9 6l6 6-6 6" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
       <div class="auth-illustration__text">
-        <h2>Chào mừng trở lại</h2>
-        <p>Đăng nhập để tiếp tục đặt vé, xem lịch sử chuyến đi và quản lý tài khoản của bạn.</p>
+        <h2>Cổng cán bộ</h2>
+        <p>Dành cho quản lý, điều độ viên, nhân viên quầy vé/gửi hàng và phụ xe.</p>
       </div>
     </div>
 
     <div class="auth-form-panel">
-      <h1>Đăng nhập</h1>
-      <p class="subtitle">Đăng nhập để đặt vé và xem lịch sử vé</p>
+      <img src="/shared/assets/logo-mark.png" alt="Logo" style="width:52px; height:52px; border-radius:50%; box-shadow:var(--shadow-float); margin-bottom:14px;" />
+      <h1>Đăng nhập cán bộ</h1>
+      <p class="subtitle">Dùng đúng email đã được cấp tài khoản</p>
 
       <form id="form-dang-nhap">
         <input class="input-field" type="email" id="email" placeholder="Email" required />
@@ -56,17 +57,24 @@
         <button class="btn-primary" type="submit">Đăng nhập</button>
       </form>
 
-      <p style="text-align:center; margin-top:16px;">
-        <a class="text-link" href="quen-mat-khau.html">Quên mật khẩu?</a>
-      </p>
-      <p style="text-align:center; margin-top:8px;">
-        Chưa có tài khoản? <a class="text-link" href="dang-ky.html">Đăng ký</a>
+      <p style="text-align:center; margin-top:16px; font-size:14px; color:var(--color-text-muted);">
+        Tài khoản cán bộ do quản lý cấp qua email mời — không tự đăng ký ở đây.
       </p>
     </div>
   </div>
 
-  <script src="/shared/api-client.js"></script>
   <script>
+    // Trang đăng nhập chung cho mọi vai trò cán bộ — không phụ thuộc file
+    // JS của riêng vai trò nào (mỗi vai trò tự viết CSS/JS trong thư mục
+    // của họ, VD frontend/nhan-vien/quan-ly/), nên tự gọi API trực tiếp ở
+    // đây thay vì import apiPost() từ chỗ khác.
+    const API_BASE_URL = "http://localhost:8000";
+
+    const VE_TRANG_SAU_DANG_NHAP = {
+      quan_ly: "/nhan-vien/quan-ly/khu-vuc.html",
+      quan_ly_nhan_su: "/nhan-vien/quan-ly/khu-vuc.html",
+    };
+
     const btnSubmit = document.querySelector("#form-dang-nhap button[type=submit]");
 
     document.getElementById("form-dang-nhap").addEventListener("submit", async (e) => {
@@ -78,21 +86,33 @@
       btnSubmit.classList.add("is-loading");
 
       try {
-        const ketQua = await apiPost("/auth/dang-nhap", {
-          email: document.getElementById("email").value.trim(),
-          mat_khau: document.getElementById("mat_khau").value,
+        const res = await fetch(`${API_BASE_URL}/auth/dang-nhap`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: document.getElementById("email").value.trim(),
+            mat_khau: document.getElementById("mat_khau").value,
+          }),
         });
+        const ketQua = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(ketQua.loi || ketQua.detail || "Có lỗi xảy ra, thử lại sau");
+        }
 
         localStorage.setItem("token", ketQua.token);
         localStorage.setItem("vai_tro", ketQua.vai_tro);
         localStorage.setItem("ho_ten", ketQua.ho_ten);
 
-        thanhCongEl.textContent = `Xin chào ${ketQua.ho_ten}! Đăng nhập thành công.`;
-        thanhCongEl.hidden = false;
-
-        // TODO: khi trang tìm kiếm chuyến (frontend/khach-hang/tim-kiem.html) đã có
-        // (thuộc domain 2), có thể đổi điểm đến mặc định sang đó thay vì tai-khoan.html.
-        setTimeout(() => { window.location.href = "tai-khoan.html"; }, 800);
+        const trangDich = VE_TRANG_SAU_DANG_NHAP[ketQua.vai_tro];
+        if (trangDich) {
+          thanhCongEl.textContent = `Xin chào ${ketQua.ho_ten}! Đăng nhập thành công.`;
+          thanhCongEl.hidden = false;
+          setTimeout(() => { window.location.href = trangDich; }, 600);
+        } else {
+          thanhCongEl.textContent = `Đăng nhập thành công, nhưng giao diện cho vai trò "${ketQua.vai_tro}" chưa sẵn sàng — sẽ sớm được bổ sung.`;
+          thanhCongEl.hidden = false;
+          btnSubmit.classList.remove("is-loading");
+        }
       } catch (err) {
         loiEl.textContent = err.message;
         loiEl.hidden = false;

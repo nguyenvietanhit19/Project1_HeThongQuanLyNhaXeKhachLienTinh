@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Điểm đón/trả — Quản lý</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+</head>
+<body class="nhan-vien-shell">
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
+
+    <div class="nv-main">
+      <header class="nv-topbar">
+        <h1>Điểm đón/trả</h1>
+        <div class="nv-topbar__user">
+          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
+          <div class="nv-topbar__identity">
+            <span class="ho-ten" id="topbar-ho-ten"></span>
+            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
+          </div>
+          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
+        </div>
+      </header>
+
+      <main class="nv-content">
+        <div class="nv-page-intro">
+          <div class="nv-page-intro__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 21s7-7.16 7-12a7 7 0 1 0-14 0c0 4.84 7 12 7 12Z"/><circle cx="12" cy="9" r="2.3"/>
+            </svg>
+          </div>
+          <div class="nv-page-intro__body">
+            <p class="nv-page-intro__title">Điểm đón/trả</p>
+            <p class="nv-page-intro__desc">Văn phòng có quầy vé (hợp lệ đón &amp; trả khách); điểm dừng chỉ hợp lệ trả khách. Mỗi điểm thuộc đúng 1 khu vực.</p>
+          </div>
+          <div class="nv-page-intro__stat">
+            <span class="nv-page-intro__stat-num" id="stat-so-luong">—</span>
+            <span class="nv-page-intro__stat-label">điểm</span>
+          </div>
+        </div>
+
+        <div class="nv-card">
+          <div class="nv-card__header">
+            <h2>Danh sách điểm đón/trả</h2>
+            <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Thêm điểm</button>
+          </div>
+          <div id="bang-diem">Đang tải...</div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="nv-modal-overlay" id="modal-overlay" hidden>
+    <div class="nv-modal">
+      <h2 id="modal-tieu-de">Thêm điểm đón/trả</h2>
+      <form id="form-diem">
+        <input type="hidden" id="diem_id" />
+        <input type="hidden" id="khu_vuc_id" />
+
+        <label class="nv-label" for="khu_vuc_search">Khu vực</label>
+        <input class="input-field" type="text" id="khu_vuc_search" placeholder="Gõ để tìm hoặc chọn trong danh sách khu vực" required />
+
+        <label class="nv-label" for="ten">Tên điểm</label>
+        <input class="input-field" type="text" id="ten" placeholder='VD "Bến xe Yên Nghĩa"' required />
+
+        <label class="nv-label" for="dia_chi">Địa chỉ cụ thể</label>
+        <input class="input-field" type="text" id="dia_chi" placeholder='VD "Km số 4, Quang Trung, Hà Đông"' required />
+
+        <label class="nv-label" for="loai">Loại điểm</label>
+        <select class="input-field" id="loai" required>
+          <option value="van_phong">Văn phòng (có quầy vé, hợp lệ đón & trả)</option>
+          <option value="diem_dung">Điểm dừng (không quầy vé, chỉ hợp lệ trả khách)</option>
+        </select>
+
+        <div id="loi-form" class="text-error" hidden></div>
+        <div class="nv-modal__actions">
+          <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
+          <button type="submit" class="btn-primary">Lưu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/nhan-vien/quan-ly/api-client.js"></script>
+  <script src="/nhan-vien/quan-ly/auth-check.js"></script>
+  <script src="/nhan-vien/quan-ly/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/data-table.js"></script>
+  <script src="/nhan-vien/quan-ly/tinh-thanh.js"></script>
+  <script src="/nhan-vien/quan-ly/combo-tim-kiem.js"></script>
+  <script>
+    const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
+    if (nguoiDung) {
+      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-ly/diem-don-tra.html");
+      renderTopbarUser();
+    }
+    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+
+    const bangDiem = document.getElementById("bang-diem");
+    let dsKhuVuc = [];
+    let dsDiem = [];
+    let comboKhuVuc = null;
+
+    function tenHienThiKhuVuc(khuVuc) {
+      return `${khuVuc.ten} (${hienThiTinhThanh(khuVuc.tinh_thanh)})`;
+    }
+
+    function khuVucTheoId(khu_vuc_id) {
+      return dsKhuVuc.find((k) => k.id === khu_vuc_id);
+    }
+
+    function nhanLoai(loai) {
+      return loai === "van_phong"
+        ? '<span class="pill pill--primary">Văn phòng</span>'
+        : '<span class="pill pill--diem-dung">Điểm dừng</span>';
+    }
+
+    async function taiKhuVuc() {
+      dsKhuVuc = await apiGet("/quan-ly/khu-vuc");
+      comboKhuVuc = khoiTaoComboTimKiem(
+        document.getElementById("khu_vuc_search"),
+        document.getElementById("khu_vuc_id"),
+        dsKhuVuc,
+        { hienThi: tenHienThiKhuVuc }
+      );
+    }
+
+    async function taiDanhSach() {
+      try {
+        dsDiem = await apiGet("/quan-ly/diem-don-tra");
+        document.getElementById("stat-so-luong").textContent = dsDiem.length;
+        renderDataTable(
+          bangDiem,
+          [
+            { key: "ten", label: "Tên điểm" },
+            { key: "khu_vuc_id", label: "Khu vực", render: (r) => `<span class="pill pill--khu-vuc">${khuVucTheoId(r.khu_vuc_id)?.ten || "—"}</span>` },
+            { key: "tinh_thanh", label: "Tỉnh/thành", render: (r) => `<span class="nv-text-phu">${khuVucTheoId(r.khu_vuc_id)?.tinh_thanh || "—"}</span>` },
+            { key: "dia_chi", label: "Địa chỉ chi tiết", render: (r) => `<span class="nv-text-phu">${r.dia_chi}</span>` },
+            { key: "loai", label: "Loại", render: (r) => nhanLoai(r.loai) },
+          ],
+          dsDiem,
+          { onEdit: moModalSua, onDelete: xoaDiem, tenXoa: (r) => r.ten }
+        );
+      } catch (err) {
+        bangDiem.innerHTML = `<div class="text-error">${err.message}</div>`;
+      }
+    }
+
+    async function xoaDiem(diem) {
+      try {
+        await apiDelete(`/quan-ly/diem-don-tra/${diem.id}`);
+        taiDanhSach();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    (async () => {
+      try {
+        await taiKhuVuc();
+        await taiDanhSach();
+      } catch (err) {
+        bangDiem.innerHTML = `<div class="text-error">${err.message}</div>`;
+      }
+    })();
+
+    const modalOverlay = document.getElementById("modal-overlay");
+    const form = document.getElementById("form-diem");
+    const loiForm = document.getElementById("loi-form");
+
+    function moModal() {
+      loiForm.hidden = true;
+      modalOverlay.hidden = false;
+    }
+
+    function moModalThem() {
+      if (!dsKhuVuc.length) {
+        alert("Cần tạo ít nhất 1 khu vực trước (mục Khu vực ở menu bên trái)");
+        return;
+      }
+      document.getElementById("modal-tieu-de").textContent = "Thêm điểm đón/trả";
+      form.reset();
+      document.getElementById("diem_id").value = "";
+      comboKhuVuc.xoa();
+      moModal();
+    }
+
+    function moModalSua(diem) {
+      document.getElementById("modal-tieu-de").textContent = "Sửa điểm đón/trả";
+      document.getElementById("diem_id").value = diem.id;
+      comboKhuVuc.chon(diem.khu_vuc_id);
+      document.getElementById("ten").value = diem.ten;
+      document.getElementById("dia_chi").value = diem.dia_chi;
+      document.getElementById("loai").value = diem.loai;
+      moModal();
+    }
+
+    document.getElementById("btn-them").addEventListener("click", moModalThem);
+    document.getElementById("btn-huy").addEventListener("click", () => { modalOverlay.hidden = true; });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loiForm.hidden = true;
+
+      if (!comboKhuVuc.hopLe()) {
+        loiForm.textContent = "Khu vực không hợp lệ — vui lòng chọn đúng 1 khu vực trong danh sách gợi ý.";
+        loiForm.hidden = false;
+        document.getElementById("khu_vuc_search").focus();
+        return;
+      }
+
+      const id = document.getElementById("diem_id").value;
+      const duLieu = {
+        khu_vuc_id: document.getElementById("khu_vuc_id").value,
+        ten: document.getElementById("ten").value.trim(),
+        dia_chi: document.getElementById("dia_chi").value.trim(),
+        loai: document.getElementById("loai").value,
+      };
+
+      const btnSubmit = form.querySelector("button[type=submit]");
+      btnSubmit.classList.add("is-loading");
+      try {
+        if (id) {
+          await apiPut(`/quan-ly/diem-don-tra/${id}`, duLieu);
+        } else {
+          await apiPost("/quan-ly/diem-don-tra", duLieu);
+        }
+        modalOverlay.hidden = true;
+        taiDanhSach();
+      } catch (err) {
+        loiForm.textContent = err.message;
+        loiForm.hidden = false;
+      } finally {
+        btnSubmit.classList.remove("is-loading");
+      }
+    });
+  </script>
+</body>
+</html>

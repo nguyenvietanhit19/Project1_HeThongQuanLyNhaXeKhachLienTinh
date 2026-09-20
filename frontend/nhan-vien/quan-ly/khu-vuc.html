@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Khu vực — Quản lý</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+</head>
+<body class="nhan-vien-shell">
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
+
+    <div class="nv-main">
+      <header class="nv-topbar">
+        <h1>Khu vực</h1>
+        <div class="nv-topbar__user">
+          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
+          <div class="nv-topbar__identity">
+            <span class="ho-ten" id="topbar-ho-ten"></span>
+            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
+          </div>
+          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
+        </div>
+      </header>
+
+      <main class="nv-content">
+        <div class="nv-page-intro">
+          <div class="nv-page-intro__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 3 3 5v16l6-2 6 2 6-2V3l-6 2-6-2Z"/><path d="M9 3v16M15 5v16"/>
+            </svg>
+          </div>
+          <div class="nv-page-intro__body">
+            <p class="nv-page-intro__title">Khu vực</p>
+            <p class="nv-page-intro__desc">Gộp các điểm đón/trả gần nhau theo tỉnh/thành — là đơn vị dùng để sắp thứ tự khi tạo nhóm tuyến và tuyến.</p>
+          </div>
+          <div class="nv-page-intro__stat">
+            <span class="nv-page-intro__stat-num" id="stat-so-luong">—</span>
+            <span class="nv-page-intro__stat-label">khu vực</span>
+          </div>
+        </div>
+
+        <div class="nv-card">
+          <div class="nv-card__header">
+            <h2>Danh sách khu vực</h2>
+            <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Thêm khu vực</button>
+          </div>
+          <div id="bang-khu-vuc">Đang tải...</div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="nv-modal-overlay" id="modal-overlay" hidden>
+    <div class="nv-modal">
+      <h2 id="modal-tieu-de">Thêm khu vực</h2>
+      <form id="form-khu-vuc">
+        <input type="hidden" id="khu_vuc_id" />
+
+        <label class="nv-label" for="ten">Tên khu vực</label>
+        <input class="input-field" type="text" id="ten" placeholder='VD "Lào Cai (TP, Bến Đền, Phố Lu)"' required />
+
+        <label class="nv-label" for="tinh_thanh">Tỉnh/thành</label>
+        <input class="input-field" type="text" id="tinh_thanh" placeholder="Gõ để tìm hoặc chọn trong danh sách 34 tỉnh/thành" required />
+        <p style="font-size:12px; color:var(--color-text-muted); margin:-8px 0 0;">Bắt buộc chọn đúng 1 trong 34 tỉnh/thành sau sáp nhập — không tự nhập tên khác.</p>
+
+        <div id="loi-form" class="text-error" hidden style="margin-top:12px;"></div>
+        <div class="nv-modal__actions">
+          <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
+          <button type="submit" class="btn-primary">Lưu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/nhan-vien/quan-ly/api-client.js"></script>
+  <script src="/nhan-vien/quan-ly/auth-check.js"></script>
+  <script src="/nhan-vien/quan-ly/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/data-table.js"></script>
+  <script src="/nhan-vien/quan-ly/tinh-thanh.js"></script>
+  <script>
+    const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
+    if (nguoiDung) {
+      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-ly/khu-vuc.html");
+      renderTopbarUser();
+    }
+    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+
+    const oTinhThanh = document.getElementById("tinh_thanh");
+    kemTimKiemTinhThanh(oTinhThanh);
+
+    const bangKhuVuc = document.getElementById("bang-khu-vuc");
+    let dsKhuVuc = [];
+
+    async function taiDanhSach() {
+      try {
+        dsKhuVuc = await apiGet("/quan-ly/khu-vuc");
+        document.getElementById("stat-so-luong").textContent = dsKhuVuc.length;
+        renderDataTable(
+          bangKhuVuc,
+          [
+            { key: "ten", label: "Tên khu vực" },
+            { key: "tinh_thanh", label: "Tỉnh/thành", render: (r) => `<span class="nv-text-phu">${r.tinh_thanh}</span>` },
+          ],
+          dsKhuVuc,
+          { onEdit: moModalSua, onDelete: xoaKhuVuc, tenXoa: (r) => r.ten }
+        );
+      } catch (err) {
+        bangKhuVuc.innerHTML = `<div class="text-error">${err.message}</div>`;
+      }
+    }
+    taiDanhSach();
+
+    async function xoaKhuVuc(khuVuc) {
+      try {
+        await apiDelete(`/quan-ly/khu-vuc/${khuVuc.id}`);
+        taiDanhSach();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    const modalOverlay = document.getElementById("modal-overlay");
+    const form = document.getElementById("form-khu-vuc");
+    const loiForm = document.getElementById("loi-form");
+
+    function moModal() {
+      loiForm.hidden = true;
+      modalOverlay.hidden = false;
+    }
+
+    function moModalThem() {
+      document.getElementById("modal-tieu-de").textContent = "Thêm khu vực";
+      form.reset();
+      document.getElementById("khu_vuc_id").value = "";
+      moModal();
+    }
+
+    function moModalSua(khuVuc) {
+      document.getElementById("modal-tieu-de").textContent = "Sửa khu vực";
+      document.getElementById("khu_vuc_id").value = khuVuc.id;
+      document.getElementById("ten").value = khuVuc.ten;
+      oTinhThanh.value = khuVuc.tinh_thanh;
+      moModal();
+    }
+
+    document.getElementById("btn-them").addEventListener("click", moModalThem);
+    document.getElementById("btn-huy").addEventListener("click", () => { modalOverlay.hidden = true; });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loiForm.hidden = true;
+
+      const ten = document.getElementById("ten").value.trim();
+      const tinhThanh = oTinhThanh.value.trim();
+
+      if (!laTinhThanhHopLe(tinhThanh)) {
+        loiForm.textContent = 'Tỉnh/thành không hợp lệ — vui lòng chọn đúng 1 giá trị trong danh sách gợi ý.';
+        loiForm.hidden = false;
+        oTinhThanh.focus();
+        return;
+      }
+
+      const id = document.getElementById("khu_vuc_id").value;
+      const duLieu = { ten, tinh_thanh: tinhThanh };
+
+      const btnSubmit = form.querySelector("button[type=submit]");
+      btnSubmit.classList.add("is-loading");
+      try {
+        if (id) {
+          await apiPut(`/quan-ly/khu-vuc/${id}`, duLieu);
+        } else {
+          await apiPost("/quan-ly/khu-vuc", duLieu);
+        }
+        modalOverlay.hidden = true;
+        taiDanhSach();
+      } catch (err) {
+        loiForm.textContent = err.message;
+        loiForm.hidden = false;
+      } finally {
+        btnSubmit.classList.remove("is-loading");
+      }
+    });
+  </script>
+</body>
+</html>
