@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Thống kê — Phụ xe</title>
+<link rel="stylesheet" href="/shared/design-tokens.css?v=2" />
+<link rel="stylesheet" href="phu-xe.css?v=2" />
+<style>
+  /* :not([hidden]) — tránh đúng bug đã gặp ở modal-overlay (phu-xe.css):
+     đặt display thẳng trên phần tử cũng dùng [hidden] để ẩn/hiện sẽ ghi
+     đè rule mặc định [hidden]{display:none} của trình duyệt. */
+  .stat-grid:not([hidden]) { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+  .stat-tile { background: var(--color-bg-canvas); border-radius: var(--radius-button); padding: 14px; }
+  .stat-tile .so { font-size: 22px; font-weight: 700; color: var(--color-secondary); }
+  .stat-tile .nhan { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
+  .date-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .date-row .input-field { margin-bottom: 0; flex: 1 1 130px; min-width: 0; }
+  .date-row button { flex: 1 1 100%; }
+</style>
+</head>
+<body class="phu-xe-page">
+  <div class="app-shell">
+  <div class="topbar">
+    <div>
+      <a href="chuyen-cua-toi.html" style="color:inherit;text-decoration:none;font-size:13px;opacity:0.85;">← Chuyến của tôi</a>
+      <h1>Thống kê chuyến của tôi</h1>
+    </div>
+    <button class="btn-icon-circle btn-icon-circle--dark" onclick="dangXuat()" title="Đăng xuất">⏻</button>
+  </div>
+
+  <div class="container container--pull-up">
+    <div class="card">
+      <form id="form-loc" class="date-row">
+        <input class="input-field" type="date" id="tu_ngay" required />
+        <input class="input-field" type="date" id="den_ngay" required />
+        <button class="btn-primary" type="submit">Xem</button>
+      </form>
+
+      <div id="loi" class="text-error" hidden></div>
+
+      <div class="stat-grid" id="ket-qua" hidden>
+        <div class="stat-tile">
+          <div class="so" id="so-chuyen">0</div>
+          <div class="nhan">Số chuyến đã chạy</div>
+        </div>
+        <div class="stat-tile">
+          <div class="so" id="doanh-thu">0đ</div>
+          <div class="nhan">Doanh thu (vé đã bán)</div>
+        </div>
+        <div class="stat-tile">
+          <div class="so" id="ty-le-lap-day">0%</div>
+          <div class="nhan">Tỷ lệ lấp đầy ghế trung bình</div>
+        </div>
+        <div class="stat-tile">
+          <div class="so" id="su-co-huy">0 / 0</div>
+          <div class="nhan">Chuyến gặp sự cố / bị hủy</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <script src="/shared/api-client.js"></script>
+  <script src="../shared/auth-check.js"></script>
+  <script>
+    requireRole("phu_xe");
+
+    function dinhDangNgay(d) {
+      return d.toISOString().slice(0, 10);
+    }
+
+    // Mặc định xem 30 ngày gần nhất — cho thao tác đầu tiên có kết quả ngay.
+    const homNay = new Date();
+    const ba0NgayTruoc = new Date(homNay);
+    ba0NgayTruoc.setDate(homNay.getDate() - 30);
+    document.getElementById("tu_ngay").value = dinhDangNgay(ba0NgayTruoc);
+    document.getElementById("den_ngay").value = dinhDangNgay(homNay);
+
+    async function taiThongKe() {
+      const loiEl = document.getElementById("loi");
+      const ketQuaEl = document.getElementById("ket-qua");
+      loiEl.hidden = true;
+
+      const tuNgay = document.getElementById("tu_ngay").value;
+      const denNgay = document.getElementById("den_ngay").value;
+
+      try {
+        const tk = await apiGet(`/phu-xe/thong-ke?tu_ngay=${tuNgay}&den_ngay=${denNgay}`);
+        document.getElementById("so-chuyen").textContent = tk.so_chuyen;
+        document.getElementById("doanh-thu").textContent = tk.doanh_thu.toLocaleString("vi-VN") + "đ";
+        document.getElementById("ty-le-lap-day").textContent = Math.round(tk.ty_le_lap_day_trung_binh * 100) + "%";
+        document.getElementById("su-co-huy").textContent = `${tk.so_chuyen_su_co} / ${tk.so_chuyen_huy}`;
+        ketQuaEl.hidden = false;
+      } catch (err) {
+        loiEl.textContent = err.message;
+        loiEl.hidden = false;
+        ketQuaEl.hidden = true;
+      }
+    }
+
+    document.getElementById("form-loc").addEventListener("submit", (e) => {
+      e.preventDefault();
+      taiThongKe();
+    });
+
+    taiThongKe();
+
+    // Tự tải lại định kỳ (30 giây) — số liệu đổi khi phụ xe hoàn thành
+    // chuyến ở màn hình khác (chuyen-dang-chay.html) rồi quay lại đây,
+    // không có cách nào để trang này biết ngay lập tức nếu không polling.
+    setInterval(taiThongKe, 30000);
+
+    // Tải lại ngay khi quay lại tab này (ví dụ vừa hoàn thành 1 chuyến ở
+    // tab/màn hình khác rồi bấm quay lại) — không cần đợi tới lượt poll kế tiếp.
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        taiThongKe();
+      }
+    });
+  </script>
+</body>
+</html>

@@ -337,6 +337,20 @@ UNIQUE: (`ve_id`) — 1 vé chỉ hoàn tiền đúng 1 lần (không có cơ ch
 
 **Index nên đánh thêm**: `(tuyen_id) WHERE chuyen_id IS NULL` — dùng cho danh sách "đơn hàng đang chờ chất lên chuyến" của phụ xe tại 1 điểm (UC-26), sắp theo `ngay_tao` (thứ tự thời gian, mục 10.2). `(chuyen_id)` — dùng khi tra cứu đơn hàng theo chuyến cụ thể (VD danh sách cần dỡ ở UC-27). `(trang_thai, thoi_gian_den_diem_nhan) WHERE trang_thai = 'cho_lay'` — dùng cho job quét mốc 7/14 ngày (UC-46).
 
+### 5.3. `bao_cao_su_co_hang` *(bảng bổ sung — không có tên tường minh trong `NGHIEP_VU.md`, giống tiền lệ `thong_bao` mục 6.1)*
+
+Lưu vết báo cáo thất lạc/hư hỏng của phụ xe (UC-28) — nếu chỉ đẩy real-time cho nhân viên gửi hàng/`quan_ly` rồi không lưu gì, thông tin sẽ mất nếu người nhận đang offline, và không xem lại được lịch sử báo cáo của 1 đơn hàng.
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `id` | UUID PK | |
+| `don_hang_id` | UUID NOT NULL, FK → `don_hang(id)` | |
+| `nguoi_bao_cao_id` | UUID NOT NULL, FK → `nguoi_dung(id)` | Luôn là `phu_xe` (UC-28) |
+| `mo_ta` | TEXT NOT NULL | Nội dung thất lạc/hư hỏng phụ xe nhập |
+| `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+
+Không đổi `don_hang.trang_thai` — chỉ ghi nhận, không chặn UC-26/UC-27 (`NGHIEP_VU.md` mục 12, UC-28).
+
 ---
 
 ## 6. Thông báo & nhật ký

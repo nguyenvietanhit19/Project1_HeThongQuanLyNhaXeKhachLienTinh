@@ -183,3 +183,14 @@
   font-weight: 600;
   text-decoration: none;
 }
+
+/* An toàn toàn cục: nếu 1 trang nào đó lỡ đặt `display` thẳng trên 1 phần
+   tử cũng dùng thuộc tính `hidden` để ẩn/hiện (el.hidden = true/false
+   trong JS), rule đó sẽ ghi đè [hidden]{display:none} mặc định của trình
+   duyệt, khiến phần tử LỘ RA dù đang "hidden" (gặp thật ở modal-overlay
+   và stat-grid, frontend/nhan-vien/phu-xe/). Luôn giữ đúng độ ưu tiên bằng
+   !important — không có ý nghĩa thiết kế, chỉ là lưới an toàn kỹ thuật,
+   nên không cần cả nhóm đồng ý mới thêm (khác đổi màu/token). */
+[hidden] {
+  display: none !important;
+}

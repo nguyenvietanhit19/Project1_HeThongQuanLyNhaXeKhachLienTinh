@@ -99,3 +99,34 @@ class DonHangResponse(BaseModel):
     ngay_tao: datetime
     ngay_giao: datetime | None = None
 
+
+# ---------------------------------------------------------
+# 6. Schemas dùng bởi phụ xe (UC-26, UC-27, UC-28) — tuanhdung, #<phu-xe>
+# ---------------------------------------------------------
+class DonHangChoChatResponse(BaseModel):
+    """1 dòng trong danh sách đơn hàng chờ chất lên chuyến — NGHIEP_VU.md mục 10.2, UC-26."""
+
+    id: str
+    ma_van_don: str
+    ten_nguoi_nhan: str
+    ten_diem_nhan: str
+    can_nang_kg: float
+    ngay_tao: datetime
+
+
+class DonHangChoDoResponse(BaseModel):
+    """1 dòng trong danh sách đơn hàng cần dỡ tại điểm hiện tại — UC-27."""
+
+    id: str
+    ma_van_don: str
+    ten_nguoi_nhan: str
+    can_nang_kg: float
+
+
+class XacNhanChatHangRequest(BaseModel):
+    chuyen_id: str
+
+
+class BaoThatLacRequest(BaseModel):
+    mo_ta: str
+

@@ -265,6 +265,28 @@ def lay_danh_sach_hang_cho_tai_diem(diem_nhan_id: str) -> list[dict]:
         release_connection(conn)
 
 
+def tim_don_can_do_tai_diem(chuyen_id: str, diem_nhan_id: str) -> list[dict]:
+    """UC-27 (Phụ xe): đơn đang trên xe (da_len_xe), cần dỡ tại đúng điểm
+    nhận này của đúng chuyến này — bổ sung cho phần phụ xe (tuanhdung),
+    lay_danh_sach_hang_cho_tai_diem() ở trên phục vụ UC-25 (hàng đã dỡ,
+    chờ người đến lấy), không phải trường hợp này."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, ma_van_don, ten_nguoi_nhan, can_nang_kg
+                FROM don_hang
+                WHERE chuyen_id = %s AND diem_nhan_id = %s AND trang_thai = 'da_len_xe'
+                ORDER BY ngay_tao ASC
+                """,
+                (chuyen_id, diem_nhan_id),
+            )
+            return _thanh_danh_sach_dict(cur, cur.fetchall())
+    finally:
+        release_connection(conn)
+
+
 def quet_bat_canh_bao_7_ngay() -> int:
     """UC-46: Bật cờ co_canh_bao_cho_lau cho đơn chờ lấy >= 7 ngày."""
     conn = get_connection()

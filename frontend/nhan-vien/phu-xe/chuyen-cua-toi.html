@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Chuyến của tôi — Phụ xe</title>
+<link rel="stylesheet" href="/shared/design-tokens.css?v=2" />
+<link rel="stylesheet" href="phu-xe.css?v=2" />
+</head>
+<body class="phu-xe-page">
+  <div class="app-shell">
+  <div class="topbar">
+    <div>
+      <h1>Chuyến của tôi</h1>
+      <p class="topbar-sub" id="loi-chao">Xin chào</p>
+    </div>
+    <button class="btn-icon-circle btn-icon-circle--dark" onclick="dangXuat()" title="Đăng xuất">⏻</button>
+  </div>
+
+  <div class="container container--pull-up">
+    <div class="card">
+      <div id="danh-sach-chuyen">
+        <p class="empty-state">Đang tải...</p>
+      </div>
+    </div>
+
+    <div class="section" style="text-align:center;">
+      <a class="text-link" href="thong-ke.html">Xem thống kê chuyến của tôi →</a>
+    </div>
+  </div>
+  </div>
+
+  <script src="/shared/api-client.js"></script>
+  <script src="../shared/auth-check.js"></script>
+  <script>
+    const { hoTen } = requireRole("phu_xe");
+    document.getElementById("loi-chao").textContent = `Xin chào, ${hoTen}`;
+
+    const NHAN_TRANG_THAI = {
+      chua_khoi_hanh: "Chưa khởi hành",
+      dang_chay: "Đang chạy",
+      gap_su_co: "Đang gặp sự cố",
+    };
+
+    function dinhDangGio(iso) {
+      const d = new Date(iso);
+      return d.toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    }
+
+    async function taiDanhSach() {
+      const el = document.getElementById("danh-sach-chuyen");
+      try {
+        const chuyenList = await apiGet("/phu-xe/chuyen-cua-toi");
+        if (chuyenList.length === 0) {
+          el.innerHTML = '<p class="empty-state">Hiện không có chuyến nào đang/sắp chạy thuộc xe bạn phụ trách.</p>';
+          return;
+        }
+
+        el.innerHTML = chuyenList
+          .map(
+            (c) => `
+          <a class="trip-card" href="chuyen-dang-chay.html?chuyen_id=${c.id}">
+            <div class="trip-route">${c.tuyen_ten}</div>
+            <div class="trip-meta">
+              ${c.bien_so} · ${dinhDangGio(c.gio_khoi_hanh)} ·
+              <span class="pill ${c.trang_thai === "dang_chay" ? "pill--success" : c.trang_thai === "gap_su_co" ? "pill--dark" : "pill--primary"}">
+                ${NHAN_TRANG_THAI[c.trang_thai] || c.trang_thai}
+              </span>
+              ${c.dang_hoan ? '<span class="pill pill--dark">Đang hoãn</span>' : ""}
+            </div>
+          </a>`
+          )
+          .join("");
+      } catch (err) {
+        el.innerHTML = `<p class="text-error">${err.message}</p>`;
+      }
+    }
+
+    taiDanhSach();
+  </script>
+</body>
+</html>
