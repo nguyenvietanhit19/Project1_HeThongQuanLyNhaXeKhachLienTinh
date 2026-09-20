@@ -34,16 +34,19 @@ function renderDataTable(containerEl, columns, rows, { onEdit, editLabel = "Sử
       const nutSua = onEdit ? `<button class="nv-btn-sua" data-idx="${idx}" type="button">${editLabel}</button>` : "";
       const nutXoa = onDelete ? `<button class="nv-btn-xoa" data-idx="${idx}" type="button">Xóa</button>` : "";
       const actionTd = coCotHanhDong ? `<td style="text-align:right"><div class="nv-hang-hanh-dong">${nutSua}${nutXoa}</div></td>` : "";
-      const lopHang = onRowClick ? ' class="nv-table__hang-mo-rong"' : "";
-      return `<tr data-idx="${idx}"${lopHang}>${tds}${actionTd}</tr>`;
+      const lopMoRong = onRowClick ? " nv-table__hang-mo-rong" : "";
+      const lopSoc = idx % 2 === 1 ? " nv-table__row--soc" : "";
+      return `<tr data-idx="${idx}" class="${lopMoRong}${lopSoc}">${tds}${actionTd}</tr>`;
     })
     .join("");
 
   containerEl.innerHTML = `
-    <table class="nv-table">
-      <thead><tr>${theadCols}</tr></thead>
-      <tbody>${tbodyRows}</tbody>
-    </table>
+    <div class="nv-table-wrap">
+      <table class="nv-table">
+        <thead><tr>${theadCols}</tr></thead>
+        <tbody>${tbodyRows}</tbody>
+      </table>
+    </div>
   `;
 
   if (onEdit) {

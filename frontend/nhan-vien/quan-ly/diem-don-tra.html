@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
 <title>Điểm đón/trả — Quản lý</title>
 <link rel="stylesheet" href="/shared/design-tokens.css" />
 <link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
@@ -21,6 +22,22 @@
       </header>
 
       <main class="nv-content">
+        <div class="nv-page-intro">
+          <div class="nv-page-intro__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 21s7-7.16 7-12a7 7 0 1 0-14 0c0 4.84 7 12 7 12Z"/><circle cx="12" cy="9" r="2.3"/>
+            </svg>
+          </div>
+          <div class="nv-page-intro__body">
+            <p class="nv-page-intro__title">Điểm đón/trả</p>
+            <p class="nv-page-intro__desc">Văn phòng có quầy vé (hợp lệ đón &amp; trả khách); điểm dừng chỉ hợp lệ trả khách. Mỗi điểm thuộc đúng 1 khu vực.</p>
+          </div>
+          <div class="nv-page-intro__stat">
+            <span class="nv-page-intro__stat-num" id="stat-so-luong">—</span>
+            <span class="nv-page-intro__stat-label">điểm</span>
+          </div>
+        </div>
+
         <div class="nv-card">
           <div class="nv-card__header">
             <h2>Danh sách điểm đón/trả</h2>
@@ -93,7 +110,7 @@
     function nhanLoai(loai) {
       return loai === "van_phong"
         ? '<span class="pill pill--primary">Văn phòng</span>'
-        : '<span class="pill">Điểm dừng</span>';
+        : '<span class="pill pill--diem-dung">Điểm dừng</span>';
     }
 
     async function taiKhuVuc() {
@@ -109,13 +126,14 @@
     async function taiDanhSach() {
       try {
         dsDiem = await apiGet("/quan-ly/diem-don-tra");
+        document.getElementById("stat-so-luong").textContent = dsDiem.length;
         renderDataTable(
           bangDiem,
           [
             { key: "ten", label: "Tên điểm" },
-            { key: "khu_vuc_id", label: "Khu vực", render: (r) => khuVucTheoId(r.khu_vuc_id)?.ten || "—" },
-            { key: "tinh_thanh", label: "Tỉnh/thành", render: (r) => khuVucTheoId(r.khu_vuc_id)?.tinh_thanh || "—" },
-            { key: "dia_chi", label: "Địa chỉ chi tiết" },
+            { key: "khu_vuc_id", label: "Khu vực", render: (r) => `<span class="pill pill--khu-vuc">${khuVucTheoId(r.khu_vuc_id)?.ten || "—"}</span>` },
+            { key: "tinh_thanh", label: "Tỉnh/thành", render: (r) => `<span class="nv-text-phu">${khuVucTheoId(r.khu_vuc_id)?.tinh_thanh || "—"}</span>` },
+            { key: "dia_chi", label: "Địa chỉ chi tiết", render: (r) => `<span class="nv-text-phu">${r.dia_chi}</span>` },
             { key: "loai", label: "Loại", render: (r) => nhanLoai(r.loai) },
           ],
           dsDiem,

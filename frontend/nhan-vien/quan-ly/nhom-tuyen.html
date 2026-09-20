@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
 <title>Nhóm tuyến — Quản lý</title>
 <link rel="stylesheet" href="/shared/design-tokens.css" />
 <link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
@@ -21,10 +22,23 @@
       </header>
 
       <main class="nv-content">
+        <div class="nv-page-intro">
+          <div class="nv-page-intro__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/>
+            </svg>
+          </div>
+          <div class="nv-page-intro__body">
+            <p class="nv-page-intro__title">Nhóm tuyến</p>
+            <p class="nv-page-intro__desc">Gộp các tuyến chạy trên cùng 1 hành trình vật lý (thường 2 chiều đi/về). Chọn sẵn các khu vực đi qua, đúng thứ tự — khi tạo tuyến ở mục "Tuyến" sẽ chỉ được chọn điểm dừng thuộc các khu vực này, đúng thứ tự đã cấu hình ở đây.</p>
+          </div>
+          <div class="nv-page-intro__stat">
+            <span class="nv-page-intro__stat-num" id="stat-so-luong">—</span>
+            <span class="nv-page-intro__stat-label">nhóm tuyến</span>
+          </div>
+        </div>
+
         <div class="nv-card">
-          <p style="font-size:13px; color:var(--color-text-muted); margin:0 0 16px; padding:10px 14px; background:var(--color-bg-canvas); border-radius:var(--radius-button);">
-            <strong>Nhóm tuyến là gì?</strong> Gộp các tuyến chạy trên cùng 1 hành trình vật lý — thường là 2 chiều đi/về. Chọn sẵn các khu vực mà hành trình đi qua, theo đúng thứ tự — khi tạo tuyến (mục "Tuyến" bên trái) sẽ chỉ được chọn điểm dừng thuộc các khu vực này, đúng thứ tự đã cấu hình ở đây (không cho chọn xen kẽ lộn xộn).
-          </p>
           <div class="nv-card__header">
             <h2>Danh sách nhóm tuyến</h2>
             <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Thêm nhóm tuyến</button>
@@ -86,6 +100,7 @@
     async function taiDanhSach() {
       try {
         dsNhomTuyen = await apiGet("/quan-ly/nhom-tuyen");
+        document.getElementById("stat-so-luong").textContent = dsNhomTuyen.length;
         const chiTietTatCa = await Promise.all(dsNhomTuyen.map((n) => apiGet(`/quan-ly/nhom-tuyen/${n.id}`)));
         renderDataTable(
           bangNhomTuyen,
@@ -96,7 +111,10 @@
               label: "Khu vực (theo thứ tự)",
               render: (r) => {
                 const ct = chiTietTatCa.find((c) => c.id === r.id);
-                return ct ? ct.danh_sach_khu_vuc.map((k) => k.ten).join(" → ") : "—";
+                if (!ct) return "—";
+                return `<div class="nv-chuoi-khu-vuc">${ct.danh_sach_khu_vuc
+                  .map((k, idx) => `${idx > 0 ? '<span class="nv-chuoi-khu-vuc__mui-ten">→</span>' : ""}<span class="pill pill--khu-vuc">${k.ten}</span>`)
+                  .join("")}</div>`;
               },
             },
           ],

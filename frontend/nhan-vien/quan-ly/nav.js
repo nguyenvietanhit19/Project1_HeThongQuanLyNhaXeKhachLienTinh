@@ -8,20 +8,50 @@
  */
 
 const MENU_QUAN_LY = [
-  { label: "Khu vực", href: "/nhan-vien/quan-ly/khu-vuc.html" },
-  { label: "Điểm đón/trả", href: "/nhan-vien/quan-ly/diem-don-tra.html" },
-  { label: "Nhóm tuyến", href: "/nhan-vien/quan-ly/nhom-tuyen.html" },
-  { label: "Tuyến", href: "/nhan-vien/quan-ly/tuyen.html" },
+  {
+    label: "Khu vực",
+    href: "/nhan-vien/quan-ly/khu-vuc.html",
+    icon: '<path d="M9 3 3 5v16l6-2 6 2 6-2V3l-6 2-6-2Z"/><path d="M9 3v16M15 5v16"/>',
+  },
+  {
+    label: "Điểm đón/trả",
+    href: "/nhan-vien/quan-ly/diem-don-tra.html",
+    icon: '<path d="M12 21s7-7.16 7-12a7 7 0 1 0-14 0c0 4.84 7 12 7 12Z"/><circle cx="12" cy="9" r="2.3"/>',
+  },
+  {
+    label: "Nhóm tuyến",
+    href: "/nhan-vien/quan-ly/nhom-tuyen.html",
+    icon: '<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/>',
+  },
+  {
+    label: "Tuyến",
+    href: "/nhan-vien/quan-ly/tuyen.html",
+    icon: '<circle cx="6" cy="19" r="2.3"/><circle cx="18" cy="5" r="2.3"/><path d="M6 16.7V13a4 4 0 0 1 4-4h2a4 4 0 0 0 4-4V5.3" stroke-dasharray="2.6 2.6"/>',
+  },
 ];
 
 function renderSidebar(containerEl, hrefDangMo) {
   const links = MENU_QUAN_LY.map(
-    (muc) => `<a class="nv-sidebar__link${muc.href === hrefDangMo ? " active" : ""}" href="${muc.href}">${muc.label}</a>`
+    (muc) => `
+      <a class="nv-sidebar__link${muc.href === hrefDangMo ? " active" : ""}" href="${muc.href}">
+        <svg class="nv-sidebar__link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${muc.icon}</svg>
+        <span>${muc.label}</span>
+      </a>
+    `
   ).join("");
 
   containerEl.innerHTML = `
-    <div class="nv-sidebar__brand">Nhà xe khách</div>
+    <div class="nv-sidebar__brand">
+      <span class="nv-sidebar__brand-mark">
+        <img src="/shared/assets/logo-mark.png" alt="Logo" />
+      </span>
+      <span class="nv-sidebar__brand-text">
+        <strong>Nhà xe khách</strong>
+        <em>Kết nối mọi hành trình</em>
+      </span>
+    </div>
     <div class="nv-sidebar__section-title">Danh mục quản lý</div>
     <nav class="nv-sidebar__nav">${links}</nav>
+    <div class="nv-sidebar__deco" aria-hidden="true"></div>
   `;
 }
