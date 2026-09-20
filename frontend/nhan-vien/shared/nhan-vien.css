@@ -399,6 +399,43 @@ body.nhan-vien-shell {
   color: var(--color-danger);
 }
 
+.nv-khu-vuc-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.nv-khu-vuc-row select {
+  margin-bottom: 0;
+}
+
+.nv-khu-vuc-row button {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-button);
+  border: 1.5px solid #E5E5E8;
+  background: var(--color-bg-surface);
+  font-family: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.nv-khu-vuc-row button:hover:not(:disabled) {
+  border-color: var(--color-primary);
+}
+
+.nv-khu-vuc-row button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.nv-khu-vuc-row__xoa {
+  color: var(--color-danger);
+}
+
 .nv-btn-them-diem {
   padding: 10px 18px;
   border-radius: var(--radius-pill);
@@ -488,7 +525,8 @@ body.nhan-vien-shell {
     padding: 16px 18px;
   }
 
-  .nv-diem-row {
+  .nv-diem-row,
+  .nv-khu-vuc-row {
     grid-template-columns: 1fr;
   }
 }

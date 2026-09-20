@@ -30,22 +30,14 @@
             <label class="nv-label" for="ten_tuyen">Tên tuyến</label>
             <input class="input-field" type="text" id="ten_tuyen" placeholder='VD "Yên Nghĩa → Sapa"' required />
 
-            <p style="font-size:13px; color:var(--color-text-muted); margin:0 0 10px; padding:10px 14px; background:var(--color-bg-canvas); border-radius:var(--radius-button);">
-              <strong>Nhóm tuyến là gì?</strong> Gộp các tuyến chạy trên cùng 1 hành trình vật lý — thường là 2 chiều đi/về (VD "Yên Nghĩa → Sapa" và "Sapa → Yên Nghĩa" cùng 1 nhóm "Hà Nội – Sapa"). Dùng để ràng buộc xe cố định chỉ chạy trong đúng nhóm này. Nếu đây là chiều ngược lại của 1 tuyến đã có, hãy <strong>chọn nhóm có sẵn</strong> — đừng tạo nhóm mới.
+            <label class="nv-label" for="nhom_tuyen_id">Nhóm tuyến</label>
+            <select class="input-field" id="nhom_tuyen_id" required></select>
+            <p style="font-size:13px; color:var(--color-text-muted); margin:-8px 0 12px;">
+              Chưa có nhóm phù hợp? Tạo mới ở mục <strong>Nhóm tuyến</strong> bên trái.
             </p>
 
-            <label style="display:flex; align-items:center; gap:8px; font-size:14px; margin-bottom:8px;">
-              <input type="radio" name="kieu_nhom_tuyen" value="co_san" checked /> Chọn nhóm tuyến có sẵn
-            </label>
-            <select class="input-field" id="nhom_tuyen_id"></select>
-
-            <label style="display:flex; align-items:center; gap:8px; font-size:14px; margin:12px 0 8px;">
-              <input type="radio" name="kieu_nhom_tuyen" value="moi" /> Tạo nhóm tuyến mới
-            </label>
-            <input class="input-field" type="text" id="ten_nhom_tuyen_moi" placeholder='VD "Hà Nội – Sapa" (gộp cả 2 chiều đi/về)' disabled />
-
-            <label style="font-weight:600; font-size:14px; display:block; margin-top:16px;">Các điểm dừng theo thứ tự xe đi qua</label>
-            <p style="font-size:13px; color:var(--color-text-muted); margin:4px 0 14px;">Điểm đầu tiên và điểm cuối cùng bắt buộc là văn phòng.</p>
+            <label style="font-weight:600; font-size:14px; display:block; margin-top:6px;">Các điểm dừng theo thứ tự xe đi qua</label>
+            <p id="ghi-chu-diem-dung" style="font-size:13px; color:var(--color-text-muted); margin:4px 0 14px;">Chọn nhóm tuyến trước để xem các điểm hợp lệ.</p>
 
             <div id="danh-sach-diem-form"></div>
             <button type="button" class="nv-btn-them-diem" id="btn-them-diem">+ Thêm điểm dừng</button>
@@ -78,22 +70,54 @@
     }
     document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
 
-    let dsDiemDonTra = [];
     let dsNhomTuyen = [];
     let dsTuyen = [];
     let danhSachDiemState = [];
+    let diemKhaDungTheoNhom = []; // điểm thuộc khu vực của nhóm tuyến đang chọn
+    let thuTuKhuVucTheoNhom = {}; // khu_vuc_id -> thu_tu, của nhóm đang chọn
 
-    // ---------- Nạp dữ liệu nền (khu vực chỉ để hiển thị tên đẹp hơn, bỏ qua) ----------
+    const selectNhomTuyen = document.getElementById("nhom_tuyen_id");
+    const ghiChuDiemDung = document.getElementById("ghi-chu-diem-dung");
+
     async function naploadDauVao() {
-      [dsDiemDonTra, dsNhomTuyen] = await Promise.all([
-        apiGet("/quan-ly/diem-don-tra"),
-        apiGet("/quan-ly/nhom-tuyen"),
-      ]);
-
-      document.getElementById("nhom_tuyen_id").innerHTML = dsNhomTuyen.length
+      dsNhomTuyen = await apiGet("/quan-ly/nhom-tuyen");
+      selectNhomTuyen.innerHTML = dsNhomTuyen.length
         ? dsNhomTuyen.map((n) => `<option value="${n.id}">${n.ten}</option>`).join("")
-        : '<option value="">Chưa có nhóm tuyến nào — chọn "Tạo nhóm tuyến mới" bên dưới</option>';
+        : '<option value="">Chưa có nhóm tuyến — tạo ở mục Nhóm tuyến trước</option>';
     }
+
+    async function khiDoiNhomTuyen() {
+      danhSachDiemState = [];
+      diemKhaDungTheoNhom = [];
+      thuTuKhuVucTheoNhom = {};
+
+      const nhomTuyenId = selectNhomTuyen.value;
+      if (!nhomTuyenId) {
+        ghiChuDiemDung.textContent = "Chọn nhóm tuyến trước để xem các điểm hợp lệ.";
+        renderDanhSachDiemForm();
+        return;
+      }
+
+      ghiChuDiemDung.textContent = "Đang tải điểm thuộc nhóm tuyến...";
+      try {
+        const [chiTietNhom, tatCaDiem] = await Promise.all([
+          apiGet(`/quan-ly/nhom-tuyen/${nhomTuyenId}`),
+          apiGet("/quan-ly/diem-don-tra"),
+        ]);
+        thuTuKhuVucTheoNhom = Object.fromEntries(chiTietNhom.danh_sach_khu_vuc.map((k) => [k.khu_vuc_id, k.thu_tu]));
+        diemKhaDungTheoNhom = tatCaDiem.filter((d) => d.khu_vuc_id in thuTuKhuVucTheoNhom);
+
+        const thuTuTenKhuVuc = chiTietNhom.danh_sach_khu_vuc.map((k) => k.ten).join(" → ");
+        ghiChuDiemDung.textContent = diemKhaDungTheoNhom.length
+          ? `Chỉ hiện điểm thuộc các khu vực của nhóm này, đúng thứ tự: ${thuTuTenKhuVuc}. Điểm đầu tiên và điểm cuối cùng bắt buộc là văn phòng.`
+          : `Nhóm này chưa có điểm đón/trả nào thuộc các khu vực: ${thuTuTenKhuVuc}. Tạo điểm ở mục Điểm đón/trả trước.`;
+      } catch (err) {
+        ghiChuDiemDung.textContent = err.message;
+      }
+      renderDanhSachDiemForm();
+    }
+
+    selectNhomTuyen.addEventListener("change", khiDoiNhomTuyen);
 
     // ---------- Danh sách điểm dừng động trong form tạo tuyến ----------
     function renderDanhSachDiemForm() {
@@ -108,7 +132,7 @@
         .map((dong, idx) => `
           <div class="nv-diem-row" data-idx="${idx}">
             <select class="input-field nv-diem-row__select">
-              ${dsDiemDonTra.map((d) => `<option value="${d.id}" ${d.id === dong.diem_don_tra_id ? "selected" : ""}>${d.ten} (${d.loai === "van_phong" ? "Văn phòng" : "Điểm dừng"})</option>`).join("")}
+              ${diemKhaDungTheoNhom.map((d) => `<option value="${d.id}" ${d.id === dong.diem_don_tra_id ? "selected" : ""}>${d.ten} (${d.loai === "van_phong" ? "Văn phòng" : "Điểm dừng"})</option>`).join("")}
             </select>
             <input class="input-field nv-diem-row__phut" type="number" min="0" value="${dong.thoi_gian_du_kien_phut}" placeholder="Phút" />
             <button type="button" class="nv-diem-row__len" ${idx === 0 ? "disabled" : ""} title="Đưa lên trước">↑</button>
@@ -149,21 +173,29 @@
     }
 
     document.getElementById("btn-them-diem").addEventListener("click", () => {
-      if (!dsDiemDonTra.length) {
-        alert("Cần tạo ít nhất 1 điểm đón/trả trước (mục Điểm đón/trả ở menu bên trái)");
+      if (!selectNhomTuyen.value) {
+        alert("Chọn nhóm tuyến trước");
         return;
       }
-      danhSachDiemState.push({ diem_don_tra_id: dsDiemDonTra[0].id, thoi_gian_du_kien_phut: 0 });
+      if (!diemKhaDungTheoNhom.length) {
+        alert("Nhóm tuyến này chưa có điểm đón/trả nào thuộc các khu vực của nó (mục Điểm đón/trả ở menu bên trái)");
+        return;
+      }
+      danhSachDiemState.push({ diem_don_tra_id: diemKhaDungTheoNhom[0].id, thoi_gian_du_kien_phut: 0 });
       renderDanhSachDiemForm();
     });
 
-    document.querySelectorAll('input[name="kieu_nhom_tuyen"]').forEach((radio) => {
-      radio.addEventListener("change", () => {
-        const laMoi = document.querySelector('input[name="kieu_nhom_tuyen"]:checked').value === "moi";
-        document.getElementById("nhom_tuyen_id").disabled = laMoi;
-        document.getElementById("ten_nhom_tuyen_moi").disabled = !laMoi;
-      });
-    });
+    // Đơn điệu tăng hoặc giảm — khớp check phía backend (dia_diem_service._don_dieu),
+    // chỉ để báo lỗi sớm cho người dùng, backend vẫn là nơi validate thật.
+    function donDieu(day) {
+      let tang = true;
+      let giam = true;
+      for (let i = 1; i < day.length; i++) {
+        if (day[i] < day[i - 1]) tang = false;
+        if (day[i] > day[i - 1]) giam = false;
+      }
+      return tang || giam;
+    }
 
     // ---------- Danh sách tuyến + chi tiết ----------
     async function taiDanhSachTuyen() {
@@ -226,7 +258,7 @@
       try {
         await naploadDauVao();
         await taiDanhSachTuyen();
-        renderDanhSachDiemForm();
+        await khiDoiNhomTuyen(); // đồng bộ điểm hợp lệ cho nhóm tuyến đang chọn sẵn (mặc định là mục đầu)
       } catch (err) {
         document.getElementById("bang-tuyen").innerHTML = `<div class="text-error">${err.message}</div>`;
       }
@@ -238,17 +270,30 @@
       const loiEl = document.getElementById("loi-form-tuyen");
       loiEl.hidden = true;
 
+      if (!selectNhomTuyen.value) {
+        loiEl.textContent = "Phải chọn 1 nhóm tuyến";
+        loiEl.hidden = false;
+        return;
+      }
       if (danhSachDiemState.length < 2) {
         loiEl.textContent = "Cần ít nhất 2 điểm dừng (điểm đầu và điểm cuối)";
         loiEl.hidden = false;
         return;
       }
 
-      const laMoi = document.querySelector('input[name="kieu_nhom_tuyen"]:checked').value === "moi";
+      const dayThuTuKhuVuc = danhSachDiemState.map((d) => {
+        const diem = diemKhaDungTheoNhom.find((x) => x.id === d.diem_don_tra_id);
+        return thuTuKhuVucTheoNhom[diem?.khu_vuc_id];
+      });
+      if (!donDieu(dayThuTuKhuVuc)) {
+        loiEl.textContent = "Thứ tự điểm dừng không khớp thứ tự khu vực của nhóm tuyến — không được chọn xen kẽ lộn xộn";
+        loiEl.hidden = false;
+        return;
+      }
+
       const payload = {
         ten: document.getElementById("ten_tuyen").value.trim(),
-        nhom_tuyen_id: laMoi ? null : document.getElementById("nhom_tuyen_id").value || null,
-        ten_nhom_tuyen_moi: laMoi ? document.getElementById("ten_nhom_tuyen_moi").value.trim() : null,
+        nhom_tuyen_id: selectNhomTuyen.value,
         danh_sach_diem: danhSachDiemState,
       };
 
@@ -258,8 +303,7 @@
         await apiPost("/quan-ly/tuyen", payload);
         e.target.reset();
         danhSachDiemState = [];
-        renderDanhSachDiemForm();
-        await naploadDauVao();
+        await khiDoiNhomTuyen();
         await taiDanhSachTuyen();
       } catch (err) {
         loiEl.textContent = err.message;

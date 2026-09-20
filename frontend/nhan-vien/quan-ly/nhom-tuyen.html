@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nhóm tuyến — Quản lý</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/nhan-vien/shared/nhan-vien.css" />
+</head>
+<body class="nhan-vien-shell">
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
+
+    <div class="nv-main">
+      <header class="nv-topbar">
+        <h1>Nhóm tuyến</h1>
+        <div class="nv-topbar__user">
+          <span class="ho-ten" id="topbar-ho-ten"></span>
+          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
+        </div>
+      </header>
+
+      <main class="nv-content">
+        <div class="nv-card">
+          <p style="font-size:13px; color:var(--color-text-muted); margin:0 0 16px; padding:10px 14px; background:var(--color-bg-canvas); border-radius:var(--radius-button);">
+            <strong>Nhóm tuyến là gì?</strong> Gộp các tuyến chạy trên cùng 1 hành trình vật lý — thường là 2 chiều đi/về. Chọn sẵn các khu vực mà hành trình đi qua, theo đúng thứ tự — khi tạo tuyến (mục "Tuyến" bên trái) sẽ chỉ được chọn điểm dừng thuộc các khu vực này, đúng thứ tự đã cấu hình ở đây (không cho chọn xen kẽ lộn xộn).
+          </p>
+          <div class="nv-card__header">
+            <h2>Danh sách nhóm tuyến</h2>
+            <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Thêm nhóm tuyến</button>
+          </div>
+          <div id="bang-nhom-tuyen">Đang tải...</div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="nv-modal-overlay" id="modal-overlay" hidden>
+    <div class="nv-modal" style="max-width:520px;">
+      <h2>Thêm nhóm tuyến</h2>
+      <form id="form-nhom-tuyen">
+        <label class="nv-label" for="ten">Tên nhóm tuyến</label>
+        <input class="input-field" type="text" id="ten" placeholder='VD "Hà Nội – Sapa" (gộp cả 2 chiều đi/về)' required />
+
+        <label class="nv-label" for="khu-vuc-1">Các khu vực theo thứ tự dọc hành trình</label>
+        <p style="font-size:13px; color:var(--color-text-muted); margin:4px 0 12px;">Ít nhất 2 khu vực. Thứ tự ở đây quyết định thứ tự điểm dừng hợp lệ khi tạo tuyến.</p>
+
+        <div id="danh-sach-khu-vuc-form"></div>
+        <button type="button" class="nv-btn-them-diem" id="btn-them-khu-vuc">+ Thêm khu vực</button>
+
+        <div id="loi-form" class="text-error" hidden style="margin-top:14px;"></div>
+        <div class="nv-modal__actions">
+          <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
+          <button type="submit" class="btn-primary">Lưu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/nhan-vien/shared/api-client.js"></script>
+  <script src="/nhan-vien/shared/auth-check.js"></script>
+  <script src="/nhan-vien/shared/nav-quan-ly.js"></script>
+  <script src="/nhan-vien/shared/data-table.js"></script>
+  <script src="/nhan-vien/shared/tinh-thanh.js"></script>
+  <script>
+    const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
+    if (nguoiDung) {
+      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-ly/nhom-tuyen.html");
+      document.getElementById("topbar-ho-ten").textContent = localStorage.getItem("ho_ten") || "";
+    }
+    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+
+    const bangNhomTuyen = document.getElementById("bang-nhom-tuyen");
+    let dsKhuVuc = [];
+    let dsNhomTuyen = [];
+    let khuVucState = [];
+
+    function tenHienThiKhuVuc(khuVuc) {
+      return `${khuVuc.ten} (${hienThiTinhThanh(khuVuc.tinh_thanh)})`;
+    }
+
+    async function taiKhuVuc() {
+      dsKhuVuc = await apiGet("/quan-ly/khu-vuc");
+    }
+
+    async function taiDanhSach() {
+      try {
+        dsNhomTuyen = await apiGet("/quan-ly/nhom-tuyen");
+        const chiTietTatCa = await Promise.all(dsNhomTuyen.map((n) => apiGet(`/quan-ly/nhom-tuyen/${n.id}`)));
+        renderDataTable(
+          bangNhomTuyen,
+          [
+            { key: "ten", label: "Tên nhóm tuyến" },
+            {
+              key: "khu_vuc",
+              label: "Khu vực (theo thứ tự)",
+              render: (r) => {
+                const ct = chiTietTatCa.find((c) => c.id === r.id);
+                return ct ? ct.danh_sach_khu_vuc.map((k) => k.ten).join(" → ") : "—";
+              },
+            },
+          ],
+          dsNhomTuyen,
+          { onDelete: xoaNhomTuyen, tenXoa: (r) => r.ten }
+        );
+      } catch (err) {
+        bangNhomTuyen.innerHTML = `<div class="text-error">${err.message}</div>`;
+      }
+    }
+
+    async function xoaNhomTuyen(nhomTuyen) {
+      try {
+        await apiDelete(`/quan-ly/nhom-tuyen/${nhomTuyen.id}`);
+        taiDanhSach();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    (async () => {
+      try {
+        await taiKhuVuc();
+        await taiDanhSach();
+      } catch (err) {
+        bangNhomTuyen.innerHTML = `<div class="text-error">${err.message}</div>`;
+      }
+    })();
+
+    // ---------- Danh sách khu vực động trong form thêm ----------
+    function renderDanhSachKhuVucForm() {
+      const container = document.getElementById("danh-sach-khu-vuc-form");
+
+      if (!khuVucState.length) {
+        container.innerHTML = '<p style="font-size:13px; color:var(--color-text-muted);">Chưa có khu vực nào — bấm "+ Thêm khu vực" bên dưới.</p>';
+        return;
+      }
+
+      container.innerHTML = khuVucState
+        .map(
+          (khuVucId, idx) => `
+          <div class="nv-khu-vuc-row" data-idx="${idx}">
+            <select class="input-field">
+              ${dsKhuVuc.map((k) => `<option value="${k.id}" ${k.id === khuVucId ? "selected" : ""}>${tenHienThiKhuVuc(k)}</option>`).join("")}
+            </select>
+            <button type="button" class="nv-khu-vuc-row__len" ${idx === 0 ? "disabled" : ""} title="Đưa lên trước">↑</button>
+            <button type="button" class="nv-khu-vuc-row__xuong" ${idx === khuVucState.length - 1 ? "disabled" : ""} title="Đưa xuống sau">↓</button>
+            <button type="button" class="nv-khu-vuc-row__xoa" title="Xóa khu vực này">×</button>
+          </div>
+        `
+        )
+        .join("");
+
+      container.querySelectorAll(".nv-khu-vuc-row").forEach((row) => {
+        const idx = Number(row.dataset.idx);
+
+        row.querySelector("select").addEventListener("change", (e) => {
+          khuVucState[idx] = e.target.value;
+        });
+        row.querySelector(".nv-khu-vuc-row__xoa").addEventListener("click", () => {
+          khuVucState.splice(idx, 1);
+          renderDanhSachKhuVucForm();
+        });
+        const btnLen = row.querySelector(".nv-khu-vuc-row__len");
+        if (btnLen) {
+          btnLen.addEventListener("click", () => {
+            [khuVucState[idx - 1], khuVucState[idx]] = [khuVucState[idx], khuVucState[idx - 1]];
+            renderDanhSachKhuVucForm();
+          });
+        }
+        const btnXuong = row.querySelector(".nv-khu-vuc-row__xuong");
+        if (btnXuong) {
+          btnXuong.addEventListener("click", () => {
+            [khuVucState[idx + 1], khuVucState[idx]] = [khuVucState[idx], khuVucState[idx + 1]];
+            renderDanhSachKhuVucForm();
+          });
+        }
+      });
+    }
+
+    document.getElementById("btn-them-khu-vuc").addEventListener("click", () => {
+      if (!dsKhuVuc.length) {
+        alert("Cần tạo ít nhất 1 khu vực trước (mục Khu vực ở menu bên trái)");
+        return;
+      }
+      khuVucState.push(dsKhuVuc[0].id);
+      renderDanhSachKhuVucForm();
+    });
+
+    const modalOverlay = document.getElementById("modal-overlay");
+    const form = document.getElementById("form-nhom-tuyen");
+    const loiForm = document.getElementById("loi-form");
+
+    document.getElementById("btn-them").addEventListener("click", () => {
+      if (dsKhuVuc.length < 2) {
+        alert("Cần tạo ít nhất 2 khu vực trước (mục Khu vực ở menu bên trái)");
+        return;
+      }
+      form.reset();
+      khuVucState = [];
+      renderDanhSachKhuVucForm();
+      loiForm.hidden = true;
+      modalOverlay.hidden = false;
+    });
+    document.getElementById("btn-huy").addEventListener("click", () => { modalOverlay.hidden = true; });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loiForm.hidden = true;
+
+      if (khuVucState.length < 2) {
+        loiForm.textContent = "Cần ít nhất 2 khu vực theo thứ tự dọc hành trình";
+        loiForm.hidden = false;
+        return;
+      }
+      if (new Set(khuVucState).size !== khuVucState.length) {
+        loiForm.textContent = "Danh sách khu vực có khu vực bị lặp lại";
+        loiForm.hidden = false;
+        return;
+      }
+
+      const duLieu = {
+        ten: document.getElementById("ten").value.trim(),
+        danh_sach_khu_vuc_id: khuVucState,
+      };
+
+      const btnSubmit = form.querySelector("button[type=submit]");
+      btnSubmit.classList.add("is-loading");
+      try {
+        await apiPost("/quan-ly/nhom-tuyen", duLieu);
+        modalOverlay.hidden = true;
+        taiDanhSach();
+      } catch (err) {
+        loiForm.textContent = err.message;
+        loiForm.hidden = false;
+      } finally {
+        btnSubmit.classList.remove("is-loading");
+      }
+    });
+  </script>
+</body>
+</html>

@@ -11,6 +11,7 @@
 const MENU_QUAN_LY = [
   { label: "Khu vực", href: "/nhan-vien/quan-ly/khu-vuc.html" },
   { label: "Điểm đón/trả", href: "/nhan-vien/quan-ly/diem-don-tra.html" },
+  { label: "Nhóm tuyến", href: "/nhan-vien/quan-ly/nhom-tuyen.html" },
   { label: "Tuyến", href: "/nhan-vien/quan-ly/tuyen.html" },
 ];
 
