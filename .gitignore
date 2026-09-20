@@ -12,8 +12,10 @@ __pycache__/
 venv/
 env/
 
-# IDE
-.vscode/
+# IDE — .vscode/settings.json là cấu hình dùng chung cho cả nhóm (VD gốc Live
+# Server), NÊN commit; các file cá nhân khác trong .vscode/ vẫn bị chặn.
+.vscode/*
+!.vscode/settings.json
 .idea/
 
 # OS
