@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import CORS_ORIGINS
 from app.routes.auth import router as auth_router
+from app.routes.quan_ly import router as quan_ly_router
 from app.routes.websocket import router as websocket_router
 from app.utils.loi import GiaTriLoi, KhongDuQuyen, LoiHeThong
 
@@ -40,3 +41,4 @@ def xu_ly_loi_he_thong(request: Request, exc: LoiHeThong):
 
 app.include_router(websocket_router)
 app.include_router(auth_router)
+app.include_router(quan_ly_router)
