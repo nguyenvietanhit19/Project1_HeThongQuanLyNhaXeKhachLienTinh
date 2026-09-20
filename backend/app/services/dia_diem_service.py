@@ -147,6 +147,14 @@ def tao_tuyen(ten: str, nhom_tuyen_id: str, danh_sach_diem: list[dict]) -> dict:
             "chỉ được chọn điểm thuộc khu vực đã cấu hình ở nhóm tuyến"
         )
 
+    # Mỗi khu vực của nhóm tuyến phải có ít nhất 1 điểm được chọn — tuyến phải
+    # đi qua trọn vẹn hành trình đã cấu hình ở nhóm, không được bỏ sót khu vực nào
+    khu_vuc_da_dung = {str(diem_thuc_te[d_id]["khu_vuc_id"]) for d_id in diem_ids}
+    khu_vuc_thieu = [k for k in khu_vuc_cua_nhom if str(k["khu_vuc_id"]) not in khu_vuc_da_dung]
+    if khu_vuc_thieu:
+        ten_thieu = ", ".join(k["ten"] for k in khu_vuc_thieu)
+        raise GiaTriLoi(f"Cần chọn ít nhất 1 điểm ở mỗi khu vực của nhóm tuyến — còn thiếu: {ten_thieu}")
+
     # Thứ tự khu vực của các điểm đã chọn phải đơn điệu (tăng hoặc giảm) theo đúng
     # thứ tự khu vực của nhóm tuyến — không cho chọn xen kẽ lộn xộn
     day_thu_tu_khu_vuc = [thu_tu_khu_vuc[str(diem_thuc_te[d_id]["khu_vuc_id"])] for d_id in diem_ids]

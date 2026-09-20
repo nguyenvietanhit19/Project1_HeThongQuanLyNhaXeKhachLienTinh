@@ -481,6 +481,11 @@ body.nhan-vien-shell {
   color: var(--color-success);
 }
 
+.pill--khu-vuc {
+  background: rgba(91, 62, 150, 0.12);
+  color: var(--color-secondary-dark);
+}
+
 .nv-diem-row__ten {
   padding: 12px 16px;
   border: 1.5px solid #E5E5E8;

@@ -111,7 +111,7 @@
         chiTietNhomHienTai = chiTietNhom;
         thuTuKhuVucTheoNhom = Object.fromEntries(chiTietNhom.danh_sach_khu_vuc.map((k) => [k.khu_vuc_id, k.thu_tu]));
         diemKhaDungTheoNhom = tatCaDiem.filter((d) => d.khu_vuc_id in thuTuKhuVucTheoNhom);
-        ghiChuDiemDung.textContent = "Bấm vào 1 điểm bên dưới để thêm vào danh sách — đúng thứ tự khu vực đã cấu hình ở Nhóm tuyến.";
+        ghiChuDiemDung.textContent = "Bấm vào 1 điểm bên dưới để thêm vào danh sách, đúng thứ tự khu vực đã cấu hình ở Nhóm tuyến — mỗi khu vực phải có ít nhất 1 điểm.";
       } catch (err) {
         ghiChuDiemDung.textContent = err.message;
       }
@@ -170,6 +170,10 @@
       });
     }
 
+    function tenKhuVucTheoId(khu_vuc_id) {
+      return chiTietNhomHienTai?.danh_sach_khu_vuc.find((k) => k.khu_vuc_id === khu_vuc_id)?.ten || "—";
+    }
+
     // ---------- Danh sách điểm dừng đã chọn — sắp thứ tự, đặt số phút dự kiến ----------
     function renderDanhSachDiemForm() {
       const container = document.getElementById("danh-sach-diem-form");
@@ -184,7 +188,11 @@
           const diem = diemKhaDungTheoNhom.find((d) => d.id === dong.diem_don_tra_id);
           return `
             <div class="nv-diem-row" data-idx="${idx}">
-              <div class="nv-diem-row__ten">${diem ? diem.ten : "—"} ${diem?.loai === "van_phong" ? '<span class="pill pill--primary">Văn phòng</span>' : '<span class="pill">Điểm dừng</span>'}</div>
+              <div class="nv-diem-row__ten">
+                ${diem ? diem.ten : "—"}
+                <span class="pill pill--khu-vuc">${diem ? tenKhuVucTheoId(diem.khu_vuc_id) : "—"}</span>
+                ${diem?.loai === "van_phong" ? '<span class="pill pill--primary">Văn phòng</span>' : '<span class="pill">Điểm dừng</span>'}
+              </div>
               <input class="input-field nv-diem-row__phut" type="number" min="0" value="${dong.thoi_gian_du_kien_phut}" placeholder="Phút" />
               <button type="button" class="nv-diem-row__len" ${idx === 0 ? "disabled" : ""} title="Đưa lên trước">↑</button>
               <button type="button" class="nv-diem-row__xuong" ${idx === danhSachDiemState.length - 1 ? "disabled" : ""} title="Đưa xuống sau">↓</button>
@@ -276,6 +284,7 @@
                 <div class="nv-chi-tiet-tuyen__diem">
                   <span class="nv-chi-tiet-tuyen__thu-tu">${d.thu_tu}</span>
                   <span>${d.ten}</span>
+                  <span class="pill pill--khu-vuc">${d.ten_khu_vuc}</span>
                   ${d.loai === "van_phong" ? '<span class="pill pill--primary">Văn phòng</span>' : '<span class="pill">Điểm dừng</span>'}
                   <span style="margin-left:auto; color:var(--color-text-muted); font-size:13px;">+${d.thoi_gian_du_kien_phut} phút</span>
                 </div>
@@ -313,6 +322,16 @@
       }
       if (danhSachDiemState.length < 2) {
         loiEl.textContent = "Cần ít nhất 2 điểm dừng (điểm đầu và điểm cuối)";
+        loiEl.hidden = false;
+        return;
+      }
+
+      const khuVucDaDung = new Set(
+        danhSachDiemState.map((d) => diemKhaDungTheoNhom.find((x) => x.id === d.diem_don_tra_id)?.khu_vuc_id)
+      );
+      const khuVucThieu = (chiTietNhomHienTai?.danh_sach_khu_vuc || []).filter((k) => !khuVucDaDung.has(k.khu_vuc_id));
+      if (khuVucThieu.length) {
+        loiEl.textContent = `Cần chọn ít nhất 1 điểm ở mỗi khu vực của nhóm tuyến — còn thiếu: ${khuVucThieu.map((k) => k.ten).join(", ")}`;
         loiEl.hidden = false;
         return;
       }

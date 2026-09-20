@@ -98,6 +98,7 @@ class DiemTrongTuyenResponse(BaseModel):
     diem_don_tra_id: UUID
     ten: str
     khu_vuc_id: UUID
+    ten_khu_vuc: str
     loai: Literal["van_phong", "diem_dung"]
     thu_tu: int
     thoi_gian_du_kien_phut: int

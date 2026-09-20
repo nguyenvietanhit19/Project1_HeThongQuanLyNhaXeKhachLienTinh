@@ -360,9 +360,11 @@ def danh_sach_diem_theo_tuyen(tuyen_id: str) -> list[dict]:
             cur.execute(
                 """
                 SELECT ddt.id AS diem_don_tra_id, ddt.ten, ddt.khu_vuc_id, ddt.loai,
+                       kv.ten AS ten_khu_vuc,
                        tddt.thu_tu, tddt.thoi_gian_du_kien_phut
                 FROM tuyen_diem_don_tra tddt
                 JOIN diem_don_tra ddt ON ddt.id = tddt.diem_don_tra_id
+                JOIN khu_vuc kv ON kv.id = ddt.khu_vuc_id
                 WHERE tddt.tuyen_id = %s
                 ORDER BY tddt.thu_tu
                 """,
