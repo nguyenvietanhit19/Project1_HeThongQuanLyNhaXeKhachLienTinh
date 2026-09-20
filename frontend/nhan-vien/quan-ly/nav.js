@@ -30,6 +30,30 @@ const MENU_QUAN_LY = [
   },
 ];
 
+const NHAN_VAI_TRO_QUAN_LY = {
+  quan_ly: "Quản lý",
+  quan_ly_nhan_su: "Quản lý nhân sự",
+};
+
+/*
+ * Đổ họ tên/vai trò/avatar (chữ cái đầu tên) vào topbar — dùng chung ID
+ * cố định trên mọi trang Quản lý: #topbar-ho-ten, #topbar-vai-tro,
+ * #topbar-avatar. Gọi sau khi yeuCauVaiTro() đã xác nhận đăng nhập.
+ */
+function renderTopbarUser() {
+  const hoTen = localStorage.getItem("ho_ten") || "";
+  const vaiTro = localStorage.getItem("vai_tro") || "";
+
+  const elHoTen = document.getElementById("topbar-ho-ten");
+  if (elHoTen) elHoTen.textContent = hoTen;
+
+  const elVaiTro = document.getElementById("topbar-vai-tro");
+  if (elVaiTro) elVaiTro.textContent = NHAN_VAI_TRO_QUAN_LY[vaiTro] || vaiTro;
+
+  const elAvatar = document.getElementById("topbar-avatar");
+  if (elAvatar) elAvatar.textContent = hoTen.trim().charAt(0).toUpperCase() || "?";
+}
+
 function renderSidebar(containerEl, hrefDangMo) {
   const links = MENU_QUAN_LY.map(
     (muc) => `

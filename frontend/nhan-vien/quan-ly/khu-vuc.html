@@ -16,7 +16,11 @@
       <header class="nv-topbar">
         <h1>Khu vực</h1>
         <div class="nv-topbar__user">
-          <span class="ho-ten" id="topbar-ho-ten"></span>
+          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
+          <div class="nv-topbar__identity">
+            <span class="ho-ten" id="topbar-ho-ten"></span>
+            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
+          </div>
           <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
         </div>
       </header>
@@ -80,7 +84,7 @@
     const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
     if (nguoiDung) {
       renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-ly/khu-vuc.html");
-      document.getElementById("topbar-ho-ten").textContent = localStorage.getItem("ho_ten") || "";
+      renderTopbarUser();
     }
     document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
 
