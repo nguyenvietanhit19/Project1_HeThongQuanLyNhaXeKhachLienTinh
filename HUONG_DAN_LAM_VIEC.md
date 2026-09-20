@@ -23,8 +23,10 @@ Dựng backend + database (Docker tự tải Postgres về, tự tạo database 
 
 ```bash
 docker-compose up -d
-docker-compose exec backend yoyo apply --database "$DATABASE_URL" ./migrations
+docker-compose exec backend sh -c 'yoyo apply --database "$DATABASE_URL" ./migrations'
 ```
+
+*(Bọc trong `sh -c '...'` để bên trong container tự đọc biến `DATABASE_URL` từ `.env` nó đang có — chạy đúng trên cả PowerShell lẫn Bash. Nếu chỉ viết `--database "$DATABASE_URL"` trần, PowerShell/Bash ở máy bạn sẽ tìm biến đó trên chính máy bạn — không có, thành chuỗi rỗng, báo lỗi kết nối.)*
 
 Kiểm tra chạy đúng: mở trình duyệt vào `http://localhost:8000/docs` — thấy trang Swagger hiện ra là backend đã sống.
 
@@ -131,7 +133,7 @@ Mỗi thay đổi cấu trúc database (thêm bảng, thêm cột...) viết th�
 
 1. Xem đúng cấu trúc cột cần tạo trong `DATABASE.md` (mục tương ứng bảng của domain bạn).
 2. Tạo file mới trong `backend/migrations/`, viết câu `CREATE TABLE`/`ALTER TABLE` (xem file `20260917_0900_tao_bang_nguoi_dung.sql` làm mẫu).
-3. Chạy thử local: `docker-compose exec backend yoyo apply --database "$DATABASE_URL" ./migrations` — chỉ file mới sẽ chạy, các file cũ được bỏ qua (yoyo tự nhớ đã chạy rồi).
+3. Chạy thử local: `docker-compose exec backend sh -c 'yoyo apply --database "$DATABASE_URL" ./migrations'` — chỉ file mới sẽ chạy, các file cũ được bỏ qua (yoyo tự nhớ đã chạy rồi).
 4. Commit + mở PR như bình thường.
 
 ### Quy tắc vàng: KHÔNG sửa lại file migration đã merge vào `main`
@@ -146,12 +148,12 @@ Nếu bảng của bạn tham chiếu (`FOREIGN KEY`) tới bảng của ngườ
 
 ## 5. Xem dữ liệu trong database — dùng pgAdmin (hoặc công cụ tương tự)
 
-Kết nối vào Postgres đang chạy trong Docker (phải đang `docker-compose up` mới kết nối được):
+Kết nối vào Postgres đang chạy trong Docker (phải đang `docker-compose up` mới kết nối được). Cổng map ra host là `5433` (không phải `5432` mặc định) — tránh đụng độ nếu máy bạn có cài sẵn PostgreSQL native chạy như Windows Service:
 
 | Ô kết nối | Giá trị |
 |---|---|
 | Host | `localhost` |
-| Port | `5432` |
+| Port | `5433` |
 | Maintenance database | `nha_xe` |
 | Username | `postgres` |
 | Password | `postgres_dev_only` |

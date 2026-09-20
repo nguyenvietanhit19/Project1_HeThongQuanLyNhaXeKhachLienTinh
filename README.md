@@ -25,7 +25,7 @@ git clone https://github.com/nguyenvietanhit19/Project1_HeThongQuanLyNhaXeKhachL
 cd Project1_HeThongQuanLyNhaXeKhachLienTinh
 cp backend/.env.example backend/.env   # điền giá trị thật, xin trưởng nhóm — không tự bịa
 docker-compose up
-docker-compose exec backend yoyo apply --database "$DATABASE_URL" ./migrations   # chạy migration lần đầu
+docker-compose exec backend sh -c 'yoyo apply --database "$DATABASE_URL" ./migrations'   # chạy migration lần đầu — cú pháp này chạy đúng trên cả PowerShell lẫn Bash
 ```
 
 Backend chạy tại `http://localhost:8000/docs` (Swagger UI tự sinh — dùng để test API thay vì Postman thủ công).
