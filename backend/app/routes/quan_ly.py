@@ -96,6 +96,12 @@ def danh_sach_tuyen():
     return service.danh_sach_tuyen()
 
 
+@router.delete("/tuyen/{tuyen_id}")
+def xoa_tuyen(tuyen_id: UUID):
+    service.xoa_tuyen(str(tuyen_id))
+    return {"thong_bao": "Xóa tuyến thành công"}
+
+
 @router.get("/tuyen/{tuyen_id}", response_model=TuyenChiTietResponse)
 def chi_tiet_tuyen(tuyen_id: UUID):
     return service.lay_chi_tiet_tuyen(str(tuyen_id))

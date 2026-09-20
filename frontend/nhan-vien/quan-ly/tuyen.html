@@ -30,6 +30,10 @@
             <label class="nv-label" for="ten_tuyen">Tên tuyến</label>
             <input class="input-field" type="text" id="ten_tuyen" placeholder='VD "Yên Nghĩa → Sapa"' required />
 
+            <p style="font-size:13px; color:var(--color-text-muted); margin:0 0 10px; padding:10px 14px; background:var(--color-bg-canvas); border-radius:var(--radius-button);">
+              <strong>Nhóm tuyến là gì?</strong> Gộp các tuyến chạy trên cùng 1 hành trình vật lý — thường là 2 chiều đi/về (VD "Yên Nghĩa → Sapa" và "Sapa → Yên Nghĩa" cùng 1 nhóm "Hà Nội – Sapa"). Dùng để ràng buộc xe cố định chỉ chạy trong đúng nhóm này. Nếu đây là chiều ngược lại của 1 tuyến đã có, hãy <strong>chọn nhóm có sẵn</strong> — đừng tạo nhóm mới.
+            </p>
+
             <label style="display:flex; align-items:center; gap:8px; font-size:14px; margin-bottom:8px;">
               <input type="radio" name="kieu_nhom_tuyen" value="co_san" checked /> Chọn nhóm tuyến có sẵn
             </label>
@@ -173,10 +177,20 @@
             { key: "nhom_tuyen_id", label: "Nhóm tuyến", render: (r) => dsNhomTuyen.find((n) => n.id === r.nhom_tuyen_id)?.ten || "—" },
           ],
           dsTuyen,
-          { onEdit: xemChiTietTuyen, editLabel: "Xem chi tiết" }
+          { onEdit: xemChiTietTuyen, editLabel: "Xem chi tiết", onDelete: xoaTuyen, tenXoa: (r) => r.ten }
         );
       } catch (err) {
         bangTuyen.innerHTML = `<div class="text-error">${err.message}</div>`;
+      }
+    }
+
+    async function xoaTuyen(tuyen) {
+      try {
+        await apiDelete(`/quan-ly/tuyen/${tuyen.id}`);
+        document.getElementById("chi-tiet-tuyen").innerHTML = "";
+        taiDanhSachTuyen();
+      } catch (err) {
+        alert(err.message);
       }
     }
 

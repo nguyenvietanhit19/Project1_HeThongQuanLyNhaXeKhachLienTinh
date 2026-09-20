@@ -272,6 +272,27 @@ def danh_sach_tuyen() -> list[dict]:
         release_connection(conn)
 
 
+def xoa_tuyen(tuyen_id: str) -> None:
+    """Xóa cả tuyến lẫn danh sách điểm dừng của nó (tuyen_diem_don_tra chỉ
+    là bảng con, không phải dữ liệu độc lập được "sử dụng" theo nghĩa cần
+    chặn). Vẫn có thể ném psycopg2.errors.ForeignKeyViolation nếu tuyến
+    này đã có chuyen_xe/don_hang tham chiếu — service.py bắt lỗi này để
+    báo thông báo thân thiện. Cả 2 lệnh DELETE chạy chung 1 transaction:
+    nếu bước xóa tuyến thất bại, các dòng tuyen_diem_don_tra vừa xóa cũng
+    được rollback lại (không mất dữ liệu điểm dừng của 1 tuyến vẫn còn)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM tuyen_diem_don_tra WHERE tuyen_id = %s", (tuyen_id,))
+            cur.execute("DELETE FROM tuyen WHERE id = %s", (tuyen_id,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
 def danh_sach_diem_theo_tuyen(tuyen_id: str) -> list[dict]:
     conn = get_connection()
     try:

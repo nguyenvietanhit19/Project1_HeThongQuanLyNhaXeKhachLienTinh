@@ -125,6 +125,15 @@ def danh_sach_tuyen() -> list[dict]:
     return repo.danh_sach_tuyen()
 
 
+def xoa_tuyen(tuyen_id: str) -> None:
+    if not repo.tim_tuyen_theo_id(tuyen_id):
+        raise GiaTriLoi("Không tìm thấy tuyến")
+    try:
+        repo.xoa_tuyen(tuyen_id)
+    except psycopg2.errors.ForeignKeyViolation:
+        raise GiaTriLoi("Không thể xóa: tuyến này đang được dùng trong chuyến xe hoặc đơn hàng gửi")
+
+
 def lay_chi_tiet_tuyen(tuyen_id: str) -> dict:
     tuyen = repo.tim_tuyen_theo_id(tuyen_id)
     if not tuyen:
