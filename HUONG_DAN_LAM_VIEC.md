@@ -17,6 +17,8 @@ Mở `backend/.env` vừa tạo ra, điền giá trị thật:
 - `SMTP_USER`/`SMTP_PASSWORD`: để trống được nếu chưa cần test gửi email — hỏi trưởng nhóm nếu cần dùng Gmail chung của dự án.
 - Các dòng còn lại giữ nguyên mặc định.
 
+**Lỗi hay gặp: form frontend báo "Failed to fetch" dù backend đang chạy** — kiểm tra thanh địa chỉ trình duyệt đang mở `http://localhost:5500/...` hay `http://127.0.0.1:5500/...`. Với trình duyệt, `localhost` và `127.0.0.1` là **2 origin khác nhau** dù cùng trỏ về máy mình, nên phải khớp đúng với `CORS_ORIGINS` trong `.env` (mặc định đã liệt kê cả 2, nhưng nếu bạn tự sửa thì nhớ giữ cả 2). Sau khi sửa `.env` phải chạy `docker-compose up -d --force-recreate backend` — `docker-compose restart` **không** nạp lại `.env` mới.
+
 **File `.env` này không bao giờ commit lên Git** (đã bị `.gitignore` chặn) — mỗi người tự tạo riêng trên máy mình, không copy qua lại, không đẩy lên GitHub.
 
 Dựng backend + database (Docker tự tải Postgres về, tự tạo database rỗng — không cần tự cài Postgres):
