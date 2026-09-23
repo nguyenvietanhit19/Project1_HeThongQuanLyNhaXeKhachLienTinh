@@ -4,62 +4,44 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
-<title>Đăng nhập cán bộ — Nhà xe khách</title>
+<title>Đăng nhập cán bộ — GoBus</title>
 <link rel="stylesheet" href="/shared/design-tokens.css" />
-<link rel="stylesheet" href="/khach-hang/auth.css" />
+<link rel="stylesheet" href="/nhan-vien/dang-nhap.css" />
 </head>
-<body class="auth-page">
-  <div class="auth-shell">
-    <div class="auth-illustration">
-      <div class="auth-illustration__art">
-        <svg viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <circle cx="170" cy="46" r="34" fill="var(--color-primary)" opacity="0.9"/>
-          <circle cx="170" cy="46" r="34" fill="#fff" opacity="0.12"/>
-          <ellipse cx="44" cy="38" rx="22" ry="10" fill="#fff" opacity="0.25"/>
-          <ellipse cx="64" cy="32" rx="16" ry="8" fill="#fff" opacity="0.25"/>
-          <line x1="0" y1="150" x2="220" y2="150" stroke="#fff" stroke-opacity="0.3" stroke-width="2"/>
-          <line x1="10" y1="185" x2="40" y2="185" stroke="#fff" stroke-opacity="0.4" stroke-width="4" stroke-linecap="round"/>
-          <line x1="60" y1="185" x2="90" y2="185" stroke="#fff" stroke-opacity="0.4" stroke-width="4" stroke-linecap="round"/>
-          <line x1="110" y1="185" x2="140" y2="185" stroke="#fff" stroke-opacity="0.4" stroke-width="4" stroke-linecap="round"/>
-          <line x1="160" y1="185" x2="190" y2="185" stroke="#fff" stroke-opacity="0.4" stroke-width="4" stroke-linecap="round"/>
-          <rect x="28" y="96" width="140" height="66" rx="18" fill="#fff"/>
-          <rect x="28" y="96" width="140" height="20" rx="10" fill="var(--color-primary)"/>
-          <rect x="44" y="124" width="28" height="22" rx="6" fill="var(--color-secondary-dark)" opacity="0.55"/>
-          <rect x="80" y="124" width="28" height="22" rx="6" fill="var(--color-secondary-dark)" opacity="0.55"/>
-          <rect x="116" y="124" width="28" height="22" rx="6" fill="var(--color-secondary-dark)" opacity="0.55"/>
-          <circle cx="60" cy="168" r="13" fill="#1A1A1E"/>
-          <circle cx="60" cy="168" r="5" fill="#fff"/>
-          <circle cx="136" cy="168" r="13" fill="#1A1A1E"/>
-          <circle cx="136" cy="168" r="5" fill="#fff"/>
-        </svg>
-      </div>
-      <div class="auth-illustration__badge" aria-hidden="true">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <path d="M9 6l6 6-6 6" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-      <div class="auth-illustration__text">
-        <h2>Cổng cán bộ</h2>
-        <p>Dành cho quản lý, điều độ viên, nhân viên quầy vé/gửi hàng và phụ xe.</p>
-      </div>
-    </div>
+<body class="dncb-page">
+  <div class="dncb-card">
+    <picture>
+      <source media="(max-width: 700px)" srcset="/shared/assets/dang-nhap-canbo-nen-mobile.png" />
+      <img class="dncb-card__bg" src="/shared/assets/dang-nhap-canbo-nen.jpg" alt="" aria-hidden="true" />
+    </picture>
 
-    <div class="auth-form-panel">
-      <img src="/shared/assets/logo-mark.png" alt="Logo" style="width:52px; height:52px; border-radius:50%; box-shadow:var(--shadow-float); margin-bottom:14px;" />
-      <h1>Đăng nhập cán bộ</h1>
-      <p class="subtitle">Dùng đúng email đã được cấp tài khoản</p>
+    <div class="dncb-card__content">
+      <img class="dncb-logo-lon" src="/shared/assets/logo-full.png" alt="GoBus — Kết nối mọi hành trình" />
+      <h1 class="dncb-heading">Đăng nhập</h1>
+      <p class="dncb-subtitle">Đăng nhập tài khoản cán bộ</p>
 
       <form id="form-dang-nhap">
-        <input class="input-field" type="email" id="email" placeholder="Email" required />
-        <input class="input-field" type="password" id="mat_khau" placeholder="Mật khẩu" required />
+        <label class="dncb-field-label" for="email">Email</label>
+        <div class="dncb-input-icon-group">
+          <svg class="dncb-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7.5 8 5.5 8-5.5"/>
+          </svg>
+          <input class="input-field" type="email" id="email" placeholder="ten@nhaxekhach.com" required />
+        </div>
+
+        <label class="dncb-field-label" for="mat_khau">Mật khẩu</label>
+        <div class="dncb-input-icon-group">
+          <svg class="dncb-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>
+          </svg>
+          <input class="input-field" type="password" id="mat_khau" placeholder="••••••••" required />
+        </div>
+
         <div id="loi" class="text-error" hidden></div>
         <div id="thanh-cong" class="text-success" hidden></div>
-        <button class="btn-primary" type="submit">Đăng nhập</button>
-      </form>
 
-      <p style="text-align:center; margin-top:16px; font-size:14px; color:var(--color-text-muted);">
-        Tài khoản cán bộ do quản lý cấp qua email mời — không tự đăng ký ở đây.
-      </p>
+        <button class="btn-primary dncb-btn-dang-nhap" type="submit">Đăng nhập</button>
+      </form>
     </div>
   </div>
 
@@ -97,6 +79,16 @@
         const ketQua = await res.json().catch(() => ({}));
         if (!res.ok) {
           throw new Error(ketQua.loi || ketQua.detail || "Có lỗi xảy ra, thử lại sau");
+        }
+
+        // "Cán bộ" = mọi vai trò TRỪ khách hàng — không dùng whitelist theo
+        // VE_TRANG_SAU_DANG_NHAP để xét quyền, vì vai trò cán bộ mới (chưa
+        // có giao diện riêng) vẫn hợp lệ, chỉ là chưa có trang để chuyển tới.
+        if (ketQua.vai_tro === "khach_hang") {
+          // Email/mật khẩu đúng nhưng là tài khoản khách hàng — đây là
+          // trang riêng cho cán bộ nên từ chối thẳng, KHÔNG lưu
+          // token/vai_tro vào localStorage.
+          throw new Error("Tài khoản này không có quyền truy cập trang cán bộ");
         }
 
         localStorage.setItem("token", ketQua.token);

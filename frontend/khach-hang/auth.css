@@ -1,9 +1,29 @@
 /*
- * CSS riêng cho các trang xác thực (đăng ký/đăng nhập/quên mật khẩu/tài khoản)
- * — bố cục "1 thẻ nằm giữa màn hình", chỉ hợp cho nhóm trang này, KHÔNG đưa vào
- * frontend/shared/design-tokens.css (xem THIET_KE_UI.md mục 4). Dùng chung
- * cho nhiều trang trong frontend/khach-hang/ nên vẫn để 1 file, không tách
- * mỗi trang 1 file riêng vì bố cục giống hệt nhau.
+ * CSS dùng chung cho 3 trang xác thực khách hàng: dang-nhap.html,
+ * dang-ky.html, quen-mat-khau.html — cùng bố cục "thẻ nhỏ + ảnh nền GoBus
+ * phủ kín + form đè lên vùng trắng" như trang đăng nhập cán bộ
+ * (frontend/nhan-vien/dang-nhap.css), dùng lại đúng 2 ảnh đó cho đồng bộ
+ * thương hiệu:
+ *   - Desktop/tablet (≥701px): /shared/assets/dang-nhap-canbo-nen.jpg
+ *     (ngang 1100x683, vùng trắng bên trái).
+ *   - Di động (≤700px): /shared/assets/dang-nhap-canbo-nen-mobile.png
+ *     (dọc 887x1774, có sẵn logo "GoBus" trong ảnh — vùng trắng chiếm gần
+ *     hết chiều rộng, mép trên hình sóng nhẹ dao động 23–26% chiều cao,
+ *     đã đo thủ công qua từng cột pixel trước khi chốt % định vị nội dung).
+ *
+ * .kh-card khóa đúng aspect-ratio ảnh đang hiển thị để vùng trắng luôn ở
+ * đúng chỗ đã đo (%). Cột nội dung desktop hẹp hơn 1 chút so với trang cán
+ * bộ (26% thay vì 27%) vì trang Đăng ký có tới 4 trường — đã tự vẽ khung
+ * kiểm tra lại (trường hợp dài nhất: Đăng ký bước 1) trước khi chốt số.
+ *
+ * Dùng chung 1 file cho cả 3 trang (bố cục giống hệt nhau, chỉ khác nội
+ * dung form) — không tách mỗi trang 1 file riêng.
+ *
+ * LƯU Ý: tai-khoan.html cũng nằm trong thư mục này và tự nạp đúng file
+ * auth.css này, nhưng KHÔNG thuộc phạm vi lần sửa này (không phải trang
+ * đăng nhập/đăng ký/quên mật khẩu) — vẫn dùng kiểu "thẻ đơn giản căn giữa"
+ * cũ (.auth-page/.auth-card), giữ nguyên y hệt bên dưới để không vỡ giao
+ * diện trang đó.
  */
 
 body.auth-page {
@@ -17,8 +37,6 @@ body.auth-page {
   padding: 24px;
   box-sizing: border-box;
 }
-
-/* ===== Thẻ đơn giản, căn giữa (tai-khoan.html — không có minh họa) ===== */
 
 .auth-card {
   max-width: 400px;
@@ -45,307 +63,445 @@ body.auth-page {
   margin: 24px 0;
 }
 
-/* ===== Thẻ chia đôi có minh họa (đăng ký/đăng nhập/quên mật khẩu) ===== */
+/* ===== Từ đây trở xuống là CSS mới cho dang-nhap.html/dang-ky.html/
+   quen-mat-khau.html (.kh-*) ===== */
 
-.auth-shell {
+body.kh-auth-page {
+  margin: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  box-sizing: border-box;
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--color-bg-canvas);
+  background-image: url("/shared/assets/dang-nhap-nen-desktop.jpg");
+  background-size: cover;
+  background-position: center;
   display: flex;
-  width: 100%;
-  max-width: 880px;
-  min-height: 560px;
+  align-items: center;
+  /* Lệch thẻ sang phải màn hình (desktop/tablet) — padding-right giữ
+     khoảng cách rõ với mép phải, không để thẻ dính sát cạnh. Di động vẫn
+     canh giữa như cũ (override lại trong @media max-width:700px). */
+  justify-content: flex-end;
+  padding: 24px 8% 24px 24px;
+}
+
+/* Thẻ luôn tự co theo CẢ chiều rộng lẫn chiều cao còn trống (trừ padding
+   body) để không bao giờ cao hơn màn hình — tránh phải cuộn mới bấm được
+   nút. width/height dùng công thức min() dựa trên cả dvw và dvh (không
+   dùng % chiều cao vì body chỉ có height cố định qua dvh ở trên, còn nếu
+   thiếu 1 trong 2 chiều thì % chiều cao sẽ không tính được khi cha không
+   có chiều cao rõ ràng). */
+.kh-card {
+  position: relative;
+  aspect-ratio: 1100 / 683;
+  width: min(900px, calc(100dvw - 48px), calc((100dvh - 48px) * 1100 / 683));
+  height: min(calc(900px * 683 / 1100), calc(100dvh - 48px), calc((100dvw - 48px) * 683 / 1100));
   background: var(--color-bg-surface);
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-soft);
+  /* Bóng đậm hơn hẳn --shadow-soft dùng chung (vốn tính cho card nằm trên
+     nền canvas trơn) — giờ thẻ nổi trên ảnh nền nhiều màu nên cần bóng rõ
+     ràng, 2 lớp (1 bóng lan rộng mờ phía dưới + 1 bóng sát gần đậm hơn)
+     mới đủ tách thẻ ra khỏi ảnh, tránh bị "chìm" vào nền. */
+  box-shadow: 0 28px 64px rgba(15, 12, 30, 0.38), 0 8px 20px rgba(15, 12, 30, 0.2);
   overflow: hidden;
 }
 
-.auth-illustration {
-  flex: 0 0 42%;
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(160deg, var(--color-secondary), var(--color-secondary-dark));
-  color: var(--color-text-on-dark);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 40px 32px;
-}
-
-.auth-illustration::before,
-.auth-illustration::after {
-  content: "";
+.kh-card picture {
   position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
+  inset: 0;
+  display: block;
 }
 
-.auth-illustration::before {
-  width: 200px;
-  height: 200px;
-  top: -70px;
-  right: -70px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.auth-illustration::after {
-  width: 130px;
-  height: 130px;
-  bottom: -50px;
-  left: -30px;
-  background: rgba(245, 166, 35, 0.16);
-}
-
-.auth-illustration__art {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-}
-
-.auth-illustration__art svg {
+.kh-card__bg {
   width: 100%;
-  max-width: 240px;
-  height: auto;
-  animation: auth-float 4s ease-in-out infinite;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
 }
 
-@keyframes auth-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
-}
+/* ===== Nội dung đè lên đúng vùng trắng của ảnh ===== */
 
-.auth-illustration__badge {
+.kh-card__content {
   position: absolute;
-  right: 8px;
-  bottom: 18px;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: var(--color-primary);
+  left: 5%;
+  top: 6%;
+  width: 25%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Riêng bên khách hàng: logo-full.png (vẫn dùng logo đầy đủ theo yêu cầu,
+   không phải icon) + tiêu đề nằm CHUNG 1 HÀNG (khác bên cán bộ — xếp dọc
+   vì chỉ có 2 trường, dư chỗ) — trang Đăng ký có tới 4 trường nên cần gọn
+   hết mức để textbox không bị đẩy xuống đè lên phần ảnh màu. Đã tự đo lại
+   khung an toàn trước khi chốt số. */
+.kh-brand-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  box-shadow: var(--shadow-float);
-  animation: auth-badge-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-  animation-delay: 0.2s;
+  gap: 10px;
+  margin: 0 0 14px;
 }
 
-@keyframes auth-badge-pop {
-  from { transform: scale(0) rotate(-30deg); opacity: 0; }
-  to { transform: scale(1) rotate(0); opacity: 1; }
+.kh-logo {
+  display: block;
+  width: 58px;
+  height: auto;
+  flex-shrink: 0;
 }
 
-.auth-illustration__text {
+.kh-heading {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.kh-subtitle {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+.kh-field-label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 5px;
+}
+
+.kh-input-icon-group {
   position: relative;
 }
 
-.auth-illustration__text h2 {
-  font-size: 22px;
-  margin: 0 0 8px;
+.kh-input-icon {
+  display: none;
 }
 
-.auth-illustration__text p {
-  color: rgba(255, 255, 255, 0.75);
-  font-size: 14px;
-  line-height: 1.5;
-  margin: 0;
+/* Ô nhập kiểu gạch chân (desktop/tablet) — nền trắng thật, chỉ 1 đường
+   kẻ dưới màu tím đậm, giống hệt cách làm ở trang cán bộ. */
+.kh-card__content .input-field {
+  width: 100%;
+  padding: 5px 0;
+  margin-bottom: 11px;
+  font-size: 12.5px;
+  background: #fff;
+  border: none;
+  border-bottom: 2px solid var(--color-secondary);
+  border-radius: 0;
+  box-sizing: border-box;
 }
 
-.auth-form-panel {
-  flex: 1;
-  min-width: 0;
-  padding: 48px 40px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+.kh-card__content .input-field:-webkit-autofill,
+.kh-card__content .input-field:-webkit-autofill:hover,
+.kh-card__content .input-field:-webkit-autofill:focus,
+.kh-card__content .input-field:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--color-text-primary);
+  -webkit-box-shadow: 0 0 0 1000px #fff inset;
+  box-shadow: 0 0 0 1000px #fff inset;
+  transition: background-color 9999s ease-in-out 0s;
 }
 
-.auth-form-panel h1 {
-  font-size: 26px;
-  margin: 0 0 4px;
+.kh-card__content .input-field:focus {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+  box-shadow: none;
 }
 
-.auth-form-panel p.subtitle {
-  color: var(--color-text-muted);
-  margin: 0 0 24px;
+.kh-card__content .text-error,
+.kh-card__content .text-success {
+  font-size: 11px;
+  margin: -3px 0 8px;
 }
 
-.auth-form-panel form {
-  animation: auth-fade-in 0.35s ease both;
-}
-
-@keyframes auth-fade-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@media (max-width: 760px) {
-  .auth-shell {
-    flex-direction: column;
-    max-width: 420px;
-    min-height: 0;
-  }
-
-  .auth-illustration {
-    flex: none;
-    padding: 24px 28px 18px;
-  }
-
-  .auth-illustration__art svg {
-    max-width: 130px;
-  }
-
-  .auth-illustration__text p {
-    display: none;
-  }
-
-  .auth-illustration__badge {
-    width: 44px;
-    height: 44px;
-    right: 6px;
-    bottom: 6px;
-  }
-
-  .auth-form-panel {
-    padding: 32px 28px 36px;
-  }
-}
-
-/* ===== Hiệu ứng hover/focus cho input & nút — chỉ áp trong .auth-page,
-   không sửa .input-field/.btn-primary gốc ở design-tokens.css ===== */
-
-.auth-page .input-field {
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
-}
-
-.auth-page .input-field:hover {
-  border-color: #C9C9D1;
-}
-
-.auth-page .input-field:focus {
-  box-shadow: 0 0 0 4px rgba(245, 166, 35, 0.15);
-}
-
-.auth-page .btn-primary {
+.kh-card__content .btn-primary {
+  width: auto;
+  min-width: 130px;
+  padding: 8px 24px;
+  font-size: 12.5px;
+  border-radius: var(--radius-pill);
+  margin-top: 2px;
   position: relative;
   transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
-.auth-page .btn-primary:hover:not(:disabled) {
+.kh-card__content .btn-primary:hover:not(:disabled) {
   background: var(--color-primary-dark);
   transform: translateY(-2px);
   box-shadow: var(--shadow-float);
 }
 
-.auth-page .btn-primary:active:not(:disabled) {
-  transform: translateY(0);
-  box-shadow: none;
-}
-
-.auth-page .btn-primary.is-loading {
+.kh-card__content .btn-primary.is-loading {
   color: transparent;
   pointer-events: none;
 }
 
-.auth-page .btn-primary.is-loading::after {
+.kh-card__content .btn-primary.is-loading::after {
   content: "";
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 20px;
-  height: 20px;
-  margin: -10px 0 0 -10px;
+  width: 15px;
+  height: 15px;
+  margin: -7.5px 0 0 -7.5px;
   border-radius: 50%;
   border: 2.5px solid rgba(23, 23, 26, 0.25);
   border-top-color: var(--color-text-primary);
-  animation: auth-spin 0.7s linear infinite;
+  animation: kh-spin 0.7s linear infinite;
 }
 
-@keyframes auth-spin {
+@keyframes kh-spin {
   to { transform: rotate(360deg); }
 }
 
-.auth-page .text-link {
-  transition: color 0.15s ease;
+/* Canh trái ở desktop/tablet, khớp với cả cột (logo/nhãn/ô nhập đều sát
+   mép trái) — chỉ canh giữa riêng ở di động (trong media query bên dưới),
+   nơi toàn bộ nội dung đã canh giữa theo kiểu ảnh mẫu. */
+.kh-links {
+  margin: 12px 0 0;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  text-align: left;
 }
 
-.auth-page .text-link:hover {
+.kh-links + .kh-links {
+  margin-top: 6px;
+}
+
+.kh-card__content .text-link {
+  font-weight: 700;
+  color: var(--color-secondary);
+  text-decoration: none;
+}
+
+.kh-card__content .text-link:hover {
   color: var(--color-secondary-dark);
 }
 
-/* ===== Ô nhập mã xác nhận — 6 ô, mỗi ô 1 số ===== */
-
-.otp-group {
-  display: flex;
-  gap: 10px;
-  margin: 4px 0 16px;
+.kh-card__content .text-link.is-disabled {
+  color: var(--color-text-muted);
+  pointer-events: none;
+  text-decoration: none;
 }
 
-.otp-box {
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  text-align: center;
-  font-size: 22px;
-  font-weight: 700;
-  font-family: inherit;
-  color: var(--color-text-primary);
-  background: var(--color-bg-surface);
-  border: 1.5px solid #E5E5E8;
-  border-radius: var(--radius-button);
-  box-sizing: border-box;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
-}
-
-.otp-box:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 4px rgba(245, 166, 35, 0.15);
-  transform: translateY(-2px);
-}
-
-.otp-box.is-filled {
-  border-color: var(--color-secondary);
-}
-
-.otp-box.is-error {
-  border-color: var(--color-danger);
-  animation: otp-shake 0.3s ease;
-}
-
-@keyframes otp-shake {
-  25% { transform: translateX(-4px); }
-  75% { transform: translateX(4px); }
-}
+/* ===== Mã OTP (dang-ky.html, quen-mat-khau.html) — otp-input.js chỉ cần
+   đúng class .otp-group/.otp-box, phần nhìn tự do chỉnh theo bố cục mới. ===== */
 
 .otp-hint {
-  font-size: 14px;
+  font-size: 11.5px;
   color: var(--color-text-muted);
-  margin: 0 0 4px;
+  margin: 0 0 10px;
+  line-height: 1.5;
 }
 
 .otp-hint strong {
   color: var(--color-text-primary);
 }
 
-.otp-resend {
-  text-align: center;
-  margin-top: 12px;
-  font-size: 14px;
-  color: var(--color-text-muted);
+.otp-group {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 10px;
 }
 
-.otp-resend .text-link.is-disabled {
+.otp-box {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--color-text-primary);
+  background: #fff;
+  border: none;
+  border-bottom: 2px solid var(--color-secondary);
+  border-radius: 0;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.otp-box:focus {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+.otp-box.is-filled {
+  border-bottom-color: var(--color-secondary-dark);
+}
+
+.otp-box.is-error {
+  border-bottom-color: var(--color-danger);
+  animation: kh-otp-shake 0.3s ease;
+}
+
+@keyframes kh-otp-shake {
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+.otp-resend {
+  margin: 4px 0 0;
+  font-size: 11.5px;
   color: var(--color-text-muted);
-  pointer-events: none;
-  text-decoration: none;
+  text-align: left;
+}
+
+/* ===== Dưới 700px: đổi sang ảnh dọc riêng (qua <picture>), vùng trắng
+   nằm phía dưới — ảnh đã có sẵn chữ "GoBus" nên ẩn logo tròn, dùng tiêu
+   đề chữ cho gọn (không đẩy form xuống, vừa 1 màn hình). Ô nhập đổi sang
+   dạng viên thuốc có icon. ===== */
+
+@media (max-width: 700px) {
+  body.kh-auth-page {
+    justify-content: center;
+    padding: 16px;
+  }
+
+  .kh-card {
+    aspect-ratio: 887 / 1774;
+    width: min(420px, calc(100dvw - 32px), calc((100dvh - 32px) * 887 / 1774));
+    height: min(calc(420px * 1774 / 887), calc(100dvh - 32px), calc((100dvw - 32px) * 1774 / 887));
+  }
+
+  /* Neo từ top:30% (dưới hẳn mép sóng, mép sóng lồi cao nhất chỉ tới 26.1%)
+     và để nội dung tự chảy tự nhiên theo chiều cao thật của nó — KHÔNG kéo
+     giãn + canh giữa (justify-content:center) trong cả khoảng trắng còn
+     lại, vì thẻ giờ đã tự co vừa màn hình nên khoảng trắng thật sự không
+     còn nhiều, kéo giãn sẽ tạo khoảng hở lớn phía trên tiêu đề trông như lỗi. */
+  .kh-card__content {
+    left: 8%;
+    top: 30%;
+    width: 84%;
+  }
+
+  .kh-brand-row {
+    justify-content: center;
+    margin-bottom: 6px;
+  }
+
+  .kh-logo {
+    display: none;
+  }
+
+  .kh-heading {
+    font-size: 26px;
+    text-align: center;
+  }
+
+  .kh-subtitle {
+    text-align: center;
+    font-size: 13.5px;
+    margin-bottom: 18px;
+  }
+
+  .kh-field-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .kh-input-icon-group {
+    margin-bottom: 12px;
+  }
+
+  .kh-input-icon {
+    display: block;
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 17px;
+    height: 17px;
+    color: var(--color-secondary);
+    pointer-events: none;
+  }
+
+  .kh-card__content .input-field {
+    padding: 11px 14px 11px 40px;
+    margin-bottom: 0;
+    font-size: 13.5px;
+    background: rgba(91, 62, 150, 0.07);
+    border: 1.5px solid transparent;
+    border-radius: var(--radius-pill);
+  }
+
+  .kh-card__content .input-field:focus {
+    border-color: var(--color-primary);
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(245, 166, 35, 0.18);
+  }
+
+  .kh-card__content .btn-primary {
+    width: 100%;
+    padding: 13px 24px;
+    font-size: 14px;
+    margin-top: 6px;
+  }
+
+  .kh-links {
+    font-size: 13px;
+    text-align: center;
+  }
+
+  .otp-hint {
+    font-size: 13px;
+    text-align: center;
+  }
+
+  .otp-group {
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .otp-box {
+    font-size: 18px;
+    border: 1.5px solid #E5E5E8;
+    border-radius: var(--radius-button);
+    background: #fff;
+  }
+
+  .otp-box:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px rgba(245, 166, 35, 0.18);
+    transform: none;
+  }
+
+  .otp-box.is-filled {
+    border-color: var(--color-secondary);
+  }
+
+  .otp-resend {
+    font-size: 13px;
+    text-align: center;
+  }
+}
+
+/* ===== Tablet (700–860px): vẫn ảnh ngang như desktop, nới cột nội dung ===== */
+
+@media (min-width: 701px) and (max-width: 860px) {
+  .kh-card__content {
+    left: 4%;
+    width: 29%;
+  }
+
+  .kh-logo {
+    width: 46px;
+  }
+
+  .kh-heading {
+    font-size: 15px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .auth-page *,
-  .auth-page *::before,
-  .auth-page *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  .kh-card__content .btn-primary.is-loading::after {
+    animation-duration: 0.01ms;
   }
 }

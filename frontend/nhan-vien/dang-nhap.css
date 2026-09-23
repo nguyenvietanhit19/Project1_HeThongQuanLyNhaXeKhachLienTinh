@@ -1,0 +1,354 @@
+/*
+ * CSS riêng cho trang đăng nhập cán bộ (frontend/nhan-vien/dang-nhap.html)
+ * — 1 thẻ nhỏ căn giữa màn hình, ẢNH NỀN DUY NHẤT phủ kín thẻ (không tách
+ * 2 khối trắng/tím riêng), form đè trực tiếp lên đúng vùng trắng có sẵn
+ * trong ảnh (kiểu mẫu Obiwo "Your Dreams" người dùng cung cấp).
+ *
+ * 2 ảnh khác nhau theo kích thước màn hình (đổi qua <picture>/<source> ở
+ * HTML, không phải JS):
+ *   - Desktop/tablet (≥701px): dang-nhap-canbo-nen.jpg, ngang 1100x683,
+ *     vùng trắng nằm bên trái.
+ *   - Di động (≤700px): dang-nhap-canbo-nen-mobile.png, dọc 887x1774, đã
+ *     có sẵn logo "GoBus" vẽ trong ảnh — vùng trắng chiếm gần hết chiều
+ *     rộng, mép trên hình sóng nhẹ dao động 23–26% chiều cao (đã đo thủ
+ *     công qua từng cột pixel trước khi chốt % định vị nội dung).
+ * .dncb-card khóa đúng aspect-ratio của ảnh đang hiển thị để vùng trắng
+ * luôn nằm đúng chỗ đã đo thủ công (%) bất kể phóng to/nhỏ màn hình.
+ *
+ * KHÔNG dùng chung với frontend/khach-hang/auth.css — trang khách hàng do
+ * thành viên khác phụ trách, không đụng vào.
+ */
+
+body.dncb-page {
+  margin: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  box-sizing: border-box;
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--color-bg-canvas);
+  background-image: url("/shared/assets/dang-nhap-nen-desktop.jpg");
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  /* Lệch thẻ sang phải màn hình (desktop/tablet) — padding-right giữ
+     khoảng cách rõ với mép phải, không để thẻ dính sát cạnh. Di động vẫn
+     canh giữa như cũ (override lại trong @media max-width:700px). */
+  justify-content: flex-end;
+  padding: 24px 8% 24px 24px;
+}
+
+/* Thẻ luôn tự co theo CẢ chiều rộng lẫn chiều cao còn trống (trừ padding
+   body) để không bao giờ cao hơn màn hình — tránh phải cuộn mới bấm được
+   nút. Dùng dvw/dvh trực tiếp (không dùng % chiều cao) vì % chiều cao chỉ
+   tính được khi phần tử cha có chiều cao rõ ràng. */
+.dncb-card {
+  position: relative;
+  aspect-ratio: 1100 / 683;
+  width: min(900px, calc(100dvw - 48px), calc((100dvh - 48px) * 1100 / 683));
+  height: min(calc(900px * 683 / 1100), calc(100dvh - 48px), calc((100dvw - 48px) * 683 / 1100));
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-card);
+  /* Bóng đậm hơn hẳn --shadow-soft dùng chung (vốn tính cho card nằm trên
+     nền canvas trơn) — giờ thẻ nổi trên ảnh nền nhiều màu nên cần bóng rõ
+     ràng, 2 lớp (1 bóng lan rộng mờ phía dưới + 1 bóng sát gần đậm hơn)
+     mới đủ tách thẻ ra khỏi ảnh, tránh bị "chìm" vào nền. */
+  box-shadow: 0 28px 64px rgba(15, 12, 30, 0.38), 0 8px 20px rgba(15, 12, 30, 0.2);
+  overflow: hidden;
+}
+
+.dncb-card picture {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.dncb-card__bg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+/* ===== Nội dung đè lên đúng vùng trắng của ảnh (đo thủ công theo ảnh gốc) ===== */
+
+.dncb-card__content {
+  position: absolute;
+  left: 5%;
+  top: 6%;
+  width: 27%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* logo-full.png (không phải icon) — xếp dọc: logo trên, tiêu đề to dưới
+   (không đặt nằm ngang được vì logo-full là khối vuông có chữ "GoBus" +
+   khẩu hiệu bên trong, ghép ngang cạnh 1 dòng chữ sẽ lệch tỉ lệ). */
+.dncb-logo-lon {
+  display: block;
+  width: 100px;
+  height: auto;
+  margin: 0 0 12px;
+}
+
+.dncb-heading {
+  margin: 0 0 14px;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.dncb-subtitle {
+  margin: 0 0 18px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.dncb-field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 6px;
+}
+
+.dncb-input-icon-group {
+  position: relative;
+}
+
+.dncb-input-icon {
+  display: none;
+}
+
+/* Ô nhập kiểu gạch chân (desktop/tablet) — nền trắng thật, không khung
+   viền, chỉ 1 đường kẻ dưới màu tím đậm để nhận biết. */
+.dncb-card__content form .input-field {
+  width: 100%;
+  padding: 6px 0;
+  margin-bottom: 14px;
+  font-size: 13px;
+  background: #fff;
+  border: none;
+  border-bottom: 2.5px solid var(--color-secondary);
+  border-radius: 0;
+  box-sizing: border-box;
+}
+
+/* Chrome/Edge tự tô nền xanh nhạt (light-dark(rgb(232,240,254))) cho ô đã
+   lưu mật khẩu (autofill) — không thể ghi đè trực tiếp bằng background,
+   phải dùng mẹo box-shadow inset để ép lại về đúng màu trắng. */
+.dncb-card__content form .input-field:-webkit-autofill,
+.dncb-card__content form .input-field:-webkit-autofill:hover,
+.dncb-card__content form .input-field:-webkit-autofill:focus,
+.dncb-card__content form .input-field:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--color-text-primary);
+  -webkit-box-shadow: 0 0 0 1000px #fff inset;
+  box-shadow: 0 0 0 1000px #fff inset;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+.dncb-card__content .text-error,
+.dncb-card__content .text-success {
+  font-size: 11.5px;
+  margin: -4px 0 10px;
+}
+
+.dncb-btn-dang-nhap {
+  width: auto;
+  min-width: 110px;
+  padding: 9px 26px;
+  font-size: 13px;
+  border-radius: var(--radius-pill);
+  margin-top: 4px;
+}
+
+/* ===== Dưới 700px: đổi sang ảnh dọc riêng (đèo lên qua <picture>), vùng
+   trắng nằm phía dưới ảnh — vẫn đè nội dung lên đúng vùng trắng như
+   desktop/tablet, chỉ khác tọa độ. Ô nhập đổi sang dạng viên thuốc có
+   icon, giống ảnh mẫu người dùng cung cấp cho bản di động. ===== */
+
+@media (max-width: 700px) {
+  body.dncb-page {
+    justify-content: center;
+    padding: 16px;
+  }
+
+  .dncb-card {
+    aspect-ratio: 887 / 1774;
+    width: min(420px, calc(100dvw - 32px), calc((100dvh - 32px) * 887 / 1774));
+    height: min(calc(420px * 1774 / 887), calc(100dvh - 32px), calc((100dvw - 32px) * 1774 / 887));
+  }
+
+  /* Neo từ top:30% (dưới hẳn mép sóng, mép sóng lồi cao nhất chỉ tới 26.1%)
+     và để nội dung tự chảy tự nhiên theo chiều cao thật của nó — KHÔNG kéo
+     giãn + canh giữa (justify-content:center) trong cả khoảng trắng còn
+     lại, vì thẻ giờ đã tự co vừa màn hình nên khoảng trắng thật sự không
+     còn nhiều, kéo giãn sẽ tạo khoảng hở lớn phía trên tiêu đề trông như lỗi. */
+  .dncb-card__content {
+    left: 8%;
+    top: 30%;
+    width: 84%;
+  }
+
+  /* Ảnh nền mobile đã có sẵn chữ "GoBus" vẽ trong ảnh — ẩn logo riêng để
+     đỡ chiếm chỗ, tránh đẩy form xuống không vừa 1 màn hình. Tiêu đề vẫn
+     hiện, canh giữa. */
+  .dncb-logo-lon {
+    display: none;
+  }
+
+  .dncb-heading {
+    margin-bottom: 6px;
+    font-size: 28px;
+    text-align: center;
+  }
+
+  .dncb-subtitle {
+    text-align: center;
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+
+  /* Nhãn vẫn tồn tại cho trình đọc màn hình nhưng ẩn khỏi mắt thường —
+     giống ảnh mẫu chỉ dùng icon + placeholder, không có nhãn nổi phía trên. */
+  .dncb-field-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .dncb-input-icon-group {
+    margin-bottom: 14px;
+  }
+
+  .dncb-input-icon {
+    display: block;
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    color: var(--color-secondary);
+    pointer-events: none;
+  }
+
+  /* Ô nhập dạng viên thuốc — nền tím rất nhạt, có icon, không còn gạch
+     chân kiểu desktop (không hợp trên nền viên thuốc kín). */
+  .dncb-card__content form .input-field {
+    padding: 12px 16px 12px 44px;
+    margin-bottom: 0;
+    font-size: 14px;
+    background: rgba(91, 62, 150, 0.07);
+    border: 1.5px solid transparent;
+    border-radius: var(--radius-pill);
+  }
+
+  .dncb-btn-dang-nhap {
+    width: 100%;
+    padding: 14px 24px;
+    font-size: 15px;
+    margin-top: 8px;
+  }
+}
+
+/* ===== Tablet (700–860px): vẫn dùng ảnh ngang như desktop, chỉ nới rộng
+   cột nội dung 1 chút ===== */
+
+@media (min-width: 701px) and (max-width: 860px) {
+  .dncb-card__content {
+    left: 4%;
+    width: 30%;
+  }
+
+  .dncb-logo-lon {
+    width: 78px;
+  }
+
+  .dncb-heading {
+    font-size: 20px;
+  }
+}
+
+/* ===== Hover/focus/loading — theo đúng pattern chung của app, chỉ scope
+   trong trang này (không sửa .input-field/.btn-primary gốc) ===== */
+
+.dncb-page .input-field {
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.dncb-page .input-field:hover {
+  border-color: #C9C9D1;
+}
+
+.dncb-page .input-field:focus {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(245, 166, 35, 0.15);
+}
+
+/* Kiểu gạch chân (desktop/tablet, form đè lên ảnh) — focus chỉ sáng
+   đường kẻ dưới sang màu vàng cam thương hiệu, không dùng viền glow. */
+.dncb-card__content form .input-field:focus {
+  border-bottom-color: var(--color-primary);
+  box-shadow: none;
+}
+
+@media (max-width: 700px) {
+  /* Kiểu viên thuốc (di động) — focus viền vàng cam + nền đậm hơn 1 chút,
+     không có gạch chân để sáng lên như desktop. */
+  .dncb-card__content form .input-field:focus {
+    border-color: var(--color-primary);
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(245, 166, 35, 0.18);
+  }
+}
+
+.dncb-page .btn-primary {
+  position: relative;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.dncb-page .btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-float);
+}
+
+.dncb-page .btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.dncb-page .btn-primary.is-loading {
+  color: transparent;
+  pointer-events: none;
+}
+
+.dncb-page .btn-primary.is-loading::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(23, 23, 26, 0.25);
+  border-top-color: var(--color-text-primary);
+  animation: dncb-spin 0.7s linear infinite;
+}
+
+@keyframes dncb-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dncb-page .btn-primary.is-loading::after {
+    animation-duration: 0.01ms;
+  }
+}

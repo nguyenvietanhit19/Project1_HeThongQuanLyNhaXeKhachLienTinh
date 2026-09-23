@@ -4,64 +4,48 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
-<title>Đăng nhập — Nhà xe khách</title>
+<title>Đăng nhập — GoBus</title>
 <link rel="stylesheet" href="/shared/design-tokens.css" />
 <link rel="stylesheet" href="auth.css" />
 </head>
-<body class="auth-page">
-  <div class="auth-shell">
-    <div class="auth-illustration">
-      <div class="auth-illustration__art">
-        <svg viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <circle cx="170" cy="46" r="34" fill="var(--color-primary)" opacity="0.9"/>
-          <circle cx="170" cy="46" r="34" fill="#fff" opacity="0.12"/>
-          <ellipse cx="44" cy="38" rx="22" ry="10" fill="#fff" opacity="0.25"/>
-          <ellipse cx="64" cy="32" rx="16" ry="8" fill="#fff" opacity="0.25"/>
-          <line x1="0" y1="150" x2="220" y2="150" stroke="#fff" stroke-opacity="0.3" stroke-width="2"/>
-          <line x1="10" y1="185" x2="40" y2="185" stroke="#fff" stroke-opacity="0.4" stroke-width="4" stroke-linecap="round"/>
-          <line x1="60" y1="185" x2="90" y2="185" stroke="#fff" stroke-opacity="0.4" stroke-width="4" stroke-linecap="round"/>
-          <line x1="110" y1="185" x2="140" y2="185" stroke="#fff" stroke-opacity="0.4" stroke-width="4" stroke-linecap="round"/>
-          <line x1="160" y1="185" x2="190" y2="185" stroke="#fff" stroke-opacity="0.4" stroke-width="4" stroke-linecap="round"/>
-          <rect x="28" y="96" width="140" height="66" rx="18" fill="#fff"/>
-          <rect x="28" y="96" width="140" height="20" rx="10" fill="var(--color-primary)"/>
-          <rect x="44" y="124" width="28" height="22" rx="6" fill="var(--color-secondary-dark)" opacity="0.55"/>
-          <rect x="80" y="124" width="28" height="22" rx="6" fill="var(--color-secondary-dark)" opacity="0.55"/>
-          <rect x="116" y="124" width="28" height="22" rx="6" fill="var(--color-secondary-dark)" opacity="0.55"/>
-          <circle cx="60" cy="168" r="13" fill="#1A1A1E"/>
-          <circle cx="60" cy="168" r="5" fill="#fff"/>
-          <circle cx="136" cy="168" r="13" fill="#1A1A1E"/>
-          <circle cx="136" cy="168" r="5" fill="#fff"/>
-        </svg>
-      </div>
-      <div class="auth-illustration__badge" aria-hidden="true">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <path d="M4 12l8-8 8 8M6 10v10h12V10" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-      <div class="auth-illustration__text">
-        <h2>Chào mừng trở lại</h2>
-        <p>Đăng nhập để tiếp tục đặt vé, xem lịch sử chuyến đi và quản lý tài khoản của bạn.</p>
-      </div>
-    </div>
+<body class="kh-auth-page">
+  <div class="kh-card">
+    <picture>
+      <source media="(max-width: 700px)" srcset="/shared/assets/dang-nhap-canbo-nen-mobile.png" />
+      <img class="kh-card__bg" src="/shared/assets/dang-nhap-canbo-nen.jpg" alt="" aria-hidden="true" />
+    </picture>
 
-    <div class="auth-form-panel">
-      <h1>Đăng nhập</h1>
-      <p class="subtitle">Đăng nhập để đặt vé và xem lịch sử vé</p>
+    <div class="kh-card__content">
+      <div class="kh-brand-row">
+        <img class="kh-logo" src="/shared/assets/logo-full.png" alt="GoBus — Kết nối mọi hành trình" />
+        <h1 class="kh-heading">Đăng nhập</h1>
+      </div>
+      <p class="kh-subtitle">Đăng nhập để đặt vé và xem lịch sử vé</p>
 
       <form id="form-dang-nhap">
-        <input class="input-field" type="email" id="email" placeholder="Email" required />
-        <input class="input-field" type="password" id="mat_khau" placeholder="Mật khẩu" required />
+        <label class="kh-field-label" for="email">Email</label>
+        <div class="kh-input-icon-group">
+          <svg class="kh-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7.5 8 5.5 8-5.5"/>
+          </svg>
+          <input class="input-field" type="email" id="email" placeholder="Email" required />
+        </div>
+
+        <label class="kh-field-label" for="mat_khau">Mật khẩu</label>
+        <div class="kh-input-icon-group">
+          <svg class="kh-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>
+          </svg>
+          <input class="input-field" type="password" id="mat_khau" placeholder="Mật khẩu" required />
+        </div>
+
         <div id="loi" class="text-error" hidden></div>
         <div id="thanh-cong" class="text-success" hidden></div>
         <button class="btn-primary" type="submit">Đăng nhập</button>
       </form>
 
-      <p style="text-align:center; margin-top:16px;">
-        <a class="text-link" href="quen-mat-khau.html">Quên mật khẩu?</a>
-      </p>
-      <p style="text-align:center; margin-top:8px;">
-        Chưa có tài khoản? <a class="text-link" href="dang-ky.html">Đăng ký</a>
-      </p>
+      <p class="kh-links"><a class="text-link" href="quen-mat-khau.html">Quên mật khẩu?</a></p>
+      <p class="kh-links">Chưa có tài khoản? <a class="text-link" href="dang-ky.html">Đăng ký</a></p>
     </div>
   </div>
 
