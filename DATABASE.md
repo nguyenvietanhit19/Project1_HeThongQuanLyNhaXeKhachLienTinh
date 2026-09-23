@@ -112,12 +112,25 @@ Tầng chi tiết, nằm trong 1 `khu_vuc` — mọi điểm ở đây đều l�
 
 Không có bảng `ben_xe` riêng — `loai = 'van_phong'` chính là "văn phòng/bến xe" (mục 3.1, tránh trùng lặp dữ liệu).
 
-### 2.3. `nhom_tuyen` và `tuyen`
+### 2.3. `nhom_tuyen`, `nhom_tuyen_khu_vuc` và `tuyen`
 
 | `nhom_tuyen` | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | UUID PK | |
 | `ten` | TEXT NOT NULL | VD `"Hà Nội – Sapa"` — gộp các `tuyen` chạy trên cùng 1 hành trình vật lý (2 chiều), dùng cho ràng buộc xe cố định theo tuyến (mục 3.2) |
+
+`nhom_tuyen_khu_vuc` — mỗi nhóm tuyến gắn với 1 danh sách `khu_vuc` **có thứ tự** dọc hành trình vật lý (không giới hạn đúng 2 tỉnh — nhiều `khu_vuc` nếu hành trình đi qua nhiều tỉnh). `quan_ly` cấu hình khi tạo/sửa `nhom_tuyen` (mục Nhóm tuyến, tách riêng khỏi form tạo `tuyen`).
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `id` | UUID PK | |
+| `nhom_tuyen_id` | UUID NOT NULL, FK → `nhom_tuyen(id)` | |
+| `khu_vuc_id` | UUID NOT NULL, FK → `khu_vuc(id)` | |
+| `thu_tu` | INTEGER NOT NULL | Thứ tự khu vực dọc hành trình vật lý (không phải thứ tự riêng của 1 chiều `tuyen`) |
+
+UNIQUE: (`nhom_tuyen_id`, `thu_tu`) và (`nhom_tuyen_id`, `khu_vuc_id`) — 1 khu vực không xuất hiện 2 lần trong cùng 1 nhóm tuyến.
+
+Dùng để: (1) khi tạo `tuyen`, chỉ được chọn `diem_don_tra` thuộc `khu_vuc` đã có trong `nhom_tuyen_khu_vuc` của nhóm; (2) thứ tự `tuyen_diem_don_tra.thu_tu` phải khớp thứ tự `thu_tu` của khu vực tương ứng trong nhóm — đơn điệu tăng dần **hoặc** giảm dần (2 chiều đi/về của cùng 1 nhóm), không được chọn xen kẽ lộn xộn. Validate ở Service (mục 2.4 dưới).
 
 | `tuyen` | Kiểu | Ghi chú |
 |---|---|---|
@@ -137,7 +150,7 @@ Chuỗi điểm có thứ tự của 1 tuyến — chứa **mọi** điểm xe t
 | `thu_tu` | INTEGER NOT NULL | Dùng cho cơ chế chống trùng ghế theo khoảng `[thu_tu, thu_tu)` (mục 6) |
 | `thoi_gian_du_kien_phut` | INTEGER NOT NULL | Số phút lệch so với `chuyen_xe.gio_khoi_hanh` |
 
-UNIQUE: (`tuyen_id`, `thu_tu`) và (`tuyen_id`, `diem_don_tra_id`) — 1 điểm không xuất hiện 2 lần trong cùng 1 tuyến. Điểm có `thu_tu` nhỏ nhất và lớn nhất của mỗi tuyến bắt buộc `loai = 'van_phong'` (kiểm tra ở Service).
+UNIQUE: (`tuyen_id`, `thu_tu`) và (`tuyen_id`, `diem_don_tra_id`) — 1 điểm không xuất hiện 2 lần trong cùng 1 tuyến. Điểm có `thu_tu` nhỏ nhất và lớn nhất của mỗi tuyến bắt buộc `loai = 'van_phong'` (kiểm tra ở Service). Mỗi điểm phải thuộc 1 `khu_vuc` có trong `nhom_tuyen_khu_vuc` của `tuyen.nhom_tuyen_id`, và dãy `khu_vuc.thu_tu` tương ứng (theo đúng thứ tự `thu_tu` của bảng này) phải đơn điệu tăng dần hoặc giảm dần — không xen kẽ lộn xộn (mục 2.3, kiểm tra ở Service).
 
 ### 2.5. `gia_ve`
 

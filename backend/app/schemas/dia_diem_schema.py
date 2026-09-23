@@ -2,6 +2,7 @@
 UC-29/30/31 & DATABASE.md mục 2.1-2.4.
 """
 
+from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
@@ -59,6 +60,7 @@ class NhomTuyenRequest(BaseModel):
 class NhomTuyenResponse(BaseModel):
     id: UUID
     ten: str
+    ngay_tao: datetime
 
 
 class KhuVucTrongNhomTuyenResponse(BaseModel):
@@ -108,6 +110,7 @@ class TuyenResponse(BaseModel):
     id: UUID
     nhom_tuyen_id: UUID
     ten: str
+    ngay_tao: datetime
 
 
 class TuyenChiTietResponse(TuyenResponse):

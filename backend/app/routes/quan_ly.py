@@ -88,6 +88,12 @@ def tao_nhom_tuyen(du_lieu: NhomTuyenRequest):
     return service.tao_nhom_tuyen(du_lieu.ten, [str(i) for i in du_lieu.danh_sach_khu_vuc_id])
 
 
+@router.put("/nhom-tuyen/{nhom_tuyen_id}")
+def sua_nhom_tuyen(nhom_tuyen_id: UUID, du_lieu: NhomTuyenRequest):
+    service.sua_nhom_tuyen(str(nhom_tuyen_id), du_lieu.ten, [str(i) for i in du_lieu.danh_sach_khu_vuc_id])
+    return {"thong_bao": "Cập nhật nhóm tuyến thành công"}
+
+
 @router.get("/nhom-tuyen", response_model=list[NhomTuyenResponse])
 def danh_sach_nhom_tuyen():
     return service.danh_sach_nhom_tuyen()
@@ -114,6 +120,17 @@ def tao_tuyen(du_lieu: TaoTuyenRequest):
         str(du_lieu.nhom_tuyen_id),
         [{"diem_don_tra_id": str(d.diem_don_tra_id), "thoi_gian_du_kien_phut": d.thoi_gian_du_kien_phut} for d in du_lieu.danh_sach_diem],
     )
+
+
+@router.put("/tuyen/{tuyen_id}")
+def sua_tuyen(tuyen_id: UUID, du_lieu: TaoTuyenRequest):
+    service.sua_tuyen(
+        str(tuyen_id),
+        du_lieu.ten,
+        str(du_lieu.nhom_tuyen_id),
+        [{"diem_don_tra_id": str(d.diem_don_tra_id), "thoi_gian_du_kien_phut": d.thoi_gian_du_kien_phut} for d in du_lieu.danh_sach_diem],
+    )
+    return {"thong_bao": "Cập nhật tuyến thành công"}
 
 
 @router.get("/tuyen", response_model=list[TuyenResponse])

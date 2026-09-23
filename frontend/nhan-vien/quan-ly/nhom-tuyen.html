@@ -55,8 +55,10 @@
 
   <div class="nv-modal-overlay" id="modal-overlay" hidden>
     <div class="nv-modal" style="max-width:520px;">
-      <h2>Thêm nhóm tuyến</h2>
+      <h2 id="modal-tieu-de">Thêm nhóm tuyến</h2>
       <form id="form-nhom-tuyen">
+        <input type="hidden" id="nhom_tuyen_id" />
+
         <label class="nv-label" for="ten">Tên nhóm tuyến</label>
         <input class="input-field" type="text" id="ten" placeholder='VD "Hà Nội – Sapa" (gộp cả 2 chiều đi/về)' required />
 
@@ -97,6 +99,10 @@
       return `${khuVuc.ten} (${hienThiTinhThanh(khuVuc.tinh_thanh)})`;
     }
 
+    function dinhDangNgayGio(iso) {
+      return new Date(iso).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    }
+
     async function taiKhuVuc() {
       dsKhuVuc = await apiGet("/quan-ly/khu-vuc");
     }
@@ -121,9 +127,10 @@
                   .join("")}</div>`;
               },
             },
+            { key: "ngay_tao", label: "Ngày tạo", render: (r) => `<span class="nv-text-phu">${dinhDangNgayGio(r.ngay_tao)}</span>` },
           ],
           dsNhomTuyen,
-          { onDelete: xoaNhomTuyen, tenXoa: (r) => r.ten }
+          { onEdit: moModalSua, onDelete: xoaNhomTuyen, tenXoa: (r) => r.ten }
         );
       } catch (err) {
         bangNhomTuyen.innerHTML = `<div class="text-error">${err.message}</div>`;
@@ -217,12 +224,30 @@
         alert("Cần tạo ít nhất 2 khu vực trước (mục Khu vực ở menu bên trái)");
         return;
       }
+      document.getElementById("modal-tieu-de").textContent = "Thêm nhóm tuyến";
       form.reset();
+      document.getElementById("nhom_tuyen_id").value = "";
       khuVucState = [];
       renderDanhSachKhuVucForm();
       loiForm.hidden = true;
       modalOverlay.hidden = false;
     });
+
+    async function moModalSua(nhomTuyen) {
+      try {
+        const chiTiet = await apiGet(`/quan-ly/nhom-tuyen/${nhomTuyen.id}`);
+        document.getElementById("modal-tieu-de").textContent = "Sửa nhóm tuyến";
+        document.getElementById("nhom_tuyen_id").value = nhomTuyen.id;
+        document.getElementById("ten").value = chiTiet.ten;
+        khuVucState = [...chiTiet.danh_sach_khu_vuc].sort((a, b) => a.thu_tu - b.thu_tu).map((k) => k.khu_vuc_id);
+        renderDanhSachKhuVucForm();
+        loiForm.hidden = true;
+        modalOverlay.hidden = false;
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
     document.getElementById("btn-huy").addEventListener("click", () => { modalOverlay.hidden = true; });
 
     form.addEventListener("submit", async (e) => {
@@ -240,6 +265,7 @@
         return;
       }
 
+      const id = document.getElementById("nhom_tuyen_id").value;
       const duLieu = {
         ten: document.getElementById("ten").value.trim(),
         danh_sach_khu_vuc_id: khuVucState,
@@ -248,7 +274,11 @@
       const btnSubmit = form.querySelector("button[type=submit]");
       btnSubmit.classList.add("is-loading");
       try {
-        await apiPost("/quan-ly/nhom-tuyen", duLieu);
+        if (id) {
+          await apiPut(`/quan-ly/nhom-tuyen/${id}`, duLieu);
+        } else {
+          await apiPost("/quan-ly/nhom-tuyen", duLieu);
+        }
         modalOverlay.hidden = true;
         taiDanhSach();
       } catch (err) {

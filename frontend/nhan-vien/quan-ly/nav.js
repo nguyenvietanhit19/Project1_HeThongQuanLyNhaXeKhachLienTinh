@@ -80,7 +80,7 @@ function renderSidebar(containerEl, hrefDangMo) {
         <img src="/shared/assets/logo-mark.png" alt="Logo" />
       </span>
       <span class="nv-sidebar__brand-text">
-        <strong>Nhà xe khách</strong>
+        <strong>GoBus</strong>
         <em>Kết nối mọi hành trình</em>
       </span>
     </div>
