@@ -257,6 +257,24 @@ Và THÊM vào sơ đồ quan hệ mục 8: `nhan_su_van_hanh 0──N thong_bao
 
 ## 3. ARCHITECTURE.md
 
+### 3.0. Mục 1 (bảng công nghệ) — THAY dòng "File/ảnh"
+
+**Quyết định cần nhóm đồng ý trước khi dán** (đảo ngược 1 quyết định kiến trúc đã chốt — xem giải thích trong `database_quanLyNhanSu.md` mục 0.2 và 6): đưa Cloudinary trở lại, **chỉ để phục vụ ảnh hồ sơ nhân sự vận hành** (UC-47) — không mở rộng cho mục đích nào khác ở đợt này.
+
+Dòng gốc hiện tại:
+
+````markdown
+| File/ảnh | **Không dùng** — bỏ Cloudinary so với bản v1 | Domain mới không có nhu cầu khách/nhân viên upload ảnh (vé cứng và biên nhận gửi hàng đều in trực tiếp tại quầy, không phải file lưu trữ) |
+````
+
+Thay bằng:
+
+````markdown
+| File/ảnh | **Cloudinary** (đưa trở lại, dùng lại từ bản v1) | Vé/biên nhận vẫn in trực tiếp tại quầy, không cần lưu file — giữ nguyên lý do gốc cho phần này. Nhưng hồ sơ nhân sự vận hành (UC-47, `quan_ly_nhan_su`, `NGHIEP_VU.md` mục 8.9) cần lưu ảnh chân dung và ảnh giấy tờ (bằng lái, giấy khám sức khỏe) — free tier Cloudinary đủ dùng cho quy mô BTL, hỗ trợ delivery kiểu `authenticated` (URL có chữ ký, giới hạn quyền xem) phù hợp với dữ liệu nhạy cảm này. Ảnh **không lưu trên ổ đĩa backend** vì Render/Fly.io free tier có ổ đĩa tạm thời (mục "Deploy backend" cùng bảng) |
+````
+
+Kèm theo, thêm vào `backend/.env.example` (không phải `ARCHITECTURE.md`, nhưng cùng lúc với thay đổi này): 1 biến `CLOUDINARY_URL` (hoặc 3 biến `CLOUDINARY_CLOUD_NAME`/`CLOUDINARY_API_KEY`/`CLOUDINARY_API_SECRET`).
+
 ### 3.1. Mục 5 (bảng "Việc cần làm / Khi nào / Cơ chế") — THÊM 1 dòng cuối bảng
 
 ````markdown

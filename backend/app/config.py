@@ -14,3 +14,10 @@ SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+
+# Cloudinary — lưu ảnh hồ sơ nhân sự vận hành (UC-47, NGHIEP_VU.md mục 8.9,
+# xem NHAP_QUAN_LY_NHAN_SU.md mục 3.0). SDK Cloudinary tự đọc biến này nếu
+# gọi cloudinary.config() không tham số, nhưng khai báo lại ở đây cho nhất
+# quán với mọi biến môi trường khác trong file này (đọc qua config.py,
+# không gọi os.getenv rải rác trong services/) — xem luu_tru_anh_service.py.
+CLOUDINARY_URL = os.getenv("CLOUDINARY_URL")
