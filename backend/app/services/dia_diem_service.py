@@ -74,7 +74,7 @@ def xoa_diem_don_tra(diem_id: str) -> None:
 # ---------------------------------------------------------
 
 
-def tao_nhom_tuyen(ten: str, danh_sach_khu_vuc_id: list[str]) -> dict:
+def _validate_danh_sach_khu_vuc(danh_sach_khu_vuc_id: list[str]) -> list[dict]:
     khu_vuc_ids = [str(i) for i in danh_sach_khu_vuc_id]
     if len(set(khu_vuc_ids)) != len(khu_vuc_ids):
         raise GiaTriLoi("Danh sách khu vực có khu vực bị lặp lại")
@@ -84,8 +84,34 @@ def tao_nhom_tuyen(ten: str, danh_sach_khu_vuc_id: list[str]) -> dict:
     if thieu:
         raise GiaTriLoi(f"Không tìm thấy khu vực: {', '.join(thieu)}")
 
-    danh_sach_de_luu = [{"khu_vuc_id": i, "thu_tu": thu_tu} for thu_tu, i in enumerate(khu_vuc_ids, start=1)]
+    return [{"khu_vuc_id": i, "thu_tu": thu_tu} for thu_tu, i in enumerate(khu_vuc_ids, start=1)]
+
+
+def tao_nhom_tuyen(ten: str, danh_sach_khu_vuc_id: list[str]) -> dict:
+    danh_sach_de_luu = _validate_danh_sach_khu_vuc(danh_sach_khu_vuc_id)
     return repo.tao_nhom_tuyen_voi_khu_vuc(ten, danh_sach_de_luu)
+
+
+def sua_nhom_tuyen(nhom_tuyen_id: str, ten: str, danh_sach_khu_vuc_id: list[str]) -> None:
+    if not repo.tim_nhom_tuyen_theo_id(nhom_tuyen_id):
+        raise GiaTriLoi("Không tìm thấy nhóm tuyến")
+
+    danh_sach_de_luu = _validate_danh_sach_khu_vuc(danh_sach_khu_vuc_id)
+
+    # Không cho bỏ khỏi danh sách 1 khu vực đang được ít nhất 1 tuyến của
+    # nhóm này dùng — tránh để tuyến hiện có "mồ côi" khỏi cấu hình nhóm
+    # (DATABASE.md mục 2.3: tuyến chỉ được chọn điểm thuộc khu vực của nhóm).
+    khu_vuc_moi = {kv["khu_vuc_id"] for kv in danh_sach_de_luu}
+    khu_vuc_dang_dung = repo.khu_vuc_dang_dung_boi_tuyen_cua_nhom(nhom_tuyen_id)
+    bi_bo_nhung_dang_dung = khu_vuc_dang_dung - khu_vuc_moi
+    if bi_bo_nhung_dang_dung:
+        ten_bi_bo = [k["ten"] for k in repo.tim_nhieu_khu_vuc_theo_id(list(bi_bo_nhung_dang_dung))]
+        raise GiaTriLoi(
+            f"Không thể bỏ khu vực đang được tuyến trong nhóm này sử dụng: {', '.join(ten_bi_bo)} — "
+            "xóa hoặc sửa lại các tuyến liên quan trước"
+        )
+
+    repo.sua_nhom_tuyen_voi_khu_vuc(nhom_tuyen_id, ten, danh_sach_de_luu)
 
 
 def danh_sach_nhom_tuyen() -> list[dict]:
@@ -123,7 +149,7 @@ def _don_dieu(day: list[int]) -> bool:
     return tang or giam
 
 
-def tao_tuyen(ten: str, nhom_tuyen_id: str, danh_sach_diem: list[dict]) -> dict:
+def _validate_tuyen(nhom_tuyen_id: str, danh_sach_diem: list[dict]) -> list[dict]:
     if not repo.tim_nhom_tuyen_theo_id(nhom_tuyen_id):
         raise GiaTriLoi("Nhóm tuyến không tồn tại")
 
@@ -170,7 +196,7 @@ def tao_tuyen(ten: str, nhom_tuyen_id: str, danh_sach_diem: list[dict]) -> dict:
     if diem_dau["loai"] != "van_phong" or diem_cuoi["loai"] != "van_phong":
         raise GiaTriLoi("Điểm đầu tiên và điểm cuối cùng của tuyến bắt buộc phải là văn phòng")
 
-    danh_sach_de_luu = [
+    return [
         {
             "diem_don_tra_id": d["diem_don_tra_id"],
             "thu_tu": thu_tu,
@@ -179,7 +205,17 @@ def tao_tuyen(ten: str, nhom_tuyen_id: str, danh_sach_diem: list[dict]) -> dict:
         for thu_tu, d in enumerate(danh_sach_diem, start=1)
     ]
 
+
+def tao_tuyen(ten: str, nhom_tuyen_id: str, danh_sach_diem: list[dict]) -> dict:
+    danh_sach_de_luu = _validate_tuyen(nhom_tuyen_id, danh_sach_diem)
     return repo.tao_tuyen_voi_diem(nhom_tuyen_id, ten, danh_sach_de_luu)
+
+
+def sua_tuyen(tuyen_id: str, ten: str, nhom_tuyen_id: str, danh_sach_diem: list[dict]) -> None:
+    if not repo.tim_tuyen_theo_id(tuyen_id):
+        raise GiaTriLoi("Không tìm thấy tuyến")
+    danh_sach_de_luu = _validate_tuyen(nhom_tuyen_id, danh_sach_diem)
+    repo.sua_tuyen_voi_diem(tuyen_id, nhom_tuyen_id, ten, danh_sach_de_luu)
 
 
 def danh_sach_tuyen() -> list[dict]:

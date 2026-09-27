@@ -211,8 +211,9 @@ def tao_nhom_tuyen_voi_khu_vuc(ten: str, danh_sach_khu_vuc: list[dict]) -> dict:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("INSERT INTO nhom_tuyen (ten) VALUES (%s) RETURNING id", (ten,))
-            nhom_tuyen_id = cur.fetchone()[0]
+            cur.execute("INSERT INTO nhom_tuyen (ten) VALUES (%s) RETURNING id, ten, ngay_tao", (ten,))
+            ket_qua = _thanh_dict(cur, cur.fetchone())
+            nhom_tuyen_id = ket_qua["id"]
 
             for kv in danh_sach_khu_vuc:
                 cur.execute(
@@ -220,7 +221,32 @@ def tao_nhom_tuyen_voi_khu_vuc(ten: str, danh_sach_khu_vuc: list[dict]) -> dict:
                     (nhom_tuyen_id, kv["khu_vuc_id"], kv["thu_tu"]),
                 )
         conn.commit()
-        return {"id": nhom_tuyen_id, "ten": ten}
+        return ket_qua
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
+def sua_nhom_tuyen_voi_khu_vuc(nhom_tuyen_id: str, ten: str, danh_sach_khu_vuc: list[dict]) -> None:
+    """Thay toàn bộ danh sách khu vực của nhóm tuyến (xóa hết dòng cũ, chèn
+    lại theo danh sách mới) — chạy trong đúng 1 transaction cùng việc đổi
+    tên, tất cả cùng thành công hoặc cùng thất bại."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE nhom_tuyen SET ten = %s WHERE id = %s", (ten, nhom_tuyen_id))
+            cur.execute("DELETE FROM nhom_tuyen_khu_vuc WHERE nhom_tuyen_id = %s", (nhom_tuyen_id,))
+            for kv in danh_sach_khu_vuc:
+                cur.execute(
+                    "INSERT INTO nhom_tuyen_khu_vuc (nhom_tuyen_id, khu_vuc_id, thu_tu) VALUES (%s, %s, %s)",
+                    (nhom_tuyen_id, kv["khu_vuc_id"], kv["thu_tu"]),
+                )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         release_connection(conn)
 
@@ -229,8 +255,31 @@ def tim_nhom_tuyen_theo_id(nhom_tuyen_id: str) -> dict | None:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, ten FROM nhom_tuyen WHERE id = %s", (nhom_tuyen_id,))
+            cur.execute("SELECT id, ten, ngay_tao FROM nhom_tuyen WHERE id = %s", (nhom_tuyen_id,))
             return _thanh_dict(cur, cur.fetchone())
+    finally:
+        release_connection(conn)
+
+
+def khu_vuc_dang_dung_boi_tuyen_cua_nhom(nhom_tuyen_id: str) -> set[str]:
+    """Tập khu_vuc_id đang được ít nhất 1 tuyến của nhóm này dùng (qua
+    tuyen_diem_don_tra -> diem_don_tra.khu_vuc_id) — dùng để chặn bỏ 1 khu
+    vực khỏi nhóm nếu đã có tuyến phụ thuộc, tránh tuyến hiện có bị "mồ
+    côi" khỏi cấu hình nhóm (service.py, sua_nhom_tuyen)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT DISTINCT ddt.khu_vuc_id
+                FROM tuyen t
+                JOIN tuyen_diem_don_tra tddt ON tddt.tuyen_id = t.id
+                JOIN diem_don_tra ddt ON ddt.id = tddt.diem_don_tra_id
+                WHERE t.nhom_tuyen_id = %s
+                """,
+                (nhom_tuyen_id,),
+            )
+            return {str(row[0]) for row in cur.fetchall()}
     finally:
         release_connection(conn)
 
@@ -275,7 +324,7 @@ def danh_sach_nhom_tuyen() -> list[dict]:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, ten FROM nhom_tuyen ORDER BY ten")
+            cur.execute("SELECT id, ten, ngay_tao FROM nhom_tuyen ORDER BY ten")
             return _thanh_list(cur, cur.fetchall())
     finally:
         release_connection(conn)
@@ -293,10 +342,11 @@ def tao_tuyen_voi_diem(nhom_tuyen_id: str, ten: str, danh_sach_diem: list[dict])
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO tuyen (nhom_tuyen_id, ten) VALUES (%s, %s) RETURNING id",
+                "INSERT INTO tuyen (nhom_tuyen_id, ten) VALUES (%s, %s) RETURNING id, nhom_tuyen_id, ten, ngay_tao",
                 (nhom_tuyen_id, ten),
             )
-            tuyen_id = cur.fetchone()[0]
+            ket_qua = _thanh_dict(cur, cur.fetchone())
+            tuyen_id = ket_qua["id"]
 
             for diem in danh_sach_diem:
                 cur.execute(
@@ -307,7 +357,40 @@ def tao_tuyen_voi_diem(nhom_tuyen_id: str, ten: str, danh_sach_diem: list[dict])
                     (tuyen_id, diem["diem_don_tra_id"], diem["thu_tu"], diem["thoi_gian_du_kien_phut"]),
                 )
         conn.commit()
-        return {"id": tuyen_id, "nhom_tuyen_id": nhom_tuyen_id, "ten": ten}
+        return ket_qua
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
+def sua_tuyen_voi_diem(tuyen_id: str, nhom_tuyen_id: str, ten: str, danh_sach_diem: list[dict]) -> None:
+    """Thay toàn bộ danh sách điểm dừng của tuyến (xóa hết dòng cũ, chèn lại
+    theo danh sách mới) — chạy trong đúng 1 transaction cùng việc đổi
+    tên/nhóm tuyến, tất cả cùng thành công hoặc cùng thất bại. Hiện chưa có
+    chuyen_xe/ve tham chiếu trực tiếp tới tuyen_diem_don_tra nên chưa cần
+    bắt ForeignKeyViolation ở đây — cần rà lại khi UC-18/UC-44 được xây."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE tuyen SET nhom_tuyen_id = %s, ten = %s WHERE id = %s",
+                (nhom_tuyen_id, ten, tuyen_id),
+            )
+            cur.execute("DELETE FROM tuyen_diem_don_tra WHERE tuyen_id = %s", (tuyen_id,))
+            for diem in danh_sach_diem:
+                cur.execute(
+                    """
+                    INSERT INTO tuyen_diem_don_tra (tuyen_id, diem_don_tra_id, thu_tu, thoi_gian_du_kien_phut)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    (tuyen_id, diem["diem_don_tra_id"], diem["thu_tu"], diem["thoi_gian_du_kien_phut"]),
+                )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         release_connection(conn)
 
@@ -316,7 +399,7 @@ def tim_tuyen_theo_id(tuyen_id: str) -> dict | None:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, nhom_tuyen_id, ten FROM tuyen WHERE id = %s", (tuyen_id,))
+            cur.execute("SELECT id, nhom_tuyen_id, ten, ngay_tao FROM tuyen WHERE id = %s", (tuyen_id,))
             return _thanh_dict(cur, cur.fetchone())
     finally:
         release_connection(conn)
@@ -326,7 +409,7 @@ def danh_sach_tuyen() -> list[dict]:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, nhom_tuyen_id, ten FROM tuyen ORDER BY ten")
+            cur.execute("SELECT id, nhom_tuyen_id, ten, ngay_tao FROM tuyen ORDER BY ten")
             return _thanh_list(cur, cur.fetchall())
     finally:
         release_connection(conn)

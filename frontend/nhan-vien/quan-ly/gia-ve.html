@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Giá vé — Quản lý</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+</head>
+<body class="nhan-vien-shell">
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
+
+    <div class="nv-main">
+      <header class="nv-topbar">
+        <h1>Giá vé</h1>
+        <div class="nv-topbar__user">
+          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
+          <div class="nv-topbar__identity">
+            <span class="ho-ten" id="topbar-ho-ten"></span>
+            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
+          </div>
+          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
+        </div>
+      </header>
+
+      <main class="nv-content">
+        <div class="nv-page-intro">
+          <div class="nv-page-intro__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"/><path d="M9 15V9l1.8 1.8L12 9l1.2 1.8L15 9v6"/>
+            </svg>
+          </div>
+          <div class="nv-page-intro__body">
+            <p class="nv-page-intro__title">Giá vé</p>
+            <p class="nv-page-intro__desc">Giá gốc theo từng cặp điểm đi/điểm đến của 1 tuyến — không phụ thuộc loại xe. Giá bán thực tế = giá gốc × hệ số giá của loại xe chạy chuyến đó.</p>
+          </div>
+          <div class="nv-page-intro__stat">
+            <span class="nv-page-intro__stat-num" id="stat-so-luong">—</span>
+            <span class="nv-page-intro__stat-label">giá vé</span>
+          </div>
+        </div>
+
+        <div class="nv-card nv-chon-tuyen-card">
+          <label class="nv-label" for="chon_tuyen">Chọn tuyến</label>
+          <select class="input-field" id="chon_tuyen"></select>
+        </div>
+
+        <div class="nv-card">
+          <div class="nv-card__header">
+            <h2>Danh sách giá vé</h2>
+            <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Thêm giá vé</button>
+          </div>
+          <div id="bang-gia-ve">Chọn 1 tuyến ở trên để xem giá vé.</div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="nv-modal-overlay" id="modal-overlay" hidden>
+    <div class="nv-modal">
+      <h2 id="modal-tieu-de">Thêm giá vé</h2>
+      <form id="form-gia-ve">
+        <input type="hidden" id="gia_ve_id" />
+
+        <label class="nv-label">Tuyến</label>
+        <p id="ten-tuyen-da-chon" style="font-weight:600; margin:0 0 14px;"></p>
+
+        <div id="khoi-chon-diem">
+          <label class="nv-label" for="diem_di_id">Điểm đi</label>
+          <select class="input-field" id="diem_di_id" required></select>
+
+          <label class="nv-label" for="diem_den_id">Điểm đến</label>
+          <select class="input-field" id="diem_den_id" required></select>
+        </div>
+
+        <div id="khoi-diem-readonly" hidden style="margin-bottom:14px;">
+          <span class="pill pill--khu-vuc" id="hien-thi-diem-di"></span>
+          <span style="margin:0 6px; color:var(--color-text-muted);">→</span>
+          <span class="pill pill--khu-vuc" id="hien-thi-diem-den"></span>
+        </div>
+
+        <label class="nv-label" for="gia_goc">Giá gốc (VNĐ)</label>
+        <input class="input-field" type="number" id="gia_goc" min="1000" step="1000" placeholder="VD 150000" required />
+
+        <label class="nv-thoi-han-toggle" for="co_thoi_han">
+          <input type="checkbox" id="co_thoi_han" />
+          Chỉ áp dụng trong 1 khoảng thời gian (giá theo mùa/dịp lễ)
+        </label>
+        <div id="khoi-khoang-ngay" class="nv-khoang-ngay" hidden>
+          <div>
+            <label class="nv-label" for="ap_dung_tu">Từ ngày</label>
+            <input class="input-field" type="date" id="ap_dung_tu" />
+          </div>
+          <div>
+            <label class="nv-label" for="ap_dung_den">Đến ngày</label>
+            <input class="input-field" type="date" id="ap_dung_den" />
+          </div>
+        </div>
+
+        <div id="loi-form" class="text-error" hidden style="margin-top:12px;"></div>
+        <div class="nv-modal__actions">
+          <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
+          <button type="submit" class="btn-primary">Lưu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/nhan-vien/quan-ly/api-client.js"></script>
+  <script src="/nhan-vien/quan-ly/auth-check.js"></script>
+  <script src="/nhan-vien/quan-ly/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/data-table.js"></script>
+  <script>
+    const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
+    if (nguoiDung) {
+      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-ly/gia-ve.html");
+      renderTopbarUser();
+    }
+    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+
+    const selectTuyen = document.getElementById("chon_tuyen");
+    const bangGiaVe = document.getElementById("bang-gia-ve");
+    const btnThem = document.getElementById("btn-them");
+
+    let dsTuyen = [];
+    let dsGiaVe = [];
+    let khuVucTuyenHienTai = []; // [{khu_vuc_id, ten}] theo đúng thứ tự tuyến đi qua
+
+    function dinhDangTien(so) {
+      return Number(so).toLocaleString("vi-VN") + "đ";
+    }
+
+    function dinhDangThoiHan(r) {
+      if (!r.ap_dung_tu && !r.ap_dung_den) {
+        return '<span class="pill pill--gia-vinh-vien">Vô thời hạn</span>';
+      }
+      const tu = r.ap_dung_tu ? new Date(r.ap_dung_tu).toLocaleDateString("vi-VN") : "…";
+      const den = r.ap_dung_den ? new Date(r.ap_dung_den).toLocaleDateString("vi-VN") : "…";
+      return `<span class="pill pill--gia-thoi-han">${tu} — ${den}</span>`;
+    }
+
+    // ---------- Nạp danh sách tuyến ----------
+    async function naploadDauVao() {
+      dsTuyen = await apiGet("/quan-ly/tuyen");
+      selectTuyen.innerHTML = dsTuyen.length
+        ? dsTuyen.map((t) => `<option value="${t.id}">${t.ten}</option>`).join("")
+        : '<option value="">Chưa có tuyến — tạo ở mục Tuyến trước</option>';
+    }
+
+    // ---------- Đổi tuyến đang chọn ----------
+    async function khiDoiTuyen() {
+      const tuyenId = selectTuyen.value;
+      khuVucTuyenHienTai = [];
+      dsGiaVe = [];
+
+      if (!tuyenId) {
+        btnThem.disabled = true;
+        bangGiaVe.innerHTML = "Chọn 1 tuyến ở trên để xem giá vé.";
+        document.getElementById("stat-so-luong").textContent = "—";
+        return;
+      }
+
+      btnThem.disabled = false;
+      bangGiaVe.innerHTML = "Đang tải...";
+      try {
+        const [chiTietTuyen, giaVe] = await Promise.all([
+          apiGet(`/quan-ly/tuyen/${tuyenId}`),
+          apiGet(`/quan-ly/gia-ve?tuyen_id=${tuyenId}`),
+        ]);
+
+        // Danh sách khu vực không trùng lặp, theo đúng thứ tự tuyến đi qua —
+        // khớp logic backend (gia_ve_service._khu_vuc_theo_tuyen_co_thu_tu)
+        const daThay = new Map();
+        [...chiTietTuyen.danh_sach_diem]
+          .sort((a, b) => a.thu_tu - b.thu_tu)
+          .forEach((d) => {
+            if (!daThay.has(d.khu_vuc_id)) daThay.set(d.khu_vuc_id, d.ten_khu_vuc);
+          });
+        khuVucTuyenHienTai = [...daThay.entries()].map(([khu_vuc_id, ten]) => ({ khu_vuc_id, ten }));
+
+        dsGiaVe = giaVe;
+        document.getElementById("stat-so-luong").textContent = dsGiaVe.length;
+        renderBangGiaVe();
+      } catch (err) {
+        bangGiaVe.innerHTML = `<div class="text-error">${err.message}</div>`;
+      }
+    }
+
+    function renderBangGiaVe() {
+      renderDataTable(
+        bangGiaVe,
+        [
+          { key: "ten_diem_di", label: "Điểm đi" },
+          { key: "ten_diem_den", label: "Điểm đến" },
+          { key: "gia_goc", label: "Giá gốc", render: (r) => dinhDangTien(r.gia_goc) },
+          { key: "thoi_han", label: "Thời hạn áp dụng", render: dinhDangThoiHan },
+        ],
+        dsGiaVe,
+        { onEdit: moModalSua, onDelete: xoaGiaVe, tenXoa: (r) => `${r.ten_diem_di} → ${r.ten_diem_den}` }
+      );
+    }
+
+    selectTuyen.addEventListener("change", khiDoiTuyen);
+
+    async function xoaGiaVe(giaVe) {
+      try {
+        await apiDelete(`/quan-ly/gia-ve/${giaVe.id}`);
+        khiDoiTuyen();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    (async () => {
+      try {
+        await naploadDauVao();
+        await khiDoiTuyen();
+      } catch (err) {
+        bangGiaVe.innerHTML = `<div class="text-error">${err.message}</div>`;
+      }
+    })();
+
+    // ---------- Modal thêm/sửa ----------
+    const modalOverlay = document.getElementById("modal-overlay");
+    const form = document.getElementById("form-gia-ve");
+    const loiForm = document.getElementById("loi-form");
+    const selectDiemDi = document.getElementById("diem_di_id");
+    const selectDiemDen = document.getElementById("diem_den_id");
+    const oCoThoiHan = document.getElementById("co_thoi_han");
+    const khoiKhoangNgay = document.getElementById("khoi-khoang-ngay");
+
+    function renderChonDiem() {
+      selectDiemDi.innerHTML = khuVucTuyenHienTai
+        .map((kv, idx) => `<option value="${kv.khu_vuc_id}" data-idx="${idx}">${kv.ten}</option>`)
+        .join("");
+      capNhatDiemDenTheoDiemDi();
+    }
+
+    function capNhatDiemDenTheoDiemDi() {
+      const idxDi = khuVucTuyenHienTai.findIndex((kv) => kv.khu_vuc_id === selectDiemDi.value);
+      selectDiemDen.innerHTML = khuVucTuyenHienTai
+        .map((kv, idx) => `<option value="${kv.khu_vuc_id}" ${idx <= idxDi ? "disabled" : ""}>${kv.ten}</option>`)
+        .join("");
+      const dauTienHopLe = khuVucTuyenHienTai.findIndex((kv, idx) => idx > idxDi);
+      if (dauTienHopLe >= 0) selectDiemDen.value = khuVucTuyenHienTai[dauTienHopLe].khu_vuc_id;
+    }
+
+    selectDiemDi.addEventListener("change", capNhatDiemDenTheoDiemDi);
+
+    oCoThoiHan.addEventListener("change", () => {
+      khoiKhoangNgay.hidden = !oCoThoiHan.checked;
+    });
+
+    function moModal() {
+      loiForm.hidden = true;
+      modalOverlay.hidden = false;
+    }
+
+    function moModalThem() {
+      if (khuVucTuyenHienTai.length < 2) {
+        alert("Tuyến này chưa đủ khu vực hợp lệ để cấu hình giá — kiểm tra lại mục Tuyến.");
+        return;
+      }
+      document.getElementById("modal-tieu-de").textContent = "Thêm giá vé";
+      form.reset();
+      document.getElementById("gia_ve_id").value = "";
+      document.getElementById("ten-tuyen-da-chon").textContent = dsTuyen.find((t) => t.id === selectTuyen.value)?.ten || "";
+      document.getElementById("khoi-chon-diem").hidden = false;
+      document.getElementById("khoi-diem-readonly").hidden = true;
+      renderChonDiem();
+      khoiKhoangNgay.hidden = true;
+      moModal();
+    }
+
+    function moModalSua(giaVe) {
+      document.getElementById("modal-tieu-de").textContent = "Sửa giá vé";
+      document.getElementById("gia_ve_id").value = giaVe.id;
+      document.getElementById("ten-tuyen-da-chon").textContent = giaVe.ten_tuyen;
+      document.getElementById("khoi-chon-diem").hidden = true;
+      document.getElementById("khoi-diem-readonly").hidden = false;
+      document.getElementById("hien-thi-diem-di").textContent = giaVe.ten_diem_di;
+      document.getElementById("hien-thi-diem-den").textContent = giaVe.ten_diem_den;
+      document.getElementById("gia_goc").value = giaVe.gia_goc;
+
+      const coThoiHan = !!(giaVe.ap_dung_tu || giaVe.ap_dung_den);
+      oCoThoiHan.checked = coThoiHan;
+      khoiKhoangNgay.hidden = !coThoiHan;
+      document.getElementById("ap_dung_tu").value = giaVe.ap_dung_tu || "";
+      document.getElementById("ap_dung_den").value = giaVe.ap_dung_den || "";
+      moModal();
+    }
+
+    btnThem.addEventListener("click", moModalThem);
+    document.getElementById("btn-huy").addEventListener("click", () => { modalOverlay.hidden = true; });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loiForm.hidden = true;
+
+      const id = document.getElementById("gia_ve_id").value;
+      const apDungTu = oCoThoiHan.checked ? (document.getElementById("ap_dung_tu").value || null) : null;
+      const apDungDen = oCoThoiHan.checked ? (document.getElementById("ap_dung_den").value || null) : null;
+
+      if (oCoThoiHan.checked && apDungTu && apDungDen && apDungTu > apDungDen) {
+        loiForm.textContent = "Ngày bắt đầu áp dụng phải trước ngày kết thúc";
+        loiForm.hidden = false;
+        return;
+      }
+
+      const btnSubmit = form.querySelector("button[type=submit]");
+      btnSubmit.classList.add("is-loading");
+      try {
+        if (id) {
+          await apiPut(`/quan-ly/gia-ve/${id}`, {
+            gia_goc: Number(document.getElementById("gia_goc").value),
+            ap_dung_tu: apDungTu,
+            ap_dung_den: apDungDen,
+          });
+        } else {
+          await apiPost("/quan-ly/gia-ve", {
+            tuyen_id: selectTuyen.value,
+            diem_di_id: selectDiemDi.value,
+            diem_den_id: selectDiemDen.value,
+            gia_goc: Number(document.getElementById("gia_goc").value),
+            ap_dung_tu: apDungTu,
+            ap_dung_den: apDungDen,
+          });
+        }
+        modalOverlay.hidden = true;
+        khiDoiTuyen();
+      } catch (err) {
+        loiForm.textContent = err.message;
+        loiForm.hidden = false;
+      } finally {
+        btnSubmit.classList.remove("is-loading");
+      }
+    });
+  </script>
+</body>
+</html>

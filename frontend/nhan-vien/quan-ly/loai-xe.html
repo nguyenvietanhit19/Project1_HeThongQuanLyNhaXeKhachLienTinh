@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Loại xe — Quản lý</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+</head>
+<body class="nhan-vien-shell">
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
+
+    <div class="nv-main">
+      <header class="nv-topbar">
+        <h1>Loại xe</h1>
+        <div class="nv-topbar__user">
+          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
+          <div class="nv-topbar__identity">
+            <span class="ho-ten" id="topbar-ho-ten"></span>
+            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
+          </div>
+          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
+        </div>
+      </header>
+
+      <main class="nv-content">
+        <div class="nv-page-intro">
+          <div class="nv-page-intro__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="7" width="18" height="9" rx="3"/><path d="M7 16v2M17 16v2"/><path d="M3 12h18"/>
+            </svg>
+          </div>
+          <div class="nv-page-intro__body">
+            <p class="nv-page-intro__title">Loại xe</p>
+            <p class="nv-page-intro__desc">Quyết định hệ số giá và sơ đồ ghế dùng chung cho mọi xe cùng loại — 2 xe cùng loại xe giống hệt nhau, chỉ khác biển số.</p>
+          </div>
+          <div class="nv-page-intro__stat">
+            <span class="nv-page-intro__stat-num" id="stat-so-luong">—</span>
+            <span class="nv-page-intro__stat-label">loại xe</span>
+          </div>
+        </div>
+
+        <div class="nv-card">
+          <div class="nv-card__header">
+            <h2>Danh sách loại xe</h2>
+            <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Thêm loại xe</button>
+          </div>
+          <div id="bang-loai-xe">Đang tải...</div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="nv-modal-overlay" id="modal-overlay" hidden>
+    <div class="nv-modal" style="max-width:680px;">
+      <h2 id="modal-tieu-de">Thêm loại xe</h2>
+      <form id="form-loai-xe">
+        <input type="hidden" id="loai_xe_id" />
+
+        <label class="nv-label" for="ten">Tên loại xe</label>
+        <input class="input-field" type="text" id="ten" placeholder='VD "Giường nằm 40 chỗ"' required />
+
+        <label class="nv-label" for="he_so_gia">Hệ số giá</label>
+        <input class="input-field" type="number" id="he_so_gia" step="0.01" min="0.01" placeholder="VD 1.2" required />
+        <p style="font-size:12px; color:var(--color-text-muted); margin:-8px 0 0;">Giá bán thực tế = giá gốc (mục Giá vé) × hệ số này.</p>
+
+        <label style="font-weight:600; font-size:14px; display:block; margin-top:18px;">Sơ đồ ghế</label>
+        <p style="font-size:13px; color:var(--color-text-muted); margin:4px 0 12px;">Nhập số hàng/số ghế mỗi hàng rồi bấm "Sinh sơ đồ" cho từng tầng — bấm vào 1 ghế trong bản xem trước để bỏ ghế đó (VD hàng cuối ít ghế hơn).</p>
+
+        <label class="nv-label" for="so_tang" style="margin-top:0;">Số tầng</label>
+        <select class="input-field" id="so_tang" style="max-width:160px;">
+          <option value="1">1 tầng</option>
+          <option value="2">2 tầng</option>
+        </select>
+
+        <div id="cau-hinh-tang"></div>
+
+        <div id="so-do-ghe-preview" class="nv-so-do-ghe-preview">
+          <div class="nv-so-do-ghe-preview__trong">Chưa có ghế nào — nhập cấu hình rồi bấm "Sinh sơ đồ" ở trên.</div>
+        </div>
+        <p class="nv-so-do-ghe-tong">Tổng: <strong id="tong-so-ghe">0</strong> ghế</p>
+
+        <div id="loi-form" class="text-error" hidden></div>
+        <div class="nv-modal__actions">
+          <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
+          <button type="submit" class="btn-primary">Lưu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/nhan-vien/quan-ly/api-client.js"></script>
+  <script src="/nhan-vien/quan-ly/auth-check.js"></script>
+  <script src="/nhan-vien/quan-ly/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/data-table.js"></script>
+  <script>
+    const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
+    if (nguoiDung) {
+      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-ly/loai-xe.html");
+      renderTopbarUser();
+    }
+    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+
+    const bangLoaiXe = document.getElementById("bang-loai-xe");
+    let dsLoaiXe = [];
+
+    // soDoGheState: mảng {ma_ghe, tang, hang, cot, _an} — _an chỉ dùng ở
+    // client để "ẩn" 1 ghế khỏi sơ đồ mà không mất cấu hình hàng/cột, lúc
+    // gửi lên server sẽ lọc bỏ các ghế _an và xóa field _an.
+    let soDoGheState = [];
+
+    function tenGhe(hang) {
+      return String.fromCharCode(64 + hang); // 1 -> A, 2 -> B...
+    }
+
+    function cotChoGheThu(thuTu, loiDiSauGhe) {
+      return thuTu + (loiDiSauGhe > 0 && thuTu > loiDiSauGhe ? 1 : 0);
+    }
+
+    // ---------- Cấu hình từng tầng (số hàng/ghế mỗi hàng/lối đi) ----------
+    function renderCauHinhTang() {
+      const soTang = Number(document.getElementById("so_tang").value);
+      const container = document.getElementById("cau-hinh-tang");
+      let html = "";
+      for (let t = 1; t <= soTang; t++) {
+        html += `
+          <div class="nv-tang-cau-hinh" data-tang="${t}">
+            <span class="nv-tang-cau-hinh__nhan-tang">${soTang > 1 ? `Tầng ${t}` : "Sơ đồ"}</span>
+            <div>
+              <label>Số hàng</label>
+              <input class="input-field" type="number" min="1" max="26" value="4" data-vai-tro="so-hang" />
+            </div>
+            <div>
+              <label>Ghế/hàng</label>
+              <input class="input-field" type="number" min="1" max="10" value="4" data-vai-tro="ghe-moi-hang" />
+            </div>
+            <div>
+              <label>Lối đi sau ghế thứ</label>
+              <input class="input-field" type="number" min="0" value="2" data-vai-tro="loi-di" />
+            </div>
+            <button type="button" class="nv-btn-sinh-so-do" data-vai-tro="sinh">Sinh sơ đồ ${soTang > 1 ? `tầng ${t}` : ""}</button>
+          </div>
+        `;
+      }
+      container.innerHTML = html;
+
+      container.querySelectorAll('[data-vai-tro="sinh"]').forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const khoi = btn.closest(".nv-tang-cau-hinh");
+          const tang = Number(khoi.dataset.tang);
+          const soHang = Number(khoi.querySelector('[data-vai-tro="so-hang"]').value) || 0;
+          const ghePerHang = Number(khoi.querySelector('[data-vai-tro="ghe-moi-hang"]').value) || 0;
+          const loiDi = Number(khoi.querySelector('[data-vai-tro="loi-di"]').value) || 0;
+          sinhSoDoTang(tang, soHang, ghePerHang, loiDi, soTang);
+        });
+      });
+    }
+
+    function sinhSoDoTang(tang, soHang, ghePerHang, loiDiSauGhe, tongSoTang) {
+      const gheMoi = [];
+      for (let h = 1; h <= soHang; h++) {
+        for (let c = 1; c <= ghePerHang; c++) {
+          const maGhe = (tongSoTang > 1 ? `${tang}-` : "") + `${tenGhe(h)}${c}`;
+          gheMoi.push({ ma_ghe: maGhe, tang, hang: h, cot: cotChoGheThu(c, loiDiSauGhe), _an: false });
+        }
+      }
+      // Thay toàn bộ ghế của đúng tầng này, giữ nguyên ghế các tầng khác
+      soDoGheState = soDoGheState.filter((g) => g.tang !== tang).concat(gheMoi);
+      renderSoDoGhePreview();
+    }
+
+    // ---------- Bản xem trước — bấm vào ghế để ẩn/bỏ ----------
+    function renderSoDoGhePreview() {
+      const container = document.getElementById("so-do-ghe-preview");
+      const conLai = soDoGheState.filter((g) => !g._an);
+      document.getElementById("tong-so-ghe").textContent = conLai.length;
+
+      if (!soDoGheState.length) {
+        container.innerHTML = '<div class="nv-so-do-ghe-preview__trong">Chưa có ghế nào — nhập cấu hình rồi bấm "Sinh sơ đồ" ở trên.</div>';
+        return;
+      }
+
+      const soTang = Number(document.getElementById("so_tang").value);
+      let html = "";
+      for (let t = 1; t <= soTang; t++) {
+        const gheTang = soDoGheState.filter((g) => g.tang === t);
+        if (!gheTang.length) continue;
+
+        const theoHang = {};
+        gheTang.forEach((g) => {
+          (theoHang[g.hang] ||= []).push(g);
+        });
+
+        html += `<div class="nv-tang-preview">`;
+        if (soTang > 1) html += `<div class="nv-tang-preview__nhan">Tầng ${t}</div>`;
+
+        Object.keys(theoHang)
+          .sort((a, b) => Number(a) - Number(b))
+          .forEach((hang) => {
+            const gheHang = theoHang[hang].sort((a, b) => a.cot - b.cot);
+            const cotToiDa = Math.max(...gheHang.map((g) => g.cot));
+            let hangHtml = "";
+            for (let c = 1; c <= cotToiDa; c++) {
+              const ghe = gheHang.find((g) => g.cot === c);
+              if (!ghe) {
+                hangHtml += `<span class="nv-hang-ghe__khoang-trong"></span>`;
+              } else {
+                const idx = soDoGheState.indexOf(ghe);
+                hangHtml += `<button type="button" class="seat seat--trong nv-ghe-builder${ghe._an ? " nv-ghe-builder--an" : ""}" data-idx="${idx}" title="${ghe.ma_ghe}">${ghe._an ? "" : ghe.ma_ghe}</button>`;
+              }
+            }
+            html += `<div class="nv-hang-ghe">${hangHtml}</div>`;
+          });
+
+        html += `</div>`;
+      }
+      container.innerHTML = html;
+
+      container.querySelectorAll(".nv-ghe-builder").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const idx = Number(btn.dataset.idx);
+          soDoGheState[idx]._an = !soDoGheState[idx]._an;
+          renderSoDoGhePreview();
+        });
+      });
+    }
+
+    document.getElementById("so_tang").addEventListener("change", () => {
+      renderCauHinhTang();
+      // Đổi số tầng đồng nghĩa mã ghế (có/không tiền tố tầng) không còn khớp
+      // — làm lại từ đầu cho khỏi lẫn lộn mã ghế cũ.
+      soDoGheState = [];
+      renderSoDoGhePreview();
+    });
+
+    // ---------- Danh sách loại xe ----------
+    async function taiDanhSach() {
+      try {
+        dsLoaiXe = await apiGet("/quan-ly/loai-xe");
+        document.getElementById("stat-so-luong").textContent = dsLoaiXe.length;
+        renderDataTable(
+          bangLoaiXe,
+          [
+            { key: "ten", label: "Tên loại xe" },
+            { key: "he_so_gia", label: "Hệ số giá", render: (r) => `×${r.he_so_gia}` },
+            { key: "so_do_ghe", label: "Số ghế", render: (r) => `${r.so_do_ghe.length} ghế` },
+          ],
+          dsLoaiXe,
+          { onEdit: moModalSua, onDelete: xoaLoaiXe, tenXoa: (r) => r.ten }
+        );
+      } catch (err) {
+        bangLoaiXe.innerHTML = `<div class="text-error">${err.message}</div>`;
+      }
+    }
+    taiDanhSach();
+
+    async function xoaLoaiXe(loaiXe) {
+      try {
+        await apiDelete(`/quan-ly/loai-xe/${loaiXe.id}`);
+        taiDanhSach();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // ---------- Modal thêm/sửa ----------
+    const modalOverlay = document.getElementById("modal-overlay");
+    const form = document.getElementById("form-loai-xe");
+    const loiForm = document.getElementById("loi-form");
+
+    function moModal() {
+      loiForm.hidden = true;
+      modalOverlay.hidden = false;
+    }
+
+    function moModalThem() {
+      document.getElementById("modal-tieu-de").textContent = "Thêm loại xe";
+      form.reset();
+      document.getElementById("loai_xe_id").value = "";
+      document.getElementById("so_tang").value = "1";
+      soDoGheState = [];
+      renderCauHinhTang();
+      renderSoDoGhePreview();
+      moModal();
+    }
+
+    function moModalSua(loaiXe) {
+      document.getElementById("modal-tieu-de").textContent = "Sửa loại xe";
+      document.getElementById("loai_xe_id").value = loaiXe.id;
+      document.getElementById("ten").value = loaiXe.ten;
+      document.getElementById("he_so_gia").value = loaiXe.he_so_gia;
+
+      const coTang2 = loaiXe.so_do_ghe.some((g) => g.tang === 2);
+      document.getElementById("so_tang").value = coTang2 ? "2" : "1";
+      soDoGheState = loaiXe.so_do_ghe.map((g) => ({ ...g, _an: false }));
+      renderCauHinhTang();
+      renderSoDoGhePreview();
+      moModal();
+    }
+
+    document.getElementById("btn-them").addEventListener("click", moModalThem);
+    document.getElementById("btn-huy").addEventListener("click", () => { modalOverlay.hidden = true; });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loiForm.hidden = true;
+
+      const soDoGheGuiDi = soDoGheState
+        .filter((g) => !g._an)
+        .map(({ ma_ghe, tang, hang, cot }) => ({ ma_ghe, tang, hang, cot }));
+
+      if (!soDoGheGuiDi.length) {
+        loiForm.textContent = "Cần sinh sơ đồ ghế trước khi lưu — ít nhất 1 ghế";
+        loiForm.hidden = false;
+        return;
+      }
+
+      const id = document.getElementById("loai_xe_id").value;
+      const duLieu = {
+        ten: document.getElementById("ten").value.trim(),
+        he_so_gia: Number(document.getElementById("he_so_gia").value),
+        so_do_ghe: soDoGheGuiDi,
+      };
+
+      const btnSubmit = form.querySelector("button[type=submit]");
+      btnSubmit.classList.add("is-loading");
+      try {
+        if (id) {
+          await apiPut(`/quan-ly/loai-xe/${id}`, duLieu);
+        } else {
+          await apiPost("/quan-ly/loai-xe", duLieu);
+        }
+        modalOverlay.hidden = true;
+        taiDanhSach();
+      } catch (err) {
+        loiForm.textContent = err.message;
+        loiForm.hidden = false;
+      } finally {
+        btnSubmit.classList.remove("is-loading");
+      }
+    });
+  </script>
+</body>
+</html>
