@@ -4,7 +4,13 @@
  * trò tự viết CSS/JS riêng, không có thư mục "shared" giữa các vai trò).
  */
 
-const API_BASE_URL = "http://localhost:8000";
+// Tự nhận diện môi trường qua hostname — không cần build step/bundler
+// (ARCHITECTURE.md mục 1: frontend là HTML/JS tĩnh, không qua build).
+// TODO: thay "TEN-SERVICE-CUA-BAN.onrender.com" bằng domain backend thật
+// sau khi deploy (Render/Fly.io...).
+const API_BASE_URL = ["localhost", "127.0.0.1"].includes(location.hostname)
+  ? "http://localhost:8000"
+  : "https://TEN-SERVICE-CUA-BAN.onrender.com";
 
 async function apiFetch(duong_dan, tuy_chon = {}) {
   const token = localStorage.getItem("token");

@@ -50,7 +50,12 @@
     // JS của riêng vai trò nào (mỗi vai trò tự viết CSS/JS trong thư mục
     // của họ, VD frontend/nhan-vien/quan-ly/), nên tự gọi API trực tiếp ở
     // đây thay vì import apiPost() từ chỗ khác.
-    const API_BASE_URL = "http://localhost:8000";
+    // Tự nhận diện môi trường qua hostname — không cần build step/bundler.
+    // TODO: thay "TEN-SERVICE-CUA-BAN.onrender.com" bằng domain backend
+    // thật sau khi deploy (Render/Fly.io...).
+    const API_BASE_URL = ["localhost", "127.0.0.1"].includes(location.hostname)
+      ? "http://localhost:8000"
+      : "https://TEN-SERVICE-CUA-BAN.onrender.com";
 
     const VE_TRANG_SAU_DANG_NHAP = {
       quan_ly: "/nhan-vien/quan-ly/khu-vuc.html",
