@@ -13,7 +13,7 @@ Tài liệu này mô tả toàn bộ chiến lược kỹ thuật cho bản vi�
 | Backend framework | **FastAPI** | Validate input/output có sẵn (Pydantic), tự sinh API docs (Swagger), WebSocket có sẵn trong core — không cần vá thêm như Flask-SocketIO |
 | Truy vấn database | **Raw SQL** qua `psycopg2` (hoặc `asyncpg` cho phần async) | Đội đã quen SQL, không tốn thời gian học ORM giữa lúc viết lại toàn bộ; SQL injection không phải rủi ro nếu luôn dùng parameterized query (`%s`, không nối chuỗi) — **đặc biệt quan trọng với cơ chế giữ ghế (mục 5)**, vốn cần transaction + khóa dòng tường minh mà ORM thường che giấu |
 | Database | **PostgreSQL** (host: Supabase free tier) | Free tier tốt, driver thuần Python (không cần cài ODBC driver như SQL Server) → dễ Docker hóa; hỗ trợ `SELECT ... FOR UPDATE` cần cho cơ chế chống trùng ghế |
-| Gửi email (OTP đăng ký/quên mật khẩu) | **Gmail SMTP** (giữ nguyên từ bản v1, `email_service.py`) | Đã có sẵn cơ chế chạy ổn định, miễn phí, không cần đổi gì — xem `NGHIEP_VU.md` mục 2.1 |
+| Gửi email (OTP đăng ký/quên mật khẩu) | **Brevo API** qua HTTPS (`email_service.py`) | Ban đầu giữ nguyên Gmail SMTP từ bản v1, nhưng SMTP thô bị chặn/timeout khi deploy lên Render free tier (không hỗ trợ egress IPv6 + Google chặn kết nối SMTP trực tiếp từ IP cloud/hosting) — đổi sang gọi API qua HTTPS (cổng 443, không bị chặn vì chính app cũng chạy HTTPS), free tier 300 email/ngày đủ dùng BTL — xem `NGHIEP_VU.md` mục 2.1 |
 | Thanh toán online | **VNPay** (môi trường sandbox cho demo/BTL) | Có sẵn merchant sandbox miễn phí, không cần mã số thuế/doanh nghiệp thật, luồng kỹ thuật giống hệt production (chỉ khác `vnp_TmnCode`/`vnp_HashSecret`/domain) — dùng chung cho cả thanh toán online lẫn quét QR tại quầy (`NGHIEP_VU.md` mục 6) |
 | Biên nhận/vé PDF | Sinh **theo yêu cầu** từ dữ liệu `ve`/`don_hang` trong DB (VD ReportLab/WeasyPrint), **không lưu file** | Không phải hóa đơn điện tử hợp lệ thuế (ngoài phạm vi BTL — đòi hỏi MST doanh nghiệp + tích hợp nhà cung cấp hóa đơn điện tử được công nhận), chỉ là biên nhận nội bộ; sinh lại mỗi lần tải tránh phát sinh thêm dịch vụ lưu file |
 | File/ảnh | **Không dùng** — bỏ Cloudinary so với bản v1 | Domain mới không có nhu cầu khách/nhân viên upload ảnh (vé cứng và biên nhận gửi hàng đều in trực tiếp tại quầy, không phải file lưu trữ) |
@@ -78,7 +78,7 @@ project-root/
 │   │   ├── services/                      # quy tắc nghiệp vụ + service hạ tầng
 │   │   │   ├── mat_khau_service.py            # đăng ký/đăng nhập/quên mật khẩu — kế thừa bản v1
 │   │   │   ├── tai_khoan_can_bo_service.py    # tạo/khóa/mở khóa tài khoản cán bộ (UC-36/37/38) — kiểm tra quyền actor vs vai trò mục tiêu, chặn khóa quan_ly gốc (mục 8.9 NGHIEP_VU.md)
-│   │   │   ├── email_service.py               # gửi mail OTP (SMTP) — hạ tầng, không đổi từ bản v1
+│   │   │   ├── email_service.py               # gửi mail OTP qua Brevo API (HTTPS) — hạ tầng
 │   │   │   ├── tim_kiem_chuyen_service.py     # tìm theo điểm đi/đến (mục 3.4 bước 1-2)
 │   │   │   ├── dat_ve_service.py              # giữ ghế, chống trùng ghế, đặt cọc (mục 3.4, 6)
 │   │   │   ├── thanh_toan_service.py          # thanh toán ngay / tại quầy
