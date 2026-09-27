@@ -560,12 +560,19 @@ body.nhan-vien-shell {
   background: var(--color-bg-surface);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-soft);
-  padding: 28px;
   width: 100%;
-  max-width: 420px;
+  max-width: 460px;
   max-height: 90vh;
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   animation: nv-modal-in 0.2s ease;
+}
+
+/* form không tự sinh box riêng — để header/body là con trực tiếp của flex
+   column .nv-modal, header đứng yên và chỉ phần body cuộn khi nội dung dài */
+.nv-modal > form {
+  display: contents;
 }
 
 @keyframes nv-modal-in {
@@ -573,9 +580,42 @@ body.nhan-vien-shell {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+.nv-modal__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 26px;
+  background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-secondary-dark) 100%);
+  color: var(--color-text-on-dark);
+  flex-shrink: 0;
+}
+
+.nv-modal__header-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-button);
+  background: rgba(255, 255, 255, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nv-modal__header-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
 .nv-modal h2 {
-  margin: 0 0 18px;
-  font-size: 18px;
+  margin: 0;
+  font-size: 17px;
+  color: inherit;
+}
+
+.nv-modal__body {
+  padding: 22px 26px 26px;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .nv-modal__actions {
@@ -586,6 +626,35 @@ body.nhan-vien-shell {
 
 .nv-modal__actions button {
   flex: 1;
+}
+
+/* ===== Xếp 2 trường cạnh nhau theo hàng ngang trong form modal — thay cho
+   xếp dọc từng trường 1, đỡ tốn chiều cao/phải cuộn ===== */
+
+.nv-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.nv-form-row > * {
+  min-width: 0;
+}
+
+.nv-form-row .nv-label {
+  margin-top: 0;
+}
+
+/* ===== Hộp gợi ý ngắn, có màu — thay cho các đoạn <p> mô tả dài rải rác ===== */
+
+.nv-hint {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-secondary-dark);
+  background: rgba(91, 62, 150, 0.08);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin: 6px 0 14px;
 }
 
 /* ===== Hover/loading cho input, nút — như auth.css ===== */
@@ -853,115 +922,189 @@ body.nhan-vien-shell {
   flex-shrink: 0;
 }
 
-/* ===== Bộ dựng sơ đồ ghế (form Loại xe) ===== */
+/* ===== Bộ dựng sơ đồ ghế (form Loại xe) — kéo thả tự do ===== */
 
-.nv-tang-cau-hinh {
-  display: grid;
-  grid-template-columns: auto 90px 90px 130px auto;
-  gap: 10px;
-  align-items: end;
-  padding: 14px;
+.nv-so-do-ghe-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
   background: var(--color-bg-canvas);
   border-radius: var(--radius-button);
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
-.nv-tang-cau-hinh label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  margin-bottom: 4px;
+.nv-so-do-ghe-toolbar__tang {
+  display: flex;
+  gap: 6px;
 }
 
-.nv-tang-cau-hinh input {
-  margin-bottom: 0;
-  padding: 8px 10px;
-}
-
-.nv-tang-cau-hinh__nhan-tang {
-  font-weight: 700;
-  font-size: 14px;
-  color: var(--color-secondary-dark);
-  padding-bottom: 9px;
-}
-
-.nv-btn-sinh-so-do {
-  padding: 9px 16px;
+.nv-btn-tang {
+  padding: 7px 14px;
   border-radius: var(--radius-pill);
   border: none;
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.nv-btn-tang--active {
   background: var(--color-secondary);
   color: #fff;
+}
+
+.nv-btn-so-do {
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid #E5E5E8;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
   font-family: inherit;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.nv-btn-sinh-so-do:hover {
-  background: var(--color-secondary-dark);
+.nv-btn-so-do:hover {
+  border-color: var(--color-secondary);
 }
 
-.nv-so-do-ghe-preview {
-  padding: 16px;
+.nv-btn-so-do--active {
+  background: var(--color-secondary);
+  border-color: var(--color-secondary);
+  color: #fff;
+}
+
+.nv-btn-so-do:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.nv-so-do-ghe-toolbar__ghe-chon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.nv-so-do-ghe-toolbar__ghe-chon input {
+  width: 110px;
+  margin-bottom: 0;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.nv-tang-nhan {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-secondary-dark);
+  margin: 14px 0 6px;
+}
+
+.nv-tang-nhan__phu {
+  text-transform: none;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--color-text-muted);
+}
+
+.nv-so-do-ghe-canvas-wrap {
   border: 1.5px solid #E5E5E8;
   border-radius: var(--radius-button);
+  padding: 40px 0 24px;
   margin-bottom: 8px;
+  max-height: 460px;
+  overflow: auto;
 }
 
-.nv-so-do-ghe-preview__trong {
+.nv-so-do-ghe-canvas-wrap--luoi {
+  background-image:
+    repeating-linear-gradient(0deg, transparent, transparent 9px, #ECEAF1 9px, #ECEAF1 10px),
+    repeating-linear-gradient(90deg, transparent, transparent 9px, #ECEAF1 9px, #ECEAF1 10px);
+}
+
+.nv-so-do-ghe-canvas {
+  position: relative;
+  width: 320px;
+  min-height: 360px;
+  margin: 0 auto;
+}
+
+.nv-so-do-ghe-canvas__trong {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   color: var(--color-text-muted);
   font-size: 13px;
   padding: 20px;
 }
 
-.nv-tang-preview:not(:last-child) {
-  margin-bottom: 18px;
-  padding-bottom: 18px;
-  border-bottom: 1px dashed #E5E5E8;
-}
-
-.nv-tang-preview__nhan {
-  font-size: 12px;
+.nv-so-do-ghe-canvas__dau-xe {
+  position: absolute;
+  top: -28px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 11px;
   font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: var(--color-text-muted);
-  margin-bottom: 10px;
 }
 
-.nv-hang-ghe {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 6px;
-  justify-content: center;
-}
-
-.nv-hang-ghe__khoang-trong {
-  width: 36px;
-  flex-shrink: 0;
-}
-
-.nv-ghe-builder {
-  border: none;
+.nv-ghe-tu-do {
+  position: absolute;
+  width: 46px;
+  height: 30px;
+  border-radius: 7px;
+  background: #E4E0F5;
+  border: 1.5px solid #A99CD1;
+  color: var(--color-secondary-dark);
+  font-size: 11px;
+  font-weight: 700;
   font-family: inherit;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: opacity 0.15s ease, transform 0.1s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 3px;
+  transition: border-color 0.1s ease, background 0.1s ease;
 }
 
-.nv-ghe-builder:hover {
-  transform: scale(1.08);
+.nv-ghe-tu-do--khoa {
+  cursor: default;
+  background: #EDEBF7;
+  border-style: dashed;
 }
 
-.nv-ghe-builder--an {
-  opacity: 0.3;
-  background: transparent !important;
-  border: 1.5px dashed #C9C9D1 !important;
-  color: transparent !important;
+.nv-ghe-tu-do--chon {
+  border-color: var(--color-primary-dark);
+  background: var(--color-primary);
+  color: var(--color-text-primary);
+}
+
+.nv-ghe-tu-do--loi {
+  border-color: var(--color-danger) !important;
+  background: #F7C9C9 !important;
+  color: #7A1F1F !important;
 }
 
 .nv-so-do-ghe-tong {
@@ -1074,12 +1217,14 @@ body.nhan-vien-shell {
   }
 
   .nv-diem-row,
-  .nv-khu-vuc-row {
+  .nv-khu-vuc-row,
+  .nv-form-row {
     grid-template-columns: 1fr;
   }
 
-  .nv-tang-cau-hinh {
-    grid-template-columns: 1fr 1fr;
+  .nv-so-do-ghe-toolbar__ghe-chon {
+    margin-left: 0;
+    width: 100%;
   }
 
   .nv-chon-tuyen-card {

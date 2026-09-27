@@ -9,10 +9,10 @@ from pydantic import BaseModel, Field
 
 
 class GheXe(BaseModel):
-    ma_ghe: str = Field(..., min_length=1, description='VD "A1", hoặc "2-A1" nếu xe 2 tầng')
+    ma_ghe: str = Field(..., min_length=1, description='VD "A1-1" (dãy A, ghế 1, tầng 1)')
     tang: int = Field(..., ge=1, le=2)
-    hang: int = Field(..., ge=1, description="Số thứ tự hàng — dùng để vẽ lưới ghế")
-    cot: int = Field(..., ge=1, description="Số thứ tự cột trong hàng — dùng để vẽ lưới ghế")
+    x: float = Field(..., ge=0, description="Vị trí ngang trên sơ đồ (px) — đặt tự do, không theo lưới cố định")
+    y: float = Field(..., ge=0, description="Vị trí dọc trên sơ đồ (px), 0 = đầu xe")
 
 
 class LoaiXeRequest(BaseModel):
