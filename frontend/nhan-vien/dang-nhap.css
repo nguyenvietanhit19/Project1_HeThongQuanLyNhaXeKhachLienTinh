@@ -164,6 +164,76 @@ body.dncb-page {
   margin-top: 4px;
 }
 
+.dncb-links {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-align: left;
+}
+
+/* ===== Mã OTP (quen-mat-khau.html) — otp-input.js chỉ cần đúng class
+   .otp-group/.otp-box, phần nhìn tự do chỉnh theo bố cục trang này. ===== */
+
+.otp-hint {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+
+.otp-hint strong {
+  color: var(--color-text-primary);
+}
+
+.otp-group {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+.otp-box {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--color-text-primary);
+  background: #fff;
+  border: none;
+  border-bottom: 2.5px solid var(--color-secondary);
+  border-radius: 0;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.otp-box:focus {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+.otp-box.is-filled {
+  border-bottom-color: var(--color-secondary-dark);
+}
+
+.otp-box.is-error {
+  border-bottom-color: var(--color-danger);
+  animation: dncb-otp-shake 0.3s ease;
+}
+
+@keyframes dncb-otp-shake {
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+.otp-resend {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-align: left;
+}
+
 /* ===== Dưới 700px: đổi sang ảnh dọc riêng (đèo lên qua <picture>), vùng
    trắng nằm phía dưới ảnh — vẫn đè nội dung lên đúng vùng trắng như
    desktop/tablet, chỉ khác tọa độ. Ô nhập đổi sang dạng viên thuốc có
@@ -254,6 +324,43 @@ body.dncb-page {
     padding: 14px 24px;
     font-size: 15px;
     margin-top: 8px;
+  }
+
+  .dncb-links {
+    font-size: 13px;
+    text-align: center;
+  }
+
+  .otp-hint {
+    font-size: 13px;
+    text-align: center;
+  }
+
+  .otp-group {
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .otp-box {
+    font-size: 17px;
+    border: 1.5px solid #E5E5E8;
+    border-radius: var(--radius-button);
+    background: #fff;
+  }
+
+  .otp-box:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px rgba(245, 166, 35, 0.18);
+    transform: none;
+  }
+
+  .otp-box.is-filled {
+    border-color: var(--color-secondary);
+  }
+
+  .otp-resend {
+    font-size: 13px;
+    text-align: center;
   }
 }
 

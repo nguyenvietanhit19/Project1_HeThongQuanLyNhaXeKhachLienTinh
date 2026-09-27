@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Quên mật khẩu cán bộ — GoBus</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/nhan-vien/dang-nhap.css" />
+</head>
+<body class="dncb-page">
+  <div class="dncb-card">
+    <picture>
+      <source media="(max-width: 700px)" srcset="/shared/assets/dang-nhap-canbo-nen-mobile.png" />
+      <img class="dncb-card__bg" src="/shared/assets/dang-nhap-canbo-nen.jpg" alt="" aria-hidden="true" />
+    </picture>
+
+    <div class="dncb-card__content">
+      <img class="dncb-logo-lon" src="/shared/assets/logo-full.png" alt="GoBus — Kết nối mọi hành trình" />
+      <h1 class="dncb-heading">Quên mật khẩu</h1>
+      <p class="dncb-subtitle">Nhập email để nhận mã đặt lại mật khẩu</p>
+
+      <!-- Bước 1: nhập email -->
+      <form id="form-buoc-1">
+        <label class="dncb-field-label" for="email">Email</label>
+        <div class="dncb-input-icon-group">
+          <svg class="dncb-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7.5 8 5.5 8-5.5"/>
+          </svg>
+          <input class="input-field" type="email" id="email" placeholder="ten@nhaxekhach.com" required />
+        </div>
+        <div id="loi-buoc-1" class="text-error" hidden></div>
+        <button class="btn-primary dncb-btn-dang-nhap" type="submit">Gửi mã xác nhận</button>
+      </form>
+
+      <!-- Bước 2: nhập mã + mật khẩu mới -->
+      <form id="form-buoc-2" hidden>
+        <p class="otp-hint">Nếu email tồn tại, mã xác nhận đã được gửi, có hiệu lực <strong>1 phút</strong>.</p>
+        <div class="otp-group" id="otp-group">
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" autocomplete="one-time-code" />
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" />
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" />
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" />
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" />
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" />
+        </div>
+
+        <label class="dncb-field-label" for="mat_khau_moi">Mật khẩu mới</label>
+        <div class="dncb-input-icon-group">
+          <svg class="dncb-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>
+          </svg>
+          <input class="input-field" type="password" id="mat_khau_moi" placeholder="Tối thiểu 6 ký tự" minlength="6" required />
+        </div>
+
+        <div id="loi-buoc-2" class="text-error" hidden></div>
+        <button class="btn-primary dncb-btn-dang-nhap" type="submit">Đặt lại mật khẩu</button>
+        <p class="otp-resend">
+          Chưa nhận được mã? <a class="text-link" href="#" id="gui-lai-ma">Gửi lại mã</a>
+        </p>
+      </form>
+
+      <p class="dncb-links"><a class="text-link" href="dang-nhap.html">Quay lại đăng nhập</a></p>
+    </div>
+  </div>
+
+  <script src="/nhan-vien/otp-input.js"></script>
+  <script>
+    // Trang riêng cho cán bộ (không dùng chung với
+    // frontend/khach-hang/quen-mat-khau.html) — tự gọi API trực tiếp,
+    // đúng pattern của dang-nhap.html (CONTRIBUTING.md mục 5.5: mỗi vai
+    // trò/khu vực tự viết JS riêng, không import chéo domain).
+    const API_BASE_URL = ["localhost", "127.0.0.1"].includes(location.hostname)
+      ? "http://localhost:8000"
+      : "https://nha-xe-khach-backend.onrender.com";
+
+    async function goiApi(duong_dan, body) {
+      const res = await fetch(`${API_BASE_URL}${duong_dan}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.loi || data.detail || "Có lỗi xảy ra, thử lại sau");
+      }
+      return data;
+    }
+
+    let emailDangXuLy = null;
+    const otp = initOtpInput(document.getElementById("otp-group"));
+    const demNguoc = initOtpResendCountdown(document.getElementById("gui-lai-ma"), 60, guiMaXacNhan);
+
+    async function guiMaXacNhan() {
+      try {
+        // Backend luôn trả về thành công dù email không tồn tại (chống dò quét — NGHIEP_VU.md mục 2.1)
+        await goiApi("/auth/quen-mat-khau", { email: emailDangXuLy });
+        return true;
+      } catch (err) {
+        return false;
+      }
+    }
+
+    document.getElementById("form-buoc-1").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const loiEl = document.getElementById("loi-buoc-1");
+      const btn = e.target.querySelector("button[type=submit]");
+      loiEl.hidden = true;
+      btn.classList.add("is-loading");
+
+      emailDangXuLy = document.getElementById("email").value.trim();
+
+      try {
+        await goiApi("/auth/quen-mat-khau", { email: emailDangXuLy });
+        document.getElementById("form-buoc-1").hidden = true;
+        document.getElementById("form-buoc-2").hidden = false;
+        demNguoc.batDau();
+        otp.reset();
+      } catch (err) {
+        loiEl.textContent = err.message;
+        loiEl.hidden = false;
+      } finally {
+        btn.classList.remove("is-loading");
+      }
+    });
+
+    document.getElementById("form-buoc-2").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const loiEl = document.getElementById("loi-buoc-2");
+      const btn = e.target.querySelector("button[type=submit]");
+      loiEl.hidden = true;
+
+      const maXacNhan = otp.layDayDuMa();
+      if (maXacNhan.length < 6) {
+        otp.baoLoi();
+        loiEl.textContent = "Vui lòng nhập đủ 6 số";
+        loiEl.hidden = false;
+        return;
+      }
+
+      btn.classList.add("is-loading");
+      try {
+        await goiApi("/auth/dat-lai-mat-khau", {
+          email: emailDangXuLy,
+          ma_xac_nhan: maXacNhan,
+          mat_khau_moi: document.getElementById("mat_khau_moi").value,
+        });
+        window.location.href = "dang-nhap.html";
+      } catch (err) {
+        otp.baoLoi();
+        loiEl.textContent = err.message;
+        loiEl.hidden = false;
+        btn.classList.remove("is-loading");
+      }
+    });
+  </script>
+</body>
+</html>
