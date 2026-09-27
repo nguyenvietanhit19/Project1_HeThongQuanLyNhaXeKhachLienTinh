@@ -8,10 +8,24 @@ services/ theo đúng ARCHITECTURE.md mục 2.
 """
 
 import smtplib
+import socket
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from app.config import SMTP_HOST, SMTP_PASSWORD, SMTP_PORT, SMTP_USER
+
+
+class _SMTPQuaIPv4(smtplib.SMTP):
+    """Render free tier không hỗ trợ egress IPv6 — smtplib mặc định để
+    socket.create_connection() tự chọn địa chỉ DNS trả về, ưu tiên IPv6
+    nếu có, gây lỗi "[Errno 101] Network is unreachable" khi gọi Gmail
+    SMTP. Ghi đè _get_socket() để chỉ phân giải + kết nối qua IPv4, vẫn
+    giữ nguyên self._host (= "smtp.gmail.com") cho STARTTLS xác thực
+    đúng tên miền trên chứng chỉ TLS (không dùng thẳng IP)."""
+
+    def _get_socket(self, host, port, timeout):
+        dia_chi_ipv4 = socket.gethostbyname(host)
+        return socket.create_connection((dia_chi_ipv4, port), timeout, self.source_address)
 
 
 def gui_mail(den: str, ma_xac_nhan: str, tieu_de: str = "Mã xác nhận") -> bool:
@@ -30,7 +44,7 @@ def gui_mail(den: str, ma_xac_nhan: str, tieu_de: str = "Mã xác nhận") -> bo
         """
         msg.attach(MIMEText(noi_dung, "html"))
 
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        with _SMTPQuaIPv4(SMTP_HOST, SMTP_PORT, timeout=15) as server:
             server.starttls()
             server.login(SMTP_USER, SMTP_PASSWORD)
             server.send_message(msg)
