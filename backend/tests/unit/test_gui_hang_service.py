@@ -100,3 +100,27 @@ def test_xac_nhan_chat_hang_va_do_hang():
         ket_qua = gui_hang_service.xac_nhan_chat_hang(don_id, chuyen_id)
         assert ket_qua["trang_thai"] == "da_len_xe"
 
+
+def test_thong_ke_hang_tai_diem_toan_he_thong():
+    with patch("app.repositories.don_hang_repository.thong_ke_hang_tai_diem") as mock_thong_ke:
+        mock_thong_ke.return_value = {
+            "tong_don_gui_di": 5,
+            "tong_so_don": 5,
+            "tong_doanh_thu": 360000,
+            "cho_lay": 1,
+            "da_giao": 2,
+            "hang_ton_qua_han": 0,
+        }
+        res = gui_hang_service.thong_ke_hang_tai_diem(None)
+        assert res["tong_so_don"] == 5
+        assert res["tong_doanh_thu"] == 360000
+
+
+def test_lay_danh_sach_don_gan_day():
+    with patch("app.repositories.don_hang_repository.lay_danh_sach_don_gan_day") as mock_repo:
+        mock_repo.return_value = [{"ma_van_don": "DH-01"}, {"ma_van_don": "DH-02"}]
+        res = gui_hang_service.lay_danh_sach_don_gan_day(limit=10)
+        assert len(res) == 2
+        assert res[0]["ma_van_don"] == "DH-01"
+
+

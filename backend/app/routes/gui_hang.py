@@ -10,6 +10,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 
 from app.middleware.auth_middleware import NguoiDungHienTai, yeu_cau_vai_tro
+from app.repositories import dia_diem_repository as dia_diem_repo
 from app.schemas.don_hang_schema import (
     CapNhatLienHeRequest,
     DonHangResponse,
@@ -39,6 +40,20 @@ def lay_danh_sach_loai_hang():
     return gui_hang_service.lay_danh_sach_loai_hang()
 
 
+@router.get("/tuyen")
+def lay_danh_sach_tuyen():
+    """Lấy danh sách các tuyến vận chuyển từ database."""
+    return dia_diem_repo.danh_sach_tuyen()
+
+
+@router.get("/van-phong")
+def lay_danh_sach_van_phong():
+    """Lấy danh sách các điểm/văn phòng nhận gửi hàng từ database."""
+    tat_ca = dia_diem_repo.danh_sach_diem_don_tra()
+    return [d for d in tat_ca if d.get("loai") == "van_phong"]
+
+
+
 @router.post("/tao-don", response_model=DonHangResponse, status_code=status.HTTP_201_CREATED)
 def tao_don_hang(du_lieu: TaoDonHangRequest, nguoi_dung: QuyenNhanVienGuiHang):
     """UC-23: Nhân viên quầy tạo đơn gửi hàng theo tuyến, tính cước và in biên nhận."""
@@ -56,10 +71,11 @@ def giao_hang(du_lieu: GiaoHangRequest, nguoi_dung: QuyenNhanVienGuiHang):
 
 
 # ====================================================================
-# 3. Tra cứu Đơn hàng (Public / Khách hàng / Nhân viên)
+# 3. Tra cứu Đơn hàng & Đơn gần đây (Public / Khách hàng / Nhân viên)
 # ====================================================================
 
 @router.get("/tra-cuu/{ma_van_don}", response_model=DonHangResponse)
+@router.get("/don-hang/{ma_van_don}", response_model=DonHangResponse)
 def tra_cuu_theo_ma(ma_van_don: str):
     """Tra cứu chi tiết đơn hàng theo mã vận đơn."""
     return gui_hang_service.tra_cuu_theo_ma_van_don(ma_van_don)
@@ -69,6 +85,23 @@ def tra_cuu_theo_ma(ma_van_don: str):
 def tra_cuu_theo_sdt(sdt: str = Query(..., min_length=8, description="Số điện thoại người gửi hoặc người nhận")):
     """Tra cứu các đơn hàng liên quan đến số điện thoại."""
     return gui_hang_service.tra_cuu_theo_sdt(sdt)
+
+
+@router.get("/don-gan-day", response_model=list[DonHangResponse])
+def lay_don_gan_day(
+    limit: int = Query(20, ge=1, le=100),
+    diem_gui_id: UUID | None = Query(None),
+    trang_thai: str | None = Query(None, description="Lọc theo trạng thái đơn hàng"),
+    tu_khoa: str | None = Query(None, description="Tìm kiếm mã vận đơn, người gửi/nhận, SĐT"),
+    nguoi_dung: QuyenNhanVienGuiHang = None,
+):
+    """Lấy danh sách các đơn hàng vừa tạo gần đây tại quầy phục vụ hiển thị tức thì."""
+    return gui_hang_service.lay_danh_sach_don_gan_day(
+        limit=limit,
+        diem_gui_id=str(diem_gui_id) if diem_gui_id else None,
+        trang_thai=trang_thai,
+        tu_khoa=tu_khoa,
+    )
 
 
 # ====================================================================
@@ -81,10 +114,26 @@ def lay_danh_sach_hang_cho_tai_diem(diem_nhan_id: UUID, nguoi_dung: QuyenNhanVie
     return gui_hang_service.lay_danh_sach_hang_cho_tai_diem(str(diem_nhan_id))
 
 
+@router.get("/hang-cho-lau", response_model=list[DonHangResponse])
+def lay_hang_cho_lau_chung(
+    diem_nhan_id: UUID | None = Query(None),
+    nguoi_dung: QuyenNhanVienGuiHang = None,
+):
+    """UC-25: Xem danh sách hàng chờ lấy / quá hạn tại văn phòng (hoặc toàn bộ nếu không chọn)."""
+    target_id = str(diem_nhan_id) if diem_nhan_id else None
+    return gui_hang_service.lay_danh_sach_hang_cho_tai_diem(target_id)
+
+
 @router.put("/{don_hang_id}/lien-he", response_model=DonHangResponse)
-def cap_nhat_lien_he(don_hang_id: UUID, du_lieu: CapNhatLienHeRequest, nguoi_dung: QuyenNhanVienGuiHang):
+@router.post("/hang-cho-lau/{don_hang_id}/lien-he-lai", response_model=DonHangResponse)
+def cap_nhat_lien_he(
+    don_hang_id: UUID,
+    du_lieu: CapNhatLienHeRequest | None = None,
+    nguoi_dung: QuyenNhanVienGuiHang = None,
+):
     """UC-25: Ghi nhận đã gọi điện thông báo cho người nhận (đã liên hệ hay chưa)."""
-    return gui_hang_service.cap_nhat_thong_bao_nguoi_nhan(str(don_hang_id), du_lieu.da_thong_bao_nguoi_nhan)
+    da_thong_bao = du_lieu.da_thong_bao_nguoi_nhan if du_lieu else True
+    return gui_hang_service.cap_nhat_thong_bao_nguoi_nhan(str(don_hang_id), da_thong_bao)
 
 
 # ====================================================================
@@ -114,7 +163,10 @@ def do_hang_xuong_diem(don_hang_id: UUID, nguoi_dung: QuyenPhuXe):
 # ====================================================================
 
 @router.get("/thong-ke")
-def thong_ke_hang(diem_id: UUID = Query(..., description="ID văn phòng cần xem thống kê"), nguoi_dung: QuyenNhanVienGuiHang = None):
+def thong_ke_hang(
+    diem_id: UUID | None = Query(None, description="ID văn phòng cần xem thống kê (nếu để trống sẽ thống kê toàn hệ thống)"),
+    nguoi_dung: QuyenNhanVienGuiHang = None,
+):
     """UC-39: Nhân viên gửi hàng xem thống kê số lượng đơn và cước phí tại điểm phụ trách."""
-    return gui_hang_service.thong_ke_hang_tai_diem(str(diem_id))
+    return gui_hang_service.thong_ke_hang_tai_diem(str(diem_id) if diem_id else None)
 

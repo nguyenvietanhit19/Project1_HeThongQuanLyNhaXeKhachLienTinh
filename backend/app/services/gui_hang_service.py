@@ -181,8 +181,8 @@ def xac_nhan_do_hang(don_hang_id: str) -> dict:
 # 5. Xử lý Hàng chờ quá lâu tại Điểm nhận (UC-25, UC-46)
 # ====================================================================
 
-def lay_danh_sach_hang_cho_tai_diem(diem_nhan_id: str) -> list[dict]:
-    """UC-25: Nhân viên quầy xem danh sách hàng đang chờ nhận / cảnh báo / tồn kho tại văn phòng mình."""
+def lay_danh_sach_hang_cho_tai_diem(diem_nhan_id: str | None = None) -> list[dict]:
+    """UC-25: Nhân viên quầy xem danh sách hàng đang chờ nhận / cảnh báo / tồn kho tại văn phòng mình (hoặc toàn bộ nếu diem_nhan_id là None)."""
     return don_hang_repo.lay_danh_sach_hang_cho_tai_diem(diem_nhan_id)
 
 
@@ -208,13 +208,29 @@ def quet_canh_bao_va_chuyen_hang_ton() -> dict:
 
 
 # ====================================================================
-# 6. Thống kê Hoạt động Gửi hàng (UC-39)
+# 6. Thống kê Hoạt động Gửi hàng & Đơn gần đây (UC-39)
 # ====================================================================
 
-def thong_ke_hang_tai_diem(diem_id: str) -> dict:
-    """UC-39: Thống kê đơn hàng và doanh thu tại văn phòng."""
-    diem = dia_diem_repo.tim_diem_don_tra_theo_id(diem_id)
-    if not diem:
-        raise GiaTriLoi("Điểm/văn phòng không tồn tại")
+def lay_danh_sach_don_gan_day(
+    limit: int = 20,
+    diem_gui_id: str | None = None,
+    trang_thai: str | None = None,
+    tu_khoa: str | None = None,
+) -> list[dict]:
+    """Lấy danh sách các đơn hàng mới nhất để hiển thị tại quầy."""
+    return don_hang_repo.lay_danh_sach_don_gan_day(
+        limit=limit,
+        diem_gui_id=diem_gui_id,
+        trang_thai=trang_thai,
+        tu_khoa=tu_khoa,
+    )
+
+
+def thong_ke_hang_tai_diem(diem_id: str | None = None) -> dict:
+    """UC-39: Thống kê đơn hàng và doanh thu tại văn phòng (hoặc toàn bộ nếu diem_id là None)."""
+    if diem_id:
+        diem = dia_diem_repo.tim_diem_don_tra_theo_id(diem_id)
+        if not diem:
+            raise GiaTriLoi("Điểm/văn phòng không tồn tại")
     return don_hang_repo.thong_ke_hang_tai_diem(diem_id)
 
