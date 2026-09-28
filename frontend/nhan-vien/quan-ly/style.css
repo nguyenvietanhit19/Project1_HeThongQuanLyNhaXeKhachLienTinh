@@ -584,7 +584,7 @@ body.nhan-vien-shell {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 18px 26px;
+  padding: 14px 26px;
   background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-secondary-dark) 100%);
   color: var(--color-text-on-dark);
   flex-shrink: 0;
@@ -613,7 +613,7 @@ body.nhan-vien-shell {
 }
 
 .nv-modal__body {
-  padding: 22px 26px 26px;
+  padding: 16px 26px 18px;
   overflow-y: auto;
   min-height: 0;
 }
@@ -621,7 +621,7 @@ body.nhan-vien-shell {
 .nv-modal__actions {
   display: flex;
   gap: 10px;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .nv-modal__actions button {
@@ -929,10 +929,10 @@ body.nhan-vien-shell {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  padding: 12px 14px;
+  padding: 9px 14px;
   background: var(--color-bg-canvas);
   border-radius: var(--radius-button);
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .nv-so-do-ghe-toolbar__tang {
@@ -1018,13 +1018,44 @@ body.nhan-vien-shell {
   color: var(--color-text-muted);
 }
 
+/* ===== Modal Loại xe — form bên trái, sơ đồ ghế bên phải (2 tầng cạnh nhau) ===== */
+
+.nv-loaixe-body {
+  display: grid;
+  grid-template-columns: 230px 1fr;
+  gap: 22px;
+  align-items: start;
+}
+
+.nv-loaixe-meta,
+.nv-loaixe-builder {
+  min-width: 0;
+}
+
+.nv-loaixe-canvases {
+  display: flex;
+  gap: 14px;
+  flex-wrap: nowrap; /* 2 tầng luôn nằm cùng hàng, không bao giờ rớt xuống dòng dưới */
+}
+
+/* Khớp đúng RONG_CANVAS ở JS (260px) — đặt tường minh cả flex-basis lẫn
+   width, không phó mặc flexbox tự tính (từng bị co hẹp sai, phải cuộn ngang
+   mới thấy hết ghế) */
+.nv-loaixe-canvas-col {
+  flex: 0 0 260px;
+  width: 260px;
+}
+
 .nv-so-do-ghe-canvas-wrap {
+  width: 260px;
+  box-sizing: content-box;
   border: 1.5px solid #E5E5E8;
   border-radius: var(--radius-button);
-  padding: 40px 0 24px;
+  padding: 30px 0 12px;
   margin-bottom: 8px;
-  max-height: 460px;
-  overflow: auto;
+  max-height: 380px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .nv-so-do-ghe-canvas-wrap--luoi {
@@ -1033,10 +1064,13 @@ body.nhan-vien-shell {
     repeating-linear-gradient(90deg, transparent, transparent 9px, #ECEAF1 9px, #ECEAF1 10px);
 }
 
+/* Xe lớn nhất thực tế tối đa 4 dãy ghế (RONG_CANVAS ở JS = 260px) — canvas
+   rộng dư hơn 4 dãy để còn khoảng trống thoáng, 2 tầng cạnh nhau vẫn vừa
+   trong 1 modal. */
 .nv-so-do-ghe-canvas {
   position: relative;
-  width: 320px;
-  min-height: 360px;
+  width: 260px;
+  min-height: 330px;
   margin: 0 auto;
 }
 
@@ -1067,7 +1101,7 @@ body.nhan-vien-shell {
 
 .nv-ghe-tu-do {
   position: absolute;
-  width: 46px;
+  width: 40px;
   height: 30px;
   border-radius: 7px;
   background: #E4E0F5;
@@ -1218,7 +1252,8 @@ body.nhan-vien-shell {
 
   .nv-diem-row,
   .nv-khu-vuc-row,
-  .nv-form-row {
+  .nv-form-row,
+  .nv-loaixe-body {
     grid-template-columns: 1fr;
   }
 

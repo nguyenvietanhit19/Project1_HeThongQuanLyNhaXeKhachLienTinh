@@ -54,7 +54,7 @@
   </div>
 
   <div class="nv-modal-overlay" id="modal-overlay" hidden>
-    <div class="nv-modal" style="max-width:720px;">
+    <div class="nv-modal" style="max-width:880px;">
       <form id="form-loai-xe">
         <div class="nv-modal__header">
           <div class="nv-modal__header-icon">
@@ -67,60 +67,63 @@
         <div class="nv-modal__body">
           <input type="hidden" id="loai_xe_id" />
 
-          <div class="nv-form-row">
-            <div>
-              <label class="nv-label" for="ten">Tên loại xe</label>
+          <div class="nv-loaixe-body">
+            <div class="nv-loaixe-meta">
+              <label class="nv-label" for="ten" style="margin-top:0;">Tên loại xe</label>
               <input class="input-field" type="text" id="ten" placeholder='VD "Giường nằm 40 chỗ"' required />
-            </div>
-            <div>
+
               <label class="nv-label" for="he_so_gia">Hệ số giá</label>
               <input class="input-field" type="number" id="he_so_gia" step="0.01" min="0.01" placeholder="VD 1.2" required />
+              <p class="nv-hint">Giá bán = giá gốc (mục Giá vé) × hệ số này.</p>
+
+              <label class="nv-label" for="so_tang">Số tầng</label>
+              <select class="input-field" id="so_tang">
+                <option value="1">1 tầng</option>
+                <option value="2">2 tầng</option>
+              </select>
+
+              <p class="nv-so-do-ghe-tong" style="text-align:left; margin-top:16px;">Tổng: <strong id="tong-so-ghe">0</strong> ghế</p>
+              <div id="loi-form" class="text-error" hidden></div>
+            </div>
+
+            <div class="nv-loaixe-builder">
+              <label style="font-weight:600; font-size:14px; display:block; margin:0 0 8px;">Sơ đồ ghế</label>
+              <div class="nv-so-do-ghe-toolbar">
+                <button type="button" class="nv-btn-so-do" id="btn-them-ghe">+ Thêm ghế</button>
+                <button type="button" class="nv-btn-so-do" id="btn-xoa-ghe" disabled>Xóa ghế</button>
+                <button type="button" class="nv-btn-so-do" id="btn-toggle-luoi">Dịch theo lưới nhỏ: Tắt</button>
+                <div class="nv-so-do-ghe-toolbar__ghe-chon" id="khung-ma-ghe" hidden>
+                  <label class="nv-label" style="margin:0;">Mã ghế</label>
+                  <input class="input-field" type="text" id="input-ma-ghe" />
+                </div>
+              </div>
+
+              <div class="nv-loaixe-canvases">
+                <div class="nv-loaixe-canvas-col">
+                  <div class="nv-tang-nhan" id="nhan-tang1" hidden>Tầng 1</div>
+                  <div class="nv-so-do-ghe-canvas-wrap" id="canvas-wrap-tang1">
+                    <div class="nv-so-do-ghe-canvas" id="canvas-tang1">
+                      <div class="nv-so-do-ghe-canvas__dau-xe">▲ Đầu xe</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="nv-loaixe-canvas-col" id="khu-tang-2" hidden>
+                  <div class="nv-tang-nhan">Tầng 2 <span class="nv-tang-nhan__phu">— khóa theo Tầng 1</span></div>
+                  <div class="nv-so-do-ghe-canvas-wrap" id="canvas-wrap-tang2">
+                    <div class="nv-so-do-ghe-canvas" id="canvas-tang2">
+                      <div class="nv-so-do-ghe-canvas__dau-xe">▲ Đầu xe</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          <p class="nv-hint">Giá bán = giá gốc (mục Giá vé) × hệ số này.</p>
 
-          <label style="font-weight:600; font-size:14px; display:block; margin-top:4px;">Sơ đồ ghế</label>
-          <p class="nv-hint">Kéo ghế đặt tự do, không chồng/sát nhau — đầu xe ở trên.</p>
-
-          <label class="nv-label" for="so_tang" style="margin-top:0;">Số tầng</label>
-          <select class="input-field" id="so_tang" style="max-width:160px;">
-            <option value="1">1 tầng</option>
-            <option value="2">2 tầng</option>
-          </select>
-
-          <div class="nv-so-do-ghe-toolbar">
-          <button type="button" class="nv-btn-so-do" id="btn-them-ghe">+ Thêm ghế</button>
-          <button type="button" class="nv-btn-so-do" id="btn-xoa-ghe" disabled>Xóa ghế</button>
-          <button type="button" class="nv-btn-so-do" id="btn-toggle-luoi">Dịch theo lưới nhỏ: Tắt</button>
-          <div class="nv-so-do-ghe-toolbar__ghe-chon" id="khung-ma-ghe" hidden>
-            <label class="nv-label" style="margin:0;">Mã ghế</label>
-            <input class="input-field" type="text" id="input-ma-ghe" />
+          <div class="nv-modal__actions">
+            <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
+            <button type="submit" class="btn-primary">Lưu</button>
           </div>
-        </div>
-
-        <div class="nv-tang-nhan" id="nhan-tang1" hidden>Tầng 1</div>
-        <div class="nv-so-do-ghe-canvas-wrap" id="canvas-wrap-tang1">
-          <div class="nv-so-do-ghe-canvas" id="canvas-tang1">
-            <div class="nv-so-do-ghe-canvas__dau-xe">▲ Đầu xe</div>
-          </div>
-        </div>
-
-        <div id="khu-tang-2" hidden>
-          <div class="nv-tang-nhan">Tầng 2 <span class="nv-tang-nhan__phu">— vị trí khóa theo Tầng 1, chỉ sửa được mã ghế</span></div>
-          <div class="nv-so-do-ghe-canvas-wrap" id="canvas-wrap-tang2">
-            <div class="nv-so-do-ghe-canvas" id="canvas-tang2">
-              <div class="nv-so-do-ghe-canvas__dau-xe">▲ Đầu xe</div>
-            </div>
-          </div>
-        </div>
-
-        <p class="nv-so-do-ghe-tong">Tổng: <strong id="tong-so-ghe">0</strong> ghế</p>
-
-        <div id="loi-form" class="text-error" hidden></div>
-        <div class="nv-modal__actions">
-          <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
-          <button type="submit" class="btn-primary">Lưu</button>
-        </div>
         </div>
       </form>
     </div>
@@ -149,15 +152,20 @@
     let gheDangChon = null; // {idx, tang} hoặc null — ghế đang chọn (idx trong gheState)
     let dichTheoLuoi = false;
 
-    // Ghế là hình chữ nhật (không còn vuông đều) — tách riêng khoảng cách
-    // tối thiểu theo trục ngang/dọc cho đúng kích thước thật.
-    const CHIEU_RONG_GHE = 46;
-    const CHIEU_CAO_GHE = 30;
-    const KHE_HO_TOI_THIEU = 8;
-    const KHOANG_CACH_X_TOI_THIEU = CHIEU_RONG_GHE + KHE_HO_TOI_THIEU; // 54
-    const KHOANG_CACH_Y_TOI_THIEU = CHIEU_CAO_GHE + KHE_HO_TOI_THIEU; // 38
-    const RONG_CANVAS = 320;
-    const DON_VI_LUOI = 10; // px, dùng khi bật "dịch theo lưới nhỏ"
+    // Mọi kích thước đều là BỘI SỐ của 1 ô lưới (DON_VI_LUOI = 10px) — ghế
+    // cao 3 ô (30px) × rộng 4 ô (40px), khe hở tối thiểu đúng 1 ô lưới (10px)
+    // bằng nhau ở cả 2 trục. Nhờ vậy khoảng cách tâm-tới-tâm (KHOANG_CACH_*)
+    // cũng là bội số của 10 — dịch theo lưới nhỏ luôn rơi đúng biên hợp
+    // lệ/không hợp lệ, không cần đệm dư như trước nữa.
+    const DON_VI_LUOI = 10; // px = 1 ô lưới
+    const CHIEU_RONG_GHE = DON_VI_LUOI * 4; // 40
+    const CHIEU_CAO_GHE = DON_VI_LUOI * 3; // 30
+    const KHE_TOI_THIEU = DON_VI_LUOI * 1; // 10 — đúng 1 ô lưới, cả 2 trục
+    const KHOANG_CACH_X_TOI_THIEU = CHIEU_RONG_GHE + KHE_TOI_THIEU; // 50 — dùng để CHẶN va chạm khi kéo tay
+    const KHOANG_CACH_Y_TOI_THIEU = CHIEU_CAO_GHE + KHE_TOI_THIEU; // 40 — dùng để CHẶN va chạm khi kéo tay
+    // Xe lớn nhất thực tế tối đa 4 dãy ghế — canvas rộng dư hơn 4 dãy
+    // (3×50+40=190) để còn khoảng trống thoáng, không sát mép
+    const RONG_CANVAS = 260;
 
     // 2 ghế coi là hợp lệ (không sát/chồng nhau) nếu lệch đủ xa trên ít nhất 1 trục
     function viTriHopLe(x, y, boQuaIdx) {
@@ -180,9 +188,9 @@
       return { x: 0, y: 0 };
     }
 
-    // Vị trí cho ghế mới: ngay dưới ghế vừa thêm trước đó (cùng x, y kế tiếp)
-    // — nếu chỗ đó đã bị chiếm (VD đã kéo ghế khác vào), dò tiếp xuống dưới
-    // tới ô trống gần nhất trên cùng cột x đó.
+    // Vị trí cho ghế mới: ngay dưới ghế vừa thêm trước đó (cùng x), cách đúng
+    // 1 khoảng tối thiểu (1 ô lưới) — nếu chỗ đó đã bị chiếm (VD đã kéo ghế
+    // khác vào), dò tiếp xuống dưới tới ô trống gần nhất trên cùng cột x đó.
     function viTriTiepTheo(gheTruoc) {
       if (!gheTruoc) return timViTriTrong();
       const x = gheTruoc.x;
@@ -302,7 +310,7 @@
 
     function renderCanvasTang1() {
       const canvas = document.getElementById("canvas-tang1");
-      const caoToiDa = gheState.reduce((max, g) => Math.max(max, g.y + CHIEU_CAO_GHE + 20), 360);
+      const caoToiDa = gheState.reduce((max, g) => Math.max(max, g.y + CHIEU_CAO_GHE + 20), 330);
       canvas.style.minHeight = `${caoToiDa}px`;
       canvas.innerHTML = '<div class="nv-so-do-ghe-canvas__dau-xe">▲ Đầu xe</div>';
 
@@ -341,7 +349,7 @@
       nhanTang1.hidden = false;
 
       const canvas = document.getElementById("canvas-tang2");
-      const caoToiDa = gheState.reduce((max, g) => Math.max(max, g.y + CHIEU_CAO_GHE + 20), 360);
+      const caoToiDa = gheState.reduce((max, g) => Math.max(max, g.y + CHIEU_CAO_GHE + 20), 330);
       canvas.style.minHeight = `${caoToiDa}px`;
       canvas.innerHTML = '<div class="nv-so-do-ghe-canvas__dau-xe">▲ Đầu xe</div>';
 
@@ -372,7 +380,10 @@
       renderCanvasTang1();
       renderCanvasTang2();
       renderKhungMaGhe();
-      document.getElementById("tong-so-ghe").textContent = gheState.length;
+      // gheState là số VỊ TRÍ (dùng chung mọi tầng) — tổng số ghế thật phải
+      // nhân theo số tầng, vì mỗi tầng có 1 ghế riêng tại đúng vị trí đó.
+      const soTang = Number(document.getElementById("so_tang").value);
+      document.getElementById("tong-so-ghe").textContent = gheState.length * soTang;
     }
 
     // ---------- Toolbar: mã ghế của ghế đang chọn + thêm/xóa/dịch lưới ----------
