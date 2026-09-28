@@ -11,4 +11,5 @@ setuptools==75.1.0  # yoyo-migrations cần pkg_resources (thuộc setuptools) �
 yoyo-migrations==8.2.0
 APScheduler==3.10.4
 python-multipart==0.0.9
+cloudinary==1.41.0
 pytest==8.3.3
