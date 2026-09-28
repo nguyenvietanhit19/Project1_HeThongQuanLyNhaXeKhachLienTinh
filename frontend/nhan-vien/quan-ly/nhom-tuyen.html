@@ -54,24 +54,33 @@
   </div>
 
   <div class="nv-modal-overlay" id="modal-overlay" hidden>
-    <div class="nv-modal" style="max-width:520px;">
-      <h2 id="modal-tieu-de">Thêm nhóm tuyến</h2>
+    <div class="nv-modal" style="max-width:560px;">
       <form id="form-nhom-tuyen">
-        <input type="hidden" id="nhom_tuyen_id" />
+        <div class="nv-modal__header">
+          <div class="nv-modal__header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/>
+            </svg>
+          </div>
+          <h2 id="modal-tieu-de">Thêm nhóm tuyến</h2>
+        </div>
+        <div class="nv-modal__body">
+          <input type="hidden" id="nhom_tuyen_id" />
 
-        <label class="nv-label" for="ten">Tên nhóm tuyến</label>
-        <input class="input-field" type="text" id="ten" placeholder='VD "Hà Nội – Sapa" (gộp cả 2 chiều đi/về)' required />
+          <label class="nv-label" for="ten">Tên nhóm tuyến</label>
+          <input class="input-field" type="text" id="ten" placeholder='VD "Hà Nội – Sapa" (2 chiều)' required />
 
-        <label class="nv-label" for="khu-vuc-1">Các khu vực theo thứ tự dọc hành trình</label>
-        <p style="font-size:13px; color:var(--color-text-muted); margin:4px 0 12px;">Ít nhất 2 khu vực. Thứ tự ở đây quyết định thứ tự điểm dừng hợp lệ khi tạo tuyến.</p>
+          <label class="nv-label" for="khu-vuc-1">Khu vực theo thứ tự hành trình</label>
+          <p class="nv-hint">Ít nhất 2 khu vực — thứ tự này quyết định thứ tự điểm dừng khi tạo tuyến.</p>
 
-        <div id="danh-sach-khu-vuc-form"></div>
-        <button type="button" class="nv-btn-them-diem" id="btn-them-khu-vuc">+ Thêm khu vực</button>
+          <div id="danh-sach-khu-vuc-form"></div>
+          <button type="button" class="nv-btn-them-diem" id="btn-them-khu-vuc">+ Thêm khu vực</button>
 
-        <div id="loi-form" class="text-error" hidden style="margin-top:14px;"></div>
-        <div class="nv-modal__actions">
-          <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
-          <button type="submit" class="btn-primary">Lưu</button>
+          <div id="loi-form" class="text-error" hidden style="margin-top:14px;"></div>
+          <div class="nv-modal__actions">
+            <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
+            <button type="submit" class="btn-primary">Lưu</button>
+          </div>
         </div>
       </form>
     </div>

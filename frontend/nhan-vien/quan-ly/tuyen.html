@@ -55,32 +55,43 @@
   </div>
 
   <div class="nv-modal-overlay" id="modal-overlay" hidden>
-    <div class="nv-modal" style="max-width:680px;">
-      <h2 id="modal-tieu-de">Tạo tuyến mới</h2>
+    <div class="nv-modal" style="max-width:720px;">
       <form id="form-tuyen">
-        <input type="hidden" id="tuyen_id" />
+        <div class="nv-modal__header">
+          <div class="nv-modal__header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="6" cy="19" r="2.3"/><circle cx="18" cy="5" r="2.3"/><path d="M6 16.7V13a4 4 0 0 1 4-4h2a4 4 0 0 0 4-4V5.3" stroke-dasharray="2.6 2.6"/>
+            </svg>
+          </div>
+          <h2 id="modal-tieu-de">Tạo tuyến mới</h2>
+        </div>
+        <div class="nv-modal__body">
+          <input type="hidden" id="tuyen_id" />
 
-        <label class="nv-label" for="ten_tuyen">Tên tuyến</label>
-        <input class="input-field" type="text" id="ten_tuyen" placeholder='VD "Yên Nghĩa → Sapa"' required />
+          <div class="nv-form-row">
+            <div>
+              <label class="nv-label" for="ten_tuyen">Tên tuyến</label>
+              <input class="input-field" type="text" id="ten_tuyen" placeholder='VD "Yên Nghĩa → Sapa"' required />
+            </div>
+            <div>
+              <label class="nv-label" for="nhom_tuyen_id">Nhóm tuyến</label>
+              <select class="input-field" id="nhom_tuyen_id" required></select>
+            </div>
+          </div>
 
-        <label class="nv-label" for="nhom_tuyen_id">Nhóm tuyến</label>
-        <select class="input-field" id="nhom_tuyen_id" required></select>
-        <p style="font-size:13px; color:var(--color-text-muted); margin:-8px 0 12px;">
-          Chưa có nhóm phù hợp? Tạo mới ở mục <strong>Nhóm tuyến</strong> bên trái.
-        </p>
+          <label style="font-weight:600; font-size:14px; display:block; margin-top:6px;">Chọn điểm dừng theo khu vực</label>
+          <p id="ghi-chu-diem-dung" class="nv-hint">Chọn nhóm tuyến trước để xem điểm hợp lệ.</p>
+          <div id="chon-diem-theo-khu-vuc"></div>
 
-        <label style="font-weight:600; font-size:14px; display:block; margin-top:6px;">Chọn điểm dừng theo khu vực</label>
-        <p id="ghi-chu-diem-dung" style="font-size:13px; color:var(--color-text-muted); margin:4px 0 14px;">Chọn nhóm tuyến trước để xem các điểm hợp lệ.</p>
-        <div id="chon-diem-theo-khu-vuc"></div>
+          <label style="font-weight:600; font-size:14px; display:block; margin-top:20px;">Điểm dừng đã chọn (theo thứ tự xe đi qua)</label>
+          <p class="nv-hint">Điểm đầu/cuối bắt buộc là văn phòng. Số phút = thời gian từ điểm ngay trước đó.</p>
+          <div id="danh-sach-diem-form"></div>
 
-        <label style="font-weight:600; font-size:14px; display:block; margin-top:20px;">Danh sách điểm dừng đã chọn (theo thứ tự xe đi qua)</label>
-        <p style="font-size:13px; color:var(--color-text-muted); margin:4px 0 14px;">Điểm đầu tiên và điểm cuối cùng bắt buộc là văn phòng. Dùng nút ↑↓ để sắp lại thứ tự nếu cần. Số phút nhập cho mỗi điểm là <strong>thời gian di chuyển từ điểm ngay trước đó</strong> — không phải tính từ giờ khởi hành; điểm đầu tiên luôn là 0.</p>
-        <div id="danh-sach-diem-form"></div>
-
-        <div id="loi-form-tuyen" class="text-error" hidden style="margin-top:14px;"></div>
-        <div class="nv-modal__actions">
-          <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
-          <button type="submit" class="btn-primary" id="btn-submit-tuyen">Tạo tuyến</button>
+          <div id="loi-form-tuyen" class="text-error" hidden style="margin-top:14px;"></div>
+          <div class="nv-modal__actions">
+            <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
+            <button type="submit" class="btn-primary" id="btn-submit-tuyen">Tạo tuyến</button>
+          </div>
         </div>
       </form>
     </div>

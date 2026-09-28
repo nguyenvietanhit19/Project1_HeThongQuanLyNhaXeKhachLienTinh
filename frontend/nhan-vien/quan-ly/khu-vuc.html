@@ -55,21 +55,34 @@
 
   <div class="nv-modal-overlay" id="modal-overlay" hidden>
     <div class="nv-modal">
-      <h2 id="modal-tieu-de">Thêm khu vực</h2>
       <form id="form-khu-vuc">
-        <input type="hidden" id="khu_vuc_id" />
+        <div class="nv-modal__header">
+          <div class="nv-modal__header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 3 3 5v16l6-2 6 2 6-2V3l-6 2-6-2Z"/><path d="M9 3v16M15 5v16"/>
+            </svg>
+          </div>
+          <h2 id="modal-tieu-de">Thêm khu vực</h2>
+        </div>
+        <div class="nv-modal__body">
+          <input type="hidden" id="khu_vuc_id" />
 
-        <label class="nv-label" for="ten">Tên khu vực</label>
-        <input class="input-field" type="text" id="ten" placeholder='VD "Lào Cai (TP, Bến Đền, Phố Lu)"' required />
+          <div class="nv-form-row">
+            <div>
+              <label class="nv-label" for="ten">Tên khu vực</label>
+              <input class="input-field" type="text" id="ten" placeholder='VD "Lào Cai (TP, Bến Đền...)"' required />
+            </div>
+            <div>
+              <label class="nv-label" for="tinh_thanh">Tỉnh/thành</label>
+              <input class="input-field" type="text" id="tinh_thanh" placeholder="Gõ để tìm — 1 trong 34 tỉnh/thành" required />
+            </div>
+          </div>
 
-        <label class="nv-label" for="tinh_thanh">Tỉnh/thành</label>
-        <input class="input-field" type="text" id="tinh_thanh" placeholder="Gõ để tìm hoặc chọn trong danh sách 34 tỉnh/thành" required />
-        <p style="font-size:12px; color:var(--color-text-muted); margin:-8px 0 0;">Bắt buộc chọn đúng 1 trong 34 tỉnh/thành sau sáp nhập — không tự nhập tên khác.</p>
-
-        <div id="loi-form" class="text-error" hidden style="margin-top:12px;"></div>
-        <div class="nv-modal__actions">
-          <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
-          <button type="submit" class="btn-primary">Lưu</button>
+          <div id="loi-form" class="text-error" hidden></div>
+          <div class="nv-modal__actions">
+            <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
+            <button type="submit" class="btn-primary">Lưu</button>
+          </div>
         </div>
       </form>
     </div>

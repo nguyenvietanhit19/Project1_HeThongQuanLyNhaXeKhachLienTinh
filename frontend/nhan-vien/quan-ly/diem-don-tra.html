@@ -55,30 +55,49 @@
 
   <div class="nv-modal-overlay" id="modal-overlay" hidden>
     <div class="nv-modal">
-      <h2 id="modal-tieu-de">Thêm điểm đón/trả</h2>
       <form id="form-diem">
-        <input type="hidden" id="diem_id" />
-        <input type="hidden" id="khu_vuc_id" />
+        <div class="nv-modal__header">
+          <div class="nv-modal__header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 21s7-7.16 7-12a7 7 0 1 0-14 0c0 4.84 7 12 7 12Z"/><circle cx="12" cy="9" r="2.3"/>
+            </svg>
+          </div>
+          <h2 id="modal-tieu-de">Thêm điểm đón/trả</h2>
+        </div>
+        <div class="nv-modal__body">
+          <input type="hidden" id="diem_id" />
+          <input type="hidden" id="khu_vuc_id" />
 
-        <label class="nv-label" for="khu_vuc_search">Khu vực</label>
-        <input class="input-field" type="text" id="khu_vuc_search" placeholder="Gõ để tìm hoặc chọn trong danh sách khu vực" required />
+          <div class="nv-form-row">
+            <div>
+              <label class="nv-label" for="khu_vuc_search">Khu vực</label>
+              <input class="input-field" type="text" id="khu_vuc_search" placeholder="Gõ để tìm khu vực" required />
+            </div>
+            <div>
+              <label class="nv-label" for="ten">Tên điểm</label>
+              <input class="input-field" type="text" id="ten" placeholder='VD "Bến xe Yên Nghĩa"' required />
+            </div>
+          </div>
 
-        <label class="nv-label" for="ten">Tên điểm</label>
-        <input class="input-field" type="text" id="ten" placeholder='VD "Bến xe Yên Nghĩa"' required />
+          <div class="nv-form-row">
+            <div>
+              <label class="nv-label" for="dia_chi">Địa chỉ cụ thể</label>
+              <input class="input-field" type="text" id="dia_chi" placeholder='VD "Km số 4, Quang Trung"' required />
+            </div>
+            <div>
+              <label class="nv-label" for="loai">Loại điểm</label>
+              <select class="input-field" id="loai" required>
+                <option value="van_phong">Văn phòng — đón &amp; trả</option>
+                <option value="diem_dung">Điểm dừng — chỉ trả khách</option>
+              </select>
+            </div>
+          </div>
 
-        <label class="nv-label" for="dia_chi">Địa chỉ cụ thể</label>
-        <input class="input-field" type="text" id="dia_chi" placeholder='VD "Km số 4, Quang Trung, Hà Đông"' required />
-
-        <label class="nv-label" for="loai">Loại điểm</label>
-        <select class="input-field" id="loai" required>
-          <option value="van_phong">Văn phòng (có quầy vé, hợp lệ đón & trả)</option>
-          <option value="diem_dung">Điểm dừng (không quầy vé, chỉ hợp lệ trả khách)</option>
-        </select>
-
-        <div id="loi-form" class="text-error" hidden></div>
-        <div class="nv-modal__actions">
-          <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
-          <button type="submit" class="btn-primary">Lưu</button>
+          <div id="loi-form" class="text-error" hidden></div>
+          <div class="nv-modal__actions">
+            <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
+            <button type="submit" class="btn-primary">Lưu</button>
+          </div>
         </div>
       </form>
     </div>

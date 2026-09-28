@@ -60,49 +60,60 @@
 
   <div class="nv-modal-overlay" id="modal-overlay" hidden>
     <div class="nv-modal">
-      <h2 id="modal-tieu-de">Thêm giá vé</h2>
       <form id="form-gia-ve">
-        <input type="hidden" id="gia_ve_id" />
-
-        <label class="nv-label">Tuyến</label>
-        <p id="ten-tuyen-da-chon" style="font-weight:600; margin:0 0 14px;"></p>
-
-        <div id="khoi-chon-diem">
-          <label class="nv-label" for="diem_di_id">Điểm đi</label>
-          <select class="input-field" id="diem_di_id" required></select>
-
-          <label class="nv-label" for="diem_den_id">Điểm đến</label>
-          <select class="input-field" id="diem_den_id" required></select>
-        </div>
-
-        <div id="khoi-diem-readonly" hidden style="margin-bottom:14px;">
-          <span class="pill pill--khu-vuc" id="hien-thi-diem-di"></span>
-          <span style="margin:0 6px; color:var(--color-text-muted);">→</span>
-          <span class="pill pill--khu-vuc" id="hien-thi-diem-den"></span>
-        </div>
-
-        <label class="nv-label" for="gia_goc">Giá gốc (VNĐ)</label>
-        <input class="input-field" type="number" id="gia_goc" min="1000" step="1000" placeholder="VD 150000" required />
-
-        <label class="nv-thoi-han-toggle" for="co_thoi_han">
-          <input type="checkbox" id="co_thoi_han" />
-          Chỉ áp dụng trong 1 khoảng thời gian (giá theo mùa/dịp lễ)
-        </label>
-        <div id="khoi-khoang-ngay" class="nv-khoang-ngay" hidden>
-          <div>
-            <label class="nv-label" for="ap_dung_tu">Từ ngày</label>
-            <input class="input-field" type="date" id="ap_dung_tu" />
+        <div class="nv-modal__header">
+          <div class="nv-modal__header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"/><path d="M9 15V9l1.8 1.8L12 9l1.2 1.8L15 9v6"/>
+            </svg>
           </div>
-          <div>
-            <label class="nv-label" for="ap_dung_den">Đến ngày</label>
-            <input class="input-field" type="date" id="ap_dung_den" />
-          </div>
+          <h2 id="modal-tieu-de">Thêm giá vé</h2>
         </div>
+        <div class="nv-modal__body">
+          <input type="hidden" id="gia_ve_id" />
 
-        <div id="loi-form" class="text-error" hidden style="margin-top:12px;"></div>
-        <div class="nv-modal__actions">
-          <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
-          <button type="submit" class="btn-primary">Lưu</button>
+          <p id="ten-tuyen-da-chon" class="pill pill--nhom-tuyen" style="display:inline-block; margin:0 0 14px;"></p>
+
+          <div id="khoi-chon-diem" class="nv-form-row">
+            <div>
+              <label class="nv-label" for="diem_di_id">Điểm đi</label>
+              <select class="input-field" id="diem_di_id" required></select>
+            </div>
+            <div>
+              <label class="nv-label" for="diem_den_id">Điểm đến</label>
+              <select class="input-field" id="diem_den_id" required></select>
+            </div>
+          </div>
+
+          <div id="khoi-diem-readonly" hidden style="margin-bottom:14px;">
+            <span class="pill pill--khu-vuc" id="hien-thi-diem-di"></span>
+            <span style="margin:0 6px; color:var(--color-text-muted);">→</span>
+            <span class="pill pill--khu-vuc" id="hien-thi-diem-den"></span>
+          </div>
+
+          <label class="nv-label" for="gia_goc">Giá gốc (VNĐ)</label>
+          <input class="input-field" type="number" id="gia_goc" min="1000" step="1000" placeholder="VD 150000" required />
+
+          <label class="nv-thoi-han-toggle" for="co_thoi_han">
+            <input type="checkbox" id="co_thoi_han" />
+            Chỉ áp dụng theo mùa/dịp lễ (có hạn)
+          </label>
+          <div id="khoi-khoang-ngay" class="nv-khoang-ngay" hidden>
+            <div>
+              <label class="nv-label" for="ap_dung_tu">Từ ngày</label>
+              <input class="input-field" type="date" id="ap_dung_tu" />
+            </div>
+            <div>
+              <label class="nv-label" for="ap_dung_den">Đến ngày</label>
+              <input class="input-field" type="date" id="ap_dung_den" />
+            </div>
+          </div>
+
+          <div id="loi-form" class="text-error" hidden></div>
+          <div class="nv-modal__actions">
+            <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
+            <button type="submit" class="btn-primary">Lưu</button>
+          </div>
         </div>
       </form>
     </div>
