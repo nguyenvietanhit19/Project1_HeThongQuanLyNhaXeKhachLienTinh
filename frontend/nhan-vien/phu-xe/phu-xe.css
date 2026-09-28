@@ -1,0 +1,283 @@
+/*
+ * CSS riêng cho giao diện di động phụ xe — nhúng SAU design-tokens.css
+ * (THIET_KE_UI.md mục 4). Chỉ bổ sung component chưa có sẵn, luôn tham
+ * chiếu qua var(--...), không tự gõ mã hex.
+ */
+
+/*
+ * Đây là giao diện DI ĐỘNG (điện thoại phụ xe cầm tay, NGHIEP_VU.md mục
+ * 8.2) — khi mở trên trình duyệt desktop rộng, body làm nền "bệ đỡ" màu
+ * tối, còn .app-shell mới là khung nội dung thật, giữ cố định bề ngang
+ * ~điện thoại và luôn nằm giữa màn hình. Trên điện thoại thật (màn hình
+ * hẹp hơn max-width), .app-shell tự nhiên chiếm tràn viền, không còn
+ * thấy "bệ đỡ" đâu cả — không ảnh hưởng gì tới trải nghiệm di động thật.
+ */
+body.phu-xe-page {
+  background: var(--color-secondary-dark);
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+}
+
+.app-shell {
+  width: 100%;
+  max-width: 480px;
+  min-height: 100vh;
+  background: var(--color-bg-canvas);
+  padding-bottom: 32px;
+  color: var(--color-text-primary);
+  box-shadow: 0 0 48px rgba(0, 0, 0, 0.25);
+}
+
+.topbar {
+  background: var(--color-secondary);
+  color: var(--color-text-on-dark);
+  padding: 20px 16px 24px;
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.topbar h1 {
+  font-size: 20px;
+  margin: 0 0 4px;
+}
+
+.topbar .topbar-sub {
+  opacity: 0.85;
+  font-size: 14px;
+  margin: 0;
+}
+
+.container {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.container--pull-up {
+  /* Trước đây margin âm kéo thẻ trắng đè lên góc bo tròn của thanh tím
+     phía trên (topbar), làm mất hẳn phần cong — giờ chỉ cách ra bình
+     thường để thấy trọn viền cong tím. */
+  margin-top: 16px;
+}
+
+.section {
+  margin-top: 20px;
+}
+
+.section h2 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 10px;
+}
+
+.trip-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  margin-bottom: 12px;
+}
+
+.trip-card .trip-route {
+  font-weight: 700;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.trip-card .trip-meta {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid #EEEEF1;
+}
+
+.list-item:last-child {
+  border-bottom: none;
+}
+
+.list-item .info .seat-code {
+  display: inline-block;
+  min-width: 28px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--color-secondary);
+  margin-right: 8px;
+}
+
+.list-item .info .name {
+  font-weight: 600;
+}
+
+.list-item .info .sub {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.btn-confirm {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--color-primary);
+  color: var(--color-text-primary);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btn-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-confirm--outline {
+  background: none;
+  border: 1.5px solid var(--color-secondary);
+  color: var(--color-secondary);
+}
+
+.btn-danger-outline {
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--radius-button);
+  border: 1.5px solid var(--color-danger);
+  background: none;
+  color: var(--color-danger);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.empty-state {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  padding: 12px 0;
+}
+
+/* Hành trình — chấm tròn + đường nối, mục 8.2 điểm 5 */
+.route-step {
+  display: flex;
+  gap: 12px;
+  position: relative;
+  padding-bottom: 20px;
+}
+
+.route-step:last-child {
+  padding-bottom: 0;
+}
+
+.route-step .dot-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.route-step .dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #E5E5E8;
+  border: 2px solid #E5E5E8;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.route-step .line {
+  flex: 1;
+  width: 2px;
+  background: #E5E5E8;
+  margin-top: 2px;
+}
+
+.route-step.da-toi .dot {
+  background: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.route-step.da-toi .line {
+  background: var(--color-success);
+}
+
+.route-step.hien-tai .dot {
+  background: var(--color-bg-surface);
+  border-color: var(--color-primary);
+}
+
+.route-step .ten-diem {
+  font-weight: 600;
+}
+
+.route-step .gio {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.status-banner {
+  padding: 12px 16px;
+  border-radius: var(--radius-button);
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.status-banner--warning {
+  background: rgba(245, 166, 35, 0.15);
+  color: var(--color-primary-dark);
+}
+
+.status-banner--danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--color-danger);
+}
+
+/* :not([hidden]) — nếu chỉ đặt display:flex thẳng trên .modal-overlay,
+   rule này (specificity tác giả) ghi đè luôn rule mặc định của trình
+   duyệt [hidden]{display:none}, khiến modal LỘ RA dù đang có thuộc tính
+   hidden. Luôn giữ display khai báo có điều kiện với :not([hidden]). */
+.modal-overlay:not([hidden]) {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 20, 30, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 10;
+}
+
+.modal-sheet {
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  padding: 20px 16px 28px;
+  width: 100%;
+  max-width: 480px;
+  box-sizing: border-box;
+}
+
+.modal-sheet h2 {
+  margin-top: 0;
+}
+
+select.input-field {
+  appearance: none;
+  background: var(--color-bg-surface);
+}
+
+textarea.input-field {
+  min-height: 90px;
+  resize: vertical;
+  font-family: inherit;
+}
