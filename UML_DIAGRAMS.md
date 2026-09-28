@@ -220,7 +220,7 @@ rectangle "Hệ thống" {
   usecase "Tạo tuyến đường" as UC31
   usecase "Quản lý loại xe\n(sơ đồ ghế, sức chứa, hệ số giá)" as UC32
   usecase "Đặt giá vé cho\ntừng cặp điểm" as UC33
-  usecase "Thiết lập lịch chạy định kỳ\n(tuyến, giờ, loại xe)" as UC18
+  usecase "Thiết lập lịch chạy định kỳ\n(tuyến, chiều, giờ, loại xe)" as UC18
   usecase "Quản lý xe" as UC34
   usecase "Phân tài xế và phụ xe\ncố định cho từng xe" as UC35
   usecase "Tạo tài khoản\ncho nhân viên/quản lý khác" as UC36
@@ -641,6 +641,7 @@ stop
 @startuml AD_UC18_LichDinhKy
 start
 :Chọn một tuyến đã có sẵn;
+:Chọn chiều chạy (chiều đi hoặc chiều về —\ntuyến giờ chạy được cả 2 chiều);
 :Nhập giờ khởi hành trong ngày;
 :Chọn loại xe dự kiến phục vụ khung giờ này;
 :Lưu lại thành lịch chạy định kỳ;
@@ -987,11 +988,15 @@ stop
 ```plantuml
 @startuml AD_UC31_TaoTuyen
 start
-:Tạo mới hoặc chọn một nhóm tuyến có sẵn;
-:Tạo tuyến mới thuộc nhóm tuyến đó;
+:Tạo tuyến mới, đặt tên theo hành trình\n(VD "Hà Nội – Sapa" — tuyến này sẽ chạy được cả 2 chiều);
 repeat
-  :Thêm một điểm dừng vào tuyến,\nkèm thứ tự và thời gian dự kiến đi tới điểm đó;
+  :Thêm một điểm dừng vào tuyến (theo chiều đi),\nkèm thứ tự và thời gian dự kiến đi tới điểm đó;
 repeat while (Còn điểm dừng nào cần thêm không?) is (còn)
+note right
+  Danh sách điểm dừng này dùng chung cho cả chiều về
+  (đọc ngược lại) — không cần nhập riêng, và chiều về
+  chắc chắn đi qua đúng các điểm này.
+end note
 if (Điểm đầu và điểm cuối tuyến có phải văn phòng không?) then (không phải)
   :Báo lỗi và sửa lại danh sách điểm dừng;
   stop

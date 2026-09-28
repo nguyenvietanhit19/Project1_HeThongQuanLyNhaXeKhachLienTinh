@@ -3,48 +3,111 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Đăng ký — Nhà xe khách</title>
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Đăng ký — GoBus</title>
 <link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="auth.css" />
 </head>
-<body class="auth-page">
-  <div class="card auth-card">
-    <h1>Tạo tài khoản</h1>
-    <p class="subtitle">Nhập thông tin để bắt đầu đặt vé online</p>
+<body class="kh-auth-page">
+  <div class="kh-card">
+    <picture>
+      <source media="(max-width: 700px)" srcset="/shared/assets/dang-nhap-canbo-nen-mobile.png" />
+      <img class="kh-card__bg" src="/shared/assets/dang-nhap-canbo-nen.jpg" alt="" aria-hidden="true" />
+    </picture>
 
-    <!-- Bước 1: nhập thông tin, gửi mã xác nhận -->
-    <form id="form-buoc-1">
-      <input class="input-field" type="email" id="email" placeholder="Email" required />
-      <input class="input-field" type="password" id="mat_khau" placeholder="Mật khẩu (tối thiểu 6 ký tự)" minlength="6" required />
-      <input class="input-field" type="text" id="ho_ten" placeholder="Họ và tên" required />
-      <input class="input-field" type="tel" id="so_dien_thoai" placeholder="Số điện thoại" required />
-      <div id="loi-buoc-1" class="text-error" hidden></div>
-      <button class="btn-primary" type="submit">Gửi mã xác nhận</button>
-    </form>
+    <div class="kh-card__content">
+      <div class="kh-brand-row">
+        <img class="kh-logo" src="/shared/assets/logo-full.png" alt="GoBus — Kết nối mọi hành trình" />
+        <h1 class="kh-heading">Tạo tài khoản</h1>
+      </div>
+      <p class="kh-subtitle">Nhập thông tin để bắt đầu đặt vé online</p>
 
-    <!-- Bước 2: nhập mã OTP vừa gửi về email -->
-    <form id="form-buoc-2" hidden>
-      <p>Mã xác nhận đã gửi tới <strong id="email-hien-thi"></strong>, có hiệu lực <strong>1 phút</strong>.</p>
-      <input class="input-field" type="text" id="ma_xac_nhan" placeholder="Mã xác nhận (6 số)" required />
-      <div id="loi-buoc-2" class="text-error" hidden></div>
-      <button class="btn-primary" type="submit">Xác nhận & tạo tài khoản</button>
-      <p style="text-align:center; margin-top:12px;">
-        <a class="text-link" href="#" id="gui-lai-ma">Gửi lại mã</a>
-      </p>
-    </form>
+      <!-- Bước 1: nhập thông tin, gửi mã xác nhận -->
+      <form id="form-buoc-1">
+        <label class="kh-field-label" for="email">Email</label>
+        <div class="kh-input-icon-group">
+          <svg class="kh-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7.5 8 5.5 8-5.5"/>
+          </svg>
+          <input class="input-field" type="email" id="email" placeholder="Email" required />
+        </div>
 
-    <p style="text-align:center; margin-top:20px;">
-      Đã có tài khoản? <a class="text-link" href="dang-nhap.html">Đăng nhập</a>
-    </p>
+        <label class="kh-field-label" for="mat_khau">Mật khẩu</label>
+        <div class="kh-input-icon-group">
+          <svg class="kh-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>
+          </svg>
+          <input class="input-field" type="password" id="mat_khau" placeholder="Tối thiểu 6 ký tự" minlength="6" required />
+        </div>
+
+        <label class="kh-field-label" for="ho_ten">Họ và tên</label>
+        <div class="kh-input-icon-group">
+          <svg class="kh-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/>
+          </svg>
+          <input class="input-field" type="text" id="ho_ten" placeholder="Họ và tên" required />
+        </div>
+
+        <label class="kh-field-label" for="so_dien_thoai">Số điện thoại</label>
+        <div class="kh-input-icon-group">
+          <svg class="kh-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6.5 3h3l1.5 4-2 1.5a12 12 0 0 0 6 6l1.5-2 4 1.5v3a2 2 0 0 1-2 2A16 16 0 0 1 4.5 5a2 2 0 0 1 2-2Z"/>
+          </svg>
+          <input class="input-field" type="tel" id="so_dien_thoai" placeholder="Số điện thoại" required />
+        </div>
+
+        <div id="loi-buoc-1" class="text-error" hidden></div>
+        <button class="btn-primary" type="submit">Gửi mã xác nhận</button>
+      </form>
+
+      <!-- Bước 2: nhập mã OTP vừa gửi về email -->
+      <form id="form-buoc-2" hidden>
+        <p class="otp-hint">Mã xác nhận đã gửi tới <strong id="email-hien-thi"></strong>, có hiệu lực <strong>1 phút</strong>.</p>
+        <div class="otp-group" id="otp-group">
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" autocomplete="one-time-code" />
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" />
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" />
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" />
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" />
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" />
+        </div>
+        <div id="loi-buoc-2" class="text-error" hidden></div>
+        <button class="btn-primary" type="submit">Xác nhận & tạo tài khoản</button>
+        <p class="otp-resend">
+          Chưa nhận được mã? <a class="text-link" href="#" id="gui-lai-ma">Gửi lại mã</a>
+        </p>
+      </form>
+
+      <p class="kh-links">Đã có tài khoản? <a class="text-link" href="dang-nhap.html">Đăng nhập</a></p>
+    </div>
   </div>
 
   <script src="/shared/api-client.js"></script>
+  <script src="otp-input.js"></script>
   <script>
     let thongTinDangKy = null;
+    const otp = initOtpInput(document.getElementById("otp-group"));
+    const demNguoc = initOtpResendCountdown(document.getElementById("gui-lai-ma"), 60, guiMaXacNhan);
+
+    async function guiMaXacNhan() {
+      const loiEl = document.getElementById("loi-buoc-1");
+      loiEl.hidden = true;
+      try {
+        await apiPost("/auth/gui-ma-dang-ky", thongTinDangKy);
+        return true;
+      } catch (err) {
+        loiEl.textContent = err.message;
+        loiEl.hidden = false;
+        return false;
+      }
+    }
 
     document.getElementById("form-buoc-1").addEventListener("submit", async (e) => {
       e.preventDefault();
       const loiEl = document.getElementById("loi-buoc-1");
+      const btn = e.target.querySelector("button[type=submit]");
       loiEl.hidden = true;
+      btn.classList.add("is-loading");
 
       thongTinDangKy = {
         email: document.getElementById("email").value.trim(),
@@ -58,36 +121,42 @@
         document.getElementById("email-hien-thi").textContent = thongTinDangKy.email;
         document.getElementById("form-buoc-1").hidden = true;
         document.getElementById("form-buoc-2").hidden = false;
+        demNguoc.batDau();
+        otp.reset();
       } catch (err) {
         loiEl.textContent = err.message;
         loiEl.hidden = false;
+      } finally {
+        btn.classList.remove("is-loading");
       }
     });
 
     document.getElementById("form-buoc-2").addEventListener("submit", async (e) => {
       e.preventDefault();
       const loiEl = document.getElementById("loi-buoc-2");
+      const btn = e.target.querySelector("button[type=submit]");
       loiEl.hidden = true;
 
+      const maXacNhan = otp.layDayDuMa();
+      if (maXacNhan.length < 6) {
+        otp.baoLoi();
+        loiEl.textContent = "Vui lòng nhập đủ 6 số";
+        loiEl.hidden = false;
+        return;
+      }
+
+      btn.classList.add("is-loading");
       try {
         await apiPost("/auth/dang-ky", {
           email: thongTinDangKy.email,
-          ma_xac_nhan: document.getElementById("ma_xac_nhan").value.trim(),
+          ma_xac_nhan: maXacNhan,
         });
         window.location.href = "dang-nhap.html";
       } catch (err) {
+        otp.baoLoi();
         loiEl.textContent = err.message;
         loiEl.hidden = false;
-      }
-    });
-
-    document.getElementById("gui-lai-ma").addEventListener("click", async (e) => {
-      e.preventDefault();
-      try {
-        await apiPost("/auth/gui-ma-dang-ky", thongTinDangKy);
-        alert("Đã gửi lại mã xác nhận.");
-      } catch (err) {
-        alert(err.message);
+        btn.classList.remove("is-loading");
       }
     });
   </script>

@@ -21,3 +21,8 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 # quán với mọi biến môi trường khác trong file này (đọc qua config.py,
 # không gọi os.getenv rải rác trong services/) — xem luu_tru_anh_service.py.
 CLOUDINARY_URL = os.getenv("CLOUDINARY_URL")
+# Brevo API (HTTPS) — gửi mã OTP, thay cho SMTP thô sau khi phát hiện
+# Render free tier + Gmail chặn/timeout kết nối SMTP trực tiếp từ IP cloud
+# (xem lịch sử commit email_service.py).
+BREVO_API_KEY = os.getenv("BREVO_API_KEY")
+BREVO_SENDER_EMAIL = os.getenv("BREVO_SENDER_EMAIL")

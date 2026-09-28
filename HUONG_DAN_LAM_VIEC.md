@@ -14,8 +14,10 @@ cp backend/.env.example backend/.env
 
 Mở `backend/.env` vừa tạo ra, điền giá trị thật:
 - `JWT_SECRET`: gõ bừa 1 chuỗi dài ngẫu nhiên (không cần nhớ).
-- `SMTP_USER`/`SMTP_PASSWORD`: để trống được nếu chưa cần test gửi email — hỏi trưởng nhóm nếu cần dùng Gmail chung của dự án.
+- `BREVO_API_KEY`/`BREVO_SENDER_EMAIL`: để trống được nếu chưa cần test gửi email — hỏi trưởng nhóm nếu cần dùng tài khoản Brevo chung của dự án.
 - Các dòng còn lại giữ nguyên mặc định.
+
+**Lỗi hay gặp: form frontend báo "Failed to fetch" dù backend đang chạy** — kiểm tra thanh địa chỉ trình duyệt đang mở `http://localhost:5500/...` hay `http://127.0.0.1:5500/...`. Với trình duyệt, `localhost` và `127.0.0.1` là **2 origin khác nhau** dù cùng trỏ về máy mình, nên phải khớp đúng với `CORS_ORIGINS` trong `.env` (mặc định đã liệt kê cả 2, nhưng nếu bạn tự sửa thì nhớ giữ cả 2). Sau khi sửa `.env` phải chạy `docker-compose up -d --force-recreate backend` — `docker-compose restart` **không** nạp lại `.env` mới.
 
 **File `.env` này không bao giờ commit lên Git** (đã bị `.gitignore` chặn) — mỗi người tự tạo riêng trên máy mình, không copy qua lại, không đẩy lên GitHub.
 
@@ -23,8 +25,10 @@ Dựng backend + database (Docker tự tải Postgres về, tự tạo database 
 
 ```bash
 docker-compose up -d
-docker-compose exec backend yoyo apply --database "$DATABASE_URL" ./migrations
+docker-compose exec backend sh -c 'yoyo apply --database "$DATABASE_URL" ./migrations'
 ```
+
+*(Bọc trong `sh -c '...'` để bên trong container tự đọc biến `DATABASE_URL` từ `.env` nó đang có — chạy đúng trên cả PowerShell lẫn Bash. Nếu chỉ viết `--database "$DATABASE_URL"` trần, PowerShell/Bash ở máy bạn sẽ tìm biến đó trên chính máy bạn — không có, thành chuỗi rỗng, báo lỗi kết nối.)*
 
 Kiểm tra chạy đúng: mở trình duyệt vào `http://localhost:8000/docs` — thấy trang Swagger hiện ra là backend đã sống.
 
@@ -131,7 +135,7 @@ Mỗi thay đổi cấu trúc database (thêm bảng, thêm cột...) viết th�
 
 1. Xem đúng cấu trúc cột cần tạo trong `DATABASE.md` (mục tương ứng bảng của domain bạn).
 2. Tạo file mới trong `backend/migrations/`, viết câu `CREATE TABLE`/`ALTER TABLE` (xem file `20260917_0900_tao_bang_nguoi_dung.sql` làm mẫu).
-3. Chạy thử local: `docker-compose exec backend yoyo apply --database "$DATABASE_URL" ./migrations` — chỉ file mới sẽ chạy, các file cũ được bỏ qua (yoyo tự nhớ đã chạy rồi).
+3. Chạy thử local: `docker-compose exec backend sh -c 'yoyo apply --database "$DATABASE_URL" ./migrations'` — chỉ file mới sẽ chạy, các file cũ được bỏ qua (yoyo tự nhớ đã chạy rồi).
 4. Commit + mở PR như bình thường.
 
 ### Quy tắc vàng: KHÔNG sửa lại file migration đã merge vào `main`
@@ -146,12 +150,12 @@ Nếu bảng của bạn tham chiếu (`FOREIGN KEY`) tới bảng của ngườ
 
 ## 5. Xem dữ liệu trong database — dùng pgAdmin (hoặc công cụ tương tự)
 
-Kết nối vào Postgres đang chạy trong Docker (phải đang `docker-compose up` mới kết nối được):
+Kết nối vào Postgres đang chạy trong Docker (phải đang `docker-compose up` mới kết nối được). Cổng map ra host là `5433` (không phải `5432` mặc định) — tránh đụng độ nếu máy bạn có cài sẵn PostgreSQL native chạy như Windows Service:
 
 | Ô kết nối | Giá trị |
 |---|---|
 | Host | `localhost` |
-| Port | `5432` |
+| Port | `5433` |
 | Maintenance database | `nha_xe` |
 | Username | `postgres` |
 | Password | `postgres_dev_only` |

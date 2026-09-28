@@ -183,28 +183,3 @@
   font-weight: 600;
   text-decoration: none;
 }
-
-body.auth-page {
-  background: var(--color-bg-canvas);
-  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  margin: 0;
-}
-
-.auth-card {
-  max-width: 400px;
-  width: 100%;
-}
-
-.auth-card h1 {
-  font-size: 26px;
-  margin-bottom: 4px;
-}
-
-.auth-card p.subtitle {
-  color: var(--color-text-muted);
-  margin-bottom: 20px;
-}

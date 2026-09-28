@@ -3,38 +3,63 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Đăng nhập — Nhà xe khách</title>
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Đăng nhập — GoBus</title>
 <link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="auth.css" />
 </head>
-<body class="auth-page">
-  <div class="card auth-card">
-    <h1>Đăng nhập</h1>
-    <p class="subtitle">Đăng nhập để đặt vé và xem lịch sử vé</p>
+<body class="kh-auth-page">
+  <div class="kh-card">
+    <picture>
+      <source media="(max-width: 700px)" srcset="/shared/assets/dang-nhap-canbo-nen-mobile.png" />
+      <img class="kh-card__bg" src="/shared/assets/dang-nhap-canbo-nen.jpg" alt="" aria-hidden="true" />
+    </picture>
 
-    <form id="form-dang-nhap">
-      <input class="input-field" type="email" id="email" placeholder="Email" required />
-      <input class="input-field" type="password" id="mat_khau" placeholder="Mật khẩu" required />
-      <div id="loi" class="text-error" hidden></div>
-      <div id="thanh-cong" class="text-success" hidden></div>
-      <button class="btn-primary" type="submit">Đăng nhập</button>
-    </form>
+    <div class="kh-card__content">
+      <div class="kh-brand-row">
+        <img class="kh-logo" src="/shared/assets/logo-full.png" alt="GoBus — Kết nối mọi hành trình" />
+        <h1 class="kh-heading">Đăng nhập</h1>
+      </div>
+      <p class="kh-subtitle">Đăng nhập để đặt vé và xem lịch sử vé</p>
 
-    <p style="text-align:center; margin-top:16px;">
-      <a class="text-link" href="quen-mat-khau.html">Quên mật khẩu?</a>
-    </p>
-    <p style="text-align:center; margin-top:8px;">
-      Chưa có tài khoản? <a class="text-link" href="dang-ky.html">Đăng ký</a>
-    </p>
+      <form id="form-dang-nhap">
+        <label class="kh-field-label" for="email">Email</label>
+        <div class="kh-input-icon-group">
+          <svg class="kh-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7.5 8 5.5 8-5.5"/>
+          </svg>
+          <input class="input-field" type="email" id="email" placeholder="Email" required />
+        </div>
+
+        <label class="kh-field-label" for="mat_khau">Mật khẩu</label>
+        <div class="kh-input-icon-group">
+          <svg class="kh-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>
+          </svg>
+          <input class="input-field" type="password" id="mat_khau" placeholder="Mật khẩu" required />
+        </div>
+
+        <div id="loi" class="text-error" hidden></div>
+        <div id="thanh-cong" class="text-success" hidden></div>
+        <button class="btn-primary" type="submit">Đăng nhập</button>
+      </form>
+
+      <p class="kh-links"><a class="text-link" href="quen-mat-khau.html">Quên mật khẩu?</a></p>
+      <p class="kh-links">Chưa có tài khoản? <a class="text-link" href="dang-ky.html">Đăng ký</a></p>
+    </div>
   </div>
 
   <script src="/shared/api-client.js"></script>
   <script>
+    const btnSubmit = document.querySelector("#form-dang-nhap button[type=submit]");
+
     document.getElementById("form-dang-nhap").addEventListener("submit", async (e) => {
       e.preventDefault();
       const loiEl = document.getElementById("loi");
       const thanhCongEl = document.getElementById("thanh-cong");
       loiEl.hidden = true;
       thanhCongEl.hidden = true;
+      btnSubmit.classList.add("is-loading");
 
       try {
         const ketQua = await apiPost("/auth/dang-nhap", {
@@ -49,11 +74,13 @@
         thanhCongEl.textContent = `Xin chào ${ketQua.ho_ten}! Đăng nhập thành công.`;
         thanhCongEl.hidden = false;
 
-        // TODO: khi trang tìm kiếm chuyến (frontend/khach-hang/tim-kiem.html) đã có,
-        // chuyển hướng tới đó: window.location.href = "tim-kiem.html";
+        // TODO: khi trang tìm kiếm chuyến (frontend/khach-hang/tim-kiem.html) đã có
+        // (thuộc domain 2), có thể đổi điểm đến mặc định sang đó thay vì tai-khoan.html.
+        setTimeout(() => { window.location.href = "tai-khoan.html"; }, 800);
       } catch (err) {
         loiEl.textContent = err.message;
         loiEl.hidden = false;
+        btnSubmit.classList.remove("is-loading");
       }
     });
   </script>

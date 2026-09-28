@@ -1,8 +1,17 @@
 # Environment variables — bài học từ bản v1: file .env.py từng bị lộ vì .gitignore
 # chỉ có pattern *.env, không khớp .env.py. Chặn mọi biến thể ở đây.
+# Ngoại lệ: *.env.example là file MẪU (không chứa secret thật), phải commit
+# để HUONG_DAN_LAM_VIEC.md mục 1 ("cp backend/.env.example backend/.env") chạy được.
 .env
 .env.*
 *.env
+!*.env.example
+
+# yoyo-migrations tự tạo file này nếu trả lời "y" lúc hỏi "Save migration
+# configuration to yoyo.ini?" — chứa DATABASE_URL kèm mật khẩu dạng chữ
+# thường. Không commit, kể cả khi chỉ là mật khẩu Postgres local.
+yoyo.ini
+backend/yoyo.ini
 
 # Python
 __pycache__/
