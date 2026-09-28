@@ -75,6 +75,9 @@ class DonHangResponse(BaseModel):
     diem_nhan_id: UUID
     loai_hang_id: UUID
     ten_loai_hang: str | None = None
+    ten_tuyen: str | None = None
+    ten_diem_gui: str | None = None
+    ten_diem_nhan: str | None = None
 
     can_nang_kg: Decimal
     dai_cm: Decimal | None = None
