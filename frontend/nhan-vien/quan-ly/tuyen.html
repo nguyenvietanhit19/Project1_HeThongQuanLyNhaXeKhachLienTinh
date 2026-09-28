@@ -34,7 +34,7 @@
           </div>
           <div class="nv-page-intro__body">
             <p class="nv-page-intro__title">Tuyến</p>
-            <p class="nv-page-intro__desc">Mỗi tuyến thuộc 1 nhóm tuyến, gồm các điểm dừng chọn theo đúng thứ tự khu vực đã cấu hình ở nhóm tuyến. Điểm đầu và điểm cuối bắt buộc là văn phòng.</p>
+            <p class="nv-page-intro__desc">Mỗi tuyến chạy được cả 2 chiều (đi/về) — chỉ cần chọn danh sách điểm dừng theo 1 chiều, chiều còn lại tự suy ra ngược lại. Điểm đầu và điểm cuối bắt buộc là văn phòng.</p>
           </div>
           <div class="nv-page-intro__stat">
             <span class="nv-page-intro__stat-num" id="stat-so-luong">—</span>
@@ -55,7 +55,7 @@
   </div>
 
   <div class="nv-modal-overlay" id="modal-overlay" hidden>
-    <div class="nv-modal" style="max-width:720px;">
+    <div class="nv-modal nv-modal--rong">
       <form id="form-tuyen">
         <div class="nv-modal__header">
           <div class="nv-modal__header-icon">
@@ -65,29 +65,32 @@
           </div>
           <h2 id="modal-tieu-de">Tạo tuyến mới</h2>
         </div>
-        <div class="nv-modal__body">
+        <div class="nv-modal__body nv-tuyen-body">
           <input type="hidden" id="tuyen_id" />
 
-          <div class="nv-form-row">
-            <div>
-              <label class="nv-label" for="ten_tuyen">Tên tuyến</label>
-              <input class="input-field" type="text" id="ten_tuyen" placeholder='VD "Yên Nghĩa → Sapa"' required />
-            </div>
-            <div>
-              <label class="nv-label" for="nhom_tuyen_id">Nhóm tuyến</label>
-              <select class="input-field" id="nhom_tuyen_id" required></select>
-            </div>
+          <div class="nv-tuyen-ten">
+            <label class="nv-label" for="ten_tuyen">Tên tuyến</label>
+            <input class="input-field" type="text" id="ten_tuyen" placeholder='VD "Hà Nội – Sapa" (đặt theo hành trình, chạy được cả 2 chiều)' required />
           </div>
 
-          <label style="font-weight:600; font-size:14px; display:block; margin-top:6px;">Chọn điểm dừng theo khu vực</label>
-          <p id="ghi-chu-diem-dung" class="nv-hint">Chọn nhóm tuyến trước để xem điểm hợp lệ.</p>
-          <div id="chon-diem-theo-khu-vuc"></div>
+          <div class="nv-tuyen-cot">
+            <section class="nv-tuyen-panel">
+              <div class="nv-tuyen-panel__tieu-de"><span class="nv-tuyen-buoc">1</span> Chọn khu vực <small id="dem-khu-vuc"></small></div>
+              <div id="khu-vuc-da-chon" class="nv-kv-da-chon"></div>
+              <select class="input-field nv-kv-loc" id="loc-tinh" title="Lọc khu vực theo tỉnh/thành"></select>
+              <div id="chon-khu-vuc" class="nv-kv-chips"></div>
+              <div class="nv-tuyen-panel__tieu-de"><span class="nv-tuyen-buoc">2</span> Bấm điểm để thêm vào lộ trình</div>
+              <div id="chon-diem" class="nv-tuyen-cuon"></div>
+            </section>
 
-          <label style="font-weight:600; font-size:14px; display:block; margin-top:20px;">Điểm dừng đã chọn (theo thứ tự xe đi qua)</label>
-          <p class="nv-hint">Điểm đầu/cuối bắt buộc là văn phòng. Số phút = thời gian từ điểm ngay trước đó.</p>
-          <div id="danh-sach-diem-form"></div>
+            <section class="nv-tuyen-panel nv-tuyen-panel--lo-trinh">
+              <div class="nv-tuyen-panel__tieu-de"><span class="nv-tuyen-buoc">3</span> Lộ trình chiều đi <small id="dem-diem"></small></div>
+              <div id="danh-sach-diem-form" class="nv-tuyen-cuon"></div>
+              <div id="tong-ket-lo-trinh" class="nv-tuyen-tong-ket"></div>
+            </section>
+          </div>
 
-          <div id="loi-form-tuyen" class="text-error" hidden style="margin-top:14px;"></div>
+          <div id="loi-form-tuyen" class="text-error" hidden></div>
           <div class="nv-modal__actions">
             <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
             <button type="submit" class="btn-primary" id="btn-submit-tuyen">Tạo tuyến</button>
@@ -109,73 +112,140 @@
     }
     document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
 
-    let dsNhomTuyen = [];
+    let dsKhuVuc = [];
+    let dsDiemDonTra = [];
     let dsTuyen = [];
+    let chuoiKhuVucTheoTuyen = new Map(); // tuyen_id -> { chuoi: [tên khu vực...], soDiem }
     let danhSachDiemState = [];
-    let diemKhaDungTheoNhom = []; // điểm thuộc khu vực của nhóm tuyến đang chọn
-    let thuTuKhuVucTheoNhom = {}; // khu_vuc_id -> thu_tu, của nhóm đang chọn
-    let chiTietNhomHienTai = null; // {id, ten, danh_sach_khu_vuc}, dùng để render nhóm chọn điểm theo khu vực
+    const khuVucDangChon = new Set(); // khu_vuc_id đang mở để chọn điểm (theo thứ tự bấm)
 
-    const selectNhomTuyen = document.getElementById("nhom_tuyen_id");
-    const ghiChuDiemDung = document.getElementById("ghi-chu-diem-dung");
+    const BANG_MAU_KHU_VUC = ["#5B3E96", "#0D9488", "#D97706", "#DB2777", "#2563EB", "#65A30D", "#DC2626", "#0891B2"];
 
     async function naploadDauVao() {
-      dsNhomTuyen = await apiGet("/quan-ly/nhom-tuyen");
-      selectNhomTuyen.innerHTML = dsNhomTuyen.length
-        ? dsNhomTuyen.map((n) => `<option value="${n.id}">${n.ten}</option>`).join("")
-        : '<option value="">Chưa có nhóm tuyến — tạo ở mục Nhóm tuyến trước</option>';
+      [dsKhuVuc, dsDiemDonTra] = await Promise.all([
+        apiGet("/quan-ly/khu-vuc"),
+        apiGet("/quan-ly/diem-don-tra"),
+      ]);
     }
 
-    async function khiDoiNhomTuyen() {
-      danhSachDiemState = [];
-      diemKhaDungTheoNhom = [];
-      thuTuKhuVucTheoNhom = {};
-      chiTietNhomHienTai = null;
+    function capNhatGiaoDienChonDiem() {
+      renderChonKhuVuc();
+      renderChonDiem();
+      renderDanhSachDiemForm();
+    }
 
-      const nhomTuyenId = selectNhomTuyen.value;
-      if (!nhomTuyenId) {
-        ghiChuDiemDung.textContent = "Chọn nhóm tuyến trước để xem các điểm hợp lệ.";
-        capNhatGiaoDienChonDiem();
-        return;
-      }
+    function tenKhuVucTheoId(khu_vuc_id) {
+      return dsKhuVuc.find((k) => k.id === khu_vuc_id)?.ten || "—";
+    }
 
-      ghiChuDiemDung.textContent = "Đang tải điểm thuộc nhóm tuyến...";
-      try {
-        const [chiTietNhom, tatCaDiem] = await Promise.all([
-          apiGet(`/quan-ly/nhom-tuyen/${nhomTuyenId}`),
-          apiGet("/quan-ly/diem-don-tra"),
-        ]);
-        chiTietNhomHienTai = chiTietNhom;
-        thuTuKhuVucTheoNhom = Object.fromEntries(chiTietNhom.danh_sach_khu_vuc.map((k) => [k.khu_vuc_id, k.thu_tu]));
-        diemKhaDungTheoNhom = tatCaDiem.filter((d) => d.khu_vuc_id in thuTuKhuVucTheoNhom);
-        ghiChuDiemDung.textContent = "Bấm vào 1 điểm bên dưới để thêm vào danh sách, đúng thứ tự khu vực đã cấu hình ở Nhóm tuyến — mỗi khu vực phải có ít nhất 1 điểm.";
-      } catch (err) {
-        ghiChuDiemDung.textContent = err.message;
+    function mauKhuVuc(khu_vuc_id) {
+      const idx = dsKhuVuc.findIndex((k) => k.id === khu_vuc_id);
+      return BANG_MAU_KHU_VUC[(idx < 0 ? 0 : idx) % BANG_MAU_KHU_VUC.length];
+    }
+
+    // ---------- Bước 1: chọn khu vực (bật/tắt), lọc theo tỉnh, mỗi tỉnh tối đa 1 khu vực ----------
+    function tinhCuaKhuVuc(khu_vuc_id) {
+      return dsKhuVuc.find((k) => k.id === khu_vuc_id)?.tinh_thanh || "";
+    }
+
+    function batTatKhuVuc(khu_vuc_id) {
+      if (khuVucDangChon.has(khu_vuc_id)) {
+        khuVucDangChon.delete(khu_vuc_id);
+        // Bỏ khu vực nào thì các điểm của khu vực đó cũng bị gỡ khỏi lộ trình
+        danhSachDiemState = danhSachDiemState.filter(
+          (d) => dsDiemDonTra.find((x) => x.id === d.diem_don_tra_id)?.khu_vuc_id !== khu_vuc_id
+        );
+      } else {
+        khuVucDangChon.add(khu_vuc_id);
       }
       capNhatGiaoDienChonDiem();
     }
 
-    selectNhomTuyen.addEventListener("change", khiDoiNhomTuyen);
+    function renderChonKhuVuc() {
+      document.getElementById("dem-khu-vuc").textContent = khuVucDangChon.size ? `đã chọn ${khuVucDangChon.size} khu vực` : "";
 
-    function capNhatGiaoDienChonDiem() {
-      renderChonDiemTheoKhuVuc();
-      renderDanhSachDiemForm();
-    }
+      // Khu vực đã chọn — luôn hiện, kể cả khi đang lọc sang tỉnh khác; có × để bỏ
+      const boxDaChon = document.getElementById("khu-vuc-da-chon");
+      boxDaChon.innerHTML = khuVucDangChon.size
+        ? [...khuVucDangChon]
+            .map(
+              (id) => `
+                <span class="nv-kv-da-chon__item" style="--kv:${mauKhuVuc(id)}">
+                  ${tenKhuVucTheoId(id)} <em>${tinhCuaKhuVuc(id)}</em>
+                  <button type="button" data-bo-kv="${id}" title="Bỏ khu vực này (các điểm đã chọn của khu vực cũng bị gỡ khỏi lộ trình)">×</button>
+                </span>`
+            )
+            .join("")
+        : '<span class="nv-kv-da-chon__trong">Chưa chọn khu vực nào</span>';
+      boxDaChon.querySelectorAll("[data-bo-kv]").forEach((btn) => {
+        btn.addEventListener("click", () => batTatKhuVuc(btn.dataset.boKv));
+      });
 
-    // ---------- Chọn điểm — hiển thị theo từng khu vực của nhóm, đúng thứ tự ----------
-    function renderChonDiemTheoKhuVuc() {
-      const container = document.getElementById("chon-diem-theo-khu-vuc");
+      const selLoc = document.getElementById("loc-tinh");
+      const locHienTai = selLoc.value;
+      const dsTinh = [...new Set(dsKhuVuc.map((k) => k.tinh_thanh))].sort((a, b) => a.localeCompare(b, "vi"));
+      selLoc.innerHTML =
+        `<option value="">Tất cả tỉnh/thành (${dsTinh.length})</option>` +
+        dsTinh.map((t) => `<option value="${t}">${t}</option>`).join("");
+      selLoc.value = dsTinh.includes(locHienTai) ? locHienTai : "";
 
-      if (!chiTietNhomHienTai) {
-        container.innerHTML = "";
+      const container = document.getElementById("chon-khu-vuc");
+      if (!dsKhuVuc.length) {
+        container.innerHTML = '<div class="nv-tuyen-trong">Chưa có khu vực nào — tạo ở mục Khu vực trước.</div>';
         return;
       }
 
-      container.innerHTML = chiTietNhomHienTai.danh_sach_khu_vuc
-        .map((kv) => {
-          const diemCuaKhuVuc = diemKhaDungTheoNhom.filter((d) => d.khu_vuc_id === kv.khu_vuc_id);
-          const noiDungDiem = diemCuaKhuVuc.length
-            ? diemCuaKhuVuc
+      const khuVucDaDungTheoTinh = {};
+      khuVucDangChon.forEach((id) => {
+        khuVucDaDungTheoTinh[tinhCuaKhuVuc(id)] ??= id;
+      });
+
+      const theoTinh = {};
+      dsKhuVuc
+        .filter((k) => !selLoc.value || k.tinh_thanh === selLoc.value)
+        .forEach((k) => (theoTinh[k.tinh_thanh] ||= []).push(k));
+
+      container.innerHTML = Object.keys(theoTinh)
+        .sort((a, b) => a.localeCompare(b, "vi"))
+        .map((tinh) => {
+          const chips = theoTinh[tinh]
+            .map((k) => {
+              const dangChon = khuVucDangChon.has(k.id);
+              const khuVucKhacCungTinh = khuVucDaDungTheoTinh[tinh];
+              const biKhoa = !dangChon && khuVucKhacCungTinh && khuVucKhacCungTinh !== k.id;
+              const soDiemTrongKv = dsDiemDonTra.filter((d) => d.khu_vuc_id === k.id).length;
+              const tieuDe = biKhoa ? `${tinh} đã chọn "${tenKhuVucTheoId(khuVucKhacCungTinh)}" — mỗi tỉnh chỉ chọn 1 khu vực` : "";
+              return `
+                <button type="button" class="nv-kv-chip${dangChon ? " is-active" : ""}" data-kv-id="${k.id}" style="--kv:${mauKhuVuc(k.id)}" title="${tieuDe}" ${biKhoa ? "disabled" : ""}>
+                  ${k.ten} <span class="nv-kv-chip__dem">${soDiemTrongKv}</span>
+                </button>`;
+            })
+            .join("");
+          return `<div class="nv-kv-nhom"><div class="nv-kv-nhom__tinh">${tinh}</div><div class="nv-kv-nhom__chips">${chips}</div></div>`;
+        })
+        .join("");
+
+      container.querySelectorAll(".nv-kv-chip").forEach((btn) => {
+        btn.addEventListener("click", () => batTatKhuVuc(btn.dataset.kvId));
+      });
+    }
+
+    document.getElementById("loc-tinh").addEventListener("change", renderChonKhuVuc);
+
+    // ---------- Bước 2: chỉ hiện điểm thuộc các khu vực đã mở ----------
+    function renderChonDiem() {
+      const container = document.getElementById("chon-diem");
+
+      if (!khuVucDangChon.size) {
+        container.innerHTML = '<div class="nv-tuyen-trong">Chọn ít nhất 1 khu vực ở trên để xem các điểm đón/trả của khu vực đó.</div>';
+        return;
+      }
+
+      container.innerHTML = [...khuVucDangChon]
+        .map((khuVucId) => {
+          const diemCuaKv = dsDiemDonTra.filter((d) => d.khu_vuc_id === khuVucId);
+          const noiDungDiem = diemCuaKv.length
+            ? diemCuaKv
                 .map((d) => {
                   const daChon = danhSachDiemState.some((x) => x.diem_don_tra_id === d.id);
                   return `
@@ -185,20 +255,20 @@
                   `;
                 })
                 .join("")
-            : '<span style="font-size:13px; color:var(--color-text-muted);">Chưa có điểm nào ở khu vực này</span>';
+            : '<span style="font-size:13px; color:var(--color-text-muted);">Khu vực này chưa có điểm đón/trả nào</span>';
 
           return `
-            <div class="nv-nhom-khu-vuc">
-              <div class="nv-nhom-khu-vuc__tieu-de">
-                <span class="nv-chi-tiet-tuyen__thu-tu">${kv.thu_tu}</span>
-                <strong>${kv.ten}</strong>
-              </div>
+            <div class="nv-nhom-khu-vuc" style="--kv:${mauKhuVuc(khuVucId)}">
+              <div class="nv-nhom-khu-vuc__tieu-de"><strong>${tenKhuVucTheoId(khuVucId)}</strong><span class="nv-nhom-khu-vuc__tinh">${tinhCuaKhuVuc(khuVucId)}</span><button type="button" class="nv-kv-dong" data-bo-kv="${khuVucId}" title="Bỏ khu vực này (các điểm đã chọn của khu vực cũng bị gỡ khỏi lộ trình)">×</button></div>
               <div class="nv-nhom-khu-vuc__diem">${noiDungDiem}</div>
             </div>
           `;
         })
         .join("");
 
+      container.querySelectorAll("[data-bo-kv]").forEach((btn) => {
+        btn.addEventListener("click", () => batTatKhuVuc(btn.dataset.boKv));
+      });
       container.querySelectorAll(".nv-chip-them-diem").forEach((btn) => {
         btn.addEventListener("click", () => {
           danhSachDiemState.push({ diem_don_tra_id: btn.dataset.diemId, phut_tu_diem_truoc: 0 });
@@ -207,35 +277,75 @@
       });
     }
 
-    function tenKhuVucTheoId(khu_vuc_id) {
-      return chiTietNhomHienTai?.danh_sach_khu_vuc.find((k) => k.khu_vuc_id === khu_vuc_id)?.ten || "—";
-    }
-
     function dinhDangNgayGio(iso) {
       return new Date(iso).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
     }
 
-    // ---------- Danh sách điểm dừng đã chọn — sắp thứ tự, đặt số phút dự kiến ----------
+    // Trả về tên khu vực đầu tiên bị đi xen kẽ (A → B → A), hoặc null nếu hợp lệ — khớp
+    // check ở backend (dia_diem_service._validate_tuyen), chỉ để báo lỗi sớm.
+    function timKhuVucBiXenKe() {
+      const daRoiDi = new Set();
+      let truoc = null;
+      for (const d of danhSachDiemState) {
+        const kvId = dsDiemDonTra.find((x) => x.id === d.diem_don_tra_id)?.khu_vuc_id;
+        if (truoc !== null && kvId !== truoc) daRoiDi.add(truoc);
+        if (daRoiDi.has(kvId)) return tenKhuVucTheoId(kvId);
+        truoc = kvId;
+      }
+      return null;
+    }
+
+    // ---------- Bước 3: lộ trình đã chọn — sắp thứ tự, đặt số phút dự kiến ----------
+    function capNhatTongKetLoTrinh() {
+      const tongKet = document.getElementById("tong-ket-lo-trinh");
+      const soDiem = danhSachDiemState.length;
+      document.getElementById("dem-diem").textContent = soDiem ? `${soDiem} điểm` : "";
+
+      if (soDiem < 2) {
+        tongKet.textContent = "Cần ít nhất 2 điểm: điểm đầu và điểm cuối.";
+        tongKet.classList.add("is-canh-bao");
+        return;
+      }
+
+      const loaiCuaDiem = (dong) => dsDiemDonTra.find((d) => d.id === dong.diem_don_tra_id)?.loai;
+      const tongPhut = danhSachDiemState.slice(1).reduce((t, d) => t + (Number(d.phut_tu_diem_truoc) || 0), 0);
+      const dauCuoiHopLe = loaiCuaDiem(danhSachDiemState[0]) === "van_phong" && loaiCuaDiem(danhSachDiemState[soDiem - 1]) === "van_phong";
+
+      const khuVucXenKe = timKhuVucBiXenKe();
+
+      tongKet.classList.toggle("is-canh-bao", !dauCuoiHopLe || !!khuVucXenKe);
+      if (khuVucXenKe) {
+        tongKet.textContent = `Khu vực "${khuVucXenKe}" bị xen kẽ với khu vực khác — các điểm cùng khu vực phải nằm liền nhau.`;
+      } else if (!dauCuoiHopLe) {
+        tongKet.textContent = "Điểm đầu và điểm cuối bắt buộc phải là văn phòng.";
+      } else {
+        tongKet.textContent = `Tổng thời gian dự kiến: ${Math.floor(tongPhut / 60)} giờ ${tongPhut % 60} phút · chiều về đi ngược lại đúng lộ trình này`;
+      }
+    }
+
     function renderDanhSachDiemForm() {
       const container = document.getElementById("danh-sach-diem-form");
+      capNhatTongKetLoTrinh();
 
       if (!danhSachDiemState.length) {
-        container.innerHTML = '<p style="font-size:13px; color:var(--color-text-muted);">Chưa có điểm dừng nào — bấm vào 1 điểm ở trên để thêm.</p>';
+        container.innerHTML = '<div class="nv-tuyen-trong">Chưa có điểm nào — mở khu vực ở bên trái rồi bấm vào điểm để thêm theo đúng thứ tự xe đi qua.</div>';
         return;
       }
 
       container.innerHTML = danhSachDiemState
         .map((dong, idx) => {
-          const diem = diemKhaDungTheoNhom.find((d) => d.id === dong.diem_don_tra_id);
+          const diem = dsDiemDonTra.find((d) => d.id === dong.diem_don_tra_id);
           const laDiemDau = idx === 0;
+          const mau = diem ? mauKhuVuc(diem.khu_vuc_id) : "#999";
           return `
-            <div class="nv-diem-row" data-idx="${idx}">
+            <div class="nv-diem-row" data-idx="${idx}" style="--kv:${mau}">
               <div class="nv-diem-row__ten">
+                <span class="nv-chi-tiet-tuyen__thu-tu">${idx + 1}</span>
                 ${diem ? diem.ten : "—"}
-                <span class="pill pill--khu-vuc">${diem ? tenKhuVucTheoId(diem.khu_vuc_id) : "—"}</span>
+                <span class="pill" style="background:${mau}22; color:${mau};">${diem ? tenKhuVucTheoId(diem.khu_vuc_id) : "—"}</span>
                 ${diem?.loai === "van_phong" ? '<span class="pill pill--primary">Văn phòng</span>' : '<span class="pill pill--diem-dung">Điểm dừng</span>'}
               </div>
-              <input class="input-field nv-diem-row__phut" type="number" min="0" value="${laDiemDau ? 0 : dong.phut_tu_diem_truoc}" placeholder="Phút từ điểm trước" ${laDiemDau ? "disabled title=\"Điểm xuất phát — không cần nhập\"" : ""} />
+              <input class="input-field nv-diem-row__phut" type="number" min="0" value="${laDiemDau ? 0 : dong.phut_tu_diem_truoc}" placeholder="Phút" ${laDiemDau ? "disabled title=\"Điểm xuất phát — không cần nhập\"" : "title=\"Số phút từ điểm ngay trước\""} />
               <button type="button" class="nv-diem-row__len" ${idx === 0 ? "disabled" : ""} title="Đưa lên trước">↑</button>
               <button type="button" class="nv-diem-row__xuong" ${idx === danhSachDiemState.length - 1 ? "disabled" : ""} title="Đưa xuống sau">↓</button>
               <button type="button" class="nv-diem-row__xoa" title="Xóa điểm này">×</button>
@@ -249,6 +359,7 @@
 
         row.querySelector(".nv-diem-row__phut").addEventListener("input", (e) => {
           danhSachDiemState[idx].phut_tu_diem_truoc = Number(e.target.value) || 0;
+          capNhatTongKetLoTrinh();
         });
         row.querySelector(".nv-diem-row__xoa").addEventListener("click", () => {
           danhSachDiemState.splice(idx, 1);
@@ -271,29 +382,46 @@
       });
     }
 
-    // Đơn điệu tăng hoặc giảm — khớp check phía backend (dia_diem_service._don_dieu),
-    // chỉ để báo lỗi sớm cho người dùng, backend vẫn là nơi validate thật.
-    function donDieu(day) {
-      let tang = true;
-      let giam = true;
-      for (let i = 1; i < day.length; i++) {
-        if (day[i] < day[i - 1]) tang = false;
-        if (day[i] > day[i - 1]) giam = false;
-      }
-      return tang || giam;
-    }
-
     // ---------- Danh sách tuyến + chi tiết ----------
     async function taiDanhSachTuyen() {
       const bangTuyen = document.getElementById("bang-tuyen");
       try {
         dsTuyen = await apiGet("/quan-ly/tuyen");
         document.getElementById("stat-so-luong").textContent = dsTuyen.length;
+
+        // Trình tự khu vực của từng tuyến (không lặp, theo đúng thứ tự xe đi qua) để hiện ngay ở danh sách
+        const chiTiets = await Promise.all(dsTuyen.map((t) => apiGet(`/quan-ly/tuyen/${t.id}`).catch(() => null)));
+        chuoiKhuVucTheoTuyen = new Map(
+          dsTuyen.map((t, idx) => {
+            const daThay = new Set();
+            const chuoi = [];
+            [...(chiTiets[idx]?.danh_sach_diem || [])]
+              .sort((a, b) => a.thu_tu - b.thu_tu)
+              .forEach((d) => {
+                if (!daThay.has(d.khu_vuc_id)) {
+                  daThay.add(d.khu_vuc_id);
+                  chuoi.push(d.ten_khu_vuc);
+                }
+              });
+            return [t.id, { chuoi, soDiem: chiTiets[idx]?.danh_sach_diem.length || 0 }];
+          })
+        );
+
         renderDataTable(
           bangTuyen,
           [
             { key: "ten", label: "Tên tuyến" },
-            { key: "nhom_tuyen_id", label: "Nhóm tuyến", render: (r) => `<span class="pill pill--nhom-tuyen">${dsNhomTuyen.find((n) => n.id === r.nhom_tuyen_id)?.ten || "—"}</span>` },
+            {
+              key: "lo_trinh",
+              label: "Trình tự khu vực",
+              render: (r) => {
+                const { chuoi, soDiem } = chuoiKhuVucTheoTuyen.get(r.id);
+                if (!chuoi.length) return '<span class="nv-text-phu">—</span>';
+                return `<div class="nv-chuoi-khu-vuc">${chuoi
+                  .map((ten) => `<span class="pill pill--khu-vuc">${ten}</span>`)
+                  .join('<span class="nv-chuoi-khu-vuc__mui-ten">→</span>')}<span class="nv-text-phu">· ${soDiem} điểm</span></div>`;
+              },
+            },
             { key: "ngay_tao", label: "Ngày tạo", render: (r) => `<span class="nv-text-phu">${dinhDangNgayGio(r.ngay_tao)}</span>` },
           ],
           dsTuyen,
@@ -317,8 +445,18 @@
       try {
         const chiTiet = await apiGet(`/quan-ly/tuyen/${tuyen.id}`);
         const danhSach = [...chiTiet.danh_sach_diem].sort((a, b) => a.thu_tu - b.thu_tu);
+        const dinhDangTichLuy = (phut) => (phut >= 60 ? `${Math.floor(phut / 60)} giờ ${phut % 60} phút` : `${phut} phút`);
+
         container.innerHTML = `
-          <div class="nv-chi-tiet-tuyen">
+          <div class="nv-lt">
+            <div class="nv-lt__hang nv-lt__hang--dau">
+              <span>#</span>
+              <span>Điểm dừng</span>
+              <span>Khu vực</span>
+              <span>Loại</span>
+              <span class="nv-lt__so">Từ điểm trước</span>
+              <span class="nv-lt__so">Từ xuất phát</span>
+            </div>
             ${danhSach
               .map((d, idx) => {
                 // thoi_gian_du_kien_phut lưu ở server là cộng dồn từ giờ khởi
@@ -330,14 +468,15 @@
                 // điểm trước") — tô đỏ để dễ nhận ra cần sửa lại, không gắn
                 // cứng dấu "+" kẻo hiện "+-" xấu và sai nghĩa.
                 const laBatThuong = phutTuDiemTruoc < 0;
-                const nhanPhut = idx === 0 ? "Điểm xuất phát" : `${phutTuDiemTruoc > 0 ? "+" : ""}${phutTuDiemTruoc} phút`;
+                const nhanPhut = idx === 0 ? "Xuất phát" : `${phutTuDiemTruoc > 0 ? "+" : ""}${phutTuDiemTruoc} phút`;
                 return `
-                <div class="nv-chi-tiet-tuyen__diem">
+                <div class="nv-lt__hang">
                   <span class="nv-chi-tiet-tuyen__thu-tu">${d.thu_tu}</span>
-                  <span>${d.ten}</span>
-                  <span class="pill pill--khu-vuc">${d.ten_khu_vuc}</span>
-                  ${d.loai === "van_phong" ? '<span class="pill pill--primary">Văn phòng</span>' : '<span class="pill pill--diem-dung">Điểm dừng</span>'}
-                  <span style="margin-left:auto; font-size:13px; color:${laBatThuong ? "var(--color-danger)" : "var(--color-text-muted)"};" title="${laBatThuong ? "Điểm này đến trước điểm trước đó theo dữ liệu đang lưu — sửa lại tuyến để khớp đúng thứ tự thời gian" : ""}">${nhanPhut}</span>
+                  <span class="nv-lt__ten">${d.ten}</span>
+                  <span><span class="pill pill--khu-vuc">${d.ten_khu_vuc}</span></span>
+                  <span>${d.loai === "van_phong" ? '<span class="pill pill--primary">Văn phòng</span>' : '<span class="pill pill--diem-dung">Điểm dừng</span>'}</span>
+                  <span class="nv-lt__so${laBatThuong ? " is-loi" : ""}" title="${laBatThuong ? "Điểm này đến trước điểm trước đó theo dữ liệu đang lưu — sửa lại tuyến để khớp đúng thứ tự thời gian" : ""}">${nhanPhut}</span>
+                  <span class="nv-lt__so">${dinhDangTichLuy(d.thoi_gian_du_kien_phut)}</span>
                 </div>
               `;
               })
@@ -364,19 +503,17 @@
     const form = document.getElementById("form-tuyen");
     const loiFormTuyen = document.getElementById("loi-form-tuyen");
 
-    document.getElementById("btn-them").addEventListener("click", async () => {
-      if (!dsNhomTuyen.length) {
-        alert("Cần tạo ít nhất 1 nhóm tuyến trước (mục Nhóm tuyến ở menu bên trái)");
-        return;
-      }
+    document.getElementById("btn-them").addEventListener("click", () => {
       document.getElementById("modal-tieu-de").textContent = "Tạo tuyến mới";
       document.getElementById("btn-submit-tuyen").textContent = "Tạo tuyến";
       form.reset();
       document.getElementById("tuyen_id").value = "";
       danhSachDiemState = [];
+      khuVucDangChon.clear();
+      document.getElementById("loc-tinh").value = "";
       loiFormTuyen.hidden = true;
       modalOverlay.hidden = false;
-      await khiDoiNhomTuyen();
+      capNhatGiaoDienChonDiem();
     });
 
     async function moModalSua(tuyen) {
@@ -390,9 +527,6 @@
         loiFormTuyen.hidden = true;
         modalOverlay.hidden = false;
 
-        selectNhomTuyen.value = chiTiet.nhom_tuyen_id;
-        await khiDoiNhomTuyen(); // tải điểm hợp lệ của đúng nhóm tuyến này (tự reset danhSachDiemState = [])
-
         // thoi_gian_du_kien_phut lưu ở server là cộng dồn từ giờ khởi hành —
         // đổi lại thành "phút từ điểm trước" để khớp đúng cách nhập của form.
         const danhSachSort = [...chiTiet.danh_sach_diem].sort((a, b) => a.thu_tu - b.thu_tu);
@@ -400,6 +534,10 @@
           diem_don_tra_id: d.diem_don_tra_id,
           phut_tu_diem_truoc: idx === 0 ? 0 : d.thoi_gian_du_kien_phut - danhSachSort[idx - 1].thoi_gian_du_kien_phut,
         }));
+        khuVucDangChon.clear();
+        document.getElementById("loc-tinh").value = "";
+        chiTiet.danh_sach_diem.forEach((d) => khuVucDangChon.add(dsDiemDonTra.find((x) => x.id === d.diem_don_tra_id)?.khu_vuc_id));
+        khuVucDangChon.delete(undefined);
         capNhatGiaoDienChonDiem();
       } catch (err) {
         alert(err.message);
@@ -413,35 +551,29 @@
       e.preventDefault();
       loiFormTuyen.hidden = true;
 
-      if (!selectNhomTuyen.value) {
-        loiFormTuyen.textContent = "Phải chọn 1 nhóm tuyến";
-        loiFormTuyen.hidden = false;
-        return;
-      }
       if (danhSachDiemState.length < 2) {
         loiFormTuyen.textContent = "Cần ít nhất 2 điểm dừng (điểm đầu và điểm cuối)";
         loiFormTuyen.hidden = false;
         return;
       }
 
-      const khuVucDaDung = new Set(
-        danhSachDiemState.map((d) => diemKhaDungTheoNhom.find((x) => x.id === d.diem_don_tra_id)?.khu_vuc_id)
-      );
-      const khuVucThieu = (chiTietNhomHienTai?.danh_sach_khu_vuc || []).filter((k) => !khuVucDaDung.has(k.khu_vuc_id));
-      if (khuVucThieu.length) {
-        loiFormTuyen.textContent = `Cần chọn ít nhất 1 điểm ở mỗi khu vực của nhóm tuyến — còn thiếu: ${khuVucThieu.map((k) => k.ten).join(", ")}`;
+      const khuVucXenKe = timKhuVucBiXenKe();
+      if (khuVucXenKe) {
+        loiFormTuyen.textContent = `Các điểm thuộc khu vực "${khuVucXenKe}" phải nằm liền nhau — không được xen kẽ với khu vực khác`;
         loiFormTuyen.hidden = false;
         return;
       }
 
-      const dayThuTuKhuVuc = danhSachDiemState.map((d) => {
-        const diem = diemKhaDungTheoNhom.find((x) => x.id === d.diem_don_tra_id);
-        return thuTuKhuVucTheoNhom[diem?.khu_vuc_id];
-      });
-      if (!donDieu(dayThuTuKhuVuc)) {
-        loiFormTuyen.textContent = "Thứ tự điểm dừng không khớp thứ tự khu vực của nhóm tuyến — không được chọn xen kẽ lộn xộn";
-        loiFormTuyen.hidden = false;
-        return;
+      const khuVucTheoTinh = {};
+      for (const d of danhSachDiemState) {
+        const kvId = dsDiemDonTra.find((x) => x.id === d.diem_don_tra_id)?.khu_vuc_id;
+        const tinh = tinhCuaKhuVuc(kvId);
+        if (khuVucTheoTinh[tinh] && khuVucTheoTinh[tinh] !== kvId) {
+          loiFormTuyen.textContent = `Tỉnh/thành "${tinh}" đang có 2 khu vực khác nhau trong lộ trình — mỗi tỉnh chỉ được đi qua 1 khu vực`;
+          loiFormTuyen.hidden = false;
+          return;
+        }
+        khuVucTheoTinh[tinh] = kvId;
       }
 
       // Server lưu thoi_gian_du_kien_phut kiểu "cộng dồn từ giờ khởi hành"
@@ -455,7 +587,6 @@
 
       const payload = {
         ten: document.getElementById("ten_tuyen").value.trim(),
-        nhom_tuyen_id: selectNhomTuyen.value,
         danh_sach_diem: danhSachDiemDeGui,
       };
 

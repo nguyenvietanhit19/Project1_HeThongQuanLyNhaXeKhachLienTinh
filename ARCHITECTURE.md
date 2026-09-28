@@ -68,7 +68,7 @@ project-root/
 │   │   │   ├── nhan_vien_van_hanh_repository.py  # hồ sơ tài xế/phụ xe + xe_nhan_su (mục 3.2)
 │   │   │   ├── khu_vuc_repository.py
 │   │   │   ├── diem_don_tra_repository.py
-│   │   │   ├── tuyen_repository.py            # tuyen + tuyen_diem_don_tra + nhom_tuyen
+│   │   │   ├── tuyen_repository.py            # tuyen (chạy cả 2 chiều) + tuyen_diem_don_tra
 │   │   │   ├── gia_ve_repository.py
 │   │   │   ├── xe_repository.py
 │   │   │   ├── chuyen_xe_repository.py

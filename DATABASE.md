@@ -112,45 +112,29 @@ Tầng chi tiết, nằm trong 1 `khu_vuc` — mọi điểm ở đây đều l�
 
 Không có bảng `ben_xe` riêng — `loai = 'van_phong'` chính là "văn phòng/bến xe" (mục 3.1, tránh trùng lặp dữ liệu).
 
-### 2.3. `nhom_tuyen`, `nhom_tuyen_khu_vuc` và `tuyen`
+### 2.3. `tuyen`
 
-| `nhom_tuyen` | Kiểu | Ghi chú |
-|---|---|---|
-| `id` | UUID PK | |
-| `ten` | TEXT NOT NULL | VD `"Hà Nội – Sapa"` — gộp các `tuyen` chạy trên cùng 1 hành trình vật lý (2 chiều), dùng cho ràng buộc xe cố định theo tuyến (mục 3.2) |
-
-`nhom_tuyen_khu_vuc` — mỗi nhóm tuyến gắn với 1 danh sách `khu_vuc` **có thứ tự** dọc hành trình vật lý (không giới hạn đúng 2 tỉnh — nhiều `khu_vuc` nếu hành trình đi qua nhiều tỉnh). `quan_ly` cấu hình khi tạo/sửa `nhom_tuyen` (mục Nhóm tuyến, tách riêng khỏi form tạo `tuyen`).
+**Không còn bảng `nhom_tuyen`/`nhom_tuyen_khu_vuc`** (khác thiết kế trước) — mỗi `tuyen` giờ tự thân đại diện **cả 1 hành trình vật lý, chạy được cả 2 chiều** (`NGHIEP_VU.md` mục 3.1), không cần gộp nhóm để biểu diễn 2 chiều nữa. Hệ quả: cũng không còn cơ chế kiểm tra chéo "điểm dừng phải thuộc khu vực đã khai báo cho nhóm" — mỗi `tuyen` độc lập hoàn toàn, không có gì để đối chiếu cùng nữa. 2 biến thể nhanh/chậm trên cùng 1 hành trình vật lý giờ là **2 `tuyen` tách biệt hoàn toàn**, không liên kết gì với nhau.
 
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | UUID PK | |
-| `nhom_tuyen_id` | UUID NOT NULL, FK → `nhom_tuyen(id)` | |
-| `khu_vuc_id` | UUID NOT NULL, FK → `khu_vuc(id)` | |
-| `thu_tu` | INTEGER NOT NULL | Thứ tự khu vực dọc hành trình vật lý (không phải thứ tự riêng của 1 chiều `tuyen`) |
-
-UNIQUE: (`nhom_tuyen_id`, `thu_tu`) và (`nhom_tuyen_id`, `khu_vuc_id`) — 1 khu vực không xuất hiện 2 lần trong cùng 1 nhóm tuyến.
-
-Dùng để: (1) khi tạo `tuyen`, chỉ được chọn `diem_don_tra` thuộc `khu_vuc` đã có trong `nhom_tuyen_khu_vuc` của nhóm; (2) thứ tự `tuyen_diem_don_tra.thu_tu` phải khớp thứ tự `thu_tu` của khu vực tương ứng trong nhóm — đơn điệu tăng dần **hoặc** giảm dần (2 chiều đi/về của cùng 1 nhóm), không được chọn xen kẽ lộn xộn. Validate ở Service (mục 2.4 dưới).
-
-| `tuyen` | Kiểu | Ghi chú |
-|---|---|---|
-| `id` | UUID PK | |
-| `nhom_tuyen_id` | UUID NOT NULL, FK → `nhom_tuyen(id)` | |
-| `ten` | TEXT NOT NULL | VD `"Yên Nghĩa → Sapa"` — 1 chiều duy nhất (mục 3.1) |
+| `ten` | TEXT NOT NULL | VD `"Hà Nội – Sapa"` — đặt tên theo hành trình vật lý, không còn theo 1 chiều cụ thể |
+| `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
 
 ### 2.4. `tuyen_diem_don_tra`
 
-Chuỗi điểm có thứ tự của 1 tuyến — chứa **mọi** điểm xe thực sự đi qua (`van_phong` lẫn `diem_dung`, mục 3.1).
+Chuỗi điểm có thứ tự của 1 tuyến — chứa **mọi** điểm xe thực sự đi qua (`van_phong` lẫn `diem_dung`, mục 3.1), theo đúng **1 chiều quy ước duy nhất gọi là "chiều xuôi"**. Chiều ngược **không lưu danh sách riêng** — suy ra bằng cách đọc chính bảng này theo `thu_tu` giảm dần (mục 3.1 `NGHIEP_VU.md`) — nhờ vậy 2 chiều của cùng 1 tuyến **chắc chắn đi qua đúng cùng 1 tập điểm dừng**, không thể lệch nhau.
 
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | UUID PK | |
 | `tuyen_id` | UUID NOT NULL, FK → `tuyen(id)` | |
 | `diem_don_tra_id` | UUID NOT NULL, FK → `diem_don_tra(id)` | |
-| `thu_tu` | INTEGER NOT NULL | Dùng cho cơ chế chống trùng ghế theo khoảng `[thu_tu, thu_tu)` (mục 6) |
-| `thoi_gian_du_kien_phut` | INTEGER NOT NULL | Số phút lệch so với `chuyen_xe.gio_khoi_hanh` |
+| `thu_tu` | INTEGER NOT NULL | Thứ tự theo **chiều xuôi**. Dùng cho cơ chế chống trùng ghế theo khoảng `[thu_tu, thu_tu)` (mục 6) — chuyến `chieu = nguoc` đảo dấu trước khi so sánh (mục 6 file này) |
+| `thoi_gian_du_kien_phut` | INTEGER NOT NULL | Số phút lệch so với `chuyen_xe.gio_khoi_hanh`, **tính theo chiều xuôi** kể từ điểm đầu tiên. Chuyến `chieu = nguoc` suy ra thời gian giữa 2 điểm liền kề bằng đúng độ lớn này (giả định thời gian di chuyển giữa 2 điểm là như nhau ở cả 2 chiều — đơn giản hóa có chủ đích, `NGHIEP_VU.md` mục 3.1) |
 
-UNIQUE: (`tuyen_id`, `thu_tu`) và (`tuyen_id`, `diem_don_tra_id`) — 1 điểm không xuất hiện 2 lần trong cùng 1 tuyến. Điểm có `thu_tu` nhỏ nhất và lớn nhất của mỗi tuyến bắt buộc `loai = 'van_phong'` (kiểm tra ở Service). Mỗi điểm phải thuộc 1 `khu_vuc` có trong `nhom_tuyen_khu_vuc` của `tuyen.nhom_tuyen_id`, và dãy `khu_vuc.thu_tu` tương ứng (theo đúng thứ tự `thu_tu` của bảng này) phải đơn điệu tăng dần hoặc giảm dần — không xen kẽ lộn xộn (mục 2.3, kiểm tra ở Service).
+UNIQUE: (`tuyen_id`, `thu_tu`) và (`tuyen_id`, `diem_don_tra_id`) — 1 điểm không xuất hiện 2 lần trong cùng 1 tuyến. Điểm có `thu_tu` nhỏ nhất và lớn nhất của mỗi tuyến bắt buộc `loai = 'van_phong'` (kiểm tra ở Service). Không còn ràng buộc nào đối chiếu với bảng khác (khác thiết kế trước dùng `nhom_tuyen_khu_vuc`) — quản lý tự nhập đúng thứ tự thực tế xe đi qua.
 
 ### 2.5. `gia_ve`
 
@@ -192,7 +176,7 @@ Danh mục loại xe — **`quan_ly` tự thêm/sửa tùy ý** (VD "Ghế ngồ
 | `loai_xe_id` | UUID NOT NULL, FK → `loai_xe(id)` | Quyết định sơ đồ ghế, hệ số giá (mục 3.1 file này) — **đây là thuộc tính duy nhất phân biệt "loại" của 1 xe** |
 | `trang_thai` | TEXT NOT NULL DEFAULT `'hoat_dong'`, CHECK IN (`hoat_dong`, `bao_tri`, `ngung_su_dung`) | Xe `bao_tri`/`ngung_su_dung` không được gán chuyến mới (Service kiểm tra) |
 | `diem_goc_id` | UUID NOT NULL, FK → `diem_don_tra(id)` | Phải `loai = 'van_phong'` — vị trí khởi điểm khi chưa chạy chuyến nào (mục 3.3 `NGHIEP_VU.md`) |
-| `nhom_tuyen_id` | UUID NULLABLE, FK → `nhom_tuyen(id)` | `NULL` = xe dự phòng, dùng linh hoạt cho mọi tuyến (mục 3.1/3.2 `NGHIEP_VU.md`) |
+| `tuyen_id` | UUID NULLABLE, FK → `tuyen(id)` | `NULL` = xe dự phòng, dùng linh hoạt cho mọi tuyến. Có giá trị = xe cố định đúng tuyến này (**cả 2 chiều**, mục 3.1/3.2 `NGHIEP_VU.md`) |
 
 **Vị trí hiện tại của xe không lưu thành cột** — suy ra động từ `diem_goc_id` + chuyến gần nhất đã hoàn thành của xe đó (mục 3.3 `NGHIEP_VU.md`, xem mục 7 file này).
 
@@ -202,6 +186,7 @@ Danh mục loại xe — **`quan_ly` tự thêm/sửa tùy ý** (VD "Ghế ngồ
 |---|---|---|
 | `id` | UUID PK | |
 | `tuyen_id` | UUID NOT NULL, FK → `tuyen(id)` | |
+| `chieu` | TEXT NOT NULL, CHECK IN (`xuoi`, `nguoc`) | Chiều chạy của đúng lần chạy này — copy từ `lich_chay_dinh_ky.chieu` lúc sinh chuyến (mục 3.5 file này). Quyết định thứ tự điểm dừng hiệu lực (`NGHIEP_VU.md` mục 3.1/3.4/6) |
 | `xe_id` | UUID NULLABLE, FK → `xe(id)` | **Xe gốc** — quyết định biên chế tài xế/phụ xe (mục 3.2) và vị trí suy luận cho các chuyến sau (mục 3.3). **Không đổi** khi xe hỏng — xem `xe_thuc_te_id`. **`NULL`** = chuyến đã sinh sẵn từ lịch chạy định kỳ nhưng **chưa được gán xe cụ thể** (mục 3.5 `NGHIEP_VU.md`, UC-44) — vẫn bán vé bình thường dựa vào `loai_xe_id` bên dưới, biên chế tài xế/phụ xe và vị trí suy luận chỉ có ý nghĩa từ lúc gán xe. Nếu còn `NULL` khi tới đúng `gio_khoi_hanh` → job tự động bật `dang_hoan` (UC-45, mục 3.3) — không tự hủy |
 | `loai_xe_id` | UUID NOT NULL, FK → `loai_xe(id)` | Loại xe **cam kết** phục vụ chuyến này (copy từ `lich_chay_dinh_ky.loai_xe_id` lúc sinh chuyến) — dùng để hiển thị sơ đồ ghế + tính giá **ngay cả khi chưa gán `xe_id`** (mục 3.5 `NGHIEP_VU.md`). Khi gán `xe_id`, Service bắt buộc `xe.loai_xe_id = chuyen_xe.loai_xe_id` |
 | `lich_chay_dinh_ky_id` | UUID NULLABLE, FK → `lich_chay_dinh_ky(id)` | Lịch chạy định kỳ đã sinh ra chuyến này (mục 3.5) — `NULL` nếu chuyến được tạo cách khác (không bắt buộc phải qua lịch định kỳ, dự phòng cho các trường hợp đặc biệt) |
@@ -216,7 +201,7 @@ Danh mục loại xe — **`quan_ly` tự thêm/sửa tùy ý** (VD "Ghế ngồ
 | `co_canh_bao_xung_dot_vi_tri` | BOOLEAN NOT NULL DEFAULT false | Set `true` cho mọi chuyến `chua_khoi_hanh` cùng `xe_id` ngay khi 1 chuyến trước đó của xe này chuyển `gap_su_co` giữa đường (mục 3.3) — bất kể sau đó tự khắc phục, delay dài, hay `da_huy`. Điều độ viên xem lại thủ công sau khi sự cố resolve: nếu xe vẫn tới kịp thì chỉ chỉnh giờ rồi gỡ cờ; nếu không tới kịp thì xử lý qua UC-20 (tìm xe thay thế/hoãn) trước khi gỡ cờ. **Không dùng cho trường hợp đổi xe thực tế trước giờ chạy** (đã có `xe_thuc_te_id` xử lý riêng, không làm lệch vị trí suy luận của `xe_id`) |
 | `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
 
-Ràng buộc "không trùng lịch", "đúng vị trí xe", "đúng nhóm tuyến" (mục 3.2/3.3) đều kiểm tra ở Service lúc `INSERT`/`UPDATE xe_id`, không phải constraint DB. Ràng buộc "cùng `loai_xe`" khi gán `xe_thuc_te_id` cũng kiểm tra ở Service. **Xe thuê ngoài** (mục 3.3, khi hết xe dự phòng nội bộ) không cần cột/bảng riêng — chỉ là 1 bản ghi `xe` bình thường được điều độ viên thêm tạm vào hệ thống, đủ điều kiện `loai_xe`/vị trí như xe nội bộ.
+Ràng buộc "không trùng lịch", "đúng vị trí xe", "đúng tuyến cố định của xe" (mục 3.2/3.3) đều kiểm tra ở Service lúc `INSERT`/`UPDATE xe_id`, không phải constraint DB. Ràng buộc "cùng `loai_xe`" khi gán `xe_thuc_te_id` cũng kiểm tra ở Service. **Xe thuê ngoài** (mục 3.3, khi hết xe dự phòng nội bộ) không cần cột/bảng riêng — chỉ là 1 bản ghi `xe` bình thường được điều độ viên thêm tạm vào hệ thống, đủ điều kiện `loai_xe`/vị trí như xe nội bộ.
 
 ### 3.4. `lich_su_diem_dung_chuyen`
 
@@ -239,6 +224,7 @@ Do `quan_ly` thiết lập (mục 3.5/8.7 `NGHIEP_VU.md`, UC-18) — nguồn duy
 |---|---|---|
 | `id` | UUID PK | |
 | `tuyen_id` | UUID NOT NULL, FK → `tuyen(id)` | |
+| `chieu` | TEXT NOT NULL, CHECK IN (`xuoi`, `nguoc`) | Tuyến giờ chạy được cả 2 chiều (mục 2.3) nên phải chọn rõ dòng lịch này chạy chiều nào — copy sang `chuyen_xe.chieu` mỗi lần sinh chuyến |
 | `gio_khoi_hanh` | TIME NOT NULL | Giờ khởi hành trong ngày (không phải ngày cụ thể) — dùng làm mẫu để job định kỳ sinh `chuyen_xe.gio_khoi_hanh` (kèm ngày cụ thể) mỗi ngày |
 | `loai_xe_id` | UUID NOT NULL, FK → `loai_xe(id)` | Loại xe dự kiến phục vụ khung giờ này — copy sang `chuyen_xe.loai_xe_id` mỗi lần sinh chuyến |
 | `dang_ap_dung` | BOOLEAN NOT NULL DEFAULT true | `false` = ngừng sinh chuyến mới từ lịch này — **không xóa/ảnh hưởng** các `chuyen_xe` đã sinh sẵn trước đó |
@@ -389,10 +375,10 @@ Nhất quán với nguyên tắc "tính động qua query, không cache số li�
 
 | Giá trị | Cách tính |
 |---|---|
-| Vị trí suy luận theo lịch trình của 1 xe gốc (mục 3.3) | Tính theo `chuyen_xe.xe_id` (**không phải** `xe_thuc_te_id`) — nếu chưa có `chuyen_xe` nào kết thúc trước thời điểm xét → `xe.diem_goc_id`. Ngược lại → điểm cuối cùng (`thu_tu` lớn nhất trong `tuyen_diem_don_tra` của tuyến chuyến đó, luôn `loai = 'van_phong'`) của `chuyen_xe` gần nhất (theo `gio_khoi_hanh`) có `xe_id` khớp, kết thúc trước thời điểm xét. Dùng để kiểm tra tính liên tục khi **gán xe** cho chuyến (UC-44) — **không đổi** dù chuyến đang chạy bằng xe thực tế khác. Chỉ tính được cho chuyến đã có `xe_id` — chuyến `xe_id IS NULL` (chưa gán xe, mục 3.5 `NGHIEP_VU.md`) chưa có vị trí nào để suy luận |
+| Vị trí suy luận theo lịch trình của 1 xe gốc (mục 3.3) | Tính theo `chuyen_xe.xe_id` (**không phải** `xe_thuc_te_id`) — nếu chưa có `chuyen_xe` nào kết thúc trước thời điểm xét → `xe.diem_goc_id`. Ngược lại → điểm cuối cùng theo hướng thực sự chạy của `chuyen_xe` gần nhất (theo `gio_khoi_hanh`) có `xe_id` khớp, kết thúc trước thời điểm xét — **`thu_tu` lớn nhất nếu `chieu = xuoi`, `thu_tu` nhỏ nhất nếu `chieu = nguoc`** (luôn `loai = 'van_phong'` ở cả 2 trường hợp, vì 2 đầu tuyến bắt buộc là văn phòng). Dùng để kiểm tra tính liên tục khi **gán xe** cho chuyến (UC-44) — **không đổi** dù chuyến đang chạy bằng xe thực tế khác. Chỉ tính được cho chuyến đã có `xe_id` — chuyến `xe_id IS NULL` (chưa gán xe, mục 3.5 `NGHIEP_VU.md`) chưa có vị trí nào để suy luận |
 | Phương tiện vật lý thực sự chạy 1 chuyến cụ thể (mục 3.3) | `COALESCE(chuyen_xe.xe_thuc_te_id, chuyen_xe.xe_id)` — dùng để hiển thị biển số cho khách và theo dõi vị trí vật lý thật. Kết quả `NULL` = chuyến chưa gán xe, hệ thống hiển thị tên `loai_xe` thay vì biển số |
 | "Chuyến của tôi" của 1 phụ xe (mục 3.2) | `chuyen_xe` có `xe_id` khớp 1 dòng `xe_nhan_su(nhan_su_van_hanh_id = X, trang_thai = 'dang_hoat_dong')` tại thời điểm truy vấn — chuyến `xe_id IS NULL` chưa thuộc về phụ xe nào |
-| Ghế còn trống cho 1 đoạn `[don, tra)` (mục 6) | Không tồn tại `ve` nào cùng `(chuyen_id, so_ghe)`, trạng thái `giu_cho`/`da_thanh_toan`, có khoảng `[thu_tu(diem_don), thu_tu(diem_tra))` giao với đoạn đang xét — dùng `chuyen_xe.loai_xe_id.so_do_ghe` để biết tổng số ghế, không cần `xe_id` đã gán hay chưa |
+| Ghế còn trống cho 1 đoạn `[don, tra)` (mục 6) | Không tồn tại `ve` nào cùng `(chuyen_id, so_ghe)`, trạng thái `giu_cho`/`da_thanh_toan`, có khoảng `[thu_tu(diem_don), thu_tu(diem_tra))` giao với đoạn đang xét — **`thu_tu` dùng ở đây là `thu_tu` hiệu lực theo `chieu` của chuyến** (đảo dấu nếu `chieu = nguoc`, mục 2.4) — dùng `chuyen_xe.loai_xe_id.so_do_ghe` để biết tổng số ghế, không cần `xe_id` đã gán hay chưa |
 | Số lần vi phạm no-show của 1 khách hàng (mục 9) | Đếm `ve` của khách có `trang_thai = 'khong_den'` — nhóm theo `khach_hang_id`, lọc theo khoảng thời gian gần nhất (không còn cần xét `het_han`, vì "thanh toán tại quầy" không có `het_han` do hết hạn nữa, mục 3.4/6 `NGHIEP_VU.md`) |
 | Tỷ lệ lấp đầy ghế của 1 chuyến (mục 8.6 điểm 2) | `COUNT(ve active)` / tổng số ghế trong `loai_xe.so_do_ghe` của `chuyen_xe.loai_xe_id` — chỉ để thống kê, **không** dùng để hủy chuyến |
 | Giá vé thực tế của 1 chuyến cho 1 cặp điểm (mục 2.5, mục 3.1 file này) | `gia_ve.gia_goc × loai_xe.he_so_gia` của **`chuyen_xe.loai_xe_id`** (loại xe cam kết, mục 3.5 `NGHIEP_VU.md`) — nhân lúc truy vấn, **không lưu thành cột riêng** cho từng tổ hợp (tuyến × cặp điểm × loại xe), tránh bùng nổ số dòng cần nhập tay khi có nhiều loại xe. Tính được **ngay từ khi chuyến được sinh ra**, không cần đợi gán `xe_id` |
@@ -414,13 +400,12 @@ nhan_su_van_hanh 1──N xe_nhan_su
 xe 1──N xe_nhan_su
 
 khu_vuc 1──N diem_don_tra
-nhom_tuyen 1──N tuyen
 tuyen 1──N tuyen_diem_don_tra N──1 diem_don_tra
 khu_vuc 1──N gia_ve (diem_di_id), khu_vuc 1──N gia_ve (diem_den_id)
 tuyen 1──N gia_ve
 
 diem_don_tra 1──1 xe (diem_goc_id)
-nhom_tuyen 0──N xe
+tuyen 0──N xe
 loai_xe 1──N xe
 
 xe 0──N chuyen_xe        (xe_id — xe gốc, nullable tới khi gán xe)

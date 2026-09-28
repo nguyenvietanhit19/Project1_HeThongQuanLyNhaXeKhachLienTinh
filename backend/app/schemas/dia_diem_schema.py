@@ -46,52 +46,24 @@ class DiemDonTraResponse(BaseModel):
 
 
 # ---------------------------------------------------------
-# 3. Nhóm tuyến — quản lý riêng, gắn 1 danh sách khu vực có thứ tự dọc
-# hành trình vật lý. Tạo tuyến chỉ được chọn nhóm đã có sẵn (không tạo
-# nhanh trong form tuyến nữa).
-# ---------------------------------------------------------
-class NhomTuyenRequest(BaseModel):
-    ten: str = Field(..., min_length=1, description='VD "Hà Nội – Sapa" (gộp cả 2 chiều đi/về)')
-    danh_sach_khu_vuc_id: list[UUID] = Field(
-        ..., min_length=2, description="Theo đúng thứ tự dọc hành trình vật lý — server tự gán thu_tu theo vị trí trong mảng"
-    )
-
-
-class NhomTuyenResponse(BaseModel):
-    id: UUID
-    ten: str
-    ngay_tao: datetime
-
-
-class KhuVucTrongNhomTuyenResponse(BaseModel):
-    khu_vuc_id: UUID
-    ten: str
-    tinh_thanh: str
-    thu_tu: int
-
-
-class NhomTuyenChiTietResponse(NhomTuyenResponse):
-    danh_sach_khu_vuc: list[KhuVucTrongNhomTuyenResponse]
-
-
-# ---------------------------------------------------------
-# 4. Tuyến (UC-31)
+# 3. Tuyến (UC-31) — không còn khái niệm "nhóm tuyến": 1 tuyến tự thân đại
+# diện cả 1 hành trình vật lý, chạy được CẢ 2 CHIỀU. Danh sách điểm dừng
+# nhập theo đúng "chiều xuôi" — chiều ngược suy ra bằng cách đọc lại danh
+# sách này theo thu_tu giảm dần, không nhập riêng (NGHIEP_VU.md mục 3.1).
 # ---------------------------------------------------------
 class DiemTrongTuyenRequest(BaseModel):
     diem_don_tra_id: UUID
-    thoi_gian_du_kien_phut: int = Field(..., description="Số phút lệch so với giờ khởi hành")
+    thoi_gian_du_kien_phut: int = Field(..., description="Số phút lệch so với giờ khởi hành, tính theo chiều xuôi")
 
 
 class TaoTuyenRequest(BaseModel):
-    ten: str = Field(..., min_length=1, description='VD "Yên Nghĩa → Sapa"')
-    nhom_tuyen_id: UUID = Field(..., description="Bắt buộc chọn 1 nhóm tuyến đã có sẵn — quản lý ở mục Nhóm tuyến")
+    ten: str = Field(..., min_length=1, description='VD "Hà Nội – Sapa" (đặt theo hành trình, không theo 1 chiều cụ thể)')
     danh_sach_diem: list[DiemTrongTuyenRequest] = Field(
         ...,
         min_length=2,
         description=(
-            "Đúng theo thứ tự xe đi qua — server tự gán thu_tu theo vị trí trong mảng. "
-            "Mỗi điểm phải thuộc 1 khu vực có trong nhóm tuyến đã chọn, và thứ tự khu vực "
-            "phải đơn điệu tăng hoặc giảm theo đúng thứ tự đã cấu hình ở nhóm tuyến."
+            "Đúng theo thứ tự xe đi qua ở CHIỀU XUÔI — server tự gán thu_tu theo vị trí trong mảng. "
+            "Điểm đầu và điểm cuối bắt buộc là văn phòng."
         ),
     )
 
@@ -108,7 +80,6 @@ class DiemTrongTuyenResponse(BaseModel):
 
 class TuyenResponse(BaseModel):
     id: UUID
-    nhom_tuyen_id: UUID
     ten: str
     ngay_tao: datetime
 
