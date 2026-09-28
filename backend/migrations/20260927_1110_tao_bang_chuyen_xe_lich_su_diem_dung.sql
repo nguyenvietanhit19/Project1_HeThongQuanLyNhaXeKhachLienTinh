@@ -1,64 +1,29 @@
--- Bảng thật sự của điều độ viên (người 4, CONTRIBUTING.md mục 2 —
--- chuyen_xe_repository/chuyen_xe_service). Phục vụ UC-19, 20, 39, 40, 44, 45
--- (NGHIEP_VU.md mục 8.6, 12). Xem database_dieuDoVien.md mục 1-3 cho chi
--- tiết nghiệp vụ và các ràng buộc chỉ kiểm tra được ở Service (không diễn
--- tả bằng CHECK/constraint DB).
+-- chuyen_xe của điều độ viên (người 4, UC-19, 20, 39, 40, 44, 45 — NGHIEP_VU.md
+-- mục 8.6, 12). Xem database_dieuDoVien.md mục 1-3 cho chi tiết nghiệp vụ và
+-- các ràng buộc chỉ kiểm tra được ở Service.
 --
--- Phụ thuộc khóa ngoại vào các bảng ở migration liền trước
--- (20260927_1100_tao_bang_danh_muc_xe_tuyen_tam_thoi.sql) — file đó là
--- TẠM THỜI (đọc cảnh báo ở đầu file đó), file này thì KHÔNG tạm thời.
+-- Bảng chuyen_xe ĐÃ được tạo sẵn ở migration 20260920_1600 (bản tối thiểu
+-- phục vụ khóa ngoại của ve/don_hang) — file này KHÔNG tạo lại mà chỉ bổ sung
+-- các cột còn thiếu và sửa trang thái cho đúng DATABASE.md mục 3.3. Cột
+-- "chieu" do migration 20260928_1000 thêm.
 
-CREATE TABLE chuyen_xe (
-    id                              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tuyen_id                        UUID NOT NULL REFERENCES tuyen(id),
+-- Loại xe CAM KẾT phục vụ chuyến (copy từ lich_chay_dinh_ky.loai_xe_id lúc
+-- sinh chuyến) — dùng để bán vé/hiển thị sơ đồ ghế ngay cả khi chưa gán xe_id.
+-- Khi gán xe_id, Service bắt buộc xe.loai_xe_id = chuyen_xe.loai_xe_id.
+-- Chưa có code nào tạo chuyen_xe nên bảng rỗng; nếu có dòng cũ thì điền từ xe
+-- gốc, còn dòng không có xe_id thì SET NOT NULL sẽ báo lỗi để xử lý tay.
+ALTER TABLE chuyen_xe ADD COLUMN loai_xe_id UUID REFERENCES loai_xe(id);
+UPDATE chuyen_xe c SET loai_xe_id = x.loai_xe_id FROM xe x WHERE c.xe_id = x.id;
+ALTER TABLE chuyen_xe ALTER COLUMN loai_xe_id SET NOT NULL;
 
-    -- Xe gốc — quyết định biên chế tài xế/phụ xe và vị trí suy luận cho các
-    -- chuyến sau (NGHIEP_VU.md mục 3.2/3.3). NULL = chưa gán xe (UC-44);
-    -- tới gio_khoi_hanh mà vẫn NULL thì job (UC-45) tự bật dang_hoan.
-    xe_id                           UUID NULL REFERENCES xe(id),
+ALTER TABLE chuyen_xe ADD COLUMN lich_chay_dinh_ky_id UUID NULL REFERENCES lich_chay_dinh_ky(id);
+ALTER TABLE chuyen_xe ADD COLUMN gio_xac_nhan_xuat_phat TIMESTAMPTZ NULL;
 
-    -- Loại xe CAM KẾT (copy từ lich_chay_dinh_ky.loai_xe_id lúc sinh chuyến)
-    -- — dùng để bán vé/hiển thị sơ đồ ghế ngay cả khi chưa gán xe_id. Khi
-    -- gán xe_id, Service bắt buộc xe.loai_xe_id = chuyen_xe.loai_xe_id.
-    loai_xe_id                      UUID NOT NULL REFERENCES loai_xe(id),
-
-    lich_chay_dinh_ky_id            UUID NULL REFERENCES lich_chay_dinh_ky(id),
-
-    -- Xe thực tế chạy thay nếu khác xe_id (UC-20, đổi xe khi hỏng trước giờ
-    -- chạy) — KHÔNG đổi xe_id gốc, biên chế tài xế/phụ xe không xáo trộn.
-    -- NULL = đúng xe gốc đang chạy. Bắt buộc cùng loai_xe với xe_id — kiểm
-    -- tra ở Service.
-    xe_thuc_te_id                   UUID NULL REFERENCES xe(id),
-
-    gio_khoi_hanh                   TIMESTAMPTZ NOT NULL,
-
-    trang_thai                      TEXT NOT NULL DEFAULT 'chua_khoi_hanh'
-                                        CHECK (trang_thai IN (
-                                            'chua_khoi_hanh', 'dang_chay', 'gap_su_co',
-                                            'hoan_thanh', 'da_huy'
-                                        )),
-
-    -- true khi đang chờ tìm xe thay thế trước giờ chạy — bật thủ công bởi
-    -- điều độ viên (UC-20) hoặc tự động bởi job (UC-45 ⏱). KHÔNG BAO GIỜ tự
-    -- chuyển da_huy chỉ vì hết xe thay thế (NGHIEP_VU.md mục 1/3.3).
-    dang_hoan                       BOOLEAN NOT NULL DEFAULT false,
-
-    gio_xac_nhan_xuat_phat          TIMESTAMPTZ NULL,
-    gio_hoan_thanh                  TIMESTAMPTZ NULL,
-
-    -- Set khi chuyển gap_su_co (UC-17, người 3 gọi vào) — quyết định toàn bộ
-    -- nhánh xử lý ở UC-19: loi_nha_xe luôn tìm được xe thay thế cuối cùng
-    -- (không có nhánh hủy); chỉ loi_khach_quan mới có thể dẫn tới da_huy.
-    loai_su_co                      TEXT NULL CHECK (loai_su_co IN ('loi_nha_xe', 'loi_khach_quan')),
-    ly_do_su_co                     TEXT NULL,
-
-    -- Bật cho MỌI chuyến chua_khoi_hanh cùng xe_id ngay khi 1 chuyến trước
-    -- của xe này chuyển gap_su_co giữa đường — điều độ viên xem lại và gỡ
-    -- thủ công (UC-19/20), hệ thống không tự gỡ.
-    co_canh_bao_xung_dot_vi_tri     BOOLEAN NOT NULL DEFAULT false,
-
-    ngay_tao                        TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+-- Trạng thái theo DATABASE.md mục 3.3: 'hoan_thanh' thay cho 'den_noi' ở bản tạm.
+ALTER TABLE chuyen_xe DROP CONSTRAINT IF EXISTS chuyen_xe_trang_thai_check;
+UPDATE chuyen_xe SET trang_thai = 'hoan_thanh' WHERE trang_thai = 'den_noi';
+ALTER TABLE chuyen_xe ADD CONSTRAINT chuyen_xe_trang_thai_check
+    CHECK (trang_thai IN ('chua_khoi_hanh', 'dang_chay', 'gap_su_co', 'hoan_thanh', 'da_huy'));
 
 -- Vị trí xe suy luận (DATABASE.md mục 7) truy vấn theo (xe_id, gio_khoi_hanh)
 -- rất thường xuyên khi gán xe (UC-44) — index tổng hợp tránh full scan.
