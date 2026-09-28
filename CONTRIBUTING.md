@@ -31,7 +31,7 @@ Tổng 44 UC (đúng số UC còn hiệu lực, UC-06/07 đã retire — xem `NG
 
 **1 — Đăng ký/đăng nhập + Quản lý** (Trưởng nhóm)
 - Backend: `nguoi_dung_repository`, `mat_khau_service`, `tai_khoan_can_bo_service`, `email_service`, `auth_middleware`, `khu_vuc/diem_don_tra/tuyen_repository`, `lich_chay_dinh_ky_service`, `xe/loai_xe/gia_ve/xe_nhan_su_repository`, `websocket_manager` (hạ tầng, xem mục 5.3), routes: `auth.py`, `tai_khoan_can_bo.py`, `quan_ly.py`.
-- Frontend: đăng ký/đăng nhập/quên mật khẩu (`frontend/khach-hang/`), toàn bộ `frontend/nhan-vien/quan-ly/`, và **`frontend/nhan-vien/shared/`** (nav, api-client, auth-check dùng chung cho mọi người).
+- Frontend: đăng ký/đăng nhập/quên mật khẩu (`frontend/khach-hang/`), `frontend/nhan-vien/dang-nhap.html` (trang đăng nhập chung duy nhất cho mọi vai trò cán bộ, tự viết script riêng — không phụ thuộc file của vai trò nào), và toàn bộ `frontend/nhan-vien/quan-ly/` (nav, api-client, auth-check, css... đều là file riêng của domain này, không dùng chung với vai trò khác — xem mục 5.5).
 - Cũng là người dựng **khung dự án ngày đầu tiên** — xem mục 5.4.
 
 **2 — Khách hàng + Nhân viên quầy vé**
@@ -117,15 +117,17 @@ frontend/khach-hang/
   tim-kiem.html  chon-ghe.html  thanh-toan.html  lich-su-ve.html   # người 2
 
 frontend/nhan-vien/
-  shared/              # người 1 dựng (nav, auth-check, api-client, css chung)
-  quan-ly/             # người 1 — toàn bộ, không còn bị ai khác chạm
-  quay-ve/             # người 2
+  dang-nhap.html       # trang đăng nhập chung duy nhất cho mọi vai trò — tự viết script riêng
+  quan-ly/             # người 1 — toàn bộ, kể cả nav.js/api-client.js/auth-check.js/style.css riêng của domain này
+  quay-ve/             # người 2 — tự có nav.js/api-client.js/auth-check.js/css riêng, không import từ quan-ly/
   phu-xe/
     chuyen-dang-chay.html   # người 3 — gộp UC-12,13,16,17,26,27
     bao-that-lac.html       # người 3 — UC-28
-  dieu-do/             # người 4
-  gui-hang/  ke-toan/  # người 5
+  dieu-do/             # người 4 — tự có file riêng
+  gui-hang/  ke-toan/  # người 5 — tự có file riêng
 ```
+
+**Không có thư mục `shared/` dùng chung giữa các vai trò** — mỗi người tự viết CSS/JS riêng trong đúng thư mục domain của mình (kể cả nếu 2 domain cần logic gần giống nhau, VD `api-client.js` gọi API cơ bản, vẫn copy riêng — đơn giản hơn là phối hợp sửa chung 1 file, hợp với tinh thần "ít conflict nhất" mục 1). Ngoại lệ duy nhất là `frontend/nhan-vien/dang-nhap.html` (không thuộc riêng ai — điểm vào chung cho mọi vai trò) và `frontend/shared/design-tokens.css` (hệ thống màu/token dùng chung toàn app, xem `THIET_KE_UI.md`).
 
 ---
 
@@ -158,9 +160,9 @@ Người 1 xây file này lúc dựng khung dự án (mục 5.4), với 1 hàm d
 
 Người 1 dựng bộ khung này trong buổi làm việc đầu tiên (vì cần bảng `nguoi_dung` + tài khoản `quan_ly` gốc sớm nhất — `DATABASE.md` mục 9): `docker-compose.yml`, `Dockerfile`, migration `0001_init_schema.sql` (kèm `CREATE EXTENSION pgcrypto`, seed tài khoản `quan_ly` gốc), `main.py`/`db.py`/`config.py` cơ bản chạy được `"OK"`. Sau đó **`main.py` chỉ còn bị chạm để thêm 1 dòng `include_router(...)`** mỗi khi 1 người xong route đầu tiên — luôn thêm cuối danh sách, gần như không conflict.
 
-### 5.5. Sidebar/khung giao diện dùng chung
+### 5.5. Sidebar/khung giao diện — mỗi người tự dựng riêng, không dùng chung
 
-Người 1 dựng `shared/nav-*.js` (mảng link, mỗi người tự thêm entry vào cuối mảng, không sửa dòng người khác). Vì giờ mỗi người có khu vực riêng biệt trong `frontend/nhan-vien/` (mục 4), việc này chỉ còn cần cho thanh điều hướng chung, không còn tình trạng 2 người cùng viết trang trong 1 thư mục như bản chia theo domain trước.
+Khác quyết định ban đầu: **không có `shared/nav-*.js` dùng chung giữa các vai trò**. Mỗi người tự viết `nav.js` (mảng link menu của riêng domain mình), `api-client.js`, `auth-check.js`, css khung dashboard... ngay trong thư mục domain của mình (VD `frontend/nhan-vien/quan-ly/nav.js`) — xem ví dụ đầy đủ ở `frontend/nhan-vien/quan-ly/` (người 1 đã dựng). Vì mỗi vai trò có khu vực riêng biệt trong `frontend/nhan-vien/` (mục 4) và không ai cần sửa file của người khác, tách riêng hoàn toàn đơn giản hơn phối hợp qua 1 file chung — không mất gì về conflict (vốn đã gần như 0 nhờ chia theo vai trò), chỉ đánh đổi 1 ít trùng lặp code (VD `api-client.js` gần giống nhau giữa các domain), chấp nhận được.
 
 ### 5.6. Thống nhất chữ ký hàm (function signature) TRƯỚC khi code
 
@@ -178,8 +180,8 @@ Vì 3/4/5 sẽ gọi hàm của 1/2/4 — **thống nhất tên hàm + tham số
 
 Dự án dùng HTML/CSS/JS tĩnh, chưa cần framework (`ARCHITECTURE.md` mục 3) — nhưng vẫn nên tránh copy-paste UI lặp lại, bằng 2 kỹ thuật JS thuần:
 
-1. **HTML partial qua `fetch()`** — cho phần tĩnh giống hệt nhau mọi nơi (nav, header, footer). Người 1 dựng khung ban đầu, các người khác chỉ **thêm entry vào cuối mảng**, không sửa dòng người khác.
-2. **JS render-function** — cho phần lặp lại nhưng khác dữ liệu. VD người 2 viết 1 hàm `renderVeCard(ve)` dùng chung cho cả trang "lịch sử vé" (khách hàng) lẫn "bán vé tại quầy" (nhân viên quầy vé) — vì cả 2 đều thuộc người 2 nên không phát sinh vấn đề gì; người 1 viết 1 hàm `renderDataTable(columns, rows, onEdit, onDelete)` dùng chung cho các trang danh mục trong `quan-ly/`.
+1. **HTML partial qua `fetch()`** — cho phần tĩnh giống hệt nhau mọi nơi (nav, header, footer) **trong cùng 1 domain của 1 người** (VD nav dùng chung cho các trang trong `quan-ly/`). Không dùng kỹ thuật này để chia sẻ giữa các domain khác nhau — mỗi domain tự viết bản riêng (mục 5.5).
+2. **JS render-function** — cho phần lặp lại nhưng khác dữ liệu, cũng chỉ trong phạm vi 1 người. VD người 2 viết 1 hàm `renderVeCard(ve)` dùng chung cho cả trang "lịch sử vé" (khách hàng) lẫn "bán vé tại quầy" (nhân viên quầy vé) — vì cả 2 đều thuộc người 2 nên không phát sinh vấn đề gì; người 1 viết 1 hàm `renderDataTable(columns, rows, onEdit, onDelete)` dùng chung cho các trang danh mục trong `quan-ly/`.
 
 Không dùng Web Components (custom element gốc trình duyệt) — đường học (Shadow DOM, lifecycle) không đáng cho quy mô 1 tháng.
 

@@ -3,12 +3,11 @@
  * Ai cần gọi API chỉ dùng apiGet/apiPost/apiPut, không tự viết lại fetch() + token.
  */
 
-// Suy ra host của backend từ chính host đang xem trang, không hardcode
-// "localhost" — "localhost" trên điện thoại thật là chính điện thoại đó,
-// không phải máy tính chạy backend, nên phải cùng địa chỉ IP với trang
-// frontend đang mở (dev local: cùng máy -> localhost; qua điện thoại
-// trong cùng mạng LAN -> đúng IP máy tính, VD 192.168.x.x).
-const API_BASE_URL = `http://${window.location.hostname}:8000`;
+// Tự nhận diện môi trường qua hostname — không cần build step/bundler
+// (ARCHITECTURE.md mục 1: frontend là HTML/JS tĩnh, không qua build).
+const API_BASE_URL = ["localhost", "127.0.0.1"].includes(location.hostname)
+  ? "http://localhost:8000"
+  : "https://nha-xe-khach-backend.onrender.com";
 
 async function apiFetch(duong_dan, tuy_chon = {}) {
   const token = localStorage.getItem("token");

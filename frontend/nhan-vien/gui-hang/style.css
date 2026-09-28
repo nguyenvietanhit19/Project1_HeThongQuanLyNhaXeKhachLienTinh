@@ -1,0 +1,2737 @@
+/*
+ * style.css — Giao diện chuẩn cho phân hệ Nhân viên gửi hàng (UC-23 -> UC-27, UC-39)
+ * Thiết kế hiện đại, responsive, hỗ trợ in ấn biên nhận, tem nhãn decal & phiếu xuất kho.
+ */
+
+/*
+ * style.css — Giao diện cho phân hệ Nhân viên gửi hàng (UC-23 -> 27, 39)
+ * Tận dụng các biến CSS và Design Tokens từ /shared/design-tokens.css
+ */
+
+@import url("/shared/design-tokens.css");
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+body {
+  background-color: var(--color-bg-canvas, #F3F4F6);
+  color: var(--color-text-primary, #111827);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+
+
+/* ====================================================================
+   2. Layout & Main Content
+   ==================================================================== */
+.main-content {
+  flex: 1;
+  max-width: 1440px;
+  width: 100%;
+  margin: 1.25rem auto;
+  padding: 0 1.25rem;
+}
+
+.tab-pane {
+  display: none;
+}
+
+.tab-pane.active {
+  display: block;
+  animation: fadeIn 0.25s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Card tổng thể */
+.card-panel {
+  background: var(--color-bg-surface, #FFFFFF);
+  border-radius: var(--radius-card, 16px);
+  padding: 1.75rem;
+  box-shadow: var(--shadow-soft, 0 4px 16px rgba(0, 0, 0, 0.06));
+  margin-bottom: 1.5rem;
+}
+
+.card-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-secondary-dark, #3F2B6B);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #F3F4F6;
+}
+
+/* ====================================================================
+   3. Forms & Grid Fields (UC-23 Tạo đơn gửi hàng)
+   ==================================================================== */
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.form-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+}
+
+.form-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.form-section {
+  background: #F9FAFB;
+  border-radius: 12px;
+  padding: 1.25rem;
+  border: 1px solid #E5E7EB;
+  margin-bottom: 1.25rem;
+}
+
+.section-subtitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.form-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #4B5563;
+}
+
+.form-label.required::after {
+  content: " *";
+  color: #EF4444;
+}
+
+.form-input,
+.form-select {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border: 1.5px solid #D1D5DB;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: border-color 0.2s;
+  background: #fff;
+}
+
+.form-input:focus,
+.form-select:focus {
+  outline: none;
+  border-color: var(--color-secondary, #5B3E96);
+  box-shadow: 0 0 0 3px rgba(91, 62, 150, 0.15);
+}
+
+/* Alert cảnh báo Hàng Cấm (UC-23) */
+.alert-hang-cam {
+  display: none;
+  background: #FEE2E2;
+  border: 1.5px solid #EF4444;
+  color: #991B1B;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  margin-bottom: 1.25rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  animation: shake 0.4s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+/* Radio phương thức thanh toán */
+.payment-methods {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.payment-card {
+  border: 2px solid #E5E7EB;
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: all 0.2s;
+}
+
+.payment-card:hover {
+  border-color: var(--color-primary, #F5A623);
+  background: #FFFBEB;
+}
+
+.payment-card input[type="radio"]:checked + .payment-label {
+  font-weight: 700;
+  color: var(--color-secondary, #5B3E96);
+}
+
+.payment-card:has(input[type="radio"]:checked) {
+  border-color: var(--color-secondary, #5B3E96);
+  background: rgba(91, 62, 150, 0.05);
+}
+
+/* Nút Submit */
+.btn-submit-order {
+  background: var(--color-primary, #F5A623);
+  color: #111827;
+  border: none;
+  padding: 0.85rem 2rem;
+  border-radius: var(--radius-button, 12px);
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 1rem;
+  box-shadow: 0 4px 12px rgba(245, 166, 35, 0.35);
+  transition: all 0.2s ease;
+}
+
+.btn-submit-order:hover {
+  background: var(--color-primary-dark, #D98C1A);
+  transform: translateY(-1px);
+}
+
+.btn-submit-order:disabled {
+  background: #D1D5DB;
+  color: #9CA3AF;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+
+
+/* Badge thanh toán tinh tế & hiện đại */
+.badge-payment {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.badge-payment.prepaid {
+  background: #F0FDF4;
+  color: #15803D;
+  border: 1px solid #BBF7D0;
+}
+
+.badge-payment.cod {
+  background: #FFFBEB;
+  color: #B45309;
+  border: 1px solid #FDE68A;
+}
+
+/* Badge trạng thái vận hành với Status Dot */
+.badge-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.badge-status::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.badge-cho_van_chuyen { 
+  background: #FFFBEB; 
+  color: #B45309; 
+  border: 1px solid #FDE68A;
+}
+.badge-cho_van_chuyen::before { background: #F59E0B; }
+
+.badge-da_len_xe { 
+  background: #EFF6FF; 
+  color: #1D4ED8; 
+  border: 1px solid #BFDBFE;
+}
+.badge-da_len_xe::before { background: #3B82F6; }
+
+.badge-cho_lay { 
+  background: #FFF7ED; 
+  color: #C2410C; 
+  border: 1px solid #FFEDD5;
+}
+.badge-cho_lay::before { background: #F97316; }
+
+.badge-da_giao { 
+  background: #F0FDF4; 
+  color: #15803D; 
+  border: 1px solid #BBF7D0;
+}
+.badge-da_giao::before { background: #22C55E; }
+
+.badge-qua_han_luu_kho { 
+  background: #FEF2F2; 
+  color: #B91C1C; 
+  border: 1px solid #FECACA;
+}
+.badge-qua_han_luu_kho::before { background: #EF4444; }
+
+.price-tag {
+  white-space: nowrap;
+  font-weight: 700;
+  color: #111827;
+  font-size: 0.95rem;
+}
+
+.cod-alert-box {
+  background: #FEF3C7;
+  border: 2px dashed #F59E0B;
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin: 1.25rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cod-text {
+  font-size: 1.05rem;
+  color: #78350F;
+  font-weight: 600;
+}
+
+.cod-amount {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #B45309;
+}
+
+.btn-confirm-delivery {
+  background: var(--color-success, #22C55E);
+  color: #fff;
+  border: none;
+  padding: 0.9rem 2.5rem;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  width: 100%;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(34, 197, 94, 0.4);
+  transition: all 0.2s;
+}
+
+.btn-confirm-delivery:hover {
+  background: #16A34A;
+  transform: translateY(-1px);
+}
+
+
+
+/* ====================================================================
+   5. Bảng dữ liệu Data Table (Hàng tồn / Chờ lâu / Đơn gần đây)
+   ==================================================================== */
+.data-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  background: #ffffff;
+  -webkit-overflow-scrolling: touch;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.data-table th {
+  background: #F9FAFB;
+  padding: 0.75rem 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #4B5563;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border-bottom: 2px solid #E5E7EB;
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 0.75rem 0.85rem;
+  border-bottom: 1px solid #F3F4F6;
+  font-size: 0.92rem;
+  vertical-align: middle;
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table tr:hover {
+  background: #F9FAFB;
+}
+
+.text-center {
+  text-align: center !important;
+}
+
+.text-right {
+  text-align: right !important;
+}
+
+.btn-action-sm {
+  background: #F3F4F6;
+  color: #374151;
+  border: 1px solid #D1D5DB;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.15s ease;
+}
+
+.btn-action-sm:hover {
+  background: var(--color-secondary, #5B3E96);
+  color: #ffffff;
+  border-color: var(--color-secondary, #5B3E96);
+  transform: translateY(-1px);
+}
+
+
+
+/* ====================================================================
+   9. Thanh phân trang Bảng (Pagination Bar)
+   ==================================================================== */
+.pagination-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: #F9FAFB;
+  border-top: 1px solid #E5E7EB;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.88rem;
+  color: #4B5563;
+}
+
+.pagination-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.pagination-info {
+  font-weight: 500;
+  color: #6B7280;
+  font-size: 0.85rem;
+}
+
+.pagination-info strong {
+  color: #111827;
+  font-weight: 700;
+}
+
+.pagination-size-box {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: #6B7280;
+}
+
+.pagination-size-select {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  color: #374151;
+  background: #ffffff;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.pagination-size-select:focus {
+  border-color: var(--color-secondary, #5B3E96);
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pagination-btn {
+  background: #FFFFFF;
+  border: 1px solid #D1D5DB;
+  color: #374151;
+  padding: 0.35rem 0.7rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  min-width: 32px;
+  text-align: center;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.pagination-btn:hover:not(:disabled):not(.active) {
+  background: #F3F4F6;
+  border-color: #9CA3AF;
+}
+
+.pagination-btn.active {
+  background: var(--color-secondary, #5B3E96);
+  border-color: var(--color-secondary, #5B3E96);
+  color: #FFFFFF;
+  font-weight: 700;
+}
+
+.pagination-btn:disabled {
+  background: #F3F4F6;
+  border-color: #E5E7EB;
+  color: #9CA3AF;
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+@media (max-width: 600px) {
+  .pagination-bar {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+    gap: 0.65rem;
+    padding: 0.65rem;
+  }
+  .pagination-left {
+    justify-content: space-between;
+  }
+  .pagination-controls {
+    justify-content: center;
+  }
+}
+
+/* ====================================================================
+   10. Thanh Bộ lọc & Tìm kiếm Đơn hàng (Filter & Search Toolbar)
+   ==================================================================== */
+.table-header-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.85rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.filter-toolbar-box {
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  flex-wrap: wrap;
+}
+
+.filter-search-wrap {
+  position: relative;
+  flex: 1 1 280px;
+  min-width: 240px;
+}
+
+.filter-icon {
+  position: absolute;
+  left: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9CA3AF;
+  font-size: 0.95rem;
+  pointer-events: none;
+}
+
+.filter-input-search {
+  width: 100%;
+  padding: 0.52rem 0.85rem 0.52rem 2.4rem;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: #1F2937;
+  background: #F9FAFB;
+  transition: all 0.2s ease;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.filter-input-search:focus {
+  background: #FFFFFF;
+  border-color: var(--color-secondary, #5B3E96);
+  box-shadow: 0 0 0 3px rgba(91, 62, 150, 0.12);
+}
+
+.filter-actions-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.filter-select {
+  padding: 0.52rem 0.85rem;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #374151;
+  background: #FFFFFF;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  box-sizing: border-box;
+}
+
+.filter-select:focus {
+  border-color: var(--color-secondary, #5B3E96);
+  box-shadow: 0 0 0 3px rgba(91, 62, 150, 0.12);
+}
+
+.btn-filter-reset {
+  background: #F3F4F6;
+  border: 1px solid #D1D5DB;
+  color: #4B5563;
+  padding: 0.52rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-filter-reset:hover {
+  background: #E5E7EB;
+  color: #111827;
+  border-color: #9CA3AF;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .filter-toolbar-box {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  .filter-actions-wrap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+  .filter-actions-wrap .btn-filter-reset {
+    grid-column: span 2;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .filter-actions-wrap {
+    grid-template-columns: 1fr;
+  }
+  .filter-actions-wrap .btn-filter-reset {
+    grid-column: span 1;
+  }
+}
+
+
+
+/* ====================================================================
+   Nút Đổi Văn Phòng Trực & Trạng thái Quầy
+   ==================================================================== */
+.van-phong-status-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-switch-office {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 6px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.btn-switch-office:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: #ffffff;
+  transform: scale(1.03);
+}
+
+/* ====================================================================
+   Badge Thời gian Lưu kho (Tab Hàng Chờ Lâu)
+   ==================================================================== */
+.badge-days {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.badge-days-normal {
+  background: #EFF6FF;
+  color: #1D4ED8;
+  border: 1px solid #BFDBFE;
+}
+
+.badge-days-warning {
+  background: #FFFBEB;
+  color: #B45309;
+  border: 1px solid #FDE68A;
+}
+
+.badge-days-danger {
+  background: #FEF2F2;
+  color: #B91C1C;
+  border: 1px solid #FECACA;
+  animation: pulseAlert 2s infinite ease-in-out;
+}
+
+@keyframes pulseAlert {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; transform: scale(0.98); }
+}
+
+
+
+/* ====================================================================
+   7. Modal Phiếu in biên nhận gửi hàng (UC-23)
+   ==================================================================== */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(3px);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.active {
+  display: flex;
+}
+
+.modal-box {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 560px;
+  padding: 2rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  animation: popIn 0.2s ease;
+}
+
+@keyframes popIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.receipt-header {
+  text-align: center;
+  border-bottom: 2px dashed #D1D5DB;
+  padding-bottom: 1rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.receipt-logo-img {
+  max-height: 52px;
+  max-width: 190px;
+  object-fit: contain;
+  margin-bottom: 0.6rem;
+}
+
+.receipt-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--color-secondary, #5B3E96);
+  text-transform: uppercase;
+}
+
+.receipt-barcode {
+  background: #F3F4F6;
+  border: 1px dashed #9CA3AF;
+  padding: 0.6rem;
+  font-family: monospace;
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  margin: 0.8rem 0;
+  text-align: center;
+}
+
+.receipt-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+  font-size: 0.95rem;
+}
+
+.receipt-row.total {
+  border-top: 1.5px dashed #D1D5DB;
+  padding-top: 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--color-secondary, #5B3E96);
+}
+
+.receipt-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.btn-print {
+  flex: 1;
+  background: var(--color-secondary, #5B3E96);
+  color: #fff;
+  border: none;
+  padding: 0.75rem;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.btn-close-modal {
+  background: #E5E7EB;
+  color: #374151;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+
+
+/* ====================================================================
+   Nhãn Dán Kiện Hàng (Shipping Label Decal / Sticker dán thùng hàng)
+   ==================================================================== */
+.label-modal-box {
+  max-width: 520px;
+  padding: 1.5rem;
+  background: #F9FAFB;
+}
+
+.shipping-label-sticker {
+  background: #FFFFFF;
+  border: 2px solid #111827;
+  border-radius: 10px;
+  padding: 1.25rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  color: #111827;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.label-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #111827;
+  padding-bottom: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.label-brand-title {
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  color: #111827;
+}
+
+.label-badge-type {
+  background: #111827;
+  color: #FFFFFF;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Barcode giả lập chân thực */
+.label-barcode-section {
+  text-align: center;
+  margin-bottom: 0.85rem;
+  padding: 0.5rem 0;
+  background: #FAFAFA;
+  border: 1px dashed #D1D5DB;
+  border-radius: 6px;
+}
+
+.barcode-visual {
+  height: 48px;
+  margin: 0 auto 0.35rem auto;
+  width: 82%;
+  background: repeating-linear-gradient(
+    90deg,
+    #111 0, #111 2px,
+    transparent 2px, transparent 4px,
+    #111 4px, #111 7px,
+    transparent 7px, transparent 9px,
+    #111 9px, #111 10px,
+    transparent 10px, transparent 13px,
+    #111 13px, #111 16px,
+    transparent 16px, transparent 18px,
+    #111 18px, #111 22px,
+    transparent 22px, transparent 24px,
+    #111 24px, #111 25px,
+    transparent 25px, transparent 28px
+  );
+}
+
+.barcode-digits {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: #111827;
+}
+
+/* Ô Nơi Đến to rõ cho phụ xe */
+.label-destination-box {
+  background: #FEF3C7;
+  border: 2px solid #F59E0B;
+  border-radius: 8px;
+  padding: 0.75rem;
+  text-align: center;
+  margin-bottom: 0.85rem;
+}
+
+.label-dest-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #92400E;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.2rem;
+}
+
+.label-dest-name {
+  font-size: 1.45rem;
+  font-weight: 900;
+  color: #B45309;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.label-dest-route {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #78350F;
+  margin-top: 0.25rem;
+}
+
+/* Thông tin người gửi và người nhận */
+.label-party-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.75rem;
+  background: #FFFFFF;
+}
+
+.label-party-col {
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.label-party-col:first-child {
+  border-right: 1px dashed #E5E7EB;
+  padding-right: 0.5rem;
+}
+
+.label-party-header {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #6B7280;
+  text-transform: uppercase;
+  margin-bottom: 0.2rem;
+}
+
+.label-party-name {
+  font-weight: 800;
+  color: #111827;
+  font-size: 0.92rem;
+}
+
+.label-party-phone {
+  font-weight: 700;
+  color: #2563EB;
+}
+
+/* Thông tin hàng hóa */
+.label-goods-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #F3F4F6;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.label-goods-name {
+  font-weight: 700;
+  color: #111827;
+}
+
+.label-goods-meta {
+  color: #4B5563;
+  font-weight: 600;
+}
+
+/* Dải băng thanh toán & Tiền thu COD */
+.label-payment-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 2px solid #111827;
+  border-radius: 6px;
+  padding: 0.6rem 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.label-payment-banner.is-cod {
+  background: #FEF2F2;
+  border-color: #EF4444;
+}
+
+.label-payment-badge {
+  font-weight: 800;
+  font-size: 0.88rem;
+  text-transform: uppercase;
+}
+
+.label-cod-highlight {
+  font-weight: 900;
+  font-size: 1.25rem;
+  color: #DC2626;
+}
+
+/* Footer nhãn dán */
+.label-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.72rem;
+  color: #6B7280;
+  border-top: 1px dashed #D1D5DB;
+  padding-top: 0.4rem;
+}
+
+/* Modal Actions cho Nhãn Dán */
+.label-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.btn-print-primary {
+  flex: 2;
+  background: #111827;
+  color: #FFFFFF;
+  border: none;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  transition: all 0.2s ease;
+}
+
+.btn-print-primary:hover {
+  background: #1F2937;
+  transform: translateY(-1px);
+}
+
+.btn-print-secondary {
+  flex: 1;
+  background: #F3F4F6;
+  color: #374151;
+  border: 1px solid #D1D5DB;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-print-secondary:hover {
+  background: #E5E7EB;
+}
+
+/* Nút In Nhãn Dán kèm trong Modal Biên Nhận */
+.btn-print-sticker {
+  background: #4F46E5 !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+.btn-print-sticker:hover {
+  background: #4338CA !important;
+}
+
+
+
+/* ====================================================================
+   Phiếu Xuất Kho Bàn Giao Hàng Hóa (Delivery Slip)
+   ==================================================================== */
+.delivery-slip-box {
+  max-width: 680px;
+  padding: 2rem;
+  background: #FFFFFF;
+  border-radius: 12px;
+}
+
+.slip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 2px solid #111827;
+  padding-bottom: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.slip-title-area {
+  flex: 1;
+}
+
+.slip-company {
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #6B7280;
+  letter-spacing: 0.5px;
+}
+
+.slip-title {
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: #111827;
+  margin: 0.2rem 0;
+  text-transform: uppercase;
+}
+
+.slip-sub {
+  font-size: 0.85rem;
+  color: #4B5563;
+  font-style: italic;
+}
+
+.slip-code-area {
+  text-align: right;
+}
+
+.slip-code-label {
+  font-size: 0.75rem;
+  color: #6B7280;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.slip-code-val {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #111827;
+}
+
+.slip-grid-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.slip-col {
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.slip-col-title {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #4B5563;
+  margin-bottom: 0.35rem;
+  border-bottom: 1px solid #E5E7EB;
+  padding-bottom: 0.2rem;
+}
+
+.slip-table-box {
+  margin-bottom: 1.25rem;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.slip-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.slip-table th {
+  background: #F3F4F6;
+  font-weight: 700;
+  color: #374151;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid #E5E7EB;
+  text-align: left;
+}
+
+.slip-table td {
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.slip-cod-alert {
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  border-radius: 8px;
+  padding: 0.85rem 1.1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.slip-cod-text {
+  font-weight: 700;
+  color: #92400E;
+  font-size: 0.92rem;
+}
+
+.slip-cod-highlight {
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: #B45309;
+}
+
+.slip-pledge-box {
+  background: #FAFAFA;
+  border-left: 3px solid #6B7280;
+  padding: 0.65rem 1rem;
+  font-size: 0.82rem;
+  color: #4B5563;
+  font-style: italic;
+  margin-bottom: 1.5rem;
+  line-height: 1.4;
+}
+
+.slip-signatures {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  text-align: center;
+  margin-top: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.slip-sig-col {
+  padding: 0 1rem;
+}
+
+.slip-sig-title {
+  font-weight: 800;
+  font-size: 0.92rem;
+  color: #111827;
+  text-transform: uppercase;
+}
+
+.slip-sig-sub {
+  font-size: 0.78rem;
+  color: #6B7280;
+  font-style: italic;
+  margin-bottom: 3.5rem;
+}
+
+.slip-sig-name {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: #111827;
+}
+
+.slip-footer-note {
+  text-align: center;
+  font-size: 0.75rem;
+  color: #9CA3AF;
+  border-top: 1px dashed #E5E7EB;
+  padding-top: 0.5rem;
+}
+
+/* Đồng bộ class cho Tem nhãn dán trong HTML */
+.label-brand {
+  display: flex;
+  align-items: center;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #111827;
+}
+
+.label-logo-img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  border-radius: 4px;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+.label-title {
+  font-weight: 700;
+  font-size: 0.8rem;
+  background: #111827;
+  color: #FFFFFF;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+.label-code {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #111827;
+}
+
+.label-dest-caption {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #92400E;
+  text-transform: uppercase;
+}
+
+.label-route-sub {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #78350F;
+  margin-top: 0.2rem;
+}
+
+.label-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.75rem;
+  background: #FFFFFF;
+}
+
+.label-info-col {
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.label-sub-caption {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #6B7280;
+  text-transform: uppercase;
+  display: block;
+}
+
+.label-strong-text {
+  font-weight: 800;
+  color: #111827;
+}
+
+.label-phone-text {
+  font-weight: 700;
+  color: #2563EB;
+}
+
+.label-weight-text {
+  font-weight: 700;
+  color: #374151;
+}
+
+.label-footer-note {
+  font-size: 0.75rem;
+  color: #6B7280;
+  text-align: center;
+  border-top: 1px dashed #D1D5DB;
+  padding-top: 0.5rem;
+  font-style: italic;
+}
+
+/* Đồng bộ class cho Phiếu xuất kho trong HTML */
+.delivery-pledge-box {
+  background: #F9FAFB;
+  border-left: 3px solid #4B5563;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  color: #374151;
+  margin: 1.25rem 0;
+  border-radius: 0 6px 6px 0;
+}
+
+.signature-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin: 2rem 0 1rem 0;
+  text-align: center;
+}
+
+.sig-box {
+  padding: 0.5rem;
+}
+
+.sig-title {
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: #111827;
+}
+
+.sig-sub {
+  font-size: 0.8rem;
+  color: #6B7280;
+  font-style: italic;
+  margin-top: 0.2rem;
+}
+
+.sig-space {
+  height: 65px;
+}
+
+
+
+
+/* ====================================================================
+   Toast Notifications System
+   ==================================================================== */
+.toast-container {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  pointer-events: none;
+  max-width: 400px;
+  width: calc(100% - 2.5rem);
+}
+
+.toast-item {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1.1rem;
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  border-left: 4px solid #3B82F6;
+  font-size: 0.9rem;
+  color: #1F2937;
+  line-height: 1.4;
+  animation: toastSlideIn 0.3s ease-out forwards;
+  transition: all 0.25s ease;
+}
+
+.toast-item.toast-success {
+  border-left-color: #10B981;
+}
+
+.toast-item.toast-error {
+  border-left-color: #EF4444;
+}
+
+.toast-item.toast-warning {
+  border-left-color: #F59E0B;
+}
+
+.toast-item.toast-info {
+  border-left-color: #3B82F6;
+}
+
+.toast-item.toast-hiding {
+  opacity: 0;
+  transform: translateX(100%);
+}
+
+.toast-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.toast-content {
+  flex: 1;
+}
+
+.toast-title {
+  font-weight: 700;
+  margin-bottom: 0.15rem;
+}
+
+.toast-message {
+  color: #4B5563;
+  font-size: 0.85rem;
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: #9CA3AF;
+  cursor: pointer;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.toast-close:hover {
+  color: #374151;
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+
+
+/* ====================================================================
+   In ấn chuyên nghiệp (Print Mode: Biên nhận, Nhãn dán thùng, Phiếu xuất kho)
+   ==================================================================== */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  /* Chỉ hiển thị modal-box của modal đang có class .active */
+  .modal-overlay.active,
+  .modal-overlay.active .modal-box,
+  .modal-overlay.active .modal-box * {
+    visibility: visible;
+  }
+
+  .modal-overlay.active {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    min-height: 100%;
+    background: transparent !important;
+    display: block !important;
+    padding: 0 !important;
+  }
+
+  .modal-overlay.active .modal-box {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 8mm !important;
+    background: #ffffff !important;
+  }
+
+  /* Ẩn các nút hành động khi in */
+  .receipt-actions,
+  .label-modal-actions,
+  .btn-close-modal,
+  .btn-print,
+  .btn-print-primary,
+  .btn-print-secondary,
+  .btn-cancel-receipt,
+  .btn-print-sticker {
+    display: none !important;
+  }
+
+  /* Căn chỉnh riêng khi in Nhãn dán thùng hàng (decal / sticker) */
+  #modalNhanDan.active .shipping-label-sticker {
+    width: 105mm !important;
+    max-width: 100% !important;
+    border: 2px solid #000 !important;
+    margin: 0 auto !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+  }
+
+  /* Căn chỉnh riêng khi in Phiếu xuất kho */
+  #modalPhieuXuatKho.active .delivery-slip-box {
+    width: 100% !important;
+    max-width: 210mm !important;
+    margin: 0 auto !important;
+  }
+
+  @page {
+    size: auto;
+    margin: 6mm;
+  }
+}
+
+
+
+/* ====================================================================
+   GIAO DIỆN HIỆN ĐẠI: HEADER, BẢNG ĐƠN HÀNG, DASHBOARD THỐNG KÊ & MODALS
+   ==================================================================== */
+
+    /* ====================================================================
+       GIAO DIỆN HIỆN ĐẠI: QUẢN LÝ ĐƠN HÀNG, GIAO HÀNG & DASHBOARD THỐNG KÊ
+       ==================================================================== */
+    :root {
+      --color-primary: #F5A623;
+      --color-secondary: #5B3E96;
+      --color-success: #10B981;
+      --color-warning: #F59E0B;
+      --color-danger: #EF4444;
+      --color-info: #3B82F6;
+    }
+
+    /* ====================================================================
+       Thanh Điều Hướng Header (Header & Navigation)
+       ==================================================================== */
+    .app-header {
+      background: linear-gradient(135deg, #4C2889 0%, #5B3E96 100%);
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.65rem 1.5rem;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      gap: 1rem;
+      min-height: 64px;
+      box-sizing: border-box;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .header-left .brand-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .brand-logo-img {
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+      border-radius: 8px;
+      background: #ffffff;
+      padding: 2px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      flex-shrink: 0;
+    }
+
+    .brand-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      white-space: nowrap;
+    }
+
+    .brand-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      color: #FFFFFF;
+    }
+
+    .sub-role-badge {
+      background: #F5A623;
+      color: #111827;
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      text-transform: uppercase;
+      white-space: nowrap;
+      letter-spacing: 0.3px;
+    }
+
+    .header-tabs {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 4px;
+      border-radius: 12px;
+      flex-shrink: 1;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .header-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .nav-tab {
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 0.86rem;
+      font-weight: 600;
+      padding: 0.45rem 0.85rem;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      white-space: nowrap;
+      transition: all 0.18s ease;
+      flex-shrink: 0;
+    }
+
+    .nav-tab:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+    }
+
+    .nav-tab.active {
+      background: #ffffff;
+      color: #5B3E96;
+      font-weight: 700;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      flex-shrink: 0;
+    }
+
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      white-space: nowrap;
+    }
+
+    .user-avatar {
+      background: rgba(255, 255, 255, 0.2);
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.05rem;
+      flex-shrink: 0;
+    }
+
+    .user-details {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.25;
+    }
+
+    .user-name {
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: #FFFFFF;
+      white-space: nowrap;
+    }
+
+    .user-role {
+      font-size: 0.72rem;
+      color: rgba(255, 255, 255, 0.75);
+      white-space: nowrap;
+    }
+
+    .btn-logout {
+      background: rgba(239, 68, 68, 0.22);
+      color: #FECACA;
+      border: 1px solid rgba(239, 68, 68, 0.45);
+      padding: 0.4rem 0.8rem;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      white-space: nowrap;
+      transition: all 0.18s ease;
+      flex-shrink: 0;
+    }
+
+    .btn-logout:hover {
+      background: rgba(239, 68, 68, 0.85);
+      color: #ffffff;
+    }
+
+    /* Quick Filter Chips trên Tab 2 */
+    .quick-filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+    }
+    .quick-filter-chip {
+      background: #FFFFFF;
+      border: 1.5px solid #E5E7EB;
+      border-radius: 999px;
+      padding: 0.45rem 0.95rem;
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: #4B5563;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      transition: all 0.18s ease;
+      user-select: none;
+    }
+    .quick-filter-chip:hover {
+      border-color: #9CA3AF;
+      background: #F9FAFB;
+      transform: translateY(-1px);
+    }
+    .quick-filter-chip.active {
+      background: #5B3E96;
+      border-color: #5B3E96;
+      color: #FFFFFF;
+      box-shadow: 0 2px 8px rgba(91, 62, 150, 0.25);
+    }
+    .quick-filter-chip .chip-count {
+      background: #F3F4F6;
+      color: #374151;
+      font-size: 0.74rem;
+      font-weight: 700;
+      padding: 0.1rem 0.5rem;
+      border-radius: 999px;
+      min-width: 20px;
+      text-align: center;
+    }
+    .quick-filter-chip.active .chip-count {
+      background: rgba(255, 255, 255, 0.25);
+      color: #FFFFFF;
+    }
+
+    /* Định dạng cột trong bảng đơn hàng */
+    .order-code-badge {
+      font-family: monospace;
+      font-weight: 800;
+      color: #5B3E96;
+      font-size: 0.95rem;
+      letter-spacing: 0.5px;
+    }
+    .order-time-sub {
+      font-size: 0.78rem;
+      color: #6B7280;
+      margin-top: 3px;
+    }
+    .party-name {
+      font-weight: 700;
+      color: #1F2937;
+      font-size: 0.92rem;
+    }
+    .party-phone {
+      font-size: 0.84rem;
+      color: #2563EB;
+      font-weight: 600;
+    }
+    .goods-name {
+      font-weight: 600;
+      color: #374151;
+      font-size: 0.9rem;
+    }
+    .goods-weight {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #6B7280;
+      margin-top: 2px;
+    }
+    .table-actions-cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+    }
+    .btn-action-deliver {
+      background: linear-gradient(135deg, #10B981, #059669);
+      color: #FFFFFF;
+      border: none;
+      padding: 0.45rem 0.9rem;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.82rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: all 0.18s ease;
+      box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+      white-space: nowrap;
+    }
+    .btn-action-deliver:hover {
+      background: linear-gradient(135deg, #059669, #047857);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(16, 185, 129, 0.4);
+    }
+    .btn-action-slip {
+      background: #EFF6FF;
+      color: #2563EB;
+      border: 1px solid #BFDBFE;
+      padding: 0.45rem 0.8rem;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.82rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .btn-action-slip:hover {
+      background: #DBEAFE;
+      color: #1D4ED8;
+    }
+    .btn-action-icon {
+      background: #F3F4F6;
+      border: 1px solid #E5E7EB;
+      padding: 0.42rem 0.65rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      transition: all 0.15s;
+      color: #374151;
+    }
+    .btn-action-icon:hover {
+      background: #E5E7EB;
+      border-color: #D1D5DB;
+      transform: translateY(-1px);
+    }
+
+    /* Modal Bàn giao & Thu COD */
+    .modal-delivery-box {
+      max-width: 540px;
+      width: 92%;
+      background: #FFFFFF;
+      border-radius: 20px;
+      padding: 1.75rem;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.3);
+      animation: modalScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes modalScaleIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .modal-delivery-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 1px solid #F3F4F6;
+      padding-bottom: 1rem;
+      margin-bottom: 1.25rem;
+    }
+    .modal-delivery-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .modal-delivery-icon {
+      width: 44px;
+      height: 44px;
+      background: #EFF6FF;
+      color: #2563EB;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      flex-shrink: 0;
+    }
+    .modal-delivery-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #111827;
+      margin: 0;
+    }
+    .modal-delivery-subtitle {
+      font-size: 0.82rem;
+      color: #6B7280;
+      margin: 0.2rem 0 0 0;
+    }
+    .btn-close-icon {
+      background: #F3F4F6;
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      font-size: 1rem;
+      color: #6B7280;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+    .btn-close-icon:hover {
+      background: #E5E7EB;
+      color: #111827;
+    }
+    .delivery-order-headline {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 12px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1rem;
+    }
+    .delivery-code-wrap {
+      display: flex;
+      flex-direction: column;
+    }
+    .label-tiny {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #64748B;
+      letter-spacing: 0.5px;
+    }
+    .delivery-code-text {
+      font-family: monospace;
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #5B3E96;
+    }
+    .modal-qua-han-box {
+      background: #FEF2F2;
+      border: 1.5px solid #F87171;
+      color: #991B1B;
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+    }
+    .modal-cod-alert {
+      border-radius: 14px;
+      padding: 1.15rem;
+      text-align: center;
+      margin-bottom: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .modal-cod-alert.is-cod {
+      background: linear-gradient(135deg, #FEF3C7, #FDE68A);
+      border: 2px solid #F59E0B;
+    }
+    .modal-cod-alert.is-prepaid {
+      background: linear-gradient(135deg, #F0FDF4, #DCFCE7);
+      border: 2px solid #22C55E;
+    }
+    .cod-alert-badge {
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .modal-cod-alert.is-cod .cod-alert-badge {
+      color: #B45309;
+    }
+    .modal-cod-alert.is-prepaid .cod-alert-badge {
+      color: #15803D;
+    }
+    .cod-alert-amount {
+      font-size: 2.1rem;
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: -0.5px;
+      margin: 0.15rem 0;
+    }
+    .modal-cod-alert.is-cod .cod-alert-amount {
+      color: #C2410C;
+    }
+    .modal-cod-alert.is-prepaid .cod-alert-amount {
+      color: #16A34A;
+    }
+    .cod-alert-subtext {
+      font-size: 0.82rem;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+    .modal-cod-alert.is-cod .cod-alert-subtext {
+      color: #9A3412;
+    }
+    .modal-cod-alert.is-prepaid .cod-alert-subtext {
+      color: #166534;
+    }
+    .delivery-info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.85rem;
+      margin-bottom: 1rem;
+    }
+    .delivery-info-card {
+      background: #F9FAFB;
+      border: 1px solid #E5E7EB;
+      border-radius: 12px;
+      padding: 0.85rem 1rem;
+    }
+    .delivery-card-title {
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: #6B7280;
+      text-transform: uppercase;
+      margin-bottom: 0.4rem;
+    }
+    .delivery-customer-name {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #111827;
+    }
+    .delivery-customer-phone {
+      font-size: 0.85rem;
+      color: #2563EB;
+      font-weight: 600;
+      margin: 2px 0 0.4rem 0;
+    }
+    .delivery-card-row {
+      font-size: 0.82rem;
+      margin-top: 0.25rem;
+      color: #374151;
+    }
+    .delivery-check-rule {
+      background: #F1F5F9;
+      border-radius: 10px;
+      padding: 0.75rem 0.9rem;
+      margin-bottom: 1.25rem;
+    }
+    .delivery-checkbox-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      font-size: 0.82rem;
+      color: #334155;
+      cursor: pointer;
+      font-weight: 500;
+      line-height: 1.4;
+    }
+    .delivery-checkbox-label input {
+      margin-top: 2px;
+      cursor: pointer;
+    }
+    .modal-delivery-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      border-top: 1px solid #F3F4F6;
+      padding-top: 1rem;
+    }
+    .btn-cancel-modal {
+      background: #F3F4F6;
+      border: 1px solid #D1D5DB;
+      color: #4B5563;
+      padding: 0.65rem 1.2rem;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-cancel-modal:hover {
+      background: #E5E7EB;
+      color: #111827;
+    }
+    .btn-confirm-delivery-modal {
+      background: linear-gradient(135deg, #10B981, #059669);
+      color: #FFFFFF;
+      border: none;
+      padding: 0.65rem 1.5rem;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+      transition: all 0.2s ease;
+    }
+    .btn-confirm-delivery-modal:hover {
+      background: linear-gradient(135deg, #059669, #047857);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(16, 185, 129, 0.45);
+    }
+
+    /* KPI DASHBOARD GRID (TAB 4) */
+    .kpi-dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .kpi-card {
+      background: #FFFFFF;
+      border: 1.5px solid #E5E7EB;
+      border-radius: 16px;
+      padding: 1.25rem 1.4rem;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .kpi-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+      border-color: #D1D5DB;
+    }
+    .kpi-card-inner {
+      display: flex;
+      align-items: center;
+      gap: 1.1rem;
+    }
+    .kpi-icon-wrap {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.7rem;
+      flex-shrink: 0;
+    }
+    .kpi-icon-wrap.icon-purple {
+      background: #F3E8FF;
+      color: #7E22CE;
+    }
+    .kpi-icon-wrap.icon-blue {
+      background: #EFF6FF;
+      color: #2563EB;
+    }
+    .kpi-icon-wrap.icon-orange {
+      background: #FFF7ED;
+      color: #EA580C;
+    }
+    .kpi-icon-wrap.icon-green {
+      background: #F0FDF4;
+      color: #16A34A;
+    }
+    .kpi-value {
+      font-size: 2.1rem;
+      font-weight: 900;
+      color: #111827;
+      line-height: 1;
+      letter-spacing: -0.5px;
+    }
+    .kpi-label {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #374151;
+      margin-top: 0.35rem;
+    }
+    .kpi-sub {
+      font-size: 0.78rem;
+      color: #6B7280;
+      margin-top: 0.15rem;
+    }
+
+    /* BANNER DÒNG TIỀN THỰC THU */
+    .cashflow-banner {
+      background: linear-gradient(135deg, #1E1B4B 0%, #312E81 50%, #4338CA 100%);
+      border-radius: 18px;
+      padding: 1.75rem 2rem;
+      color: #FFFFFF;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 2rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 10px 30px -5px rgba(49, 46, 129, 0.4);
+      flex-wrap: wrap;
+    }
+    .cashflow-left {
+      flex: 1 1 320px;
+    }
+    .cashflow-tag {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.18);
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      color: #FCD34D;
+      margin-bottom: 0.5rem;
+    }
+    .cashflow-total {
+      font-size: 2.6rem;
+      font-weight: 900;
+      color: #FFFFFF;
+      line-height: 1;
+      letter-spacing: -1px;
+    }
+    .cashflow-desc {
+      font-size: 0.88rem;
+      color: #C7D2FE;
+      margin-top: 0.45rem;
+      line-height: 1.45;
+      max-width: 480px;
+    }
+    .cashflow-right {
+      display: flex;
+      gap: 1.1rem;
+      flex-wrap: wrap;
+    }
+    .cashflow-chip {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1.5px solid rgba(255, 255, 255, 0.22);
+      border-radius: 14px;
+      padding: 1.1rem 1.4rem;
+      min-width: 200px;
+      backdrop-filter: blur(8px);
+      transition: background 0.2s;
+    }
+    .cashflow-chip:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+    .cashflow-chip-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #E0E7FF;
+      margin-bottom: 0.35rem;
+    }
+    .cashflow-chip-value {
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: #34D399;
+    }
+    .cashflow-chip-sub {
+      font-size: 0.76rem;
+      color: #A5B4FC;
+      margin-top: 0.25rem;
+    }
+
+    /* GRID BIỂU ĐỒ & HIỆU SUẤT */
+    .dashboard-chart-grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 1.5rem;
+      align-items: stretch;
+    }
+    .chart-panel {
+      display: flex;
+      flex-direction: column;
+    }
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid #F3F4F6;
+    }
+    .time-range-tabs {
+      display: inline-flex;
+      background: #F3F4F6;
+      border-radius: 8px;
+      padding: 3px;
+      gap: 2px;
+    }
+    .time-tab {
+      background: transparent;
+      border: none;
+      padding: 0.35rem 0.75rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #4B5563;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .time-tab:hover {
+      color: #111827;
+    }
+    .time-tab.active {
+      background: #FFFFFF;
+      color: #5B3E96;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      font-weight: 700;
+    }
+    .column-chart-container {
+      width: 100%;
+      min-height: 270px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0.5rem 0;
+    }
+    .chart-svg-wrap {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+    .chart-tooltip {
+      position: absolute;
+      background: #111827;
+      color: #FFFFFF;
+      padding: 0.4rem 0.65rem;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      z-index: 20;
+      white-space: nowrap;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      transform: translate(-50%, -120%);
+    }
+    .chart-tooltip.visible {
+      opacity: 1;
+    }
+    .chart-legend-wrap {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px dashed #E5E7EB;
+      margin-top: auto;
+      flex-wrap: wrap;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.84rem;
+      color: #4B5563;
+    }
+    .legend-color-box {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .legend-color-green {
+      background: #10B981;
+    }
+    .legend-color-blue {
+      background: #3B82F6;
+    }
+    .legend-color-orange {
+      background: #F97316;
+    }
+    .performance-panel {
+      display: flex;
+      flex-direction: column;
+    }
+    .progress-stats-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .progress-stat-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .progress-info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+    }
+    .stat-name {
+      font-weight: 600;
+      color: #374151;
+    }
+    .stat-percentage {
+      font-weight: 700;
+      color: #111827;
+    }
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      background: #F3F4F6;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .fill-green {
+      background: linear-gradient(90deg, #34D399, #10B981);
+    }
+    .fill-blue {
+      background: linear-gradient(90deg, #60A5FA, #3B82F6);
+    }
+    .fill-orange {
+      background: linear-gradient(90deg, #FDBA74, #F97316);
+    }
+    .fill-purple {
+      background: linear-gradient(90deg, #C084FC, #8B5CF6);
+    }
+    .fill-red {
+      background: linear-gradient(90deg, #F87171, #EF4444);
+    }
+    .service-kpi-subgrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.85rem;
+      margin-top: auto;
+      padding-top: 1rem;
+      border-top: 1px dashed #E5E7EB;
+    }
+    .service-kpi-box {
+      background: #F9FAFB;
+      border: 1px solid #E5E7EB;
+      border-radius: 10px;
+      padding: 0.85rem;
+      text-align: center;
+    }
+    .service-kpi-icon {
+      font-size: 1.3rem;
+      margin-bottom: 0.2rem;
+    }
+    .service-kpi-val {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #111827;
+    }
+    .service-kpi-lbl {
+      font-size: 0.76rem;
+      color: #6B7280;
+      margin-top: 0.15rem;
+    }
+    .service-kpi-formula {
+      font-size: 0.72rem;
+      color: #6B7280;
+      margin-top: 3px;
+      font-weight: 500;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 1150px) {
+      .kpi-dashboard-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .dashboard-chart-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 768px) {
+      .cashflow-banner {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1.25rem;
+        padding: 1.25rem;
+      }
+      .cashflow-total {
+        font-size: 1.85rem;
+      }
+      .cashflow-right {
+        flex-direction: column;
+      }
+      .cashflow-chip {
+        min-width: 100%;
+      }
+      .kpi-dashboard-grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+      }
+      .delivery-info-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  
+
+
+/* ====================================================================
+   BỔ SUNG CÁC UTILITY CLASS & COMPONENT PHỤ TRỢ
+   ==================================================================== */
+
+/* Nút text action (Đổi quầy trực) */
+.btn-text-action {
+  background: none;
+  border: none;
+  color: var(--color-secondary, #5B3E96);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0.15rem 0.4rem;
+  border-radius: 6px;
+  text-decoration: underline;
+  transition: all 0.15s ease;
+}
+.btn-text-action:hover {
+  background: #F3E8FF;
+  color: var(--color-secondary-dark, #3F2B6B);
+}
+
+/* Header & Filter toolbar cho thống kê */
+.stats-header-card {
+  margin-bottom: 1.25rem;
+}
+.stats-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.stats-filter-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Modal Delivery Body */
+.modal-delivery-body {
+  padding: 0.5rem 0;
+}
+
+/* Barcode Visual Lines cho Tem Nhãn dán thùng */
+.barcode-visual {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  height: 48px;
+  gap: 2px;
+  margin: 0.5rem 0;
+}
+.barcode-line {
+  display: inline-block;
+  background: #000000;
+  height: 100%;
+  width: 3px;
+}
+.barcode-line.thin {
+  width: 1.5px;
+}
+.barcode-line.thick {
+  width: 5px;
+}
+
+/* Legend Text biểu đồ */
+.legend-text {
+  font-size: 0.82rem;
+  color: #4B5563;
+  font-weight: 500;
+}
+
+/* Text Muted */
+.text-muted {
+  color: #6B7280;
+}

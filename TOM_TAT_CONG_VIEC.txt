@@ -1,0 +1,1383 @@
+================================================================================
+TOM TAT CONG VIEC DA LAM CUNG CLAUDE
+Nhanh: feature/Nghia-us04-dieuDoVien
+Pham vi: role Quan ly nhan su (quan_ly_nhan_su) + role Dieu do vien (dieu_do_vien)
+Cap nhat lan cuoi: 2026-09-27
+================================================================================
+
+Ghi chu doc truoc: day la file TAM, ghi lai qua trinh lam viec de ban theo doi -
+khong phai tai lieu chinh thuc cua du an. Cac quyet dinh nghiep vu/kien truc
+trong nay CHUA duoc nhom dong y, xem PHAN 6 de biet viec con phai lam.
+
+
+================================================================================
+PHAN 0 - TINH TRANG GIT HIEN TAI
+================================================================================
+
+Nhanh hien tai: feature/Nghia-us04-dieuDoVien
+- Da co 1 commit rieng cua ban:
+    f7776da "Add quan ly nhan su notes" (22/09/2026) - da commit file
+    NHAP_QUAN_LY_NHAN_SU.md (ban dau, 294 dong)
+- Nhanh nay dang CHAM HON main 4 commit (tinh tu luc bat dau lam viec), trong
+  do main da co them migration "20260920_1600_tao_bang_gui_hang_va_hoan_tien.sql"
+  (bang gui hang/hoan tien, thuoc phan nguoi 5) ma nhanh nay chua co. Nen pull/
+  merge main som de khoi lech qua xa.
+
+Cac thay doi CHUA COMMIT tinh den luc viet file nay:
+  Da sua (tracked, co trong git):
+    - NHAP_QUAN_LY_NHAN_SU.md          (them 1 doan moi, muc 3.0)
+    - backend/app/config.py             (them bien CLOUDINARY_URL)
+    - backend/requirements.txt          (them dong cloudinary==1.41.0)
+
+  Moi hoan toan (untracked, chua tung add vao git):
+    - backend/app/services/luu_tru_anh_service.py
+    - backend/migrations/20260927_1000_tao_bang_nhan_su_van_hanh_giay_to_nhat_ky.sql
+    - backend/migrations/20260927_1100_tao_bang_danh_muc_xe_tuyen_tam_thoi.sql
+    - backend/migrations/20260927_1110_tao_bang_chuyen_xe_lich_su_diem_dung.sql
+    - database_quanLyNhanSu.md
+    - database_dieuDoVien.md
+    - TOM_TAT_CONG_VIEC.txt (chinh file nay)
+
+  Khong nam trong git (bi .gitignore chan boi pattern ".env.*" va "*.env"):
+    - backend/.env           (da them bien CLOUDINARY_URL, placeholder)
+    - backend/.env.example   (da them bien CLOUDINARY_URL, placeholder)
+
+
+================================================================================
+PHAN 1 - TOM TAT DIEN BIEN LAM VIEC (theo trinh tu)
+================================================================================
+
+1. Huong dan chay du an lan dau: giai thich Docker Desktop, tao backend/.env
+   tu backend/.env.example, chay "docker-compose up -d --build", chay migration
+   bang yoyo, mo Swagger http://localhost:8000/docs.
+
+2. Ban nghiep vu mo rong vai tro Quan ly nhan su: ngoai quan ly tai khoan
+   (UC-36/37/38 da co san), de xuat them 3 nhom viec - (1) ho so giay to +
+   canh bao het han, (2) cho nghi viec co canh bao thieu bien che, (3) xem
+   nhat ky thao tac. Danh so UC-47 -> UC-50.
+
+3. Viet ban nhap NHAP_QUAN_LY_NHAN_SU.md: noi dung san sang dan vao
+   NGHIEP_VU.md / DATABASE.md / ARCHITECTURE.md that (chua dan, cho nhom
+   dong y truoc). KHONG sua truc tiep 3 file .md chinh theo yeu cau cua ban.
+
+4. Tra loi cau hoi: bang nao ke thua tu nguoi_dung (Class Table Inheritance).
+   Chi co 2 bang con that: ho_so_khach_hang, ho_so_can_bo_diem. Bang
+   nhan_su_van_hanh KHONG phai kieu ke thua nay.
+
+5. Viet database_quanLyNhanSu.md: thiet ke rieng cac bang lien quan quan ly
+   nhan su (nhan_su_van_hanh mo rong, giay_to_nhan_su moi, nhat_ky_quan_ly_nhan_su
+   moi - TACH RIENG khoi nhat_ky_admin theo dung yeu cau "chi luu lich su thao
+   tac cua quan ly nhan su, khong lan role khac").
+
+6. Phat hien xung dot kien truc: cot "anh ho so" can luu file/anh, nhung
+   ARCHITECTURE.md da chu dong bo Cloudinary ("File/anh: Khong dung"). Giai
+   thich ro nguyen nhan, de xuat dua Cloudinary tro lai CHI cho dung nhu cau
+   nay (khong mo rong muc dich khac). Da viet san doan thay the cho dong
+   "File/anh" o NHAP_QUAN_LY_NHAN_SU.md muc 3.0 (chua dan vao ARCHITECTURE.md
+   that).
+
+7. Them bien moi truong CLOUDINARY_URL vao backend/.env va backend/.env.example
+   (placeholder, ban can tu dien gia tri that tu tai khoan Cloudinary).
+
+8. Viet backend/app/services/luu_tru_anh_service.py: service ha tang rieng,
+   chi lo upload/xoa anh tren Cloudinary (khong lan logic nghiep vu), dung
+   delivery kieu "authenticated" (URL co chu ky) vi anh CCCD/giay to la du
+   lieu nhay cam. Luu public_id vao DB, KHONG luu URL co dinh.
+
+9. Them CLOUDINARY_URL vao backend/app/config.py va cloudinary==1.41.0 vao
+   backend/requirements.txt.
+
+10. Viet migration that: 20260927_1000_tao_bang_nhan_su_van_hanh_giay_to_nhat_ky.sql
+    - tao bang nhan_su_van_hanh (day du), giay_to_nhan_su, nhat_ky_quan_ly_nhan_su.
+    Ghi chu ro day la giai phap TAM (nhan_su_van_hanh dung ra thuoc domain
+    Truong nhom) - can doi chieu truoc khi merge.
+
+11. Chuyen sang phan Dieu do vien (role thu 2 ban phu trach): giai thich
+    day du cac bang lien quan (so huu / chi doc / goi ham nguoi khac) dua tren
+    NGHIEP_VU.md muc 8.6, DATABASE.md muc 3, CONTRIBUTING.md muc 3. Phat hien
+    van de lon hon: toan bo 8 bang "danh muc" (khu_vuc, diem_don_tra, nhom_tuyen,
+    tuyen, tuyen_diem_don_tra, loai_xe, xe, xe_nhan_su, lich_chay_dinh_ky) va
+    ca bang chuyen_xe deu CHUA co migration that o bat ky nhanh nao trong repo.
+
+12. Viet database_dieuDoVien.md: thiet ke rieng pham vi Dieu do vien, bang phan
+    quyen so huu ro rang, cac gia tri suy luan, rang buoc chi kiem tra duoc o
+    Service.
+
+13. Viet 2 migration cho Dieu do vien:
+    - 20260927_1100_tao_bang_danh_muc_xe_tuyen_tam_thoi.sql (9 bang danh muc,
+      danh dau TAM THOI vi thuoc domain Truong nhom)
+    - 20260927_1110_tao_bang_chuyen_xe_lich_su_diem_dung.sql (chuyen_xe,
+      lich_su_diem_dung_chuyen - bang THAT su cua Dieu do vien, khong tam)
+
+14. File nay (TOM_TAT_CONG_VIEC.txt) - tong hop lai toan bo qua trinh tren.
+
+
+================================================================================
+PHAN 2 - NOI DUNG DAY DU CAC FILE DA SUA (chi phan thay doi)
+================================================================================
+
+--------------------------------------------------------------------------------
+2.1. backend/app/config.py (FULL, sau khi sua)
+--------------------------------------------------------------------------------
+import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+JWT_SECRET = os.getenv("JWT_SECRET")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "1440"))
+CORS_ORIGINS = [o for o in os.getenv("CORS_ORIGINS", "").split(",") if o]
+
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+
+# Cloudinary - luu anh ho so nhan su van hanh (UC-47, NGHIEP_VU.md muc 8.9,
+# xem NHAP_QUAN_LY_NHAN_SU.md muc 3.0). SDK Cloudinary tu doc bien nay neu
+# goi cloudinary.config() khong tham so, nhung khai bao lai o day cho nhat
+# quan voi moi bien moi truong khac trong file nay (doc qua config.py,
+# khong goi os.getenv rai rac trong services/) - xem luu_tru_anh_service.py.
+CLOUDINARY_URL = os.getenv("CLOUDINARY_URL")
+
+--- Phan them so voi ban goc: 7 dong cuoi (tu dong "# Cloudinary" tro xuong) ---
+
+--------------------------------------------------------------------------------
+2.2. backend/requirements.txt (FULL, sau khi sua)
+--------------------------------------------------------------------------------
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+psycopg2-binary==2.9.9
+pydantic==2.9.2
+email-validator==2.2.0
+python-dotenv==1.0.1
+PyJWT==2.9.0
+passlib[bcrypt]==1.7.4
+yoyo-migrations==8.2.0
+APScheduler==3.10.4
+python-multipart==0.0.9
+cloudinary==1.41.0
+pytest==8.3.3
+
+--- Phan them so voi ban goc: dong "cloudinary==1.41.0" ---
+
+--------------------------------------------------------------------------------
+2.3. backend/.env (khong nam trong git, tu quan ly rieng tren may ban)
+--------------------------------------------------------------------------------
+Da them 3 dong sau, dat ngay truoc phan "# App":
+
+# Cloudinary (luu anh ho so nhan su van hanh - UC-47, NGHIEP_VU.md muc 8.9)
+# TODO: thay bang gia tri that tu Cloudinary Dashboard > "API Environment
+# variable" - gia tri duoi day chi la placeholder, chua goi API duoc
+CLOUDINARY_URL=cloudinary://<api_key>:<api_secret>@<cloud_name>
+
+CHU Y: gia tri hien tai la PLACEHOLDER, chua goi Cloudinary that duoc. Can
+tu dang ky tai khoan Cloudinary free, copy dung chuoi o muc "API Environment
+variable" trong Dashboard, dan de len dong CLOUDINARY_URL o tren.
+
+--------------------------------------------------------------------------------
+2.4. backend/.env.example (khong nam trong git tren nhanh nay, xem PHAN 6)
+--------------------------------------------------------------------------------
+Da them 3 dong sau, dat ngay truoc phan "# App":
+
+# Cloudinary (luu anh ho so nhan su van hanh - UC-47, NGHIEP_VU.md muc 8.9)
+# Lay nguyen chuoi nay o Cloudinary Dashboard > muc "API Environment variable"
+CLOUDINARY_URL=cloudinary://<api_key>:<api_secret>@<cloud_name>
+
+--------------------------------------------------------------------------------
+2.5. NHAP_QUAN_LY_NHAN_SU.md - phan MOI THEM sau lan commit f7776da
+--------------------------------------------------------------------------------
+(Toan van hien tai cua file nay nam o PHAN 3.1 duoi day, vi ban chat day cung
+la 1 file duoc tao/mo rong lien tuc trong qua trinh lam viec. Doan duoi day
+la CHINH XAC phan da them vao SAU khi ban da commit 294 dong dau tien.)
+
+### 3.0. Muc 1 (bang cong nghe) - THAY dong "File/anh"
+
+**Quyet dinh can nhom dong y truoc khi dan** (dao nguoc 1 quyet dinh kien truc
+da chot - xem giai thich trong `database_quanLyNhanSu.md` muc 0.2 va 6): dua
+Cloudinary tro lai, **chi de phuc vu anh ho so nhan su van hanh** (UC-47) -
+khong mo rong cho muc dich nao khac o dot nay.
+
+Dong goc hien tai:
+
+    | File/anh | **Khong dung** - bo Cloudinary so voi ban v1 | Domain moi
+    khong co nhu cau khach/nhan vien upload anh (ve cung va bien nhan gui
+    hang deu in truc tiep tai quay, khong phai file luu tru) |
+
+Thay bang:
+
+    | File/anh | **Cloudinary** (dua tro lai, dung lai tu ban v1) | Ve/bien
+    nhan van in truc tiep tai quay, khong can luu file - giu nguyen ly do
+    goc cho phan nay. Nhung ho so nhan su van hanh (UC-47, `quan_ly_nhan_su`,
+    `NGHIEP_VU.md` muc 8.9) can luu anh chan dung va anh giay to (bang lai,
+    giay kham suc khoe) - free tier Cloudinary du dung cho quy mo BTL, ho tro
+    delivery kieu `authenticated` (URL co chu ky, gioi han quyen xem) phu hop
+    voi du lieu nhay cam nay. Anh **khong luu tren o dia backend** vi
+    Render/Fly.io free tier co o dia tam thoi (muc "Deploy backend" cung
+    bang) |
+
+Kem theo, them vao `backend/.env.example` (khong phai `ARCHITECTURE.md`,
+nhung cung luc voi thay doi nay): 1 bien `CLOUDINARY_URL` (hoac 3 bien
+`CLOUDINARY_CLOUD_NAME`/`CLOUDINARY_API_KEY`/`CLOUDINARY_API_SECRET`).
+
+
+================================================================================
+PHAN 3 - NOI DUNG DAY DU CAC FILE MOI TAO
+================================================================================
+
+--------------------------------------------------------------------------------
+3.1. NHAP_QUAN_LY_NHAN_SU.md (toan van hien tai)
+--------------------------------------------------------------------------------
+# BAN NHAP - mo rong vai tro Quan ly nhan su (`quan_ly_nhan_su`)
+
+> **Day la file nhap, chua thuoc bo tai lieu chinh.** Noi dung nam trong cac
+khoi code benduoi la van ban san sang dan vao file that, viet theo dung van
+phong va cach danh so cua file do. Moi khoi co ghi ro dan vao file nao, vi
+tri nao, thay hay them. Sau khi ca nhom dong y va da dan xong, xoa file nay.
+
+Pham vi dot nay (3 viec):
+1. Ho so tai xe/phu xe kem giay to, va canh bao giay to sap het han -> UC-47, UC-48.
+2. Cho nghi viec nhan su van hanh, co canh bao xe thieu bien che -> UC-49
+   (bo sung nhe vao UC-37).
+3. Xem nhat ky thao tac -> UC-50.
+
+UC moi danh so tu UC-47 vi UC-46 la so cao nhat hien co (UC-06/07 da retire,
+khong dung lai).
+
+---
+
+## 0. Quyet dinh can nhom xac nhan TRUOC khi dan
+
+| # | Quyet dinh (ban nhap da chon san) | Vi sao chon |
+|---|---|---|
+| 1 | Ho so nhan su (nhan_su_van_hanh) do quan_ly_nhan_su (va quan_ly) quan
+ly. Bien che (xe_nhan_su, UC-35) van chi cua quan_ly. | Tach "ai la nhan su
+cua cong ty" khoi "nguoi do di xe nao". Khong dung vao UC-35 cua truong nhom. |
+| 2 | Tao tai khoan phu xe (UC-36) va tao ho so (UC-47) la 2 buoc rieng; ho so
+phu xe chon tai khoan phu_xe da co de lien ket. | Khong phai sua UC-36. |
+| 3 | Cho nghi viec khong tu go dong xe_nhan_su co dinh - chi chuyen sang
+tam_nghi, de quan_ly go han/bien che nguoi moi (UC-35). | Dung nguyen tac
+muc 3.2: doi bien che co dinh la viec cua quan_ly; tam_nghi lam he thong
+ngung suy ra chuyen cho nguoi do ngay. |
+| 4 | Giay to theo doi: bang lai (tai xe bat buoc) va giay kham suc khoe.
+Nguong canh bao mac dinh 30 ngay. | Du dung cho do an; nguong cau hinh duoc
+nhu cac nguong khac (muc 8.7 diem 3). |
+| 5 | Job canh bao chi nhac, khong khoa/khong go bien che/khong chan gan xe. |
+Cung nguyen tac UC-46: chi nhac con nguoi xu ly. |
+| 6 | Luu so CCCD (du lieu nhay cam). | Can bo neu nhom khong muon luu - xoa
+cot so_cccd o muc 2.1. |
+
+---
+
+## 1. NGHIEP_VU.md
+
+### 1.1. Muc 2 (bang vai tro) - THAY dong quan_ly_nhan_su
+
+| `quan_ly_nhan_su` | Duoc quan ly goc tao truc tiep, khong gan van phong nao
+(pham vi toan he thong) | Tao/khoa/mo khoa tai khoan cho nhan_vien_van_hanh
+(phu xe), nhan_vien_quay_ve, nhan_vien_gui_hang, dieu_do_vien - khong quan ly
+tai khoan ke_toan, quan_ly, hay quan_ly_nhan_su khac (muc 8.9). Quan ly ho so
+nhan su van hanh (tai xe + phu xe: thong tin, giay to, cho nghi viec - muc
+8.9). Xem nhat ky thao tac cua chinh minh. Xem thong ke toan he thong. Khong
+co quyen nghiep vu nao khac (tuyen, gia, xe, bien che xe, khuyen mai) |
+
+### 1.2. Muc 8.9 - THAY TOAN BO noi dung muc
+
+### 8.9. Quan ly nhan su (quan_ly_nhan_su)
+
+Pham vi toan he thong (khong gan van phong, giong ke_toan/quan_ly, muc 2) -
+sinh ra de san bot viec quan ly nhan su van hanh khoi quan_ly khi quy mo cong
+ty lon (nhieu van phong, hang tram nhan su). Chi xu ly tai khoan va ho so
+nhan su cap van hanh - khong co quyen nghiep vu nao khac (khong sua tuyen,
+gia, xe, bien che xe, khuyen mai, lich chay dinh ky).
+
+1. Tao tai khoan cho dung 4 vai tro: nhan_vien_van_hanh (phu xe),
+   nhan_vien_quay_ve, nhan_vien_gui_hang, dieu_do_vien - qua dung co che moi
+   nhu quan_ly (muc 8.7 diem 2). Khong tao duoc tai khoan ke_toan, quan_ly,
+   hay quan_ly_nhan_su khac - cac vai tro nay nhay cam hon (tien, hoac chinh
+   quyen quan tri), chi quan_ly (voi ke_toan) hoac quan_ly goc (voi
+   quan_ly/quan_ly_nhan_su) moi tao duoc.
+2. Khoa/mo khoa tai khoan cho dung 4 vai tro tren - khong dung duoc toi
+   ke_toan/quan_ly/quan_ly_nhan_su khac.
+3. Xem thong ke toan he thong (UC-39), cung pham vi nhu quan_ly.
+4. Chi tai khoan quan_ly goc (muc 2, muc 8.7 diem 2) moi tao duoc tai khoan
+   quan_ly_nhan_su - khong tu dang ky, khong duoc quan_ly_nhan_su khac hay
+   quan_ly khong phai goc tao ho.
+5. Quan ly ho so nhan su van hanh (UC-47): tao/sua ho so tai xe va phu xe
+   (ho ten, SDT, CCCD, ngay sinh, ngay vao lam) kem giay to (bang lai, giay
+   kham suc khoe, ngay het han). Tai xe khong co tai khoan (muc 3.2), nen
+   day la noi duy nhat luu thong tin cua ho. He thong tu nhac khi giay to
+   sap het han (UC-48).
+6. Cho nghi viec nhan su van hanh (UC-49): dong ho so (khong xoa, giu lich
+   su), khoa tai khoan neu la phu xe, va bao ngay cho quan_ly + dieu do vien
+   biet xe nao vua thieu nguoi de bo sung. Quan ly nhan su khong tu go/thay
+   bien che xe - do la viec cua quan_ly (UC-35).
+7. Xem nhat ky thao tac cua chinh minh (UC-50) - moi thao tac tao/khoa/mo
+   khoa tai khoan, tao/sua ho so, cho nghi viec deu duoc ghi lai. quan_ly
+   xem duoc nhat ky cua moi nguoi, dung de giam sat nguoi co quyen cao nay.
+
+Ranh gioi voi quan_ly: quan ly nhan su tra loi cau hoi "ai la nhan su cua
+cong ty, giay to con han khong" (ho so); quan_ly tra loi "nguoi do di xe
+nao" (bien che, UC-35). quan_ly lam duoc ca hai; quan ly nhan su chi lam
+duoc phan ho so.
+
+### 1.3. Muc 3.2 - THEM 1 gach dau dong (dat sau gach "Tai xe chi la ho so
+nhan su trong xe_nhan_su...")
+
+- Ho so nhan su van hanh (nhan_su_van_hanh) va bien che (xe_nhan_su) do 2
+  vai tro khac nhau quan ly (muc 8.9): ho so (thong tin, giay to, trang
+  thai lam viec) do quan_ly_nhan_su hoac quan_ly; bien che co dinh do
+  quan_ly (UC-35). Chi ho so dang lam viec (dang_lam) moi duoc dua vao bien
+  che xe. Giay to (bang lai, giay kham suc khoe) het han khong chan viec
+  bien che hay gan xe - he thong chi nhac nguoi quan ly nhan su xu ly
+  (UC-48), quyet dinh cuoi cung la cua con nguoi.
+
+### 1.4. Muc 11 (ma tran UC) - THEM 4 dong ngay sau dong UC-46
+
+| UC-47 | Quan ly ho so nhan su van hanh (tai xe/phu xe) | khach hang: - |
+phu xe: - | tai xe: - | quay ve: - | gui hang: - | dieu do vien: - | ke
+toan: - | quan ly nhan su: CO | quan ly: CO |
+| UC-48 | Tu dong canh bao giay to nhan su van hanh sap het han/da het han
+(job) | tat ca: - |
+| UC-49 | Cho nghi viec nhan su van hanh | quan ly nhan su: CO | quan ly: CO |
+cac vai tro khac: - |
+| UC-50 | Xem nhat ky thao tac | quan ly nhan su: CO (cua minh) | quan ly:
+CO (toan bo) | cac vai tro khac: - |
+
+### 1.5. Muc 12 (dac ta UC) - THEM 4 dac ta sau UC-46
+
+--- UC-47. Quan ly ho so nhan su van hanh (tai xe/phu xe) ---
+Actor: Quan ly nhan su, hoac Quan ly.
+Tien dieu kien: Voi ho so phu xe: tai khoan phu_xe da duoc tao (UC-36). Tai
+xe khong can tai khoan (muc 3.2).
+Luong chinh (muc 8.9 diem 5, muc 3.2):
+  1. Chon "Them ho so", hoac chon 1 ho so co san de sua.
+  2. Nhap ho ten, so dien thoai, chuc danh (tai_xe/phu_xe), so CCCD, ngay
+     sinh, ngay vao lam; neu la phu xe thi chon tai khoan phu_xe tuong ung.
+  3. Nhap/cap nhat giay to: bang lai va giay kham suc khoe - moi giay to
+     gom so, hang (chi bang lai), ngay cap, ngay het han.
+  4. He thong kiem tra, luu ho so va ghi nhat ky thao tac (UC-50).
+Luong re nhanh:
+  - Tai buoc 2: chuc danh phu_xe nhung tai khoan duoc chon khong phai vai
+    tro phu_xe, hoac da gan voi ho so khac -> chan, bao loi -> chon lai.
+  - Tai buoc 2: chuc danh tai_xe ma co chon tai khoan -> chan (tai xe khong
+    co tai khoan, muc 3.2).
+  - Tai buoc 3: ho so tai_xe chua co bang lai -> chan, bao "tai xe bat
+    buoc co thong tin bang lai".
+  - Tai buoc 3: ngay het han da qua -> van cho luu (cap nhat ho so cu), he
+    thong hien thi co "da het han" - UC-48 se nhac ngay o lan quet ke tiep.
+  - Tai buoc 3: gia han giay to (nhap ngay het han moi) -> he thong xoa co
+    da canh bao, chu ky nhac bat dau lai tu dau.
+  - Khong co thao tac xoa ho so, khong doi chuc danh sau khi tao; nhan su
+    thoi viec dung UC-49.
+Hau dieu kien: Ho so day du; nhan su dang lam viec co the duoc quan_ly dua
+vao bien che xe (UC-35).
+
+--- UC-48. Tu dong canh bao giay to nhan su van hanh sap het han/da het han (job) ---
+Actor: He thong (job dinh ky - khong phai actor nguoi dung thao tac truc tiep).
+Tien dieu kien: Ho so nhan su dang_lam co giay to voi ngay het han con <= 30
+ngay (nguong do quan_ly cau hinh, muc 8.7 diem 3) hoac da qua.
+Luong chinh (muc 8.9 diem 5):
+  1. Job quet giay to cua toan bo nhan su dang lam viec, moi ngay 1 lan.
+  2. Giay to con <= 30 ngay ma chua co co "da canh bao sap het han" -> bat
+     co, gui thong bao toi moi tai khoan quan_ly_nhan_su dang hoat dong
+     (neu ho ten, loai giay to, ngay het han).
+  3. Giay to da qua ngay het han ma chua co co "da canh bao het han" -> bat
+     co, gui thong bao muc khan toi cung nhom nguoi nhan.
+Luong re nhanh:
+  - Khong co tai khoan quan_ly_nhan_su nao dang hoat dong -> gui cho quan_ly.
+  - Nhan su da da_nghi_viec -> bo qua.
+  - Giay to duoc gia han (UC-47) -> 2 co duoc xoa, giay to quay lai chu ky
+    canh bao tu dau.
+  - Khong co nhanh nao tu khoa tai khoan, tu go bien che hay chan gan xe -
+    ca 2 moc chi nhac con nguoi xu ly (cung nguyen tac UC-46).
+Hau dieu kien: Nguoi quan ly nhan su nhan duoc nhac; giay to co co tuong
+ung. Ho so va bien che giu nguyen, cho xu ly thu cong (UC-47).
+
+--- UC-49. Cho nghi viec nhan su van hanh ---
+Actor: Quan ly nhan su, hoac Quan ly.
+Tien dieu kien: Ho so dang dang_lam. Chi ap dung cho nhan su van hanh (tai
+xe, phu xe); tai khoan quay ve/gui hang/dieu do vien nghi viec thi dung
+UC-37 (khoa tai khoan).
+Luong chinh (muc 8.9 diem 6, muc 3.2):
+  1. Chon ho so can cho nghi viec, nhap ngay nghi va ly do.
+  2. He thong liet ke cac dong bien che xe_nhan_su ma nguoi nay dang thuoc,
+     kem xe nao se thieu nguoi sau khi ho nghi (so voi quy tac 2 tai xe +
+     >=1 phu xe co dinh moi xe).
+  3. Nguoi thao tac xem canh bao va xac nhan.
+  4. He thong: dat ho so da_nghi_viec (kem ngay, ly do); neu la phu xe thi
+     khoa tai khoan (dat dang_hoat_dong = false, nhu UC-37); chuyen moi
+     dong xe_nhan_su cua nguoi nay sang tam_nghi de he thong ngung suy ra
+     chuyen cho ho ngay.
+  5. He thong gui thong bao toi quan_ly (de go han/bien che nguoi moi,
+     UC-35) va toi cac dieu do vien (de dung nguon du phong tam thoi, muc
+     3.2), neu ro xe nao dang thieu tai xe/phu xe.
+  6. Ghi nhat ky thao tac (UC-50).
+Luong re nhanh:
+  - Tai buoc 1: xe ma nguoi nay thuoc bien che dang co chuyen dang_chay ->
+    chan, bao "cho chuyen ket thuc roi thuc hien lai" -> ket thuc.
+  - Tai buoc 2: nguoi nay khong thuoc bien che xe nao -> bo qua buoc 2 va
+    buoc 5, chuyen thang sang buoc 4 (khong khoa them gi neu la tai xe).
+  - He thong khong xoa cung ho so va khong tu go dong bien che co dinh -
+    viec go han va bien che nguoi moi thuoc quan_ly (UC-35, muc 8.7), giu
+    dung ranh gioi o muc 8.9.
+Hau dieu kien: Ho so da_nghi_viec (giu lich su); tai khoan phu xe (neu co)
+khong dang nhap duoc; cac xe bi anh huong da duoc bao cho quan_ly va dieu
+do vien.
+
+--- UC-50. Xem nhat ky thao tac ---
+Actor: Quan ly nhan su (chi thay cac dong do chinh minh thuc hien), hoac
+Quan ly (thay toan bo).
+Luong chinh (muc 8.9 diem 7):
+  1. Mo man hinh nhat ky.
+  2. Loc theo khoang thoi gian, loai hanh dong (tao/khoa/mo khoa tai khoan,
+     tao/sua ho so, cho nghi viec, ...), doi tuong bi tac dong; rieng
+     quan_ly loc them duoc theo nguoi thuc hien.
+  3. He thong hien thi danh sach, dong moi nhat truoc.
+Luong re nhanh: Nhat ky chi xem - khong co thao tac sua hay xoa dong nao
+(bang chi them moi).
+Hau dieu kien: Khong thay doi du lieu.
+
+### 1.6. Muc 12, UC-35 - THEM 1 dong vao luong re nhanh
+
+  - Tai buoc chon nhan su dua vao bien che: ho so dang da_nghi_viec -> chan,
+    chi ho so dang_lam moi duoc bien che (muc 3.2).
+
+### 1.7. Muc 12, UC-37 - THEM vao cuoi "Hau dieu kien"
+
+  Neu tai khoan bi khoa la phu_xe dang thuoc bien che xe (xe_nhan_su), he
+  thong hien thi canh bao "xe X thieu phu xe" va gui thong bao nhu UC-49
+  buoc 5 - nhung khong tu doi bien che (khoa tam thoi chua chac la nghi
+  viec; neu la nghi viec thi dung UC-49).
+
+---
+
+## 2. DATABASE.md
+
+### 2.0. Tong hop: can them gi, o bang nao
+
+| Bang | Thay doi | Muc do |
+|---|---|---|
+| nhan_su_van_hanh (muc 1.4) | Them 6 cot: so_cccd, ngay_sinh, ngay_vao_lam,
+trang_thai, ngay_nghi_viec, ly_do_nghi_viec. Them 3 rang buoc: UNIQUE
+(nguoi_dung_id), 2 CHECK | Bat buoc |
+| giay_to_nhan_su (bang moi, muc 1.6) | 9 cot, UNIQUE (nhan_su_van_hanh_id,
+loai), index ngay_het_han | Bat buoc |
+| nhat_ky_admin (muc 6.2) | Khong them cot. Chi bo sung quy uoc gia tri
+hanh_dong/doi_tuong_loai va 2 index | Bat buoc (index + quy uoc) |
+| thong_bao (muc 6.1) | Them 2 cot tuy chon: nhan_su_van_hanh_id, xe_id |
+Tuy chon |
+| So do quan he (muc 8) | Them 1 dong, sua 1 dong | Bat buoc |
+| Muc 9 (bo sung can lam ro) | Them 3 gach dau dong | Bat buoc |
+
+Cac bang KHONG can doi: nguoi_dung, xe_nhan_su, ho_so_can_bo_diem,
+ho_so_khach_hang. DATABASE.md hien khong co bang nao luu nguong cau hinh
+(cac nguong 6 tieng, 48 tieng, no-show... cung chua co cho luu) - nguong
+"30 ngay" cua UC-48 tam de hang so trong backend/app/config.py.
+
+### 2.1. Muc 1.4 nhan_su_van_hanh - THEM 6 dong vao cuoi bang cot
+
+| so_cccd | TEXT NULLABLE | Du lieu nhay cam - chi quan_ly_nhan_su/quan_ly
+xem duoc. Nen danh partial unique index WHERE so_cccd IS NOT NULL |
+| ngay_sinh | DATE NULLABLE | |
+| ngay_vao_lam | DATE NOT NULL DEFAULT current_date | |
+| trang_thai | TEXT NOT NULL DEFAULT 'dang_lam', CHECK IN (dang_lam,
+da_nghi_viec) | Khac xe_nhan_su.trang_thai: day la trang thai lam viec cua
+ca ho so |
+| ngay_nghi_viec | DATE NULLABLE | Chi co gia tri khi trang_thai =
+da_nghi_viec (UC-49) |
+| ly_do_nghi_viec | TEXT NULLABLE | |
+
+Them doan rang buoc ngay sau bang cot:
+
+RANG BUOC (thuc hien o DB duoc vi dien ta don gian bang CHECK/UNIQUE):
+- UNIQUE (nguoi_dung_id) - moi tai khoan chi gan voi 1 ho so.
+- CHECK (chuc_danh = 'phu_xe' OR nguoi_dung_id IS NULL) - tai xe khong bao
+  gio co tai khoan.
+- CHECK ((trang_thai = 'da_nghi_viec') = (ngay_nghi_viec IS NOT NULL)).
+
+Kiem tra o Service (khong dien ta duoc bang constraint DB): tai khoan duoc
+chon cho ho so phu_xe phai co nguoi_dung.vai_tro = 'phu_xe' (UC-47).
+
+### 2.2. THEM muc moi 1.6 (sau muc 1.5) - bang giay_to_nhan_su
+
+Xem noi dung day du o database_quanLyNhanSu.md muc 2 (PHAN 3.2 duoi day) -
+giong het nhau, khong lap lai o day.
+
+### 2.3. Muc 6.2 nhat_ky_admin - THEM doan ghi chu sau bang
+
+QUY UOC GHI NHAT KY (phuc vu UC-50):
+- hanh_dong dung cac gia tri co dinh: tao_tai_khoan, khoa_tai_khoan,
+  mo_khoa_tai_khoan (UC-36/37/38), tao_ho_so_nhan_su, sua_ho_so_nhan_su,
+  cho_nghi_viec (UC-47/49).
+- doi_tuong_loai = nguoi_dung hoac nhan_su_van_hanh, doi_tuong_id la id
+  tuong ung.
+- Dong nhat ky ghi trong cung transaction voi thao tac nghiep vu.
+- Bang chi INSERT, khong co UPDATE/DELETE o bat ky tang nao.
+- Index nen danh: nhat_ky_admin(admin_id, thoi_gian DESC) va
+  nhat_ky_admin(doi_tuong_loai, doi_tuong_id, thoi_gian DESC).
+- Ly do khoa tai khoan can bo (UC-37 buoc 3) luu o cot ghi_chu cua dong
+  khoa_tai_khoan - khong them cot rieng vao nguoi_dung.
+
+### 2.4. Muc 8 (so do quan he) - THEM 1 dong va SUA 1 dong
+
+THEM: nhan_su_van_hanh 1--N giay_to_nhan_su (toi da 1 dong moi loai giay to)
+SUA dong cuoi thanh: nguoi_dung(quan_ly | quan_ly_nhan_su) 1--N nhat_ky_admin
+
+### 2.5. Muc 6.1 thong_bao - THEM 2 cot (TUY CHON)
+
+| nhan_su_van_hanh_id | UUID NULLABLE, FK -> nhan_su_van_hanh(id) | Lien ket
+neu thong bao ve giay to sap het han (UC-48) hoac nhan su nghi viec (UC-49) |
+| xe_id | UUID NULLABLE, FK -> xe(id) | Lien ket neu thong bao "xe X thieu
+tai xe/phu xe" (UC-49, UC-37) |
+
+### 2.6. Muc 9 (bo sung can lam ro voi nhom) - THEM 3 gach dau dong
+
+- Phan quyen doc ho so nhan su: so_cccd, ngay_sinh va toan bo
+  giay_to_nhan_su la du lieu nhay cam - chi quan_ly_nhan_su/quan_ly doc duoc.
+- Job canh bao giay to het han (UC-48): chay moi ngay 1 lan; nguong "con <=
+  N ngay" (mac dinh 30) la tham so he thong - tam de hang so trong config.py.
+- Cho nghi viec (UC-49) la 1 transaction: dat trang_thai, khoa tai khoan
+  (neu la phu xe), chuyen xe_nhan_su sang tam_nghi, va ghi nhat_ky_admin -
+  hoac ca 4 cung thanh cong, hoac khong lam gi.
+
+---
+
+## 3. ARCHITECTURE.md
+
+### 3.0. Muc 1 (bang cong nghe) - THAY dong "File/anh"
+
+(Xem noi dung day du o PHAN 2.5 ben tren - day la doan them GAN NHAT vao
+file nay, sau lan commit dau tien.)
+
+### 3.1. Muc 5 (bang "Viec can lam / Khi nao / Co che") - THEM 1 dong cuoi bang
+
+| Canh bao giay to nhan su van hanh sap het han (30 ngay) va da het han
+(UC-48) | giay_to_nhan_su.ngay_het_han con <= nguong cau hinh (mac dinh 30
+ngay) hoac da qua, ho so nhan_su_van_hanh.trang_thai = 'dang_lam' | Job dinh
+ky, moi ngay 1 lan - bat co da_canh_bao_sap_het_han/da_canh_bao_het_han roi
+gui thong_bao cho quan_ly_nhan_su (khong co ai dang hoat dong thi gui
+quan_ly). Khong khoa tai khoan, go bien che hay chan gan xe - chi nhac con
+nguoi xu ly |
+
+### 3.2. Cay thu muc backend - file GOI Y them
+
+repositories/giay_to_nhan_su_repository.py     # SQL bang giay_to_nhan_su
+repositories/nhat_ky_admin_repository.py       # chi INSERT + SELECT
+services/ho_so_nhan_su_service.py              # UC-47, UC-49
+services/nhat_ky_service.py                    # ghi nhat ky + UC-50
+jobs/canh_bao_giay_to.py                       # UC-48
+routes/nhan_su.py                              # UC-47, UC-49, UC-50
+
+nhan_vien_van_hanh_repository.py (da co o cay thu muc) dung lai cho
+nhan_su_van_hanh - chi bo sung ham cho cac cot moi o muc 2.1.
+
+---
+
+## 4. Chua lam o dot nay (ghi lai de khoi quen)
+
+- UML_DIAGRAMS.md / USE_CASE.puml: muc 1.8 can them UC-47/49/50, va ve
+  activity diagram cho 4 UC moi. Nen lam SAU khi nhom chot muc 0.
+- CONTRIBUTING.md: can xac dinh ai nhan UC-47->UC-50 roi cap nhat bang muc 2
+  va danh sach UC (dang "44 UC" -> 48).
+- Migration SQL cho muc 2.1, 2.2 - DA VIET (xem PHAN 3.4 duoi day, file
+  20260927_1000_...sql) nhung van la giai phap TAM, chua doi chieu voi
+  Truong nhom.
+- Chua ho tro: hoan tac nghi viec (nghi nham), sua thong tin/doi van
+  phong/doi vai tro/gui lai email moi cho can bo, thong ke hieu suat nhan
+  su, quan ly nguon nhan su du phong. Co the lam dot sau.
+
+## 5. Cau hoi mo cho nhom
+
+1. Muc 0 cac dong 1-6: nhom co dong y voi lua chon cua ban nhap khong?
+2. Phu xe co can giay kham suc khoe nhu tai xe khong, hay chi tai xe can
+   bang lai?
+3. Khi khong co quan_ly_nhan_su nao dang hoat dong, thong bao gui cho
+   quan_ly (dang chon) hay bo qua?
+4. Dieu do vien nhan thong bao thieu bien che: tat ca dieu do vien (dang
+   chon) hay chi dieu do vien o van phong goc cua xe?
+5. Loi nho co san trong tai lieu, nen thong nhat ten: NGHIEP_VU.md muc 3.2
+   viet xe_nhan_su(xe_id, nhan_vien_id, ...) con DATABASE.md muc 1.5 viet
+   nhan_su_van_hanh_id; va NGHIEP_VU.md dat ten vai tro nhan_vien_van_hanh
+   nhung cot nguoi_dung.vai_tro trong DB la phu_xe. Ban nhap nay dung ten
+   trong DB.
+
+
+--------------------------------------------------------------------------------
+3.2. database_quanLyNhanSu.md (toan van)
+--------------------------------------------------------------------------------
+# Thiet ke co so du lieu - pham vi Quan ly nhan su (quan_ly_nhan_su)
+
+File rieng, pham vi hep: chi cac bang ma vai tro quan_ly_nhan_su tao/sua/doc
+trong nghiep vu da ban o NHAP_QUAN_LY_NHAN_SU.md (UC-47->50). Khong phai ban
+thay the DATABASE.md - khi nhom chot xong, noi dung o day duoc dan vao dung
+vi tri da chi trong NHAP_QUAN_LY_NHAN_SU.md. Quy uoc chung (UUID PK,
+TIMESTAMPTZ, enum bang TEXT + CHECK, khong xoa cung) giu nguyen nhu
+DATABASE.md muc 0 - khong nhac lai.
+
+## 0. Vai dieu can doc truoc
+
+1. Bang nao ke thua tu nguoi_dung? Theo dung kieu Class Table Inheritance
+(DATABASE.md muc 0 va muc 1), chi co 2 bang con that su - khoa chinh cua
+bang con CHINH LA khoa ngoai tro ve nguoi_dung:
+   - ho_so_khach_hang -> ap dung cho vai_tro = khach_hang
+   - ho_so_can_bo_diem -> ap dung cho nhan_vien_quay_ve, nhan_vien_gui_hang,
+     dieu_do_vien (dung chung 1 bang)
+   nhan_su_van_hanh KHONG phai kieu ke thua nay - khoa chinh la id rieng
+   cua no, con nguoi_dung_id chi la khoa ngoai nullable tro nguoc lai, va
+   chi co gia tri voi chuc_danh = phu_xe. phu_xe, ke_toan, quan_ly_nhan_su,
+   quan_ly deu KHONG co bang con ke thua.
+
+2. CANH BAO: Cot "anh ho so" xung dot voi quyet dinh kien truc da chot.
+ARCHITECTURE.md muc 1 (dong "File/anh") ghi ro: "Khong dung - bo Cloudinary
+so voi ban v1", ly do "domain moi khong co nhu cau khach/nhan vien upload
+anh". Them cot anh cho ho so nhan su la quay lai nhu cau upload file ma
+quyet dinh do da loai bo. Van them cot theo yeu cau, nhung day la quyet dinh
+kien truc moi can ca nhom dong y, khong chi rieng phan quan ly nhan su - xem
+muc 6 de biet can chot gi truoc khi migrate that.
+
+3. Nhat ky ghi TOAN BO lich su thao tac cua quan_ly_nhan_su, khong rieng gi
+khoa tai khoan. Bang nhat_ky_quan_ly_nhan_su o muc 3 ghi du 6 loai hanh dong
+nguoi nay duoc phep lam: tao tai khoan, khoa tai khoan, mo khoa tai khoan,
+tao ho so, sua ho so, cho nghi viec - moi lan thao tac nao trong 6 loai nay
+xay ra deu co 1 dong log rieng, khong chi moi luc khoa. Vi du "xoa tai
+khoan" ban nhac toi ban dau la 1 trong cac thao tac do - nhung vi DATABASE.md
+muc 0 quy dinh "he thong khong xoa cung (DELETE) tai khoan... khoa/vo hieu
+hoa bang co boolean... giu lai lich su" (xoa cung dong nguoi_dung se lam
+vo/mat ve, don hang, nhat ky cu lien ket toi nguoi do), nen hanh dong tuong
+ung duoc dat ten hanh_dong = 'khoa_tai_khoan' (khoa mem) thay vi
+xoa_tai_khoan - cung 1 viec, chi khac ten goi cho khop voi cach he thong
+that su van hanh.
+
+## 1. nhan_su_van_hanh - ho so tai xe + phu xe
+
+Bang da co trong DATABASE.md muc 1.4, liet ke lai day du (cot cu + cot moi):
+
+| id | UUID PK |
+| ho_ten | TEXT NOT NULL | (cot co san) |
+| so_dien_thoai | TEXT NOT NULL | (cot co san) |
+| chuc_danh | TEXT NOT NULL, CHECK IN (tai_xe, phu_xe) | (cot co san) |
+| nguoi_dung_id | UUID NULLABLE, FK -> nguoi_dung(id) | (cot co san) - chi co
+  gia tri khi chuc_danh = 'phu_xe' |
+| so_cccd | TEXT NULLABLE | MOI. Du lieu nhay cam - chi quan_ly_nhan_su/
+  quan_ly doc duoc |
+| ngay_sinh | DATE NULLABLE | MOI |
+| anh_ho_so | TEXT NULLABLE | MOI - cot ban yeu cau. Khong luu anh truc tiep
+  trong DB, chi luu duong dan/URL toi noi luu file that (xem canh bao muc
+  0.2 va cau hoi muc 6) |
+| ngay_vao_lam | DATE NOT NULL DEFAULT current_date | MOI |
+| trang_thai | TEXT NOT NULL DEFAULT 'dang_lam', CHECK IN (dang_lam,
+  da_nghi_viec) | MOI. Trang thai lam viec cua ca ho so - khac
+  xe_nhan_su.trang_thai (bien che, muc 4.3) |
+| ngay_nghi_viec | DATE NULLABLE | MOI - chi co gia tri khi trang_thai =
+  da_nghi_viec |
+| ly_do_nghi_viec | TEXT NULLABLE | MOI |
+
+Rang buoc (dat duoc o DB vi dien ta don gian bang CHECK/UNIQUE, khong can
+join bang khac):
+    UNIQUE (nguoi_dung_id)
+    CHECK (chuc_danh = 'phu_xe' OR nguoi_dung_id IS NULL)
+    CHECK ((trang_thai = 'da_nghi_viec') = (ngay_nghi_viec IS NOT NULL))
+
+Kiem tra o Service (khong dien ta duoc bang constraint DB): tai khoan duoc
+chon gan cho ho so phu_xe phai co nguoi_dung.vai_tro = 'phu_xe'.
+
+## 2. giay_to_nhan_su - giay to cua tai xe/phu xe (bang moi)
+
+Moi nhan su co toi da 1 dong cho moi loai giay to - gia han thi cap nhat
+dong do, khong giu lich su cac lan gia han cu.
+
+| id | UUID PK |
+| nhan_su_van_hanh_id | UUID NOT NULL, FK -> nhan_su_van_hanh(id) |
+| loai | TEXT NOT NULL, CHECK IN (bang_lai, giay_kham_suc_khoe) |
+  UNIQUE (nhan_su_van_hanh_id, loai) |
+| so_giay_to | TEXT NULLABLE |
+| hang | TEXT NULLABLE | Chi dung cho bang_lai (VD D, E) |
+| ngay_cap | DATE NULLABLE |
+| ngay_het_han | DATE NOT NULL | Moc de job canh bao (UC-48) quet |
+| anh_giay_to | TEXT NULLABLE | Them cung ly do voi anh_ho_so o muc 1 - anh
+  scan bang lai/giay kham suc khoe |
+| da_canh_bao_sap_het_han | BOOLEAN NOT NULL DEFAULT false |
+| da_canh_bao_het_han | BOOLEAN NOT NULL DEFAULT false |
+
+Gia han (doi ngay_het_han) phai dat lai CA 2 co ve false trong cung cau
+UPDATE de chu ky nhac bat dau lai.
+
+Index nen danh them: giay_to_nhan_su(ngay_het_han) - job quet theo moc ngay.
+
+## 3. nhat_ky_quan_ly_nhan_su - nhat ky thao tac (bang moi, TACH RIENG khoi
+nhat_ky_admin)
+
+Theo dung yeu cau: bang nay CHI ghi hanh dong do chinh quan_ly_nhan_su thuc
+hien. No KHONG dung chung voi quan_ly - khac voi ban nhap truoc
+(NHAP_QUAN_LY_NHAN_SU.md muc 2.3, luc do van dinh dung chung nhat_ky_admin).
+Voi thiet ke nay:
+- nhat_ky_admin (da co san o DATABASE.md muc 6.2) giu nguyen nghia goc ban
+  dau cua no - chi ghi hanh dong cua quan_ly (tuyen, gia, xe, bien che, tai
+  khoan do quan_ly tao/khoa...).
+- nhat_ky_quan_ly_nhan_su la bang HOAN TOAN TACH BIET, chi ghi 6 loai hanh
+  dong ma quan_ly_nhan_su duoc phep lam - khong lan hanh dong cua quan_ly
+  hay bat ky vai tro nao khac, ke ca khi 2 vai tro cung lam 1 viec giong
+  nhau (VD ca quan_ly va quan_ly_nhan_su deu tao duoc tai khoan phu_xe -
+  nhung chi dong do quan_ly_nhan_su tao moi vao bang nay).
+
+| id | UUID PK |
+| quan_ly_nhan_su_id | UUID NOT NULL, FK -> nguoi_dung(id) | Nguoi thuc
+  hien. Phai co vai_tro = 'quan_ly_nhan_su' - kiem tra o Service luc ghi |
+| hanh_dong | TEXT NOT NULL, CHECK IN (tao_tai_khoan, khoa_tai_khoan,
+  mo_khoa_tai_khoan, tao_ho_so_nhan_su, sua_ho_so_nhan_su, cho_nghi_viec) |
+  6 hanh dong dung pham vi UC-36/37/38 (khi actor la quan_ly_nhan_su) +
+  UC-47/49. Khong co xoa_tai_khoan - xem muc 0.3 |
+| doi_tuong_loai | TEXT NOT NULL, CHECK IN (nguoi_dung, nhan_su_van_hanh) |
+| doi_tuong_id | UUID NOT NULL |
+| ghi_chu | TEXT NULLABLE |
+| thoi_gian | TIMESTAMPTZ NOT NULL DEFAULT now() |
+
+Quy uoc:
+- Bang chi INSERT, khong co UPDATE/DELETE o bat ky tang nao.
+- Ghi trong cung transaction voi thao tac nghiep vu.
+- Index nen danh: nhat_ky_quan_ly_nhan_su(quan_ly_nhan_su_id, thoi_gian
+  DESC) va nhat_ky_quan_ly_nhan_su(doi_tuong_loai, doi_tuong_id, thoi_gian
+  DESC).
+
+## 4. Bang lien quan - chi tham chieu, KHONG doi cau truc
+
+4.1. nguoi_dung (da co, DATABASE.md muc 1.1) - cac cot dung: id, email,
+ho_ten, so_dien_thoai, vai_tro, dang_hoat_dong, ngay_tao. Pham vi thao tac
+gioi han o vai_tro IN (phu_xe, nhan_vien_quay_ve, nhan_vien_gui_hang,
+dieu_do_vien).
+
+4.2. ho_so_can_bo_diem (da co, DATABASE.md muc 1.3) - can khi tao tai khoan
+3 trong 4 vai tro (nhan_vien_quay_ve, nhan_vien_gui_hang, dieu_do_vien) -
+bat buoc gan van_phong_id. Rieng phu_xe khong dung bang nay.
+
+4.3. xe_nhan_su (da co, DATABASE.md muc 1.5) - quan_ly_nhan_su chi DOC bang
+nay (khong sua - bien che la viec cua quan_ly, UC-35), dung de: khi cho
+nghi viec (UC-49), tim cac dong bien che cua nguoi do de hien thi canh bao
+xe nao sap thieu nguoi, va chuyen cac dong do sang trang_thai = 'tam_nghi'.
+
+4.4. thong_bao (da co, DATABASE.md muc 6.1) - dung de gui canh bao giay to
+sap het han (UC-48) va canh bao thieu bien che khi cho nghi viec (UC-49) toi
+quan_ly/dieu do vien. Co the them 2 cot tuy chon nhan_su_van_hanh_id, xe_id.
+
+## 5. So do quan he (trong pham vi file nay)
+
+nguoi_dung 0--1 nhan_su_van_hanh        (nguoi_dung_id - chi khi chuc_danh
+  = phu_xe)
+nhan_su_van_hanh 1--N giay_to_nhan_su   (toi da 1 dong moi loai)
+nhan_su_van_hanh 1--N xe_nhan_su        (tham chieu, khong doi)
+
+nguoi_dung(quan_ly_nhan_su) 1--N nhat_ky_quan_ly_nhan_su
+nhat_ky_quan_ly_nhan_su -> nguoi_dung     (doi_tuong_id, khi doi_tuong_loai
+  = 'nguoi_dung')
+nhat_ky_quan_ly_nhan_su -> nhan_su_van_hanh (doi_tuong_id, khi doi_tuong_loai
+  = 'nhan_su_van_hanh')
+
+ho_so_can_bo_diem N--1 diem_don_tra     (tham chieu, khong doi)
+
+nhan_su_van_hanh 0--N thong_bao         (tuy chon, neu them cot)
+xe 0--N thong_bao                       (tuy chon, neu them cot)
+
+Luu y: doi_tuong_id cua nhat_ky_quan_ly_nhan_su khong dat FOREIGN KEY cung
+toi 1 bang cu the (vi tro toi 2 bang khac nhau tuy doi_tuong_loai) - toan
+ven du lieu kiem tra o Service.
+
+## 6. Can chot voi nhom truoc khi migrate that
+
+- CANH BAO: Viec luu anh (anh_ho_so, anh_giay_to) can ha tang ma
+ARCHITECTURE.md da chu dong bo (muc 0.2) - da co de xuat cu the: dung lai
+Cloudinary, chi rieng cho anh ho so nhan su van hanh. Ly do: khong nen luu
+tren o dia backend vi Render/Fly.io free tier co o dia tam thoi, du lieu
+mat sau moi lan redeploy; Cloudinary co free tier phu hop quy mo BTL va ho
+tro delivery kieu authenticated (URL co chu ky) hop voi anh giay to nhay
+cam. Doan dan cu the de thay dong "File/anh" o ARCHITECTURE.md muc 1 da
+viet san o NHAP_QUAN_LY_NHAN_SU.md muc 3.0 - can ca nhom dong y truoc khi
+dan.
+- Nguong canh bao giay to (mac dinh 30 ngay, UC-48): DATABASE.md hien chua
+co bang luu tham so cau hinh nao. Tam de trong backend/app/config.py.
+- so_cccd co nen UNIQUE? Neu co, can UNIQUE ... WHERE so_cccd IS NOT NULL.
+- Viec cho nghi viec (UC-49) nen chay trong 1 transaction duy nhat: dat
+nhan_su_van_hanh.trang_thai, khoa nguoi_dung.dang_hoat_dong (neu la phu
+xe), chuyen xe_nhan_su.trang_thai sang tam_nghi, va ghi
+nhat_ky_quan_ly_nhan_su - hoac ca 4 cung thanh cong, hoac khong lam gi.
+
+
+--------------------------------------------------------------------------------
+3.3. database_dieuDoVien.md (toan van)
+--------------------------------------------------------------------------------
+# Thiet ke co so du lieu - pham vi Dieu do vien (dieu_do_vien, nguoi 4)
+
+File rieng, pham vi hep - cung tinh than voi database_quanLyNhanSu.md: chi
+cac bang nguoi 4 so huu that su theo CONTRIBUTING.md muc 2
+(chuyen_xe_repository, chuyen_xe_service) phuc vu dung 6 UC duoc giao (19,
+20, 39, 44, 45, 40), cong voi cac bang chi doc/tham chieu thuoc domain
+nguoi khac ma dieu do vien can dung. Khong phai ban thay the DATABASE.md - 2
+bang chinh o muc 1-2 da co san nguyen van o DATABASE.md muc 3.3/3.4, gom lai
+day chi de tien doc trong dung pham vi cua vai tro nay.
+
+## 0. Vai dieu can doc truoc
+
+1. Ranh gioi so huu (quan trong nhat file nay). Theo CONTRIBUTING.md muc 2
+va muc 5.6:
+
+| Bang | Ai so huu | Dieu do vien duoc lam gi |
+|---|---|---|
+| chuyen_xe | Nguoi 4 (dieu do vien) | Doc + ghi (gan xe, doi xe, doi trang
+  thai, co hoan/xung dot vi tri) |
+| lich_su_diem_dung_chuyen | Nguoi 4 | Ghi qua xac_nhan_toi_diem() (nguoi
+  3/phu xe goi vao, khong tu viet SQL) |
+| xe, xe_nhan_su, loai_xe | Nguoi 1 (Truong nhom) | Chi doc - loc "xe du
+  dieu kien" (UC-44) va suy ra tai xe/phu xe hien thi, khong tu sua cau
+  truc hay ghi de |
+| tuyen, tuyen_diem_don_tra, nhom_tuyen, khu_vuc, diem_don_tra | Nguoi 1 |
+  Chi doc - dung cho rang buoc vi tri xe va hien thi lo trinh |
+| lich_chay_dinh_ky | Nguoi 1 | Chi doc - jobs/sinh_chuyen_dinh_ky.py (UC-18,
+  do nguoi 4 viet job nhung doc du lieu cua nguoi 1) dung lam khuon sinh
+  chuyen_xe |
+| ve | Nguoi 2 | Khong tu viet SQL - chi goi
+  ve_repository.tim_ve_da_thanh_toan_theo_chuyen(chuyen_id) khi can tim ve
+  bi anh huong luc chuyen da_huy (UC-19/21) |
+| lich_su_hoan_tien | Nguoi 5 | Khong cham - dieu do vien chi goi
+  hoan_tien_service.tao_hoan_tien(ve_id, ly_do), khong tu insert |
+| thong_bao | Ha tang dung chung (nguoi 1 dung websocket_manager) | Chi goi
+  broadcast(...), khong tu viet SQL cho bang nay |
+
+2. Vi sao file nay van co CREATE TABLE cho ca bang khong so huu? Tinh den
+luc viet file nay, migration cho xe/xe_nhan_su/loai_xe/tuyen/khu_vuc/
+diem_don_tra/lich_chay_dinh_ky CHUA gop vao nhanh nay (dang nam rai rac o
+cac nhanh rieng cua Truong nhom/Vanh) - nhung chuyen_xe phu thuoc khoa
+ngoai vao TAT CA cac bang do, khong the migrate/test chuyen_xe_service neu
+thieu. Cach xu ly giong het tien le da lam voi nhan_su_van_hanh o
+database_quanLyNhanSu.md muc 0.2 va migration 20260927_1000_...sql: viet 1
+migration TAM THOI dung dung cac bang do (du cot theo DATABASE.md, khong
+them/bot gi) de tu test UC-19/20/39/40/44/45 ngay tren nhanh nay. TRUOC KHI
+MERGE, phai doi chieu voi migration that cua Truong nhom - neu trung CREATE
+TABLE, xoa phan tam nay di.
+
+3. Sai khac co chu dich voi DATABASE.md muc 9 (dong "Co che hoan... job
+UC-45 nen gop chung vao dung jobs/quet_het_han.py"): CONTRIBUTING.md muc 5.2
+da chot lai - moi nguoi viet job rieng de tranh nhieu nguoi cung sua 1 file,
+nen UC-45 nam o jobs/quet_chua_gan_xe.py (nguoi 4 tu viet, tu dang ky lich
+chay trong main.py), KHONG gop vao file chung.
+
+## 1. chuyen_xe - bang trung tam cua dieu do vien
+
+Nguyen van tu DATABASE.md muc 3.3, khong doi cot nao:
+
+| id | UUID PK |
+| tuyen_id | UUID NOT NULL, FK -> tuyen(id) |
+| xe_id | UUID NULLABLE, FK -> xe(id) | Xe goc - quyet dinh bien che tai
+  xe/phu xe va vi tri suy luan cho cac chuyen sau. NULL = chua gan xe
+  (UC-44); toi gio_khoi_hanh ma van NULL -> job tu bat dang_hoan (UC-45) |
+| loai_xe_id | UUID NOT NULL, FK -> loai_xe(id) | Loai xe cam ket (copy tu
+  lich_chay_dinh_ky.loai_xe_id luc sinh chuyen) |
+| lich_chay_dinh_ky_id | UUID NULLABLE, FK -> lich_chay_dinh_ky(id) |
+| xe_thuc_te_id | UUID NULLABLE, FK -> xe(id) | Phuong tien thuc su chay
+  neu khac xe_id (UC-20, doi xe khi hong) |
+| gio_khoi_hanh | TIMESTAMPTZ NOT NULL |
+| trang_thai | TEXT NOT NULL DEFAULT 'chua_khoi_hanh', CHECK IN
+  (chua_khoi_hanh, dang_chay, gap_su_co, hoan_thanh, da_huy) |
+| dang_hoan | BOOLEAN NOT NULL DEFAULT false | true khi dang cho tim xe
+  truoc gio chay - 2 nguon: dieu do vien bat thu cong (UC-20) hoac job tu
+  bat (UC-45) |
+| gio_xac_nhan_xuat_phat | TIMESTAMPTZ NULLABLE |
+| gio_hoan_thanh | TIMESTAMPTZ NULLABLE |
+| loai_su_co | TEXT NULLABLE, CHECK IN (loi_nha_xe, loi_khach_quan) |
+| ly_do_su_co | TEXT NULLABLE |
+| co_canh_bao_xung_dot_vi_tri | BOOLEAN NOT NULL DEFAULT false |
+| ngay_tao | TIMESTAMPTZ NOT NULL DEFAULT now() |
+
+Khong co constraint DB nao cho "khong trung lich", "dung vi tri xe", "dung
+nhom tuyen", "cung loai_xe khi gan xe_thuc_te_id" - toan bo 4 rang buoc nay
+nam o chuyen_xe_service, xem muc 4.
+
+## 2. lich_su_diem_dung_chuyen
+
+Nguyen van DATABASE.md muc 3.4 - ghi gio thuc te phu xe xac nhan toi tung
+diem, dung de cap nhat ETA cho khach dang cho o cac diem phia sau (UC-16,
+nguoi 3 goi vao chuyen_xe_service.xac_nhan_toi_diem()).
+
+| id | UUID PK |
+| chuyen_id | UUID NOT NULL, FK -> chuyen_xe(id) |
+| diem_don_tra_id | UUID NOT NULL, FK -> diem_don_tra(id) | Phai thuoc dung
+  tuyen cua chuyen |
+| gio_thuc_te | TIMESTAMPTZ NOT NULL DEFAULT now() |
+
+UNIQUE (chuyen_id, diem_don_tra_id) - 1 diem chi ghi nhan dung 1 lan toi cho
+moi chuyen.
+
+## 3. Gia tri suy luan - "luat choi" that su cua dieu do vien
+
+| Gia tri | Cach tinh | Dung o UC |
+|---|---|---|
+| Vi tri du kien cua 1 xe goc tai 1 thoi diem | Khong co chuyen_xe nao (xe_id
+  khop) ket thuc truoc thoi diem xet -> xe.diem_goc_id. Nguoc lai -> diem
+  cuoi cung (thu_tu lon nhat, luon van_phong) trong tuyen_diem_don_tra cua
+  chuyen_xe gan nhat da ket thuc truoc do. Tinh theo xe_id, KHONG phai
+  xe_thuc_te_id | UC-44 |
+| Phuong tien vat ly that su chay 1 chuyen | COALESCE(chuyen_xe.xe_thuc_te_id,
+  chuyen_xe.xe_id) | UC-20 |
+| "Chuyen cua toi" cua 1 phu xe | chuyen_xe co xe_id khop 1 dong
+  xe_nhan_su(nhan_su_van_hanh_id = X, trang_thai = 'dang_hoat_dong') tai
+  thoi diem truy van | Tham chieu |
+| Ty le lap day ghe | COUNT(ve active) / tong ghe trong loai_xe.so_do_ghe
+  cua chuyen_xe.loai_xe_id - CHI DE THONG KE | UC-39 |
+
+Rang buoc gan xe (UC-44, kiem tra o Service theo thu tu, khong phai
+constraint DB):
+1. xe.trang_thai = 'hoat_dong'.
+2. xe.loai_xe_id = chuyen_xe.loai_xe_id.
+3. Neu xe.nhom_tuyen_id IS NOT NULL -> phai trung dung tuyen.nhom_tuyen_id
+   cua chuyen.
+4. Khong trung khung gio voi chuyen khac da gan cho xe nay.
+5. Diem khoi hanh cua chuyen moi = vi tri du kien cua xe tai gio khoi hanh
+   do.
+
+Rang buoc doi xe thuc te (UC-20, xe_thuc_te_id): cung loai_xe voi xe_id
+goc, dung vi tri + khong trung lich rieng cua xe thay the.
+
+## 4. Migration - file nao tao bang nao
+
+| File | Noi dung | Ghi chu |
+|---|---|---|
+| backend/migrations/20260927_1100_tao_bang_danh_muc_xe_tuyen_tam_thoi.sql |
+  khu_vuc, diem_don_tra, nhom_tuyen, tuyen, tuyen_diem_don_tra, loai_xe, xe,
+  xe_nhan_su, lich_chay_dinh_ky | TAM THOI - thuoc domain Truong nhom. Doi
+  chieu truoc khi merge |
+| backend/migrations/20260927_1110_tao_bang_chuyen_xe_lich_su_diem_dung.sql
+  | chuyen_xe, lich_su_diem_dung_chuyen + index | Bang that su cua dieu do
+  vien - khong can doi chieu ai khac |
+
+## 5. So do quan he (trong pham vi file nay)
+
+nhom_tuyen 1--N tuyen
+tuyen 1--N tuyen_diem_don_tra N--1 diem_don_tra
+khu_vuc 1--N diem_don_tra
+
+diem_don_tra 1--1 xe            (diem_goc_id)
+nhom_tuyen 0--N xe
+loai_xe 1--N xe
+nhan_su_van_hanh 1--N xe_nhan_su
+xe 1--N xe_nhan_su
+
+tuyen 1--N lich_chay_dinh_ky
+loai_xe 1--N lich_chay_dinh_ky
+lich_chay_dinh_ky 0--N chuyen_xe
+
+xe 0--N chuyen_xe               (xe_id - xe goc)
+xe 0--N chuyen_xe               (xe_thuc_te_id - xe chay thay)
+loai_xe 1--N chuyen_xe          (loai_xe_id - loai xe cam ket)
+tuyen 1--N chuyen_xe
+chuyen_xe 1--N lich_su_diem_dung_chuyen N--1 diem_don_tra
+
+chuyen_xe 1--N ve                (chi doc qua ve_repository cua nguoi 2)
+
+## 6. Can chot voi nhom truoc khi migrate that
+
+- Doi chieu bang tam thoi (muc 4 dong 1) voi migration that cua Truong nhom
+  ngay khi migration do xuat hien tren main - neu trung CREATE TABLE, xoa
+  file tam nay, giu lai dung file chuyen_xe/lich_su_diem_dung_chuyen.
+- Index bat buoc (theo DATABASE.md muc 9): chuyen_xe(xe_id, gio_khoi_hanh),
+  chuyen_xe(xe_id) WHERE xe_thuc_te_id IS NOT NULL (UC-40),
+  chuyen_xe(xe_id) WHERE xe_id IS NULL (UC-44).
+- co_canh_bao_xung_dot_vi_tri khong tu go - chi dieu do vien xem lai thu
+  cong moi go duoc.
+- Job jobs/quet_chua_gan_xe.py (UC-45) va jobs/sinh_chuyen_dinh_ky.py
+  (UC-18) deu thuoc nguoi 4 viet code, nhung doc du lieu (lich_chay_dinh_ky)
+  cua nguoi 1 - chi doc, khong sua cau truc bang do.
+
+
+--------------------------------------------------------------------------------
+3.4. backend/app/services/luu_tru_anh_service.py (toan van)
+--------------------------------------------------------------------------------
+"""Upload/xoa anh tren Cloudinary - phuc vu anh ho so nhan su van hanh
+(UC-47, NGHIEP_VU.md muc 8.9) va anh giay to (bang lai, giay kham suc
+khoe - UC-47/48). Xem quyet dinh dung lai Cloudinary o
+NHAP_QUAN_LY_NHAN_SU.md muc 3.0 va cau truc bang o database_quanLyNhanSu.md
+muc 1/2.
+
+Service ha tang (goi dich vu ngoai) - khong thuoc Repository, dat o
+services/ theo dung ARCHITECTURE.md muc 2 (cung nhom voi email_service.py).
+File nay CHI lo viec ky thuat (tai len/sinh URL xem/xoa) - khong tu quyet
+dinh khi nao duoc phep upload, anh cua ai, hay ghi nhat ky: nhung viec do
+thuoc ve Service nghiep vu goi toi day (VD ho_so_nhan_su_service.py, chua
+viet), dung nguyen tac tach lop cua du an.
+
+Quan trong - luu `public_id`, KHONG luu URL co dinh vao DB: anh tai len
+bang delivery kieu `authenticated` (Cloudinary bat buoc URL co chu ky moi
+xem duoc, khong phai URL public ai doan cung ra) - hop voi du lieu nhay
+cam nhu CCCD/giay to. Vi vay:
+  - `nhan_su_van_hanh.anh_ho_so` / `giay_to_nhan_su.anh_giay_to` nen luu
+    `public_id` ma tai_anh_len() tra ve, KHONG luu URL.
+  - Moi lan can hien thi anh (VD tra ve cho frontend), goi lay_url_xem()
+    de lay URL co chu ky - khong cache/luu lai URL nay.
+"""
+
+import uuid
+
+import cloudinary
+import cloudinary.uploader
+import cloudinary.utils
+
+from app.config import CLOUDINARY_URL
+
+cloudinary.config(cloudinary_url=CLOUDINARY_URL)
+
+# Thu muc tren Cloudinary - tach rieng anh chan dung va anh giay to cho de
+# quan ly, khong lien quan toi cau truc bang trong DB.
+THU_MUC_ANH_HO_SO = "nha_xe/nhan_su/ho_so"
+THU_MUC_ANH_GIAY_TO = "nha_xe/nhan_su/giay_to"
+
+
+def tai_anh_len(du_lieu_anh: bytes, thu_muc: str) -> str | None:
+    """Upload 1 anh len Cloudinary, tra ve `public_id` de Service nghiep vu
+    luu vao DB (KHONG tra URL - xem docstring dau file).
+
+    `du_lieu_anh`: noi dung file anh dang bytes (doc tu UploadFile cua
+    FastAPI, VD `await file.read()`).
+    `thu_muc`: 1 trong 2 hang so THU_MUC_ANH_* o tren.
+
+    Tra `None` neu upload that bai - Service goi ham nay tu quyet dinh co
+    raise LoiHeThong hay khong (giong cach mat_khau_service.py xu ly ket
+    qua bool cua gui_mail() o email_service.py), file nay khong tu raise
+    loi nghiep vu.
+    """
+    try:
+        ket_qua = cloudinary.uploader.upload(
+            du_lieu_anh,
+            folder=thu_muc,
+            public_id=str(uuid.uuid4()),  # tu sinh - khong dung ten file goc
+            type="authenticated",  # bat buoc co chu ky moi xem duoc
+            resource_type="image",
+        )
+        return ket_qua["public_id"]
+    except Exception as loi:
+        print(f"Loi upload anh len Cloudinary: {loi}")
+        return None
+
+
+def lay_url_xem(public_id: str) -> str:
+    """Sinh URL co chu ky de xem 1 anh da upload - Cloudinary chi tra anh
+    khi chu ky dung, chan duoc viec doan mo URL ngau nhien.
+
+    Luu y: chu ky nay KHONG tu het han theo thoi gian (khac co che OTP/JWT
+    dang dung trong du an). Muon co URL tu het han that can bat them tinh
+    nang "Token-based authentication" rieng cua Cloudinary (cau hinh them
+    o Dashboard, chua kiem tra co nam trong free tier hay khong) - CHUA
+    lam o ban nay.
+    """
+    url, _ = cloudinary.utils.cloudinary_url(
+        public_id,
+        type="authenticated",
+        resource_type="image",
+        sign_url=True,
+    )
+    return url
+
+
+def xoa_anh(public_id: str) -> bool:
+    """Xoa 1 anh khoi Cloudinary theo `public_id` - goi khi nhan su thay
+    anh moi (VD gia han giay to, anh cu khong con can giu) de tranh ton
+    rac tren free tier.
+
+    Tra `False` neu xoa that bai - Service goi tu quyet dinh co coi la
+    loi nghiem trong hay bo qua (anh rac khong anh huong van hanh ngay).
+    """
+    try:
+        ket_qua = cloudinary.uploader.destroy(public_id, type="authenticated", resource_type="image")
+        return ket_qua.get("result") == "ok"
+    except Exception as loi:
+        print(f"Loi xoa anh tren Cloudinary: {loi}")
+        return False
+
+
+--------------------------------------------------------------------------------
+3.5. backend/migrations/20260927_1000_tao_bang_nhan_su_van_hanh_giay_to_nhat_ky.sql (toan van)
+--------------------------------------------------------------------------------
+-- CANH BAO TAM THOI - doc ky truoc khi merge vao main.
+--
+-- nhan_su_van_hanh dung ra thuoc domain cua Truong nhom (CONTRIBUTING.md
+-- muc 2: xe/xe_nhan_su_repository) nhung tinh den ngay viet file nay chua
+-- co migration nao (o bat ky nhanh nao trong repo) tao ra bang nay. Migration
+-- duoi day tao TRON VEN nhan_su_van_hanh (cot goc theo DATABASE.md muc 1.4
+-- + cot moi cho quan ly nhan su, database_quanLyNhanSu.md muc 1) de CO THE
+-- TU TEST UC-47/48/49/50 tren nhanh nay ngay, khong phai cho Truong nhom.
+--
+-- TRUOC KHI MERGE: phai trao doi voi Truong nhom. Neu ho cung tao
+-- "CREATE TABLE nhan_su_van_hanh" o migration rieng cua ho, 2 migration
+-- cung tao 1 bang se loi "relation already exists" khi ap dung chung tren
+-- cung 1 nhanh. Khi do can xoa doan CREATE TABLE nay, doi lai thanh
+-- ALTER TABLE ... ADD COLUMN cho dung 7 cot moi, dua tren bang that cua ho.
+
+CREATE TABLE nhan_su_van_hanh (
+    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    ho_ten            TEXT NOT NULL,
+    so_dien_thoai     TEXT NOT NULL,
+    chuc_danh         TEXT NOT NULL CHECK (chuc_danh IN ('tai_xe', 'phu_xe')),
+    nguoi_dung_id     UUID NULL UNIQUE REFERENCES nguoi_dung(id),
+
+    -- Cot moi cho quan ly nhan su - database_quanLyNhanSu.md muc 1
+    so_cccd           TEXT NULL,
+    ngay_sinh         DATE NULL,
+    anh_ho_so         TEXT NULL,  -- public_id tren Cloudinary, KHONG phai URL
+    ngay_vao_lam      DATE NOT NULL DEFAULT current_date,
+    trang_thai        TEXT NOT NULL DEFAULT 'dang_lam' CHECK (trang_thai IN ('dang_lam', 'da_nghi_viec')),
+    ngay_nghi_viec    DATE NULL,
+    ly_do_nghi_viec   TEXT NULL,
+
+    CHECK (chuc_danh = 'phu_xe' OR nguoi_dung_id IS NULL),
+    CHECK ((trang_thai = 'da_nghi_viec') = (ngay_nghi_viec IS NOT NULL))
+);
+
+-- CCCD trung nhau la du lieu sai - nhung nhieu dong NULL (chua nhap) khong
+-- duoc coi la trung nhau, nen phai dung partial unique index.
+CREATE UNIQUE INDEX nhan_su_van_hanh_so_cccd_duy_nhat
+    ON nhan_su_van_hanh (so_cccd)
+    WHERE so_cccd IS NOT NULL;
+
+
+-- Bang giay_to_nhan_su - database_quanLyNhanSu.md muc 2.
+CREATE TABLE giay_to_nhan_su (
+    id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nhan_su_van_hanh_id         UUID NOT NULL REFERENCES nhan_su_van_hanh(id),
+    loai                        TEXT NOT NULL CHECK (loai IN ('bang_lai', 'giay_kham_suc_khoe')),
+    so_giay_to                  TEXT NULL,
+    hang                        TEXT NULL,
+    ngay_cap                    DATE NULL,
+    ngay_het_han                DATE NOT NULL,
+    anh_giay_to                 TEXT NULL,
+    da_canh_bao_sap_het_han     BOOLEAN NOT NULL DEFAULT false,
+    da_canh_bao_het_han         BOOLEAN NOT NULL DEFAULT false,
+
+    UNIQUE (nhan_su_van_hanh_id, loai)
+);
+
+CREATE INDEX giay_to_nhan_su_ngay_het_han ON giay_to_nhan_su (ngay_het_han);
+
+
+-- Bang nhat_ky_quan_ly_nhan_su - database_quanLyNhanSu.md muc 3.
+CREATE TABLE nhat_ky_quan_ly_nhan_su (
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    quan_ly_nhan_su_id      UUID NOT NULL REFERENCES nguoi_dung(id),
+    hanh_dong               TEXT NOT NULL CHECK (hanh_dong IN (
+                                'tao_tai_khoan', 'khoa_tai_khoan', 'mo_khoa_tai_khoan',
+                                'tao_ho_so_nhan_su', 'sua_ho_so_nhan_su', 'cho_nghi_viec'
+                            )),
+    doi_tuong_loai          TEXT NOT NULL CHECK (doi_tuong_loai IN ('nguoi_dung', 'nhan_su_van_hanh')),
+    doi_tuong_id            UUID NOT NULL,
+    ghi_chu                 TEXT NULL,
+    thoi_gian               TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX nhat_ky_quan_ly_nhan_su_theo_nguoi_thuc_hien
+    ON nhat_ky_quan_ly_nhan_su (quan_ly_nhan_su_id, thoi_gian DESC);
+
+CREATE INDEX nhat_ky_quan_ly_nhan_su_theo_doi_tuong
+    ON nhat_ky_quan_ly_nhan_su (doi_tuong_loai, doi_tuong_id, thoi_gian DESC);
+
+
+--------------------------------------------------------------------------------
+3.6. backend/migrations/20260927_1100_tao_bang_danh_muc_xe_tuyen_tam_thoi.sql (toan van)
+--------------------------------------------------------------------------------
+-- CANH BAO TAM THOI - doc ky truoc khi merge vao main.
+--
+-- Toan bo 9 bang duoi day (khu_vuc, diem_don_tra, nhom_tuyen, tuyen,
+-- tuyen_diem_don_tra, loai_xe, xe, xe_nhan_su, lich_chay_dinh_ky) dung ra
+-- thuoc domain cua Truong nhom (CONTRIBUTING.md muc 2) nhung tinh den ngay
+-- viet file nay, migration tuong ung nam rai rac o cac nhanh rieng (chua
+-- gop vao nhanh nay: feature/Nghia-us04-dieuDoVien).
+--
+-- chuyen_xe (bang THAT cua dieu do vien - migration ke tiep,
+-- 20260927_1110_...) co khoa ngoai tro toi TAT CA 9 bang nay, nen khong
+-- migrate/test duoc chuyen_xe_service neu thieu. Migration nay dung du
+-- cot dung theo DATABASE.md - khong them/bot gi - de CO THE TU TEST
+-- UC-19/20/39/40/44/45 ngay tren nhanh nay, khong phai cho Truong nhom.
+--
+-- TRUOC KHI MERGE: phai doi chieu voi migration that cua Truong nhom. Neu
+-- ho cung co "CREATE TABLE xe (...)" (hay bat ky bang nao o day) o migration
+-- rieng cua ho, 2 migration cung tao 1 bang se loi "relation already exists"
+-- khi ap dung chung tren cung 1 nhanh - khi do XOA HAN file nay, giu lai
+-- dung migration cua Truong nhom.
+
+-- Dia diem & tuyen (DATABASE.md muc 2)
+
+CREATE TABLE khu_vuc (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    ten           TEXT NOT NULL,
+    tinh_thanh    TEXT NOT NULL
+);
+
+CREATE TABLE diem_don_tra (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    khu_vuc_id    UUID NOT NULL REFERENCES khu_vuc(id),
+    ten           TEXT NOT NULL,
+    dia_chi       TEXT NOT NULL,
+    loai          TEXT NOT NULL CHECK (loai IN ('van_phong', 'diem_dung'))
+);
+
+CREATE TABLE nhom_tuyen (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    ten           TEXT NOT NULL
+);
+
+CREATE TABLE tuyen (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nhom_tuyen_id   UUID NOT NULL REFERENCES nhom_tuyen(id),
+    ten             TEXT NOT NULL
+);
+
+CREATE TABLE tuyen_diem_don_tra (
+    id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tuyen_id                  UUID NOT NULL REFERENCES tuyen(id),
+    diem_don_tra_id           UUID NOT NULL REFERENCES diem_don_tra(id),
+    thu_tu                    INTEGER NOT NULL,
+    thoi_gian_du_kien_phut    INTEGER NOT NULL,
+
+    UNIQUE (tuyen_id, thu_tu),
+    UNIQUE (tuyen_id, diem_don_tra_id)
+);
+
+-- Xe & bien che (DATABASE.md muc 1.5, 3.1, 3.2)
+
+CREATE TABLE loai_xe (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    ten           TEXT NOT NULL UNIQUE,
+    he_so_gia     NUMERIC(4,2) NOT NULL DEFAULT 1.0,
+    so_do_ghe     JSONB NOT NULL
+);
+
+CREATE TABLE xe (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    bien_so         TEXT NOT NULL UNIQUE,
+    loai_xe_id      UUID NOT NULL REFERENCES loai_xe(id),
+    trang_thai      TEXT NOT NULL DEFAULT 'hoat_dong' CHECK (trang_thai IN ('hoat_dong', 'bao_tri', 'ngung_su_dung')),
+    diem_goc_id     UUID NOT NULL REFERENCES diem_don_tra(id),
+    nhom_tuyen_id   UUID NULL REFERENCES nhom_tuyen(id)
+);
+
+CREATE TABLE xe_nhan_su (
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    xe_id                   UUID NOT NULL REFERENCES xe(id),
+    nhan_su_van_hanh_id     UUID NOT NULL REFERENCES nhan_su_van_hanh(id),
+    loai                    TEXT NOT NULL CHECK (loai IN ('co_dinh', 'tam_thoi')),
+    trang_thai              TEXT NOT NULL DEFAULT 'dang_hoat_dong' CHECK (trang_thai IN ('dang_hoat_dong', 'tam_nghi')),
+    ngay_bat_dau            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    ngay_ket_thuc           TIMESTAMPTZ NULL
+);
+
+-- Lich chay dinh ky (DATABASE.md muc 3.5)
+
+CREATE TABLE lich_chay_dinh_ky (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tuyen_id        UUID NOT NULL REFERENCES tuyen(id),
+    gio_khoi_hanh   TIME NOT NULL,
+    loai_xe_id      UUID NOT NULL REFERENCES loai_xe(id),
+    dang_ap_dung    BOOLEAN NOT NULL DEFAULT true,
+    ngay_tao        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+
+--------------------------------------------------------------------------------
+3.7. backend/migrations/20260927_1110_tao_bang_chuyen_xe_lich_su_diem_dung.sql (toan van)
+--------------------------------------------------------------------------------
+-- Bang that su cua dieu do vien (nguoi 4, CONTRIBUTING.md muc 2 -
+-- chuyen_xe_repository/chuyen_xe_service). Phuc vu UC-19, 20, 39, 40, 44, 45
+-- (NGHIEP_VU.md muc 8.6, 12). Xem database_dieuDoVien.md muc 1-3 cho chi
+-- tiet nghiep vu va cac rang buoc chi kiem tra duoc o Service.
+--
+-- Phu thuoc khoa ngoai vao cac bang o migration lien truoc
+-- (20260927_1100_tao_bang_danh_muc_xe_tuyen_tam_thoi.sql) - file do la
+-- TAM THOI, file nay thi KHONG tam thoi.
+
+CREATE TABLE chuyen_xe (
+    id                              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tuyen_id                        UUID NOT NULL REFERENCES tuyen(id),
+    xe_id                           UUID NULL REFERENCES xe(id),
+    loai_xe_id                      UUID NOT NULL REFERENCES loai_xe(id),
+    lich_chay_dinh_ky_id            UUID NULL REFERENCES lich_chay_dinh_ky(id),
+    xe_thuc_te_id                   UUID NULL REFERENCES xe(id),
+    gio_khoi_hanh                   TIMESTAMPTZ NOT NULL,
+
+    trang_thai                      TEXT NOT NULL DEFAULT 'chua_khoi_hanh'
+                                        CHECK (trang_thai IN (
+                                            'chua_khoi_hanh', 'dang_chay', 'gap_su_co',
+                                            'hoan_thanh', 'da_huy'
+                                        )),
+
+    dang_hoan                       BOOLEAN NOT NULL DEFAULT false,
+    gio_xac_nhan_xuat_phat          TIMESTAMPTZ NULL,
+    gio_hoan_thanh                  TIMESTAMPTZ NULL,
+    loai_su_co                      TEXT NULL CHECK (loai_su_co IN ('loi_nha_xe', 'loi_khach_quan')),
+    ly_do_su_co                     TEXT NULL,
+    co_canh_bao_xung_dot_vi_tri     BOOLEAN NOT NULL DEFAULT false,
+    ngay_tao                        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX chuyen_xe_theo_xe_va_gio
+    ON chuyen_xe (xe_id, gio_khoi_hanh);
+
+CREATE INDEX chuyen_xe_dang_chay_thay
+    ON chuyen_xe (xe_id)
+    WHERE xe_thuc_te_id IS NOT NULL;
+
+CREATE INDEX chuyen_xe_chua_gan_xe
+    ON chuyen_xe (xe_id)
+    WHERE xe_id IS NULL;
+
+
+CREATE TABLE lich_su_diem_dung_chuyen (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    chuyen_id           UUID NOT NULL REFERENCES chuyen_xe(id),
+    diem_don_tra_id     UUID NOT NULL REFERENCES diem_don_tra(id),
+    gio_thuc_te         TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    UNIQUE (chuyen_id, diem_don_tra_id)
+);
+
+
+================================================================================
+PHAN 4 - VIEC CON DANG DO / CAN LAM TIEP
+================================================================================
+
+1. CAN HOI TRUONG NHOM TRUOC:
+   - Migration danh muc (xe, tuyen, loai_xe...) da lam toi dau chua? Neu
+     chua, 2 file migration "TAM THOI" (3.6 - danh muc, va 1000_...sql -
+     nhan_su_van_hanh) se con dung tam. Neu da lam roi thi phai XOA phan
+     trung lap truoc khi merge (doc canh bao dau moi file migration).
+   - Nhom co dong y dua Cloudinary tro lai khong (NHAP_QUAN_LY_NHAN_SU.md
+     muc 3.0)? Day la doi nguoc 1 quyet dinh kien truc chung, khong the tu
+     quyet mot minh.
+   - Ai lam UC-47->UC-50 (co phai ban khong, hay nguoi lam UC-36/37/38)?
+
+2. CAN TU LAM:
+   - Dang ky tai khoan Cloudinary that, dien CLOUDINARY_URL that vao
+     backend/.env (hien dang la placeholder, chua goi API duoc).
+   - Pull/merge main moi nhat vao nhanh (dang cham 4 commit, thieu migration
+     gui_hang/hoan_tien cua nguoi 5).
+   - backend/.env.example: file nay dang KHONG duoc Git theo doi tren nhanh
+     nay (bi .gitignore chan boi pattern ".env.*", trong khi tren main no da
+     duoc track tu truoc) - can merge main de lay lai trang thai track, hoac
+     dung "git add -f backend/.env.example" neu can commit ngay.
+   - Chua viet code Service/Route that cho UC-47->50 (chi moi co thiet ke DB
+     + luu_tru_anh_service.py) va cho UC-19/20/39/40/44/45 cua dieu do vien
+     (chi moi co thiet ke DB, chua co chuyen_xe_repository.py/
+     chuyen_xe_service.py/routes/dieu_do.py).
+   - Chay thu migration moi: "docker-compose exec backend yoyo apply
+     --database "$DATABASE_URL" ./migrations" (hoac dang sh -c cho
+     PowerShell) de kiem tra 3 file SQL moi chay dung khong.
+
+3. CHUA LAM (ghi lai de khong quen):
+   - Chua dan noi dung NHAP_QUAN_LY_NHAN_SU.md vao NGHIEP_VU.md/DATABASE.md/
+     ARCHITECTURE.md that - dang cho nhom dong y.
+   - Chua cap nhat UML_DIAGRAMS.md / USE_CASE.puml cho UC-47->50.
+   - Chua cap nhat CONTRIBUTING.md (danh sach UC, nguoi phu trach).
+   - Token-based authentication cho Cloudinary (URL het han that) - dang
+     dung chu ky khong het han, du dung cho quy mo BTL nhung chua phai giai
+     phap chuan.
+
+================================================================================
+HET FILE
+================================================================================

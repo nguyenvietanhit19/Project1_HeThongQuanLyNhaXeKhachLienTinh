@@ -1,84 +1,126 @@
-"""Unit test cho gui_hang_service — giả lập Repository bằng monkeypatch."""
-
+from decimal import Decimal
+from unittest.mock import patch
+from uuid import uuid4
 import pytest
 
-from app.services import gui_hang_service as svc
+from app.schemas.don_hang_schema import TaoDonHangRequest
+from app.services import gui_hang_service
 from app.utils.loi import GiaTriLoi
 
 
-def _chuyen(**overrides):
-    data = {"id": "chuyen-1", "tuyen_id": "tuyen-1", "trang_thai": "dang_chay"}
-    data.update(overrides)
-    return data
+@pytest.fixture
+def du_lieu_tao_don_mau():
+    return TaoDonHangRequest(
+        tuyen_id=uuid4(),
+        diem_gui_id=uuid4(),
+        diem_nhan_id=uuid4(),
+        loai_hang_id=uuid4(),
+        can_nang_kg=Decimal("5.0"),
+        dai_cm=Decimal("20"),
+        rong_cm=Decimal("15"),
+        cao_cm=Decimal("10"),
+        gia_cuoc=120000,
+        ten_nguoi_gui="Nguyen Van A",
+        sdt_nguoi_gui="0912345678",
+        ten_nguoi_nhan="Tran Thi B",
+        sdt_nguoi_nhan="0987654321",
+        phuong_thuc_thanh_toan="nguoi_gui_tra_truoc",
+    )
 
 
-def _don_hang(**overrides):
-    data = {"id": "don-1", "tuyen_id": "tuyen-1", "chuyen_id": None, "trang_thai": "cho_van_chuyen"}
-    data.update(overrides)
-    return data
+def test_tao_don_hang_chan_hang_cam(du_lieu_tao_don_mau):
+    with patch("app.repositories.don_hang_repository.tim_loai_hang_theo_id") as mock_loai_hang:
+        mock_loai_hang.return_value = {"id": str(du_lieu_tao_don_mau.loai_hang_id), "ten": "Pháo nổ", "la_hang_cam": True}
+        with pytest.raises(GiaTriLoi, match="cấm vận chuyển"):
+            gui_hang_service.tao_don_hang(du_lieu_tao_don_mau, nhan_vien_id=str(uuid4()))
 
 
-def test_xac_nhan_chat_hang_khong_tim_thay_don(monkeypatch):
-    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen())
-    monkeypatch.setattr(svc.don_hang_repo, "tim_theo_id", lambda did: None)
-    with pytest.raises(GiaTriLoi):
-        svc.xac_nhan_chat_hang("don-1", "chuyen-1", "nguoi-dung-1")
+def test_tao_don_hang_chan_diem_gui_trung_diem_nhan(du_lieu_tao_don_mau):
+    cung_diem_id = du_lieu_tao_don_mau.diem_gui_id
+    du_lieu_tao_don_mau.diem_nhan_id = cung_diem_id
+
+    with patch("app.repositories.don_hang_repository.tim_loai_hang_theo_id") as mock_loai_hang, \
+         patch("app.repositories.dia_diem_repository.tim_diem_don_tra_theo_id") as mock_diem:
+        mock_loai_hang.return_value = {"id": str(du_lieu_tao_don_mau.loai_hang_id), "ten": "Quần áo", "la_hang_cam": False}
+        mock_diem.return_value = {"id": str(cung_diem_id), "ten": "VP Mỹ Đình", "loai": "van_phong"}
+
+        with pytest.raises(GiaTriLoi, match="không được trùng"):
+            gui_hang_service.tao_don_hang(du_lieu_tao_don_mau, nhan_vien_id=str(uuid4()))
 
 
-def test_xac_nhan_chat_hang_khac_tuyen(monkeypatch):
-    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen(tuyen_id="tuyen-khac"))
-    monkeypatch.setattr(svc.don_hang_repo, "tim_theo_id", lambda did: _don_hang())
-    with pytest.raises(GiaTriLoi):
-        svc.xac_nhan_chat_hang("don-1", "chuyen-1", "nguoi-dung-1")
+def test_tao_don_hang_chan_diem_dung_doc_duong(du_lieu_tao_don_mau):
+    with patch("app.repositories.don_hang_repository.tim_loai_hang_theo_id") as mock_loai_hang, \
+         patch("app.repositories.dia_diem_repository.tim_diem_don_tra_theo_id") as mock_diem:
+        mock_loai_hang.return_value = {"id": str(du_lieu_tao_don_mau.loai_hang_id), "ten": "Quần áo", "la_hang_cam": False}
+        mock_diem.return_value = {"id": str(du_lieu_tao_don_mau.diem_gui_id), "ten": "Trạm dừng nghỉ", "loai": "diem_dung"}
+
+        with pytest.raises(GiaTriLoi, match="phải là văn phòng"):
+            gui_hang_service.tao_don_hang(du_lieu_tao_don_mau, nhan_vien_id=str(uuid4()))
 
 
-def test_xac_nhan_chat_hang_da_len_xe_roi(monkeypatch):
-    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen())
-    monkeypatch.setattr(svc.don_hang_repo, "tim_theo_id", lambda did: _don_hang(trang_thai="da_len_xe"))
-    with pytest.raises(GiaTriLoi):
-        svc.xac_nhan_chat_hang("don-1", "chuyen-1", "nguoi-dung-1")
+def test_xac_nhan_giao_hang_thanh_cong():
+    ma_van_don = "DH-20260920-TEST01"
+    don_hang_mau = {
+        "id": str(uuid4()),
+        "ma_van_don": ma_van_don,
+        "trang_thai": "cho_lay",
+        "phuong_thuc_thanh_toan": "nguoi_gui_tra_truoc",
+    }
+    with patch("app.repositories.don_hang_repository.tim_theo_ma_van_don") as mock_tim, \
+         patch("app.repositories.don_hang_repository.cap_nhat_giao_hang") as mock_cap_nhat:
+        mock_tim.return_value = don_hang_mau
+        mock_cap_nhat.return_value = {**don_hang_mau, "trang_thai": "da_giao"}
+
+        ket_qua = gui_hang_service.xac_nhan_giao_hang(ma_van_don, nhan_vien_nhan_id=str(uuid4()))
+        assert ket_qua["trang_thai"] == "da_giao"
 
 
-def test_xac_nhan_chat_hang_thanh_cong(monkeypatch):
-    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen())
-    monkeypatch.setattr(svc.don_hang_repo, "tim_theo_id", lambda did: _don_hang())
-    goi = {}
-    monkeypatch.setattr(svc.don_hang_repo, "cap_nhat_chat_hang_len_chuyen", lambda did, cid: goi.update(don=did, chuyen=cid))
-    svc.xac_nhan_chat_hang("don-1", "chuyen-1", "nguoi-dung-1")
-    assert goi == {"don": "don-1", "chuyen": "chuyen-1"}
+def test_xac_nhan_giao_hang_chan_khi_chua_toi_noi():
+    ma_van_don = "DH-20260920-TEST02"
+    don_hang_mau = {
+        "id": str(uuid4()),
+        "ma_van_don": ma_van_don,
+        "trang_thai": "da_len_xe",
+    }
+    with patch("app.repositories.don_hang_repository.tim_theo_ma_van_don") as mock_tim:
+        mock_tim.return_value = don_hang_mau
+        with pytest.raises(GiaTriLoi, match="chưa tới điểm nhận"):
+            gui_hang_service.xac_nhan_giao_hang(ma_van_don, nhan_vien_nhan_id=str(uuid4()))
 
 
-def test_xac_nhan_do_hang_chua_tung_len_xe(monkeypatch):
-    monkeypatch.setattr(svc.don_hang_repo, "tim_theo_id", lambda did: _don_hang(chuyen_id=None))
-    with pytest.raises(GiaTriLoi):
-        svc.xac_nhan_do_hang("don-1", "nguoi-dung-1")
+def test_xac_nhan_chat_hang_va_do_hang():
+    don_id = str(uuid4())
+    chuyen_id = str(uuid4())
+
+    with patch("app.repositories.don_hang_repository.tim_theo_id") as mock_tim, \
+         patch("app.repositories.don_hang_repository.cap_nhat_chat_hang_len_chuyen") as mock_chat:
+        mock_tim.return_value = {"id": don_id, "trang_thai": "cho_van_chuyen"}
+        mock_chat.return_value = {"id": don_id, "trang_thai": "da_len_xe", "chuyen_id": chuyen_id}
+
+        ket_qua = gui_hang_service.xac_nhan_chat_hang(don_id, chuyen_id)
+        assert ket_qua["trang_thai"] == "da_len_xe"
 
 
-def test_xac_nhan_do_hang_sai_trang_thai(monkeypatch):
-    monkeypatch.setattr(svc.don_hang_repo, "tim_theo_id", lambda did: _don_hang(chuyen_id="chuyen-1", trang_thai="cho_lay"))
-    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen())
-    with pytest.raises(GiaTriLoi):
-        svc.xac_nhan_do_hang("don-1", "nguoi-dung-1")
+def test_thong_ke_hang_tai_diem_toan_he_thong():
+    with patch("app.repositories.don_hang_repository.thong_ke_hang_tai_diem") as mock_thong_ke:
+        mock_thong_ke.return_value = {
+            "tong_don_gui_di": 5,
+            "tong_so_don": 5,
+            "tong_doanh_thu": 360000,
+            "cho_lay": 1,
+            "da_giao": 2,
+            "hang_ton_qua_han": 0,
+        }
+        res = gui_hang_service.thong_ke_hang_tai_diem(None)
+        assert res["tong_so_don"] == 5
+        assert res["tong_doanh_thu"] == 360000
 
 
-def test_xac_nhan_do_hang_thanh_cong(monkeypatch):
-    monkeypatch.setattr(svc.don_hang_repo, "tim_theo_id", lambda did: _don_hang(chuyen_id="chuyen-1", trang_thai="da_len_xe"))
-    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen())
-    goi = {}
-    monkeypatch.setattr(svc.don_hang_repo, "cap_nhat_do_hang_tai_diem", lambda did: goi.setdefault("did", did))
-    svc.xac_nhan_do_hang("don-1", "nguoi-dung-1")
-    assert goi["did"] == "don-1"
+def test_lay_danh_sach_don_gan_day():
+    with patch("app.repositories.don_hang_repository.lay_danh_sach_don_gan_day") as mock_repo:
+        mock_repo.return_value = [{"ma_van_don": "DH-01"}, {"ma_van_don": "DH-02"}]
+        res = gui_hang_service.lay_danh_sach_don_gan_day(limit=10)
+        assert len(res) == 2
+        assert res[0]["ma_van_don"] == "DH-01"
 
 
-def test_bao_that_lac_khong_tim_thay_don(monkeypatch):
-    monkeypatch.setattr(svc.don_hang_repo, "tim_theo_id", lambda did: None)
-    with pytest.raises(GiaTriLoi):
-        svc.bao_that_lac("don-1", "mo ta", "nguoi-dung-1")
-
-
-def test_bao_that_lac_thanh_cong(monkeypatch):
-    monkeypatch.setattr(svc.don_hang_repo, "tim_theo_id", lambda did: _don_hang())
-    goi = {}
-    monkeypatch.setattr(svc.bao_cao_repo, "tao", lambda did, uid, mota: goi.update(don=did, nguoi=uid, mota=mota))
-    svc.bao_that_lac("don-1", "mo ta hu hong", "nguoi-dung-1")
-    assert goi == {"don": "don-1", "nguoi": "nguoi-dung-1", "mota": "mo ta hu hong"}
