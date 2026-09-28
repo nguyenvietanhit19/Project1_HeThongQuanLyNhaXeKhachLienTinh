@@ -1,37 +1,25 @@
--- ⚠️ TẠM THỜI — đọc kỹ trước khi merge vào main.
+-- Mở rộng nhan_su_van_hanh cho quản lý nhân sự (UC-47/48/49/50,
+-- database_quanLyNhanSu.md mục 1) + tạo giay_to_nhan_su, nhat_ky_quan_ly_nhan_su.
 --
--- nhan_su_van_hanh đúng ra thuộc domain của Trưởng nhóm (CONTRIBUTING.md
--- mục 2: xe/xe_nhan_su_repository) nhưng tính đến ngày viết file này chưa
--- có migration nào (ở bất kỳ nhánh nào trong repo) tạo ra bảng này. Migration
--- dưới đây tạo TRỌN VẸN nhan_su_van_hanh (cột gốc theo DATABASE.md mục 1.4
--- + cột mới cho quản lý nhân sự, database_quanLyNhanSu.md mục 1) để CÓ THỂ
--- TỰ TEST UC-47/48/49/50 trên nhánh này ngay, không phải chờ Trưởng nhóm.
---
--- TRƯỚC KHI MERGE: phải trao đổi với Trưởng nhóm. Nếu họ cũng tạo
--- "CREATE TABLE nhan_su_van_hanh" ở migration riêng của họ, 2 migration
--- cùng tạo 1 bảng sẽ lỗi "relation already exists" khi áp dụng chung trên
--- cùng 1 nhánh. Khi đó cần xóa đoạn CREATE TABLE này, đổi lại thành
--- ALTER TABLE ... ADD COLUMN cho đúng 7 cột mới, dựa trên bảng thật của họ.
+-- Bảng nhan_su_van_hanh (cột gốc: ho_ten, so_dien_thoai, chuc_danh,
+-- nguoi_dung_id) đã được tạo ở migration 20260920_1800_tao_bang_nhan_su_van_hanh.sql
+-- — file này KHÔNG tạo lại mà chỉ thêm 7 cột mới + các ràng buộc.
 
-CREATE TABLE nhan_su_van_hanh (
-    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    ho_ten            TEXT NOT NULL,
-    so_dien_thoai     TEXT NOT NULL,
-    chuc_danh         TEXT NOT NULL CHECK (chuc_danh IN ('tai_xe', 'phu_xe')),
-    nguoi_dung_id     UUID NULL UNIQUE REFERENCES nguoi_dung(id),
+ALTER TABLE nhan_su_van_hanh ADD COLUMN so_cccd           TEXT NULL;
+ALTER TABLE nhan_su_van_hanh ADD COLUMN ngay_sinh         DATE NULL;
+ALTER TABLE nhan_su_van_hanh ADD COLUMN anh_ho_so         TEXT NULL;  -- public_id trên Cloudinary, KHÔNG phải URL (services/luu_tru_anh_service.py)
+ALTER TABLE nhan_su_van_hanh ADD COLUMN ngay_vao_lam      DATE NOT NULL DEFAULT current_date;
+ALTER TABLE nhan_su_van_hanh ADD COLUMN trang_thai        TEXT NOT NULL DEFAULT 'dang_lam' CHECK (trang_thai IN ('dang_lam', 'da_nghi_viec'));
+ALTER TABLE nhan_su_van_hanh ADD COLUMN ngay_nghi_viec    DATE NULL;
+ALTER TABLE nhan_su_van_hanh ADD COLUMN ly_do_nghi_viec   TEXT NULL;
 
-    -- Cột mới cho quản lý nhân sự — database_quanLyNhanSu.md mục 1
-    so_cccd           TEXT NULL,
-    ngay_sinh         DATE NULL,
-    anh_ho_so         TEXT NULL,  -- public_id trên Cloudinary, KHÔNG phải URL (services/luu_tru_anh_service.py)
-    ngay_vao_lam      DATE NOT NULL DEFAULT current_date,
-    trang_thai        TEXT NOT NULL DEFAULT 'dang_lam' CHECK (trang_thai IN ('dang_lam', 'da_nghi_viec')),
-    ngay_nghi_viec    DATE NULL,
-    ly_do_nghi_viec   TEXT NULL,
-
-    CHECK (chuc_danh = 'phu_xe' OR nguoi_dung_id IS NULL),
-    CHECK ((trang_thai = 'da_nghi_viec') = (ngay_nghi_viec IS NOT NULL))
-);
+-- 1 tài khoản nguoi_dung chỉ gắn với tối đa 1 hồ sơ nhân sự; chỉ phụ xe mới
+-- có tài khoản; đã nghỉ việc thì bắt buộc có ngày nghỉ (và ngược lại).
+ALTER TABLE nhan_su_van_hanh ADD CONSTRAINT nhan_su_van_hanh_nguoi_dung_id_key UNIQUE (nguoi_dung_id);
+ALTER TABLE nhan_su_van_hanh ADD CONSTRAINT nhan_su_van_hanh_chi_phu_xe_co_tai_khoan
+    CHECK (chuc_danh = 'phu_xe' OR nguoi_dung_id IS NULL);
+ALTER TABLE nhan_su_van_hanh ADD CONSTRAINT nhan_su_van_hanh_nghi_viec_hop_le
+    CHECK ((trang_thai = 'da_nghi_viec') = (ngay_nghi_viec IS NOT NULL));
 
 -- CCCD trùng nhau là dữ liệu sai — nhưng nhiều dòng NULL (chưa nhập) không
 -- được coi là trùng nhau, nên phải dùng partial unique index.
