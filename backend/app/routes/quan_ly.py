@@ -14,9 +14,6 @@ from app.schemas.dia_diem_schema import (
     DiemDonTraResponse,
     KhuVucRequest,
     KhuVucResponse,
-    NhomTuyenChiTietResponse,
-    NhomTuyenRequest,
-    NhomTuyenResponse,
     TaoTuyenRequest,
     TuyenChiTietResponse,
     TuyenResponse,
@@ -81,43 +78,12 @@ def xoa_diem_don_tra(diem_id: UUID):
 
 
 # ---------------------------------------------------------
-# 3. Nhóm tuyến — quản lý riêng
-# ---------------------------------------------------------
-@router.post("/nhom-tuyen", response_model=NhomTuyenResponse, status_code=201)
-def tao_nhom_tuyen(du_lieu: NhomTuyenRequest):
-    return service.tao_nhom_tuyen(du_lieu.ten, [str(i) for i in du_lieu.danh_sach_khu_vuc_id])
-
-
-@router.put("/nhom-tuyen/{nhom_tuyen_id}")
-def sua_nhom_tuyen(nhom_tuyen_id: UUID, du_lieu: NhomTuyenRequest):
-    service.sua_nhom_tuyen(str(nhom_tuyen_id), du_lieu.ten, [str(i) for i in du_lieu.danh_sach_khu_vuc_id])
-    return {"thong_bao": "Cập nhật nhóm tuyến thành công"}
-
-
-@router.get("/nhom-tuyen", response_model=list[NhomTuyenResponse])
-def danh_sach_nhom_tuyen():
-    return service.danh_sach_nhom_tuyen()
-
-
-@router.get("/nhom-tuyen/{nhom_tuyen_id}", response_model=NhomTuyenChiTietResponse)
-def chi_tiet_nhom_tuyen(nhom_tuyen_id: UUID):
-    return service.lay_chi_tiet_nhom_tuyen(str(nhom_tuyen_id))
-
-
-@router.delete("/nhom-tuyen/{nhom_tuyen_id}")
-def xoa_nhom_tuyen(nhom_tuyen_id: UUID):
-    service.xoa_nhom_tuyen(str(nhom_tuyen_id))
-    return {"thong_bao": "Xóa nhóm tuyến thành công"}
-
-
-# ---------------------------------------------------------
-# 4. Tuyến (UC-31)
+# 3. Tuyến (UC-31) — không còn "nhóm tuyến", 1 tuyến chạy được cả 2 chiều
 # ---------------------------------------------------------
 @router.post("/tuyen", response_model=TuyenResponse, status_code=201)
 def tao_tuyen(du_lieu: TaoTuyenRequest):
     return service.tao_tuyen(
         du_lieu.ten,
-        str(du_lieu.nhom_tuyen_id),
         [{"diem_don_tra_id": str(d.diem_don_tra_id), "thoi_gian_du_kien_phut": d.thoi_gian_du_kien_phut} for d in du_lieu.danh_sach_diem],
     )
 
@@ -127,7 +93,6 @@ def sua_tuyen(tuyen_id: UUID, du_lieu: TaoTuyenRequest):
     service.sua_tuyen(
         str(tuyen_id),
         du_lieu.ten,
-        str(du_lieu.nhom_tuyen_id),
         [{"diem_don_tra_id": str(d.diem_don_tra_id), "thoi_gian_du_kien_phut": d.thoi_gian_du_kien_phut} for d in du_lieu.danh_sach_diem],
     )
     return {"thong_bao": "Cập nhật tuyến thành công"}
@@ -150,7 +115,7 @@ def chi_tiet_tuyen(tuyen_id: UUID):
 
 
 # ---------------------------------------------------------
-# 5. Loại xe (UC-32)
+# 4. Loại xe (UC-32)
 # ---------------------------------------------------------
 @router.post("/loai-xe", response_model=LoaiXeResponse, status_code=201)
 def tao_loai_xe(du_lieu: LoaiXeRequest):
@@ -175,7 +140,7 @@ def xoa_loai_xe(loai_xe_id: UUID):
 
 
 # ---------------------------------------------------------
-# 6. Giá vé (UC-33)
+# 5. Giá vé (UC-33)
 # ---------------------------------------------------------
 @router.post("/gia-ve", response_model=GiaVeResponse, status_code=201)
 def tao_gia_ve(du_lieu: GiaVeRequest):

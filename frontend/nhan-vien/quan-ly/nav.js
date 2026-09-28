@@ -19,11 +19,6 @@ const MENU_QUAN_LY = [
     icon: '<path d="M12 21s7-7.16 7-12a7 7 0 1 0-14 0c0 4.84 7 12 7 12Z"/><circle cx="12" cy="9" r="2.3"/>',
   },
   {
-    label: "Nhóm tuyến",
-    href: "/nhan-vien/quan-ly/nhom-tuyen.html",
-    icon: '<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/>',
-  },
-  {
     label: "Tuyến",
     href: "/nhan-vien/quan-ly/tuyen.html",
     icon: '<circle cx="6" cy="19" r="2.3"/><circle cx="18" cy="5" r="2.3"/><path d="M6 16.7V13a4 4 0 0 1 4-4h2a4 4 0 0 0 4-4V5.3" stroke-dasharray="2.6 2.6"/>',
