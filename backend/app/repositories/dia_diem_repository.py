@@ -1,4 +1,4 @@
-"""Raw SQL cho khu_vuc/diem_don_tra/nhom_tuyen/tuyen/tuyen_diem_don_tra —
+"""Raw SQL cho khu_vuc/diem_don_tra/tuyen/tuyen_diem_don_tra —
 DATABASE.md mục 2.1-2.4. Không chứa quy tắc nghiệp vụ (thứ tự điểm đầu/cuối
 phải van_phong...) — việc đó thuộc services/dia_diem_service.py
 (ARCHITECTURE.md mục 2).
@@ -66,6 +66,38 @@ def danh_sach_khu_vuc() -> list[dict]:
         with conn.cursor() as cur:
             cur.execute("SELECT id, ten, tinh_thanh FROM khu_vuc ORDER BY tinh_thanh, ten")
             return _thanh_list(cur, cur.fetchall())
+    finally:
+        release_connection(conn)
+
+
+def tim_nhieu_khu_vuc_theo_id(khu_vuc_ids: list[str]) -> list[dict]:
+    if not khu_vuc_ids:
+        return []
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, ten, tinh_thanh FROM khu_vuc WHERE id = ANY(%s::uuid[])",
+                (khu_vuc_ids,),
+            )
+            return _thanh_list(cur, cur.fetchall())
+    finally:
+        release_connection(conn)
+
+
+def xoa_khu_vuc(khu_vuc_id: str) -> None:
+    """Có thể ném psycopg2.errors.ForeignKeyViolation nếu còn diem_don_tra
+    thuộc khu vực này — service.py bắt lỗi này để báo thông báo thân thiện.
+    Rollback trước khi trả connection về pool, tránh để pool giữ connection
+    đang ở trạng thái transaction lỗi."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM khu_vuc WHERE id = %s", (khu_vuc_id,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         release_connection(conn)
 
@@ -153,45 +185,28 @@ def danh_sach_diem_don_tra(khu_vuc_id: str | None = None) -> list[dict]:
         release_connection(conn)
 
 
-# ---------------------------------------------------------
-# 3. Nhóm tuyến
-# ---------------------------------------------------------
-def tao_nhom_tuyen(ten: str) -> dict:
+def xoa_diem_don_tra(diem_id: str) -> None:
+    """Có thể ném psycopg2.errors.ForeignKeyViolation nếu điểm này đang
+    được tuyen_diem_don_tra/xe/don_hang/ve tham chiếu — service.py bắt lỗi
+    này để báo thông báo thân thiện."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("INSERT INTO nhom_tuyen (ten) VALUES (%s) RETURNING id, ten", (ten,))
-            ket_qua = _thanh_dict(cur, cur.fetchone())
+            cur.execute("DELETE FROM diem_don_tra WHERE id = %s", (diem_id,))
         conn.commit()
-        return ket_qua
-    finally:
-        release_connection(conn)
-
-
-def tim_nhom_tuyen_theo_id(nhom_tuyen_id: str) -> dict | None:
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT id, ten FROM nhom_tuyen WHERE id = %s", (nhom_tuyen_id,))
-            return _thanh_dict(cur, cur.fetchone())
-    finally:
-        release_connection(conn)
-
-
-def danh_sach_nhom_tuyen() -> list[dict]:
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT id, ten FROM nhom_tuyen ORDER BY ten")
-            return _thanh_list(cur, cur.fetchall())
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         release_connection(conn)
 
 
 # ---------------------------------------------------------
-# 4. Tuyến + các điểm dừng
+# 3. Tuyến + các điểm dừng — không còn khái niệm "nhóm tuyến", mỗi tuyến
+# tự thân đại diện cả 1 hành trình, chạy được cả 2 chiều (NGHIEP_VU.md
+# mục 3.1). Danh sách điểm dừng lưu theo đúng "chiều xuôi" duy nhất.
 # ---------------------------------------------------------
-def tao_tuyen_voi_diem(nhom_tuyen_id: str, ten: str, danh_sach_diem: list[dict]) -> dict:
+def tao_tuyen_voi_diem(ten: str, danh_sach_diem: list[dict]) -> dict:
     """danh_sach_diem: list [{diem_don_tra_id, thu_tu, thoi_gian_du_kien_phut}],
     đã được service kiểm tra hợp lệ (điểm đầu/cuối van_phong, không trùng).
     Chạy trong đúng 1 transaction — tuyến và toàn bộ điểm cùng thành công
@@ -200,10 +215,11 @@ def tao_tuyen_voi_diem(nhom_tuyen_id: str, ten: str, danh_sach_diem: list[dict])
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO tuyen (nhom_tuyen_id, ten) VALUES (%s, %s) RETURNING id",
-                (nhom_tuyen_id, ten),
+                "INSERT INTO tuyen (ten) VALUES (%s) RETURNING id, ten, ngay_tao",
+                (ten,),
             )
-            tuyen_id = cur.fetchone()[0]
+            ket_qua = _thanh_dict(cur, cur.fetchone())
+            tuyen_id = ket_qua["id"]
 
             for diem in danh_sach_diem:
                 cur.execute(
@@ -214,7 +230,37 @@ def tao_tuyen_voi_diem(nhom_tuyen_id: str, ten: str, danh_sach_diem: list[dict])
                     (tuyen_id, diem["diem_don_tra_id"], diem["thu_tu"], diem["thoi_gian_du_kien_phut"]),
                 )
         conn.commit()
-        return {"id": tuyen_id, "nhom_tuyen_id": nhom_tuyen_id, "ten": ten}
+        return ket_qua
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
+def sua_tuyen_voi_diem(tuyen_id: str, ten: str, danh_sach_diem: list[dict]) -> None:
+    """Thay toàn bộ danh sách điểm dừng của tuyến (xóa hết dòng cũ, chèn lại
+    theo danh sách mới) — chạy trong đúng 1 transaction cùng việc đổi tên,
+    tất cả cùng thành công hoặc cùng thất bại. Hiện chưa có chuyen_xe/ve
+    tham chiếu trực tiếp tới tuyen_diem_don_tra nên chưa cần bắt
+    ForeignKeyViolation ở đây — cần rà lại khi UC-18/UC-44 được xây."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE tuyen SET ten = %s WHERE id = %s", (ten, tuyen_id))
+            cur.execute("DELETE FROM tuyen_diem_don_tra WHERE tuyen_id = %s", (tuyen_id,))
+            for diem in danh_sach_diem:
+                cur.execute(
+                    """
+                    INSERT INTO tuyen_diem_don_tra (tuyen_id, diem_don_tra_id, thu_tu, thoi_gian_du_kien_phut)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    (tuyen_id, diem["diem_don_tra_id"], diem["thu_tu"], diem["thoi_gian_du_kien_phut"]),
+                )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         release_connection(conn)
 
@@ -223,7 +269,7 @@ def tim_tuyen_theo_id(tuyen_id: str) -> dict | None:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, nhom_tuyen_id, ten FROM tuyen WHERE id = %s", (tuyen_id,))
+            cur.execute("SELECT id, ten, ngay_tao FROM tuyen WHERE id = %s", (tuyen_id,))
             return _thanh_dict(cur, cur.fetchone())
     finally:
         release_connection(conn)
@@ -233,8 +279,29 @@ def danh_sach_tuyen() -> list[dict]:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, nhom_tuyen_id, ten FROM tuyen ORDER BY ten")
+            cur.execute("SELECT id, ten, ngay_tao FROM tuyen ORDER BY ten")
             return _thanh_list(cur, cur.fetchall())
+    finally:
+        release_connection(conn)
+
+
+def xoa_tuyen(tuyen_id: str) -> None:
+    """Xóa cả tuyến lẫn danh sách điểm dừng của nó (tuyen_diem_don_tra chỉ
+    là bảng con, không phải dữ liệu độc lập được "sử dụng" theo nghĩa cần
+    chặn). Vẫn có thể ném psycopg2.errors.ForeignKeyViolation nếu tuyến
+    này đã có chuyen_xe/don_hang tham chiếu — service.py bắt lỗi này để
+    báo thông báo thân thiện. Cả 2 lệnh DELETE chạy chung 1 transaction:
+    nếu bước xóa tuyến thất bại, các dòng tuyen_diem_don_tra vừa xóa cũng
+    được rollback lại (không mất dữ liệu điểm dừng của 1 tuyến vẫn còn)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM tuyen_diem_don_tra WHERE tuyen_id = %s", (tuyen_id,))
+            cur.execute("DELETE FROM tuyen WHERE id = %s", (tuyen_id,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         release_connection(conn)
 
@@ -246,9 +313,11 @@ def danh_sach_diem_theo_tuyen(tuyen_id: str) -> list[dict]:
             cur.execute(
                 """
                 SELECT ddt.id AS diem_don_tra_id, ddt.ten, ddt.khu_vuc_id, ddt.loai,
+                       kv.ten AS ten_khu_vuc,
                        tddt.thu_tu, tddt.thoi_gian_du_kien_phut
                 FROM tuyen_diem_don_tra tddt
                 JOIN diem_don_tra ddt ON ddt.id = tddt.diem_don_tra_id
+                JOIN khu_vuc kv ON kv.id = ddt.khu_vuc_id
                 WHERE tddt.tuyen_id = %s
                 ORDER BY tddt.thu_tu
                 """,

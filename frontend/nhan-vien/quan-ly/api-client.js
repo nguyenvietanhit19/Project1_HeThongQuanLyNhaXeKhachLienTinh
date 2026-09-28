@@ -1,6 +1,7 @@
 /*
- * Client gọi API dùng chung cho mọi trang — người 1 xây, xem CONTRIBUTING.md mục 6.
- * Ai cần gọi API chỉ dùng apiGet/apiPost/apiPut, không tự viết lại fetch() + token.
+ * Client gọi API cho các trang Quản lý — riêng của domain này, không dùng
+ * chung với frontend/khach-hang/ hay các vai trò nhân viên khác (mỗi vai
+ * trò tự viết CSS/JS riêng, không có thư mục "shared" giữa các vai trò).
  */
 
 // Tự nhận diện môi trường qua hostname — không cần build step/bundler
@@ -36,4 +37,8 @@ function apiPost(duong_dan, body) {
 
 function apiPut(duong_dan, body) {
   return apiFetch(duong_dan, { method: "PUT", body: JSON.stringify(body) });
+}
+
+function apiDelete(duong_dan) {
+  return apiFetch(duong_dan, { method: "DELETE" });
 }
