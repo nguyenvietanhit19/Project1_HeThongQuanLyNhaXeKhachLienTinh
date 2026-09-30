@@ -42,13 +42,15 @@
           </div>
         </div>
 
-        <div class="nv-card">
-          <div class="nv-card__header">
-            <h2>Danh sách loại xe</h2>
-            <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Thêm loại xe</button>
+        <div class="kv-thanh-cong">
+          <div class="kv-tim">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input type="search" id="lx-tim" placeholder="Tìm theo tên hoặc mã loại xe..." autocomplete="off" />
           </div>
-          <div id="bang-loai-xe">Đang tải...</div>
+          <span class="kv-tom-tat" id="lx-tom-tat"></span>
+          <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Thêm loại xe</button>
         </div>
+        <div id="bang-loai-xe">Đang tải...</div>
       </main>
     </div>
   </div>
@@ -132,7 +134,6 @@
   <script src="/nhan-vien/quan-ly/api-client.js"></script>
   <script src="/nhan-vien/quan-ly/auth-check.js"></script>
   <script src="/nhan-vien/quan-ly/nav.js"></script>
-  <script src="/nhan-vien/quan-ly/data-table.js"></script>
   <script>
     const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
     if (nguoiDung) {
@@ -140,6 +141,9 @@
       renderTopbarUser();
     }
     document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const boDau = (s) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
 
     const bangLoaiXe = document.getElementById("bang-loai-xe");
     let dsLoaiXe = [];
@@ -468,21 +472,81 @@
       try {
         dsLoaiXe = await apiGet("/quan-ly/loai-xe");
         document.getElementById("stat-so-luong").textContent = dsLoaiXe.length;
-        renderDataTable(
-          bangLoaiXe,
-          [
-            { key: "ma", label: "Mã", render: (r) => htmlMa(r.ma) },
-            { key: "ten", label: "Tên loại xe" },
-            { key: "he_so_gia", label: "Hệ số giá", render: (r) => `×${r.he_so_gia}` },
-            { key: "so_do_ghe", label: "Số ghế", render: (r) => `${r.so_do_ghe.length} ghế` },
-          ],
-          dsLoaiXe,
-          { onEdit: moModalSua, onDelete: xoaLoaiXe, tenXoa: (r) => r.ten }
-        );
+        renderDanhSach();
       } catch (err) {
-        bangLoaiXe.innerHTML = `<div class="text-error">${err.message}</div>`;
+        bangLoaiXe.innerHTML = `<div class="text-error">${esc(err.message)}</div>`;
       }
     }
+
+    // Hình thu nhỏ sơ đồ ghế (mỗi tầng 1 hình) vẽ bằng SVG từ đúng toạ độ ghế đã lưu
+    function svgSoDoGhe(soDoGhe, tang) {
+      const ghe = soDoGhe.filter((g) => g.tang === tang);
+      if (!ghe.length) return "";
+      const minX = Math.min(...ghe.map((g) => g.x));
+      const minY = Math.min(...ghe.map((g) => g.y));
+      const rong = Math.max(...ghe.map((g) => g.x)) + CHIEU_RONG_GHE - minX;
+      const cao = Math.max(...ghe.map((g) => g.y)) + CHIEU_CAO_GHE - minY;
+      const rects = ghe
+        .map((g) => `<rect x="${g.x - minX}" y="${g.y - minY}" width="${CHIEU_RONG_GHE}" height="${CHIEU_CAO_GHE}" rx="7"/>`)
+        .join("");
+      return `<svg class="lx-so-do__hinh" viewBox="-6 -6 ${rong + 12} ${cao + 12}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${rects}</svg>`;
+    }
+
+    function renderDanhSach() {
+      const tk = boDau(document.getElementById("lx-tim").value.trim());
+      const loc = tk ? dsLoaiXe.filter((l) => boDau(`${l.ten} ${l.ma}`).includes(tk)) : dsLoaiXe;
+      document.getElementById("lx-tom-tat").textContent = dsLoaiXe.length ? `${loc.length} loại xe` : "";
+
+      if (!dsLoaiXe.length) {
+        bangLoaiXe.innerHTML = '<div class="kv-trong">Chưa có loại xe nào — bấm "+ Thêm loại xe" để tạo loại xe đầu tiên.</div>';
+        return;
+      }
+      if (!loc.length) {
+        bangLoaiXe.innerHTML = '<div class="kv-trong">Không có loại xe nào khớp từ khóa tìm kiếm.</div>';
+        return;
+      }
+
+      bangLoaiXe.innerHTML = `<div class="lx-luoi">${[...loc]
+        .sort((a, b) => a.ma.localeCompare(b.ma))
+        .map((l) => {
+          const soTang = l.so_do_ghe.some((g) => g.tang === 2) ? 2 : 1;
+          return `
+            <article class="lx-the">
+              <div class="lx-so-do">
+                ${[1, 2]
+                  .slice(0, soTang)
+                  .map((t) => `<figure class="lx-so-do__tang">${svgSoDoGhe(l.so_do_ghe, t)}${soTang === 2 ? `<figcaption>Tầng ${t}</figcaption>` : ""}</figure>`)
+                  .join("")}
+              </div>
+              <div class="lx-the__than">
+                <div class="lx-the__tieu">
+                  <h3 class="lx-the__ten">${esc(l.ten)}</h3>
+                  ${htmlMa(esc(l.ma))}
+                </div>
+                <div class="lx-the__chi-so">
+                  <span class="lx-chi-so"><strong>${l.so_do_ghe.length}</strong> ghế</span>
+                  <span class="lx-chi-so"><strong>${soTang}</strong> tầng</span>
+                  <span class="lx-chi-so lx-chi-so--gia">Hệ số giá <strong>×${l.he_so_gia}</strong></span>
+                </div>
+              </div>
+              <div class="lx-the__chan">
+                <button type="button" class="nv-btn-sua" data-act="sua" data-id="${l.id}">Sửa</button>
+                <button type="button" class="nv-btn-xoa" data-act="xoa" data-id="${l.id}">Xóa</button>
+              </div>
+            </article>`;
+        })
+        .join("")}</div>`;
+
+      bangLoaiXe.querySelectorAll("[data-act]").forEach((btn) => {
+        const l = dsLoaiXe.find((v) => v.id === btn.dataset.id);
+        btn.addEventListener("click", () => {
+          if (btn.dataset.act === "sua") moModalSua(l);
+          else if (confirm(`Xóa loại xe "${l.ten}"? Không thể hoàn tác.`)) xoaLoaiXe(l);
+        });
+      });
+    }
+
+    document.getElementById("lx-tim").addEventListener("input", renderDanhSach);
     taiDanhSach();
 
     async function xoaLoaiXe(loaiXe) {
