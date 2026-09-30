@@ -471,6 +471,7 @@
         renderDataTable(
           bangLoaiXe,
           [
+            { key: "ma", label: "Mã", render: (r) => htmlMa(r.ma) },
             { key: "ten", label: "Tên loại xe" },
             { key: "he_so_gia", label: "Hệ số giá", render: (r) => `×${r.he_so_gia}` },
             { key: "so_do_ghe", label: "Số ghế", render: (r) => `${r.so_do_ghe.length} ghế` },

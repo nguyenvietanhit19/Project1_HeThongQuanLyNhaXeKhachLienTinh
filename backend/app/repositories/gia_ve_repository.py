@@ -96,7 +96,8 @@ def danh_sach_gia_ve(tuyen_id: str | None = None) -> list[dict]:
             sql = """
                 SELECT gv.id, gv.tuyen_id, gv.diem_di_id, gv.diem_den_id, gv.gia_goc,
                        gv.ap_dung_tu, gv.ap_dung_den,
-                       t.ten AS ten_tuyen, kd.ten AS ten_diem_di, ka.ten AS ten_diem_den
+                       t.ma AS ma_tuyen, t.ten AS ten_tuyen,
+                       kd.ma AS ma_diem_di, kd.ten AS ten_diem_di, ka.ma AS ma_diem_den, ka.ten AS ten_diem_den
                 FROM gia_ve gv
                 JOIN tuyen t ON t.id = gv.tuyen_id
                 JOIN khu_vuc kd ON kd.id = gv.diem_di_id

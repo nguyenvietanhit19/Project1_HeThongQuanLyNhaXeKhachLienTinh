@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Xe — Quản lý</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+</head>
+<body class="nhan-vien-shell">
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
+
+    <div class="nv-main">
+      <header class="nv-topbar">
+        <h1>Xe</h1>
+        <div class="nv-topbar__user">
+          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
+          <div class="nv-topbar__identity">
+            <span class="ho-ten" id="topbar-ho-ten"></span>
+            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
+          </div>
+          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
+        </div>
+      </header>
+
+      <main class="nv-content">
+        <div class="nv-page-intro">
+          <div class="nv-page-intro__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="11" rx="2.5"/><path d="M3 11h18M7 16v3M17 16v3"/><circle cx="7.5" cy="13.5" r="0.8"/><circle cx="16.5" cy="13.5" r="0.8"/>
+            </svg>
+          </div>
+          <div class="nv-page-intro__body">
+            <p class="nv-page-intro__title">Xe & biên chế</p>
+            <p class="nv-page-intro__desc">Mỗi xe có biển số, loại xe, điểm gốc (văn phòng), có thể cố định 1 tuyến (cả 2 chiều) hoặc là xe dự phòng, và biên chế cố định gồm đúng 2 tài xế + ít nhất 1 phụ xe.</p>
+          </div>
+          <div class="nv-page-intro__stat">
+            <span class="nv-page-intro__stat-num" id="stat-so-luong">—</span>
+            <span class="nv-page-intro__stat-label">xe</span>
+          </div>
+        </div>
+
+        <div class="nv-card">
+          <div class="nv-card__header">
+            <h2>Danh sách xe</h2>
+            <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Thêm xe</button>
+          </div>
+          <div id="bang-xe">Đang tải...</div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal thêm/sửa xe -->
+  <div class="nv-modal-overlay" id="modal-overlay" hidden>
+    <div class="nv-modal" style="max-width:560px;">
+      <form id="form-xe">
+        <div class="nv-modal__header">
+          <div class="nv-modal__header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="11" rx="2.5"/><path d="M3 11h18M7 16v3M17 16v3"/>
+            </svg>
+          </div>
+          <h2 id="modal-tieu-de">Thêm xe</h2>
+        </div>
+        <div class="nv-modal__body">
+          <input type="hidden" id="xe_id" />
+
+          <div class="nv-form-row">
+            <div>
+              <label class="nv-label" for="bien_so">Biển số</label>
+              <input class="input-field" type="text" id="bien_so" placeholder="VD 29B-123.45" maxlength="20" required />
+            </div>
+            <div>
+              <label class="nv-label" for="loai_xe_id">Loại xe</label>
+              <select class="input-field" id="loai_xe_id" required></select>
+            </div>
+          </div>
+
+          <div class="nv-form-row">
+            <div>
+              <label class="nv-label" for="diem_goc_id">Điểm gốc (văn phòng)</label>
+              <select class="input-field" id="diem_goc_id" required></select>
+            </div>
+            <div>
+              <label class="nv-label" for="tuyen_id">Tuyến cố định</label>
+              <select class="input-field" id="tuyen_id"></select>
+            </div>
+          </div>
+
+          <label class="nv-label" for="trang_thai">Trạng thái</label>
+          <select class="input-field" id="trang_thai">
+            <option value="hoat_dong">Hoạt động</option>
+            <option value="bao_tri">Bảo trì</option>
+            <option value="ngung_su_dung">Ngừng sử dụng</option>
+          </select>
+
+          <div id="loi-form" class="text-error" hidden></div>
+          <div class="nv-modal__actions">
+            <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
+            <button type="submit" class="btn-primary">Lưu</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal biên chế cố định -->
+  <div class="nv-modal-overlay" id="modal-bien-che" hidden>
+    <div class="nv-modal" style="max-width:560px;">
+      <div class="nv-modal__header">
+        <div class="nv-modal__header-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5a3 3 0 0 1 0 6M18 14c1.8.6 3 2.3 3 4"/>
+          </svg>
+        </div>
+        <h2 id="bc-tieu-de">Biên chế xe</h2>
+      </div>
+      <div class="nv-modal__body">
+        <div class="xe-bc-nhom">
+          <div class="xe-bc-nhom__tieu-de">Tài xế cố định <span class="pill pill--nho xe-bc-nhom__dem" id="bc-dem-tai-xe"></span></div>
+          <div id="bc-ds-tai-xe"></div>
+        </div>
+        <div class="xe-bc-nhom">
+          <div class="xe-bc-nhom__tieu-de">Phụ xe cố định <span class="pill pill--nho xe-bc-nhom__dem" id="bc-dem-phu-xe"></span></div>
+          <div id="bc-ds-phu-xe"></div>
+        </div>
+
+        <div class="xe-bc-them">
+          <select class="input-field" id="bc-chon-nhan-su"></select>
+          <button type="button" class="btn-primary" id="bc-btn-them">Thêm</button>
+        </div>
+
+        <div id="bc-loi" class="text-error" hidden></div>
+        <div class="nv-modal__actions">
+          <button type="button" class="nv-btn-secondary" id="bc-btn-dong">Đóng</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/nhan-vien/quan-ly/api-client.js"></script>
+  <script src="/nhan-vien/quan-ly/auth-check.js"></script>
+  <script src="/nhan-vien/quan-ly/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/data-table.js"></script>
+  <script>
+    const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
+    if (nguoiDung) {
+      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-ly/xe.html");
+      renderTopbarUser();
+    }
+    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+    const NHAN_TRANG_THAI = {
+      hoat_dong: { nhan: "Hoạt động", lop: "pill--gia-vinh-vien" },
+      bao_tri: { nhan: "Bảo trì", lop: "pill--gia-thoi-han" },
+      ngung_su_dung: { nhan: "Ngừng sử dụng", lop: "pill--xam" },
+    };
+    const SO_TAI_XE_YEU_CAU = 2;
+
+    let dsXe = [];
+    let dsLoaiXe = [];
+    let dsVanPhong = [];
+    let dsTuyen = [];
+
+    const bangXe = document.getElementById("bang-xe");
+
+    // ---------- Danh sách xe ----------
+    function pillBienChe(xe) {
+      const thieuTaiXe = SO_TAI_XE_YEU_CAU - xe.so_tai_xe_co_dinh;
+      const thieuPhuXe = xe.so_phu_xe_co_dinh < 1;
+      const chu = `${xe.so_tai_xe_co_dinh}/${SO_TAI_XE_YEU_CAU} tài xế · ${xe.so_phu_xe_co_dinh} phụ xe`;
+      if (thieuTaiXe <= 0 && !thieuPhuXe) return `<span class="pill pill--nho pill--gia-vinh-vien">${chu}</span>`;
+      return `<span class="pill pill--nho pill--do" title="Biên chế cố định chưa đủ: cần đúng 2 tài xế và ít nhất 1 phụ xe">${chu} — chưa đủ</span>`;
+    }
+
+    async function taiDanhSach() {
+      try {
+        dsXe = await apiGet("/quan-ly/xe");
+        document.getElementById("stat-so-luong").textContent = dsXe.length;
+        renderDataTable(
+          bangXe,
+          [
+            { key: "bien_so", label: "Biển số", render: (r) => `<strong>${esc(r.bien_so)}</strong>` },
+            { key: "ten_loai_xe", label: "Loại xe", render: (r) => `${htmlMa(r.ma_loai_xe)} ${esc(r.ten_loai_xe)}` },
+            { key: "ten_diem_goc", label: "Điểm gốc", render: (r) => `<span class="nv-text-phu">${esc(r.ten_diem_goc)}</span>` },
+            {
+              key: "tuyen",
+              label: "Tuyến cố định",
+              render: (r) => (r.tuyen_id ? `<span class="pill pill--nho pill--nhom-tuyen">${esc(r.ma_tuyen)} · ${esc(r.ten_tuyen)}</span>` : '<span class="pill pill--nho pill--xam">Xe dự phòng</span>'),
+            },
+            { key: "trang_thai", label: "Trạng thái", render: (r) => `<span class="pill pill--nho ${NHAN_TRANG_THAI[r.trang_thai].lop}">${NHAN_TRANG_THAI[r.trang_thai].nhan}</span>` },
+            { key: "bien_che", label: "Biên chế cố định", render: pillBienChe },
+          ],
+          dsXe,
+          {
+            onEdit: moModalSua,
+            onDelete: xoaXe,
+            tenXoa: (r) => r.bien_so,
+            extraActions: [{ label: "Biên chế", onClick: moModalBienChe }],
+          }
+        );
+      } catch (err) {
+        bangXe.innerHTML = `<div class="text-error">${esc(err.message)}</div>`;
+      }
+    }
+
+    async function xoaXe(xe) {
+      try {
+        await apiDelete(`/quan-ly/xe/${xe.id}`);
+        taiDanhSach();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // ---------- Nạp danh mục cho các ô chọn ----------
+    async function naploadDauVao() {
+      const [loaiXe, diem, tuyen] = await Promise.all([
+        apiGet("/quan-ly/loai-xe"),
+        apiGet("/quan-ly/diem-don-tra"),
+        apiGet("/quan-ly/tuyen"),
+      ]);
+      dsLoaiXe = loaiXe;
+      dsVanPhong = diem.filter((d) => d.loai === "van_phong");
+      dsTuyen = tuyen;
+
+      document.getElementById("loai_xe_id").innerHTML = dsLoaiXe.length
+        ? dsLoaiXe.map((l) => `<option value="${l.id}">${esc(l.ma)} · ${esc(l.ten)}</option>`).join("")
+        : '<option value="">Chưa có loại xe — tạo ở mục Loại xe trước</option>';
+      document.getElementById("diem_goc_id").innerHTML = dsVanPhong.length
+        ? dsVanPhong.map((d) => `<option value="${d.id}">${esc(d.ma)} · ${esc(d.ten)}</option>`).join("")
+        : '<option value="">Chưa có văn phòng — tạo ở mục Điểm đón/trả trước</option>';
+      document.getElementById("tuyen_id").innerHTML =
+        '<option value="">— Xe dự phòng (chạy mọi tuyến) —</option>' + dsTuyen.map((t) => `<option value="${t.id}">${esc(t.ma)} · ${esc(t.ten)}</option>`).join("");
+    }
+
+    (async () => {
+      try {
+        await naploadDauVao();
+        await taiDanhSach();
+      } catch (err) {
+        bangXe.innerHTML = `<div class="text-error">${esc(err.message)}</div>`;
+      }
+    })();
+
+    // ---------- Modal thêm/sửa xe ----------
+    const modalOverlay = document.getElementById("modal-overlay");
+    const form = document.getElementById("form-xe");
+    const loiForm = document.getElementById("loi-form");
+
+    document.getElementById("btn-them").addEventListener("click", () => {
+      if (!dsLoaiXe.length || !dsVanPhong.length) {
+        alert("Cần có ít nhất 1 loại xe và 1 điểm văn phòng trước khi thêm xe (mục Loại xe, Điểm đón/trả).");
+        return;
+      }
+      document.getElementById("modal-tieu-de").textContent = "Thêm xe";
+      form.reset();
+      document.getElementById("xe_id").value = "";
+      loiForm.hidden = true;
+      modalOverlay.hidden = false;
+    });
+
+    function moModalSua(xe) {
+      document.getElementById("modal-tieu-de").textContent = "Sửa xe";
+      document.getElementById("xe_id").value = xe.id;
+      document.getElementById("bien_so").value = xe.bien_so;
+      document.getElementById("loai_xe_id").value = xe.loai_xe_id;
+      document.getElementById("diem_goc_id").value = xe.diem_goc_id;
+      document.getElementById("tuyen_id").value = xe.tuyen_id || "";
+      document.getElementById("trang_thai").value = xe.trang_thai;
+      loiForm.hidden = true;
+      modalOverlay.hidden = false;
+    }
+
+    document.getElementById("btn-huy").addEventListener("click", () => { modalOverlay.hidden = true; });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loiForm.hidden = true;
+
+      const id = document.getElementById("xe_id").value;
+      const payload = {
+        bien_so: document.getElementById("bien_so").value.trim(),
+        loai_xe_id: document.getElementById("loai_xe_id").value,
+        diem_goc_id: document.getElementById("diem_goc_id").value,
+        tuyen_id: document.getElementById("tuyen_id").value || null,
+        trang_thai: document.getElementById("trang_thai").value,
+      };
+
+      const btn = form.querySelector("button[type=submit]");
+      btn.classList.add("is-loading");
+      try {
+        if (id) await apiPut(`/quan-ly/xe/${id}`, payload);
+        else await apiPost("/quan-ly/xe", payload);
+        modalOverlay.hidden = true;
+        taiDanhSach();
+      } catch (err) {
+        loiForm.textContent = err.message;
+        loiForm.hidden = false;
+      } finally {
+        btn.classList.remove("is-loading");
+      }
+    });
+
+    // ---------- Modal biên chế cố định (UC-35) ----------
+    const modalBienChe = document.getElementById("modal-bien-che");
+    const bcLoi = document.getElementById("bc-loi");
+    const bcChonNhanSu = document.getElementById("bc-chon-nhan-su");
+    let xeDangXemBienChe = null;
+
+    function dongBienChe(d) {
+      const tamThoi = d.loai === "tam_thoi";
+      return `
+        <div class="xe-bc-dong">
+          <span class="xe-bc-dong__ten">${esc(d.ho_ten)}</span>
+          <span class="xe-bc-dong__sdt">${esc(d.so_dien_thoai)}</span>
+          ${tamThoi ? `<span class="pill pill--nho pill--gia-thoi-han">Tạm thời${d.trang_thai === "tam_nghi" ? " · tạm nghỉ" : ""}</span>` : d.trang_thai === "tam_nghi" ? '<span class="pill pill--nho pill--xam">Tạm nghỉ</span>' : ""}
+          ${tamThoi ? "" : `<button type="button" class="xe-bc-dong__go" data-go="${d.id}" title="Gỡ khỏi biên chế cố định">×</button>`}
+        </div>`;
+    }
+
+    function renderBienChe(dsBienChe, dsNhanSu) {
+      const taiXe = dsBienChe.filter((d) => d.chuc_danh === "tai_xe");
+      const phuXe = dsBienChe.filter((d) => d.chuc_danh === "phu_xe");
+      const soTaiXeCoDinh = taiXe.filter((d) => d.loai === "co_dinh").length;
+      const soPhuXeCoDinh = phuXe.filter((d) => d.loai === "co_dinh").length;
+
+      const capNhatDem = (id, ok, chu) => {
+        const el = document.getElementById(id);
+        el.textContent = chu;
+        el.className = `pill pill--nho xe-bc-nhom__dem ${ok ? "pill--gia-vinh-vien" : "pill--do"}`;
+      };
+      capNhatDem("bc-dem-tai-xe", soTaiXeCoDinh === SO_TAI_XE_YEU_CAU, `${soTaiXeCoDinh}/${SO_TAI_XE_YEU_CAU}`);
+      capNhatDem("bc-dem-phu-xe", soPhuXeCoDinh >= 1, `${soPhuXeCoDinh} (cần ≥ 1)`);
+
+      document.getElementById("bc-ds-tai-xe").innerHTML = taiXe.length ? taiXe.map(dongBienChe).join("") : '<div class="xe-bc-trong">Chưa có tài xế nào</div>';
+      document.getElementById("bc-ds-phu-xe").innerHTML = phuXe.length ? phuXe.map(dongBienChe).join("") : '<div class="xe-bc-trong">Chưa có phụ xe nào</div>';
+
+      document.querySelectorAll("#modal-bien-che [data-go]").forEach((btn) => {
+        btn.addEventListener("click", () => goBienChe(btn.dataset.go));
+      });
+
+      // Ô chọn nhân sự: người đã thuộc xe khác / phụ xe chưa có tài khoản bị khóa kèm lý do
+      const dongOption = (n) => {
+        let lyDo = "";
+        if (n.bien_so_xe_co_dinh) lyDo = ` — đang ở xe ${n.bien_so_xe_co_dinh}`;
+        else if (n.chuc_danh === "phu_xe" && !n.co_tai_khoan) lyDo = " — chưa có tài khoản";
+        return `<option value="${n.id}" ${lyDo ? "disabled" : ""}>${esc(n.ho_ten)} · ${esc(n.so_dien_thoai)}${lyDo}</option>`;
+      };
+      const nhom = (nhan, ds) => (ds.length ? `<optgroup label="${nhan}">${ds.map(dongOption).join("")}</optgroup>` : "");
+      bcChonNhanSu.innerHTML =
+        '<option value="">— Chọn nhân sự để thêm —</option>' +
+        nhom("Tài xế", dsNhanSu.filter((n) => n.chuc_danh === "tai_xe")) +
+        nhom("Phụ xe", dsNhanSu.filter((n) => n.chuc_danh === "phu_xe"));
+    }
+
+    async function taiBienChe() {
+      const [dsBienChe, dsNhanSu] = await Promise.all([
+        apiGet(`/quan-ly/xe/${xeDangXemBienChe.id}/bien-che`),
+        apiGet("/quan-ly/nhan-su-dang-lam"),
+      ]);
+      renderBienChe(dsBienChe, dsNhanSu);
+    }
+
+    async function moModalBienChe(xe) {
+      xeDangXemBienChe = xe;
+      document.getElementById("bc-tieu-de").textContent = `Biên chế xe ${xe.bien_so}`;
+      bcLoi.hidden = true;
+      modalBienChe.hidden = false;
+      try {
+        await taiBienChe();
+      } catch (err) {
+        bcLoi.textContent = err.message;
+        bcLoi.hidden = false;
+      }
+    }
+
+    async function goBienChe(xeNhanSuId) {
+      bcLoi.hidden = true;
+      try {
+        await apiDelete(`/quan-ly/bien-che/${xeNhanSuId}`);
+        await taiBienChe();
+      } catch (err) {
+        bcLoi.textContent = err.message;
+        bcLoi.hidden = false;
+      }
+    }
+
+    document.getElementById("bc-btn-them").addEventListener("click", async () => {
+      bcLoi.hidden = true;
+      if (!bcChonNhanSu.value) {
+        bcLoi.textContent = "Hãy chọn 1 nhân sự để thêm";
+        bcLoi.hidden = false;
+        return;
+      }
+      try {
+        await apiPost(`/quan-ly/xe/${xeDangXemBienChe.id}/bien-che`, { nhan_su_van_hanh_id: bcChonNhanSu.value });
+        await taiBienChe();
+      } catch (err) {
+        bcLoi.textContent = err.message;
+        bcLoi.hidden = false;
+      }
+    });
+
+    document.getElementById("bc-btn-dong").addEventListener("click", () => {
+      modalBienChe.hidden = true;
+      taiDanhSach(); // cập nhật cột "Biên chế cố định" ở bảng
+    });
+  </script>
+</body>
+</html>

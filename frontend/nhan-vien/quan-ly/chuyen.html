@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Chuyến — Quản lý</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+</head>
+<body class="nhan-vien-shell">
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
+
+    <div class="nv-main">
+      <header class="nv-topbar">
+        <h1>Chuyến</h1>
+        <div class="nv-topbar__user">
+          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
+          <div class="nv-topbar__identity">
+            <span class="ho-ten" id="topbar-ho-ten"></span>
+            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
+          </div>
+          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
+        </div>
+      </header>
+
+      <main class="nv-content">
+        <div class="nv-page-intro">
+          <div class="nv-page-intro__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 12h18M3 12l4-5M3 12l4 5M21 12l-4-5M21 12l-4 5"/>
+            </svg>
+          </div>
+          <div class="nv-page-intro__body">
+            <p class="nv-page-intro__title">Chuyến</p>
+            <p class="nv-page-intro__desc">Toàn bộ chuyến đã sinh từ các lịch chạy — lọc theo tuyến/chiều/ngày/trạng thái, bấm vào 1 chuyến để xem chi tiết. Chỉ sửa/xóa được chuyến chưa gán xe, chưa khởi hành và chưa có khách đặt vé.</p>
+          </div>
+          <div class="nv-page-intro__stat">
+            <span class="nv-page-intro__stat-num" id="stat-so-luong">—</span>
+            <span class="nv-page-intro__stat-label">chuyến</span>
+          </div>
+        </div>
+
+        <div class="nv-card cy-loc">
+          <div class="cy-loc__truong">
+            <label class="nv-label" for="loc-ma">Mã chuyến</label>
+            <input class="input-field" type="text" id="loc-ma" placeholder="VD T001-LX001" autocomplete="off" />
+          </div>
+          <div class="cy-loc__truong">
+            <label class="nv-label" for="loc-tuyen">Tuyến</label>
+            <select class="input-field" id="loc-tuyen"><option value="">Tất cả tuyến</option></select>
+          </div>
+          <div class="cy-loc__truong">
+            <label class="nv-label" for="loc-chieu">Chiều</label>
+            <select class="input-field" id="loc-chieu">
+              <option value="">Tất cả</option>
+              <option value="xuoi">Xuôi</option>
+              <option value="nguoc">Ngược</option>
+            </select>
+          </div>
+          <div class="cy-loc__truong">
+            <label class="nv-label" for="loc-tu-ngay">Từ ngày</label>
+            <input class="input-field" type="date" id="loc-tu-ngay" />
+          </div>
+          <div class="cy-loc__truong">
+            <label class="nv-label" for="loc-den-ngay">Đến ngày</label>
+            <input class="input-field" type="date" id="loc-den-ngay" />
+          </div>
+          <div class="cy-loc__truong">
+            <label class="nv-label" for="loc-trang-thai">Trạng thái</label>
+            <select class="input-field" id="loc-trang-thai">
+              <option value="">Tất cả</option>
+              <option value="chua_khoi_hanh">Chưa khởi hành</option>
+              <option value="dang_chay">Đang chạy</option>
+              <option value="gap_su_co">Gặp sự cố</option>
+              <option value="hoan_thanh">Hoàn thành</option>
+              <option value="da_huy">Đã hủy</option>
+            </select>
+          </div>
+          <div class="cy-loc__truong">
+            <label class="nv-label" for="loc-gan-xe">Xe</label>
+            <select class="input-field" id="loc-gan-xe">
+              <option value="">Tất cả</option>
+              <option value="0">Chưa gán xe</option>
+              <option value="1">Đã gán xe</option>
+            </select>
+          </div>
+          <button type="button" class="nv-btn-secondary cy-loc__xoa" id="loc-btn-xoa">Xóa lọc</button>
+        </div>
+
+        <div class="nv-card">
+          <div id="cy-ds">Đang tải...</div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/nhan-vien/quan-ly/api-client.js"></script>
+  <script src="/nhan-vien/quan-ly/auth-check.js"></script>
+  <script src="/nhan-vien/quan-ly/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/chuyen-chi-tiet.js"></script>
+  <script>
+    const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
+    if (nguoiDung) {
+      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-ly/chuyen.html");
+      renderTopbarUser();
+    }
+    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const pad2 = (n) => String(n).padStart(2, "0");
+
+    const TEN_THU_DAY_DU = ["Chủ nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+    const { NHAN_TRANG_THAI, pillTrangThai, mauTrangThai } = ChuyenChiTiet;
+
+    const cyDs = document.getElementById("cy-ds");
+    let dsTuyen = [];
+
+    // ---------- Nạp danh mục cho ô lọc tuyến ----------
+    async function naploadDauVao() {
+      dsTuyen = await apiGet("/quan-ly/tuyen");
+      const selectTuyen = document.getElementById("loc-tuyen");
+      selectTuyen.innerHTML =
+        '<option value="">Tất cả tuyến</option>' + dsTuyen.map((t) => `<option value="${t.id}">${esc(t.ma)} · ${esc(t.ten)}</option>`).join("");
+
+    }
+
+    // ---------- Đọc bộ lọc hiện tại, gọi API, render ----------
+    function locHienTai() {
+      const tuyenId = document.getElementById("loc-tuyen").value;
+      const chieu = document.getElementById("loc-chieu").value;
+      const tuNgay = document.getElementById("loc-tu-ngay").value;
+      const denNgay = document.getElementById("loc-den-ngay").value;
+      const trangThai = document.getElementById("loc-trang-thai").value;
+      const ganXe = document.getElementById("loc-gan-xe").value;
+
+      const query = new URLSearchParams();
+      if (tuyenId) query.set("tuyen_id", tuyenId);
+      if (chieu) query.set("chieu", chieu);
+      if (tuNgay) query.set("tu_ngay", tuNgay);
+      if (denNgay) query.set("den_ngay", denNgay);
+      if (trangThai) query.set("trang_thai", trangThai);
+      if (ganXe) query.set("da_gan_xe", ganXe === "1" ? "true" : "false");
+      return query.toString();
+    }
+
+    // Lọc theo mã chuyến ở phía client trên danh sách đã tải (các bộ lọc còn lại gọi API).
+    let dsChuyenDaTai = [];
+    function hienThiDanhSach() {
+      const tk = document.getElementById("loc-ma").value.trim().toLowerCase();
+      const ds = tk ? dsChuyenDaTai.filter((c) => c.ma.toLowerCase().includes(tk)) : dsChuyenDaTai;
+      document.getElementById("stat-so-luong").textContent = ds.length;
+      renderDanhSach(ds);
+    }
+    document.getElementById("loc-ma").addEventListener("input", hienThiDanhSach);
+
+    async function taiDanhSach() {
+      cyDs.innerHTML = "Đang tải...";
+      try {
+        const ds = await apiGet(`/quan-ly/chuyen${locHienTai() ? "?" + locHienTai() : ""}`);
+        dsChuyenDaTai = ds;
+        hienThiDanhSach();
+      } catch (err) {
+        cyDs.innerHTML = `<div class="text-error">${esc(err.message)}</div>`;
+      }
+    }
+
+    document.querySelectorAll("#loc-tuyen, #loc-chieu, #loc-tu-ngay, #loc-den-ngay, #loc-trang-thai, #loc-gan-xe").forEach((el) => {
+      el.addEventListener("change", taiDanhSach);
+    });
+
+    document.getElementById("loc-btn-xoa").addEventListener("click", () => {
+      document.getElementById("loc-ma").value = "";
+      document.getElementById("loc-tuyen").value = "";
+      document.getElementById("loc-chieu").value = "";
+      document.getElementById("loc-tu-ngay").value = "";
+      document.getElementById("loc-den-ngay").value = "";
+      document.getElementById("loc-trang-thai").value = "";
+      document.getElementById("loc-gan-xe").value = "";
+      taiDanhSach();
+    });
+
+    // ---------- Danh sách, nhóm theo ngày ----------
+    function nhanNgay(ngayKey) {
+      const [y, m, d] = ngayKey.split("-").map(Number);
+      const dt = new Date(y, m - 1, d);
+      return `${TEN_THU_DAY_DU[dt.getDay()]}, ${pad2(d)}/${pad2(m)}/${y}`;
+    }
+
+    function nhomTheoNgay(ds) {
+      const nhom = new Map(); // "YYYY-M-D" -> [chuyến...], giữ đúng thứ tự API trả về (đã ORDER BY giờ)
+      ds.forEach((c) => {
+        const d = new Date(c.gio_khoi_hanh);
+        const key = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+        if (!nhom.has(key)) nhom.set(key, []);
+        nhom.get(key).push(c);
+      });
+      return nhom;
+    }
+
+    function dongChuyen(c) {
+      const d = new Date(c.gio_khoi_hanh);
+      const gio = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+      return `
+        <button type="button" class="cy-dong" data-id="${c.id}" style="--mau:${mauTrangThai(c.trang_thai)}">
+          <span class="cy-dong__gio">${gio}</span>
+          ${htmlMa(esc(c.ma))}
+          <span class="cy-dong__tuyen">${esc(c.ten_tuyen)}</span>
+          <span class="pill pill--nho ${c.chieu === "xuoi" ? "pill--khu-vuc" : "pill--gia-thoi-han"}">${c.chieu === "xuoi" ? "Xuôi" : "Ngược"}</span>
+          <span class="nv-text-phu">${esc(c.ten_loai_xe)}</span>
+          <span class="pill pill--nho ${pillTrangThai(c.trang_thai)}">${NHAN_TRANG_THAI[c.trang_thai] || c.trang_thai}</span>
+          ${c.bien_so_xe ? `<span class="pill pill--nho pill--gia-vinh-vien">Xe ${esc(c.bien_so_xe)}</span>` : '<span class="pill pill--nho pill--gia-thoi-han">Chưa gán xe</span>'}
+          ${c.so_ve_dang_hoat_dong ? `<span class="pill pill--nho pill--nhom-tuyen">${c.so_ve_dang_hoat_dong} vé</span>` : ""}
+        </button>`;
+    }
+
+    function renderDanhSach(ds) {
+      if (!ds.length) {
+        cyDs.innerHTML = '<div class="nv-table__empty">Không có chuyến nào khớp bộ lọc.</div>';
+        return;
+      }
+
+      const nhom = nhomTheoNgay(ds);
+      cyDs.innerHTML = [...nhom.entries()]
+        .map(
+          ([ngayKey, list]) => `
+            <div class="cy-nhom-ngay">
+              <div class="cy-nhom-ngay__tieu-de">${nhanNgay(ngayKey)} <span class="nv-text-phu">${list.length} chuyến</span></div>
+              <div class="cy-nhom-ngay__ds">${list.map(dongChuyen).join("")}</div>
+            </div>`
+        )
+        .join("");
+
+      cyDs.querySelectorAll("[data-id]").forEach((btn) => {
+        btn.addEventListener("click", () => moModalChiTiet(btn.dataset.id));
+      });
+    }
+
+    (async () => {
+      try {
+        await naploadDauVao();
+        await taiDanhSach();
+      } catch (err) {
+        cyDs.innerHTML = `<div class="text-error">${esc(err.message)}</div>`;
+      }
+    })();
+
+    // ---------- Modal chi tiết + sửa/xóa (dùng chung với trang Lịch chạy) ----------
+    const moModalChiTiet = (chuyenId) => ChuyenChiTiet.mo(chuyenId, { onThayDoi: taiDanhSach });
+  </script>
+</body>
+</html>

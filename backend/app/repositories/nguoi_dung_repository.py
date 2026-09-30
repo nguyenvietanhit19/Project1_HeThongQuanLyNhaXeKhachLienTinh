@@ -180,3 +180,13 @@ def cap_nhat_ho_ten(nguoi_dung_id: str, ho_ten: str) -> None:
         conn.commit()
     finally:
         release_connection(conn)
+
+
+def danh_sach_id_theo_vai_tro(vai_tro: str) -> list[str]:
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM nguoi_dung WHERE vai_tro = %s", (vai_tro,))
+            return [str(row[0]) for row in cur.fetchall()]
+    finally:
+        release_connection(conn)

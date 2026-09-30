@@ -30,7 +30,7 @@
 
         <div class="gv-layout">
           <aside class="gv-khung gv-ds">
-            <input class="input-field gv-tim" type="search" id="gv-tim" placeholder="Tìm tuyến..." />
+            <input class="input-field gv-tim" type="search" id="gv-tim" placeholder="Tìm tuyến hoặc mã tuyến..." />
             <div class="gv-ds__list" id="gv-ds-tuyen">Đang tải...</div>
           </aside>
 
@@ -202,7 +202,7 @@
     function tuyenDaLoc() {
       const tk = tuKhoa.trim().toLowerCase();
       return dsTuyen
-        .filter((t) => (boLoc === "tat_ca" || phanTichTheoTuyen.get(t.id).trangThai === boLoc) && (!tk || t.ten.toLowerCase().includes(tk)))
+        .filter((t) => (boLoc === "tat_ca" || phanTichTheoTuyen.get(t.id).trangThai === boLoc) && (!tk || t.ten.toLowerCase().includes(tk) || t.ma.toLowerCase().includes(tk)))
         .sort(
           (a, b) =>
             THU_TU_TRANG_THAI[phanTichTheoTuyen.get(a.id).trangThai] - THU_TU_TRANG_THAI[phanTichTheoTuyen.get(b.id).trangThai] ||
@@ -226,7 +226,7 @@
           return `
             <button type="button" class="gv-tuyen gv-tuyen--${p.trangThai.replace("_", "-")}${t.id === tuyenDangChon ? " is-active" : ""}" data-id="${t.id}">
               <span class="gv-tuyen__cham"></span>
-              <span class="gv-tuyen__ten">${t.ten}</span>
+              <span class="gv-tuyen__ten"><span class="ma-tag">${t.ma}</span> ${t.ten}</span>
               <span class="gv-tuyen__dem">${p.daCo}/${p.tong}</span>
               <span class="gv-tuyen__thanh"><i style="width:${phanTram}%"></i></span>
             </button>`;
@@ -263,7 +263,7 @@
 
       box.innerHTML = `
         <div class="gv-ct__dau">
-          <h2>${tuyen.ten}</h2>
+          <h2>${htmlMa(tuyen.ma)} ${tuyen.ten}</h2>
           <span class="gv-badge gv-badge--${p.trangThai.replace("_", "-")}">${NHAN_TRANG_THAI[p.trangThai]}</span>
           <button class="btn-primary nv-btn-them gv-ct__them" id="btn-them" type="button">+ Thêm giá vé</button>
         </div>
