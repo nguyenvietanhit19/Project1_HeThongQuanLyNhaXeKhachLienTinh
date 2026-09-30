@@ -260,8 +260,9 @@
           return `
             <button type="button" class="lc-tuyen ${soLich === 0 ? "lc-tuyen--trong" : ""}${t.id === tuyenDangChon ? " is-active" : ""}" data-id="${t.id}">
               <span class="lc-tuyen__cham"></span>
-              <span class="lc-tuyen__ten">${htmlMa(esc(t.ma))} ${esc(t.ten)}</span>
-              <span class="lc-tuyen__dem">${soLich || "—"}</span>
+              <span class="lc-tuyen__ten">${esc(t.ten)}</span>
+              <span class="lc-tuyen__dem">${soLich ? soLich + " lịch" : "Chưa có lịch"}</span>
+              <span class="lc-tuyen__phu">${htmlMa(esc(t.ma))}${soLich ? `${lichTheoTuyen(t.id).filter((l) => l.chieu === "xuoi").length} xuôi · ${lichTheoTuyen(t.id).filter((l) => l.chieu === "nguoc").length} ngược` : ""}</span>
             </button>`;
         })
         .join("");
@@ -285,7 +286,7 @@
       const tongPhut = tongThoiGianTuyen(lich.tuyen_id);
       const denNoi = tongPhut != null ? congGio(lich.gio_khoi_hanh, tongPhut) : null;
       return `
-        <div class="lc-gio-item">
+        <div class="lc-gio-item" id="lich-${lich.id}">
           <div class="lc-gio-card ${lich.dang_ap_dung ? "" : "lc-gio-card--tat"}">
             <button type="button" class="lc-gio-card__gio" data-toggle-lo-trinh="${lich.id}" title="Bấm để xem lộ trình">
               <span class="lc-gio-card__gio-so">${gioNgan(lich.gio_khoi_hanh)}</span>
@@ -355,6 +356,88 @@
       item.classList.add("is-mo");
     }
 
+    // ---------- Biểu đồ giờ chạy trong ngày (24h) ----------
+    // Mỗi lịch là 1 thanh từ giờ khởi hành đến giờ đến nơi (tổng thời gian tuyến); thanh vượt qua
+    // 24:00 được tách thành 2 đoạn (phần sau nằm ở đầu ngày). Các thanh chồng giờ nhau xếp sang hàng khác.
+    const MAU_LOAI_XE = ["#5B3E96", "#D98C1A", "#0F9B8E", "#D6336C", "#2563EB", "#2F9E44"];
+    const mauLoaiXe = (id) => MAU_LOAI_XE[Math.max(0, dsLoaiXe.findIndex((l) => l.id === id)) % MAU_LOAI_XE.length];
+    const CAO_HANG_BIEU_DO = 32;
+
+    function phutTuGio(gio) {
+      const [h, m] = gio.split(":").map(Number);
+      return h * 60 + m;
+    }
+
+    function htmlLaneBieuDo(nhan, phu, ds, tongPhut) {
+      const doan = [];
+      ds.forEach((l) => {
+        const bd = phutTuGio(l.gio_khoi_hanh);
+        const kt = bd + (tongPhut ?? 0);
+        doan.push({ l, bd, kt: Math.min(kt, 1440), tiep: false });
+        if (kt > 1440) doan.push({ l, bd: 0, kt: kt - 1440, tiep: true });
+      });
+      doan.sort((a, b) => a.bd - b.bd || a.kt - b.kt);
+
+      const cuoiHang = []; // phút kết thúc của đoạn cuối cùng ở mỗi hàng
+      doan.forEach((d) => {
+        let h = cuoiHang.findIndex((k) => k <= d.bd);
+        if (h < 0) h = cuoiHang.length;
+        cuoiHang[h] = d.kt;
+        d.hang = h;
+      });
+      const soHang = Math.max(cuoiHang.length, 1);
+
+      const thanh = doan
+        .map((d) => {
+          const rong = Math.max(((d.kt - d.bd) / 1440) * 100, 2.4);
+          const denNoi = tongPhut != null ? congGio(d.l.gio_khoi_hanh, tongPhut) : null;
+          const tieuDe = `${gioNgan(d.l.gio_khoi_hanh)}${denNoi ? " → " + denNoi.gio + (denNoi.qua_ngay ? " (+" + denNoi.qua_ngay + ")" : "") : ""} · ${d.l.ma_loai_xe} ${d.l.ten_loai_xe} · ${d.l.dang_ap_dung ? "đang áp dụng" : "đã ngừng"}`;
+          return `<button type="button" class="lc-tl__thanh${d.tiep ? " lc-tl__thanh--tiep" : ""}${d.l.dang_ap_dung ? "" : " lc-tl__thanh--tat"}" data-lich="${d.l.id}"
+                    style="left:${(d.bd / 1440) * 100}%; width:${rong}%; top:${d.hang * CAO_HANG_BIEU_DO + 6}px; --mau:${mauLoaiXe(d.l.loai_xe_id)}" title="${esc(tieuDe)}">${d.tiep ? "↳" : gioNgan(d.l.gio_khoi_hanh)}</button>`;
+        })
+        .join("");
+
+      const bayGio = new Date();
+      const phanTramHienTai = ((bayGio.getHours() * 60 + bayGio.getMinutes()) / 1440) * 100;
+
+      return `
+        <div class="lc-tl__lane">
+          <div class="lc-tl__nhan"><b>${esc(nhan)}</b><span>${esc(phu)}</span></div>
+          <div class="lc-tl__track" style="height:${soHang * CAO_HANG_BIEU_DO + 12}px">
+            ${ds.length ? thanh : '<span class="lc-tl__trong">Chưa có lịch</span>'}
+            <i class="lc-tl__now" style="left:${phanTramHienTai}%"></i>
+          </div>
+        </div>`;
+    }
+
+    function htmlBieuDo(tuyen, xuoi, nguoc) {
+      if (!xuoi.length && !nguoc.length) return "";
+      const tongPhut = tongThoiGianTuyen(tuyen.id);
+      const h = huongTheoTuyen.get(tuyen.id);
+      const truc = [0, 3, 6, 9, 12, 15, 18, 21, 24].map((g) => `<span style="left:${(g / 24) * 100}%">${pad2(g)}</span>`).join("");
+
+      const loaiXeDung = [...new Set(lichTheoTuyen(tuyen.id).map((l) => l.loai_xe_id))];
+      const chuThich = loaiXeDung
+        .map((id) => {
+          const l = dsLoaiXe.find((x) => x.id === id);
+          return l ? `<span class="lc-tl__ct"><i style="background:${mauLoaiXe(id)}"></i>${esc(l.ma)} · ${esc(l.ten)}</span>` : "";
+        })
+        .join("");
+
+      return `
+        <div class="lc-tl">
+          <div class="lc-tl__tieu-de">Biểu đồ giờ chạy trong ngày${tongPhut != null ? ` <span class="nv-text-phu">· mỗi chuyến kéo dài ${Math.floor(tongPhut / 60)} giờ ${tongPhut % 60 ? (tongPhut % 60) + " phút" : ""}</span>` : ""}</div>
+          <div class="lc-tl__cuon">
+            <div class="lc-tl__trong-cuon">
+              <div class="lc-tl__lane lc-tl__lane--truc"><div class="lc-tl__nhan"></div><div class="lc-tl__truc">${truc}</div></div>
+              ${htmlLaneBieuDo("Xuôi", h ? `${h.dau} → ${h.cuoi}` : "", xuoi, tongPhut)}
+              ${htmlLaneBieuDo("Ngược", h ? `${h.cuoi} → ${h.dau}` : "", nguoc, tongPhut)}
+            </div>
+          </div>
+          <div class="lc-tl__chu-thich">${chuThich}<span class="lc-tl__ct"><i class="lc-tl__ct-tat"></i>Đã ngừng áp dụng</span><span class="lc-tl__ct"><i class="lc-tl__ct-now"></i>Bây giờ</span></div>
+        </div>`;
+    }
+
     function khoiChieu(nhan, ds) {
       return `
         <div class="lc-chieu">
@@ -377,13 +460,28 @@
       lcChiTiet.innerHTML = `
         <div class="lc-ct__dau">
           <h2>${htmlMa(esc(tuyen.ma))} ${esc(tuyen.ten)}</h2>
+          <span class="pill pill--nho pill--gia-vinh-vien">${lichCuaTuyen.filter((l) => l.dang_ap_dung).length} đang áp dụng</span>
+          ${lichCuaTuyen.some((l) => !l.dang_ap_dung) ? `<span class="pill pill--nho pill--xam">${lichCuaTuyen.filter((l) => !l.dang_ap_dung).length} đã ngừng</span>` : ""}
           <button class="btn-primary nv-btn-them lc-ct__them" id="lc-btn-them" type="button">+ Thêm lịch chạy</button>
         </div>
+        ${htmlBieuDo(tuyen, xuoi, nguoc)}
         ${khoiChieu(nhanChieu(tuyen.id, "xuoi"), xuoi)}
         ${khoiChieu(nhanChieu(tuyen.id, "nguoc"), nguoc)}
       `;
 
       document.getElementById("lc-btn-them").addEventListener("click", () => moModalThem(tuyen.id));
+
+      // Bấm 1 thanh trên biểu đồ -> cuộn tới thẻ lịch tương ứng bên dưới và nháy sáng
+      lcChiTiet.querySelectorAll("[data-lich]").forEach((thanh) => {
+        thanh.addEventListener("click", () => {
+          const the = document.getElementById(`lich-${thanh.dataset.lich}`);
+          if (!the) return;
+          the.scrollIntoView({ behavior: "smooth", block: "center" });
+          the.classList.remove("lc-flash");
+          void the.offsetWidth; // khởi động lại animation nếu bấm liên tiếp
+          the.classList.add("lc-flash");
+        });
+      });
 
       lcChiTiet.querySelectorAll("[data-toggle-lo-trinh]").forEach((btn) => {
         btn.addEventListener("click", () => toggleLoTrinh(btn.dataset.toggleLoTrinh));

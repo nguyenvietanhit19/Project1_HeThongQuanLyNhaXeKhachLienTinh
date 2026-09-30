@@ -42,13 +42,17 @@
           </div>
         </div>
 
-        <div class="nv-card">
-          <div class="nv-card__header">
-            <h2>Danh sách xe</h2>
-            <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Thêm xe</button>
+        <div class="kv-thanh-cong">
+          <div class="kv-tim">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input type="search" id="xe-tim" placeholder="Tìm theo biển số, loại xe hoặc tuyến..." autocomplete="off" />
           </div>
-          <div id="bang-xe">Đang tải...</div>
+          <select class="input-field tb-select" id="xe-loc-loai" aria-label="Lọc theo loại xe"></select>
+          <select class="input-field tb-select" id="xe-loc-tuyen" aria-label="Lọc theo tuyến"></select>
+          <div class="dd-chips" id="xe-chips"></div>
+          <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Thêm xe</button>
         </div>
+        <div id="bang-xe">Đang tải...</div>
       </main>
     </div>
   </div>
@@ -144,7 +148,6 @@
   <script src="/nhan-vien/quan-ly/api-client.js"></script>
   <script src="/nhan-vien/quan-ly/auth-check.js"></script>
   <script src="/nhan-vien/quan-ly/nav.js"></script>
-  <script src="/nhan-vien/quan-ly/data-table.js"></script>
   <script>
     const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
     if (nguoiDung) {
@@ -162,6 +165,9 @@
     };
     const SO_TAI_XE_YEU_CAU = 2;
 
+    const boDau = (s) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+
+    let boLocTrangThai = "tat_ca"; // tat_ca | hoat_dong | bao_tri | ngung_su_dung
     let dsXe = [];
     let dsLoaiXe = [];
     let dsVanPhong = [];
@@ -170,44 +176,107 @@
     const bangXe = document.getElementById("bang-xe");
 
     // ---------- Danh sách xe ----------
-    function pillBienChe(xe) {
-      const thieuTaiXe = SO_TAI_XE_YEU_CAU - xe.so_tai_xe_co_dinh;
-      const thieuPhuXe = xe.so_phu_xe_co_dinh < 1;
-      const chu = `${xe.so_tai_xe_co_dinh}/${SO_TAI_XE_YEU_CAU} tài xế · ${xe.so_phu_xe_co_dinh} phụ xe`;
-      if (thieuTaiXe <= 0 && !thieuPhuXe) return `<span class="pill pill--nho pill--gia-vinh-vien">${chu}</span>`;
-      return `<span class="pill pill--nho pill--do" title="Biên chế cố định chưa đủ: cần đúng 2 tài xế và ít nhất 1 phụ xe">${chu} — chưa đủ</span>`;
+    // Biên chế: 2 chấm cho 2 tài xế (đặc = đã có), thêm chấm cho phụ xe
+    function htmlBienChe(xe) {
+      const du = xe.so_tai_xe_co_dinh >= SO_TAI_XE_YEU_CAU && xe.so_phu_xe_co_dinh >= 1;
+      const chamTaiXe = Array.from({ length: SO_TAI_XE_YEU_CAU }, (_, i) => `<i class="${i < xe.so_tai_xe_co_dinh ? "on" : ""}"></i>`).join("");
+      const chamPhuXe = xe.so_phu_xe_co_dinh ? Array.from({ length: xe.so_phu_xe_co_dinh }, () => '<i class="on"></i>').join("") : "<i></i>";
+      return `
+        <div class="xe-bc ${du ? "xe-bc--du" : "xe-bc--thieu"}" title="Biên chế cố định cần đúng 2 tài xế và ít nhất 1 phụ xe">
+          <span class="xe-bc__nhom"><span class="xe-bc__nhan">Tài xế</span><span class="xe-bc__cham">${chamTaiXe}</span></span>
+          <span class="xe-bc__nhom"><span class="xe-bc__nhan">Phụ xe</span><span class="xe-bc__cham">${chamPhuXe}</span></span>
+          <span class="xe-bc__kq">${du ? "Đủ biên chế" : "Chưa đủ"}</span>
+        </div>`;
     }
 
     async function taiDanhSach() {
       try {
         dsXe = await apiGet("/quan-ly/xe");
         document.getElementById("stat-so-luong").textContent = dsXe.length;
-        renderDataTable(
-          bangXe,
-          [
-            { key: "bien_so", label: "Biển số", render: (r) => `<strong>${esc(r.bien_so)}</strong>` },
-            { key: "ten_loai_xe", label: "Loại xe", render: (r) => `${htmlMa(r.ma_loai_xe)} ${esc(r.ten_loai_xe)}` },
-            { key: "ten_diem_goc", label: "Điểm gốc", render: (r) => `<span class="nv-text-phu">${esc(r.ten_diem_goc)}</span>` },
-            {
-              key: "tuyen",
-              label: "Tuyến cố định",
-              render: (r) => (r.tuyen_id ? `<span class="pill pill--nho pill--nhom-tuyen">${esc(r.ma_tuyen)} · ${esc(r.ten_tuyen)}</span>` : '<span class="pill pill--nho pill--xam">Xe dự phòng</span>'),
-            },
-            { key: "trang_thai", label: "Trạng thái", render: (r) => `<span class="pill pill--nho ${NHAN_TRANG_THAI[r.trang_thai].lop}">${NHAN_TRANG_THAI[r.trang_thai].nhan}</span>` },
-            { key: "bien_che", label: "Biên chế cố định", render: pillBienChe },
-          ],
-          dsXe,
-          {
-            onEdit: moModalSua,
-            onDelete: xoaXe,
-            tenXoa: (r) => r.bien_so,
-            extraActions: [{ label: "Biên chế", onClick: moModalBienChe }],
-          }
-        );
+        renderDanhSach();
       } catch (err) {
         bangXe.innerHTML = `<div class="text-error">${esc(err.message)}</div>`;
       }
     }
+
+    function renderChips() {
+      const dem = { tat_ca: dsXe.length, hoat_dong: 0, bao_tri: 0, ngung_su_dung: 0 };
+      dsXe.forEach((x) => dem[x.trang_thai]++);
+      const cacChip = [["tat_ca", "Tất cả"], ["hoat_dong", "Hoạt động"], ["bao_tri", "Bảo trì"], ["ngung_su_dung", "Ngừng"]];
+      const o = document.getElementById("xe-chips");
+      o.innerHTML = cacChip
+        .map(([gt, nhan]) => `<button type="button" class="dd-chip${boLocTrangThai === gt ? " is-active" : ""}" data-tt="${gt}">${nhan} <span>${dem[gt]}</span></button>`)
+        .join("");
+      o.querySelectorAll("[data-tt]").forEach((b) =>
+        b.addEventListener("click", () => {
+          boLocTrangThai = b.dataset.tt;
+          renderDanhSach();
+        })
+      );
+    }
+
+    function renderDanhSach() {
+      renderChips();
+      const tk = boDau(document.getElementById("xe-tim").value.trim());
+      const locLoai = document.getElementById("xe-loc-loai").value;
+      const locTuyen = document.getElementById("xe-loc-tuyen").value; // "" | "__du_phong" | tuyen_id
+
+      const loc = dsXe.filter((x) => {
+        if (boLocTrangThai !== "tat_ca" && x.trang_thai !== boLocTrangThai) return false;
+        if (locLoai && x.loai_xe_id !== locLoai) return false;
+        if (locTuyen === "__du_phong" ? x.tuyen_id : locTuyen && x.tuyen_id !== locTuyen) return false;
+        if (!tk) return true;
+        return boDau(`${x.bien_so} ${x.ma_loai_xe} ${x.ten_loai_xe} ${x.ma_tuyen || ""} ${x.ten_tuyen || ""} ${x.ten_diem_goc}`).includes(tk);
+      });
+
+      if (!dsXe.length) {
+        bangXe.innerHTML = '<div class="kv-trong">Chưa có xe nào — bấm "+ Thêm xe" để tạo xe đầu tiên.</div>';
+        return;
+      }
+      if (!loc.length) {
+        bangXe.innerHTML = '<div class="kv-trong">Không có xe nào khớp bộ lọc hiện tại.</div>';
+        return;
+      }
+
+      loc.sort((a, b) => a.bien_so.localeCompare(b.bien_so, "vi"));
+      bangXe.innerHTML = `<div class="xe-luoi">${loc
+        .map((x) => {
+          const tt = NHAN_TRANG_THAI[x.trang_thai];
+          return `
+            <article class="xe-the xe-the--${x.trang_thai}">
+              <div class="xe-the__dau">
+                <span class="xe-bien-so">${esc(x.bien_so)}</span>
+                <span class="pill pill--nho ${tt.lop}">${tt.nhan}</span>
+              </div>
+              <div class="xe-the__than">
+                <div class="xe-dong"><span class="xe-dong__nhan">Loại xe</span><span class="xe-dong__gt">${htmlMa(esc(x.ma_loai_xe))} ${esc(x.ten_loai_xe)}</span></div>
+                <div class="xe-dong"><span class="xe-dong__nhan">Điểm gốc</span><span class="xe-dong__gt">${esc(x.ten_diem_goc)}</span></div>
+                <div class="xe-dong"><span class="xe-dong__nhan">Tuyến</span><span class="xe-dong__gt">${
+                  x.tuyen_id ? `<span class="pill pill--nho pill--nhom-tuyen">${esc(x.ma_tuyen)} · ${esc(x.ten_tuyen)}</span>` : '<span class="pill pill--nho pill--xam">Xe dự phòng</span>'
+                }</span></div>
+                ${htmlBienChe(x)}
+              </div>
+              <div class="xe-the__chan">
+                <button type="button" class="nv-btn-phu" data-act="bien-che" data-id="${x.id}">Biên chế</button>
+                <button type="button" class="nv-btn-sua" data-act="sua" data-id="${x.id}">Sửa</button>
+                <button type="button" class="nv-btn-xoa" data-act="xoa" data-id="${x.id}">Xóa</button>
+              </div>
+            </article>`;
+        })
+        .join("")}</div>`;
+
+      bangXe.querySelectorAll("[data-act]").forEach((btn) => {
+        const x = dsXe.find((v) => v.id === btn.dataset.id);
+        btn.addEventListener("click", () => {
+          if (btn.dataset.act === "bien-che") moModalBienChe(x);
+          else if (btn.dataset.act === "sua") moModalSua(x);
+          else if (confirm(`Xóa xe "${x.bien_so}"? Không thể hoàn tác.`)) xoaXe(x);
+        });
+      });
+    }
+
+    ["xe-tim"].forEach((id) => document.getElementById(id).addEventListener("input", renderDanhSach));
+    ["xe-loc-loai", "xe-loc-tuyen"].forEach((id) => document.getElementById(id).addEventListener("change", renderDanhSach));
 
     async function xoaXe(xe) {
       try {
@@ -235,6 +304,11 @@
       document.getElementById("diem_goc_id").innerHTML = dsVanPhong.length
         ? dsVanPhong.map((d) => `<option value="${d.id}">${esc(d.ma)} · ${esc(d.ten)}</option>`).join("")
         : '<option value="">Chưa có văn phòng — tạo ở mục Điểm đón/trả trước</option>';
+      document.getElementById("xe-loc-loai").innerHTML =
+        '<option value="">Tất cả loại xe</option>' + dsLoaiXe.map((l) => `<option value="${l.id}">${esc(l.ma)} · ${esc(l.ten)}</option>`).join("");
+      document.getElementById("xe-loc-tuyen").innerHTML =
+        '<option value="">Tất cả tuyến</option><option value="__du_phong">Xe dự phòng</option>' +
+        dsTuyen.map((t) => `<option value="${t.id}">${esc(t.ma)} · ${esc(t.ten)}</option>`).join("");
       document.getElementById("tuyen_id").innerHTML =
         '<option value="">— Xe dự phòng (chạy mọi tuyến) —</option>' + dsTuyen.map((t) => `<option value="${t.id}">${esc(t.ma)} · ${esc(t.ten)}</option>`).join("");
     }

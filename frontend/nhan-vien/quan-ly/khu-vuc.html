@@ -42,13 +42,15 @@
           </div>
         </div>
 
-        <div class="nv-card">
-          <div class="nv-card__header">
-            <h2>Danh sách khu vực</h2>
-            <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Thêm khu vực</button>
+        <div class="kv-thanh-cong">
+          <div class="kv-tim">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input type="search" id="kv-tim" placeholder="Tìm theo tên, mã khu vực hoặc tỉnh/thành..." autocomplete="off" />
           </div>
-          <div id="bang-khu-vuc">Đang tải...</div>
+          <span class="kv-tom-tat" id="kv-tom-tat"></span>
+          <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Thêm khu vực</button>
         </div>
+        <div id="bang-khu-vuc">Đang tải...</div>
       </main>
     </div>
   </div>
@@ -91,7 +93,6 @@
   <script src="/nhan-vien/quan-ly/api-client.js"></script>
   <script src="/nhan-vien/quan-ly/auth-check.js"></script>
   <script src="/nhan-vien/quan-ly/nav.js"></script>
-  <script src="/nhan-vien/quan-ly/data-table.js"></script>
   <script src="/nhan-vien/quan-ly/tinh-thanh.js"></script>
   <script>
     const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
@@ -105,26 +106,113 @@
     kemTimKiemTinhThanh(oTinhThanh);
 
     const bangKhuVuc = document.getElementById("bang-khu-vuc");
+    const oTim = document.getElementById("kv-tim");
     let dsKhuVuc = [];
+    let soDiemTheoKhuVuc = new Map(); // khu_vuc_id -> số điểm đón/trả
+
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const boDau = (s) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+
+    // Mỗi tỉnh/thành 1 màu cố định (băm từ tên) để nhìn nhóm nào ra nhóm đó
+    const BANG_MAU = [
+      ["#5B3E96", "#EEE9F7"], // tím
+      ["#D98C1A", "#FDF1DC"], // cam
+      ["#0F9B8E", "#DDF4F1"], // ngọc
+      ["#D6336C", "#FBE4EC"], // hồng
+      ["#2563EB", "#E0EAFE"], // dương
+      ["#2F9E44", "#E1F5E6"], // lá
+    ];
+    function mauTheoTinh(ten) {
+      let h = 0;
+      for (const ch of ten) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+      return BANG_MAU[h % BANG_MAU.length];
+    }
 
     async function taiDanhSach() {
       try {
-        dsKhuVuc = await apiGet("/quan-ly/khu-vuc");
+        const [dsKv, dsDiem] = await Promise.all([apiGet("/quan-ly/khu-vuc"), apiGet("/quan-ly/diem-don-tra")]);
+        dsKhuVuc = dsKv;
+        soDiemTheoKhuVuc = new Map();
+        dsDiem.forEach((d) => soDiemTheoKhuVuc.set(d.khu_vuc_id, (soDiemTheoKhuVuc.get(d.khu_vuc_id) || 0) + 1));
         document.getElementById("stat-so-luong").textContent = dsKhuVuc.length;
-        renderDataTable(
-          bangKhuVuc,
-          [
-            { key: "ma", label: "Mã", render: (r) => htmlMa(r.ma) },
-            { key: "ten", label: "Tên khu vực" },
-            { key: "tinh_thanh", label: "Tỉnh/thành", render: (r) => `<span class="nv-text-phu">${r.tinh_thanh}</span>` },
-          ],
-          dsKhuVuc,
-          { onEdit: moModalSua, onDelete: xoaKhuVuc, tenXoa: (r) => r.ten }
-        );
+        renderDanhSach();
       } catch (err) {
-        bangKhuVuc.innerHTML = `<div class="text-error">${err.message}</div>`;
+        bangKhuVuc.innerHTML = `<div class="text-error">${esc(err.message)}</div>`;
       }
     }
+
+    function renderDanhSach() {
+      const tk = boDau(oTim.value.trim());
+      const loc = tk ? dsKhuVuc.filter((k) => boDau(`${k.ten} ${k.ma} ${k.tinh_thanh}`).includes(tk)) : dsKhuVuc;
+
+      const nhom = new Map();
+      loc.forEach((k) => {
+        if (!nhom.has(k.tinh_thanh)) nhom.set(k.tinh_thanh, []);
+        nhom.get(k.tinh_thanh).push(k);
+      });
+      const cacTinh = [...nhom.keys()].sort((a, b) => a.localeCompare(b, "vi"));
+
+      document.getElementById("kv-tom-tat").textContent = dsKhuVuc.length
+        ? `${loc.length} khu vực · ${cacTinh.length} tỉnh/thành`
+        : "";
+
+      if (!dsKhuVuc.length) {
+        bangKhuVuc.innerHTML = '<div class="kv-trong">Chưa có khu vực nào — bấm "+ Thêm khu vực" để tạo khu vực đầu tiên.</div>';
+        return;
+      }
+      if (!loc.length) {
+        bangKhuVuc.innerHTML = '<div class="kv-trong">Không có khu vực nào khớp từ khóa tìm kiếm.</div>';
+        return;
+      }
+
+      bangKhuVuc.innerHTML = `<div class="kv-luoi">${cacTinh
+        .map((tinh) => {
+          const [dam, nhat] = mauTheoTinh(tinh);
+          const ds = nhom.get(tinh).sort((a, b) => a.ten.localeCompare(b.ten, "vi"));
+          return `
+            <section class="kv-nhom" style="--c:${dam}; --c-nhat:${nhat}">
+              <header class="kv-nhom__dau">
+                <span class="kv-nhom__icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+                </span>
+                <h3>${esc(tinh)}</h3>
+                <span class="kv-nhom__dem">${ds.length} khu vực</span>
+              </header>
+              <ul class="kv-nhom__ds">
+                ${ds
+                  .map((k) => {
+                    const soDiem = soDiemTheoKhuVuc.get(k.id) || 0;
+                    return `
+                    <li class="kv-item">
+                      <div class="kv-item__chinh">
+                        <strong class="kv-item__ten">${esc(k.ten)}</strong>
+                        <span class="kv-item__phu">
+                          ${htmlMa(esc(k.ma))}
+                          <span class="kv-diem ${soDiem ? "" : "kv-diem--0"}">${soDiem ? soDiem + " điểm đón/trả" : "Chưa có điểm"}</span>
+                        </span>
+                      </div>
+                      <div class="kv-item__nut">
+                        <button type="button" class="nv-btn-sua" data-act="sua" data-id="${k.id}">Sửa</button>
+                        <button type="button" class="nv-btn-xoa" data-act="xoa" data-id="${k.id}">Xóa</button>
+                      </div>
+                    </li>`;
+                  })
+                  .join("")}
+              </ul>
+            </section>`;
+        })
+        .join("")}</div>`;
+
+      bangKhuVuc.querySelectorAll("[data-act]").forEach((btn) => {
+        const kv = dsKhuVuc.find((k) => k.id === btn.dataset.id);
+        btn.addEventListener("click", () => {
+          if (btn.dataset.act === "sua") moModalSua(kv);
+          else if (confirm(`Xóa khu vực "${kv.ten}"? Không thể hoàn tác.`)) xoaKhuVuc(kv);
+        });
+      });
+    }
+
+    oTim.addEventListener("input", renderDanhSach);
     taiDanhSach();
 
     async function xoaKhuVuc(khuVuc) {

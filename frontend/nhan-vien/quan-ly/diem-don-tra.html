@@ -42,13 +42,16 @@
           </div>
         </div>
 
-        <div class="nv-card">
-          <div class="nv-card__header">
-            <h2>Danh sách điểm đón/trả</h2>
-            <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Thêm điểm</button>
+        <div class="kv-thanh-cong">
+          <div class="kv-tim">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input type="search" id="dd-tim" placeholder="Tìm theo tên, mã, địa chỉ hoặc khu vực..." autocomplete="off" />
           </div>
-          <div id="bang-diem">Đang tải...</div>
+          <select class="input-field tb-select" id="dd-loc-tinh" aria-label="Lọc theo tỉnh/thành"></select>
+          <div class="dd-chips" id="dd-chips"></div>
+          <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Thêm điểm</button>
         </div>
+        <div id="bang-diem">Đang tải...</div>
       </main>
     </div>
   </div>
@@ -106,7 +109,6 @@
   <script src="/nhan-vien/quan-ly/api-client.js"></script>
   <script src="/nhan-vien/quan-ly/auth-check.js"></script>
   <script src="/nhan-vien/quan-ly/nav.js"></script>
-  <script src="/nhan-vien/quan-ly/data-table.js"></script>
   <script src="/nhan-vien/quan-ly/tinh-thanh.js"></script>
   <script src="/nhan-vien/quan-ly/combo-tim-kiem.js"></script>
   <script>
@@ -118,6 +120,9 @@
     document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
 
     const bangDiem = document.getElementById("bang-diem");
+    const oTim = document.getElementById("dd-tim");
+    const oLocTinh = document.getElementById("dd-loc-tinh");
+    let boLocLoai = "tat_ca"; // tat_ca | van_phong | diem_dung
     let dsKhuVuc = [];
     let dsDiem = [];
     let comboKhuVuc = null;
@@ -130,11 +135,32 @@
       return dsKhuVuc.find((k) => k.id === khu_vuc_id);
     }
 
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const boDau = (s) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+
     function nhanLoai(loai) {
       return loai === "van_phong"
-        ? '<span class="pill pill--primary">Văn phòng</span>'
-        : '<span class="pill pill--diem-dung">Điểm dừng</span>';
+        ? '<span class="pill pill--nho pill--primary">Văn phòng</span>'
+        : '<span class="pill pill--nho pill--diem-dung">Điểm dừng</span>';
     }
+
+    // Cùng cách chọn màu theo tỉnh/thành với trang Khu vực — tỉnh nào cũng ra đúng 1 màu ở cả 2 trang
+    const BANG_MAU = [
+      ["#5B3E96", "#EEE9F7"], // tím
+      ["#D98C1A", "#FDF1DC"], // cam
+      ["#0F9B8E", "#DDF4F1"], // ngọc
+      ["#D6336C", "#FBE4EC"], // hồng
+      ["#2563EB", "#E0EAFE"], // dương
+      ["#2F9E44", "#E1F5E6"], // lá
+    ];
+    function mauTheoTinh(ten) {
+      let h = 0;
+      for (const ch of ten) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+      return BANG_MAU[h % BANG_MAU.length];
+    }
+
+    const ICON_VAN_PHONG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V7l8-4 8 4v14"/><path d="M9 21v-6h6v6M9 10h.01M12 10h.01M15 10h.01"/></svg>';
+    const ICON_DIEM_DUNG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
 
     async function taiKhuVuc() {
       dsKhuVuc = await apiGet("/quan-ly/khu-vuc");
@@ -144,29 +170,121 @@
         dsKhuVuc,
         { hienThi: tenHienThiKhuVuc }
       );
+      napOLocTinh();
+    }
+
+    // Chỉ liệt kê các tỉnh/thành đã có khu vực
+    function napOLocTinh() {
+      const dangChon = oLocTinh.value;
+      const cacTinh = [...new Set(dsKhuVuc.map((k) => k.tinh_thanh))].sort((a, b) => a.localeCompare(b, "vi"));
+      oLocTinh.innerHTML =
+        '<option value="">Tất cả tỉnh/thành</option>' + cacTinh.map((t) => `<option value="${esc(t)}">${esc(hienThiTinhThanh(t))}</option>`).join("");
+      oLocTinh.value = dangChon;
     }
 
     async function taiDanhSach() {
       try {
         dsDiem = await apiGet("/quan-ly/diem-don-tra");
         document.getElementById("stat-so-luong").textContent = dsDiem.length;
-        renderDataTable(
-          bangDiem,
-          [
-            { key: "ma", label: "Mã", render: (r) => htmlMa(r.ma) },
-            { key: "ten", label: "Tên điểm" },
-            { key: "khu_vuc_id", label: "Khu vực", render: (r) => `<span class="pill pill--khu-vuc">${khuVucTheoId(r.khu_vuc_id)?.ten || "—"}</span>` },
-            { key: "tinh_thanh", label: "Tỉnh/thành", render: (r) => `<span class="nv-text-phu">${khuVucTheoId(r.khu_vuc_id)?.tinh_thanh || "—"}</span>` },
-            { key: "dia_chi", label: "Địa chỉ chi tiết", render: (r) => `<span class="nv-text-phu">${r.dia_chi}</span>` },
-            { key: "loai", label: "Loại", render: (r) => nhanLoai(r.loai) },
-          ],
-          dsDiem,
-          { onEdit: moModalSua, onDelete: xoaDiem, tenXoa: (r) => r.ten }
-        );
+        renderDanhSach();
       } catch (err) {
-        bangDiem.innerHTML = `<div class="text-error">${err.message}</div>`;
+        bangDiem.innerHTML = `<div class="text-error">${esc(err.message)}</div>`;
       }
     }
+
+    function renderChips() {
+      const dem = { tat_ca: dsDiem.length, van_phong: 0, diem_dung: 0 };
+      dsDiem.forEach((d) => dem[d.loai]++);
+      const cacChip = [["tat_ca", "Tất cả"], ["van_phong", "Văn phòng"], ["diem_dung", "Điểm dừng"]];
+      const o = document.getElementById("dd-chips");
+      o.innerHTML = cacChip
+        .map(([gt, nhan]) => `<button type="button" class="dd-chip${boLocLoai === gt ? " is-active" : ""}" data-loai="${gt}">${nhan} <span>${dem[gt]}</span></button>`)
+        .join("");
+      o.querySelectorAll("[data-loai]").forEach((b) =>
+        b.addEventListener("click", () => {
+          boLocLoai = b.dataset.loai;
+          renderDanhSach();
+        })
+      );
+    }
+
+    function renderDanhSach() {
+      renderChips();
+      const tk = boDau(oTim.value.trim());
+      const loc = dsDiem.filter((d) => {
+        if (boLocLoai !== "tat_ca" && d.loai !== boLocLoai) return false;
+        if (oLocTinh.value && khuVucTheoId(d.khu_vuc_id)?.tinh_thanh !== oLocTinh.value) return false;
+        if (!tk) return true;
+        const kv = khuVucTheoId(d.khu_vuc_id);
+        return boDau(`${d.ten} ${d.ma} ${d.dia_chi} ${kv?.ten || ""} ${kv?.tinh_thanh || ""}`).includes(tk);
+      });
+
+      if (!dsDiem.length) {
+        bangDiem.innerHTML = '<div class="kv-trong">Chưa có điểm đón/trả nào — bấm "+ Thêm điểm" để tạo điểm đầu tiên.</div>';
+        return;
+      }
+      if (!loc.length) {
+        bangDiem.innerHTML = '<div class="kv-trong">Không có điểm nào khớp bộ lọc hiện tại.</div>';
+        return;
+      }
+
+      // Nhóm theo khu vực, các khu vực xếp theo tỉnh/thành rồi tên; trong nhóm văn phòng lên trước
+      const nhom = new Map();
+      loc.forEach((d) => {
+        if (!nhom.has(d.khu_vuc_id)) nhom.set(d.khu_vuc_id, []);
+        nhom.get(d.khu_vuc_id).push(d);
+      });
+      const cacKhuVuc = [...nhom.keys()].sort((a, b) => {
+        const ka = khuVucTheoId(a), kb = khuVucTheoId(b);
+        return (ka?.tinh_thanh || "").localeCompare(kb?.tinh_thanh || "", "vi") || (ka?.ten || "").localeCompare(kb?.ten || "", "vi");
+      });
+
+      bangDiem.innerHTML = `<div class="kv-luoi dd-luoi">${cacKhuVuc
+        .map((kvId) => {
+          const kv = khuVucTheoId(kvId);
+          const [dam, nhat] = mauTheoTinh(kv?.tinh_thanh || "");
+          const ds = nhom.get(kvId).sort((a, b) => (a.loai === b.loai ? a.ten.localeCompare(b.ten, "vi") : a.loai === "van_phong" ? -1 : 1));
+          return `
+            <section class="kv-nhom" style="--c:${dam}; --c-nhat:${nhat}">
+              <header class="kv-nhom__dau">
+                <span class="kv-nhom__icon">${ICON_DIEM_DUNG}</span>
+                <h3>${esc(kv?.ten || "—")}<small>${esc(hienThiTinhThanh(kv?.tinh_thanh || ""))}</small></h3>
+                <span class="kv-nhom__dem">${ds.length} điểm</span>
+              </header>
+              <ul class="kv-nhom__ds">
+                ${ds
+                  .map(
+                    (d) => `
+                    <li class="kv-item dd-item">
+                      <span class="dd-item__icon dd-item__icon--${d.loai}">${d.loai === "van_phong" ? ICON_VAN_PHONG : ICON_DIEM_DUNG}</span>
+                      <div class="kv-item__chinh">
+                        <strong class="kv-item__ten">${esc(d.ten)}</strong>
+                        <span class="dd-item__dia-chi">${esc(d.dia_chi)}</span>
+                        <span class="kv-item__phu">${htmlMa(esc(d.ma))}${nhanLoai(d.loai)}</span>
+                      </div>
+                      <div class="kv-item__nut">
+                        <button type="button" class="nv-btn-sua" data-act="sua" data-id="${d.id}">Sửa</button>
+                        <button type="button" class="nv-btn-xoa" data-act="xoa" data-id="${d.id}">Xóa</button>
+                      </div>
+                    </li>`
+                  )
+                  .join("")}
+              </ul>
+            </section>`;
+        })
+        .join("")}</div>`;
+
+      bangDiem.querySelectorAll("[data-act]").forEach((btn) => {
+        const d = dsDiem.find((x) => x.id === btn.dataset.id);
+        btn.addEventListener("click", () => {
+          if (btn.dataset.act === "sua") moModalSua(d);
+          else if (confirm(`Xóa điểm "${d.ten}"? Không thể hoàn tác.`)) xoaDiem(d);
+        });
+      });
+    }
+
+    oTim.addEventListener("input", renderDanhSach);
+    oLocTinh.addEventListener("change", renderDanhSach);
 
     async function xoaDiem(diem) {
       try {

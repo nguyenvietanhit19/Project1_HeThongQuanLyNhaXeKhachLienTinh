@@ -42,56 +42,29 @@
           </div>
         </div>
 
-        <div class="nv-card cy-loc">
-          <div class="cy-loc__truong">
-            <label class="nv-label" for="loc-ma">Mã chuyến</label>
-            <input class="input-field" type="text" id="loc-ma" placeholder="VD T001-LX001" autocomplete="off" />
+        <div class="kv-thanh-cong cyn-loc">
+          <div class="kv-tim">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input type="search" id="loc-ma" placeholder="Tìm theo mã chuyến, VD T001-LX001..." autocomplete="off" />
           </div>
-          <div class="cy-loc__truong">
-            <label class="nv-label" for="loc-tuyen">Tuyến</label>
-            <select class="input-field" id="loc-tuyen"><option value="">Tất cả tuyến</option></select>
-          </div>
-          <div class="cy-loc__truong">
-            <label class="nv-label" for="loc-chieu">Chiều</label>
-            <select class="input-field" id="loc-chieu">
-              <option value="">Tất cả</option>
-              <option value="xuoi">Xuôi</option>
-              <option value="nguoc">Ngược</option>
-            </select>
-          </div>
-          <div class="cy-loc__truong">
-            <label class="nv-label" for="loc-tu-ngay">Từ ngày</label>
-            <input class="input-field" type="date" id="loc-tu-ngay" />
-          </div>
-          <div class="cy-loc__truong">
-            <label class="nv-label" for="loc-den-ngay">Đến ngày</label>
-            <input class="input-field" type="date" id="loc-den-ngay" />
-          </div>
-          <div class="cy-loc__truong">
-            <label class="nv-label" for="loc-trang-thai">Trạng thái</label>
-            <select class="input-field" id="loc-trang-thai">
-              <option value="">Tất cả</option>
-              <option value="chua_khoi_hanh">Chưa khởi hành</option>
-              <option value="dang_chay">Đang chạy</option>
-              <option value="gap_su_co">Gặp sự cố</option>
-              <option value="hoan_thanh">Hoàn thành</option>
-              <option value="da_huy">Đã hủy</option>
-            </select>
-          </div>
-          <div class="cy-loc__truong">
-            <label class="nv-label" for="loc-gan-xe">Xe</label>
-            <select class="input-field" id="loc-gan-xe">
-              <option value="">Tất cả</option>
-              <option value="0">Chưa gán xe</option>
-              <option value="1">Đã gán xe</option>
-            </select>
-          </div>
-          <button type="button" class="nv-btn-secondary cy-loc__xoa" id="loc-btn-xoa">Xóa lọc</button>
+          <select class="input-field tb-select" id="loc-tuyen" aria-label="Lọc theo tuyến"><option value="">Tất cả tuyến</option></select>
+          <div class="dd-chips" id="loc-chieu-chips"></div>
+          <select class="input-field tb-select" id="loc-trang-thai" aria-label="Lọc theo trạng thái">
+            <option value="">Mọi trạng thái</option>
+            <option value="chua_khoi_hanh">Chưa khởi hành</option>
+            <option value="dang_chay">Đang chạy</option>
+            <option value="gap_su_co">Gặp sự cố</option>
+            <option value="hoan_thanh">Hoàn thành</option>
+            <option value="da_huy">Đã hủy</option>
+          </select>
+          <label class="tb-date"><span>Từ</span><input type="date" id="loc-tu-ngay" /></label>
+          <label class="tb-date"><span>Đến</span><input type="date" id="loc-den-ngay" /></label>
+          <button type="button" class="nv-btn-secondary cyn-xoa-loc" id="loc-btn-xoa">Xóa lọc</button>
         </div>
 
-        <div class="nv-card">
-          <div id="cy-ds">Đang tải...</div>
-        </div>
+        <div class="gv-thong-ke cyn-thong-ke" id="cy-thong-ke"></div>
+
+        <div id="cy-ds">Đang tải...</div>
       </main>
     </div>
   </div>
@@ -116,6 +89,17 @@
 
     const cyDs = document.getElementById("cy-ds");
     let dsTuyen = [];
+    let dsChuyenDaTai = [];
+    let boLocChieu = ""; // "" | xuoi | nguoc  (gửi lên API)
+    let boLocNhanh = ""; // "" | chua_khoi_hanh | chua_gan_xe | dang | xong  (lọc nhanh phía client, bấm ở các ô thống kê)
+
+    // Các nhóm ở thanh thống kê. "Chưa gán xe" = chuyến còn chờ điều độ viên gán xe.
+    const NHOM_NHANH = {
+      chua_khoi_hanh: (c) => c.trang_thai === "chua_khoi_hanh",
+      chua_gan_xe: (c) => c.trang_thai === "chua_khoi_hanh" && !c.xe_id,
+      dang: (c) => c.trang_thai === "dang_chay" || c.trang_thai === "gap_su_co",
+      xong: (c) => c.trang_thai === "hoan_thanh" || c.trang_thai === "da_huy",
+    };
 
     // ---------- Nạp danh mục cho ô lọc tuyến ----------
     async function naploadDauVao() {
@@ -123,71 +107,104 @@
       const selectTuyen = document.getElementById("loc-tuyen");
       selectTuyen.innerHTML =
         '<option value="">Tất cả tuyến</option>' + dsTuyen.map((t) => `<option value="${t.id}">${esc(t.ma)} · ${esc(t.ten)}</option>`).join("");
+    }
 
+    function renderChipChieu() {
+      const o = document.getElementById("loc-chieu-chips");
+      o.innerHTML = [["", "Cả 2 chiều"], ["xuoi", "Xuôi"], ["nguoc", "Ngược"]]
+        .map(([gt, nhan]) => `<button type="button" class="dd-chip${boLocChieu === gt ? " is-active" : ""}" data-chieu="${gt}">${nhan}</button>`)
+        .join("");
+      o.querySelectorAll("[data-chieu]").forEach((b) =>
+        b.addEventListener("click", () => {
+          boLocChieu = b.dataset.chieu;
+          renderChipChieu();
+          taiDanhSach();
+        })
+      );
     }
 
     // ---------- Đọc bộ lọc hiện tại, gọi API, render ----------
     function locHienTai() {
       const tuyenId = document.getElementById("loc-tuyen").value;
-      const chieu = document.getElementById("loc-chieu").value;
       const tuNgay = document.getElementById("loc-tu-ngay").value;
       const denNgay = document.getElementById("loc-den-ngay").value;
       const trangThai = document.getElementById("loc-trang-thai").value;
-      const ganXe = document.getElementById("loc-gan-xe").value;
 
       const query = new URLSearchParams();
       if (tuyenId) query.set("tuyen_id", tuyenId);
-      if (chieu) query.set("chieu", chieu);
+      if (boLocChieu) query.set("chieu", boLocChieu);
       if (tuNgay) query.set("tu_ngay", tuNgay);
       if (denNgay) query.set("den_ngay", denNgay);
       if (trangThai) query.set("trang_thai", trangThai);
-      if (ganXe) query.set("da_gan_xe", ganXe === "1" ? "true" : "false");
       return query.toString();
     }
 
-    // Lọc theo mã chuyến ở phía client trên danh sách đã tải (các bộ lọc còn lại gọi API).
-    let dsChuyenDaTai = [];
+    function renderThongKe(ds) {
+      const dem = { tat_ca: ds.length };
+      Object.keys(NHOM_NHANH).forEach((k) => (dem[k] = ds.filter(NHOM_NHANH[k]).length));
+      const cacO = [
+        { loc: "", nhan: "Tất cả chuyến", so: dem.tat_ca, mau: "#5B3E96" },
+        { loc: "chua_khoi_hanh", nhan: "Chưa khởi hành", so: dem.chua_khoi_hanh, mau: "#16A34A" },
+        { loc: "chua_gan_xe", nhan: "Chờ gán xe", so: dem.chua_gan_xe, mau: "#D97706" },
+        { loc: "dang", nhan: "Đang chạy / sự cố", so: dem.dang, mau: "#DC2626" },
+        { loc: "xong", nhan: "Hoàn thành / hủy", so: dem.xong, mau: "#6B7280" },
+      ];
+      const box = document.getElementById("cy-thong-ke");
+      box.innerHTML = cacO
+        .map(
+          (o) => `
+            <button type="button" class="gv-stat${boLocNhanh === o.loc ? " is-active" : ""}" data-nhanh="${o.loc}" style="--mau:${o.mau}">
+              <span class="gv-stat__so">${o.so}</span>
+              <span class="gv-stat__nhan">${o.nhan}</span>
+            </button>`
+        )
+        .join("");
+      box.querySelectorAll("[data-nhanh]").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          boLocNhanh = boLocNhanh === btn.dataset.nhanh ? "" : btn.dataset.nhanh;
+          hienThiDanhSach();
+        })
+      );
+    }
+
+    // Lọc theo mã chuyến + nhóm nhanh ở phía client trên danh sách đã tải (các bộ lọc còn lại gọi API).
     function hienThiDanhSach() {
       const tk = document.getElementById("loc-ma").value.trim().toLowerCase();
-      const ds = tk ? dsChuyenDaTai.filter((c) => c.ma.toLowerCase().includes(tk)) : dsChuyenDaTai;
+      const theoMa = tk ? dsChuyenDaTai.filter((c) => c.ma.toLowerCase().includes(tk)) : dsChuyenDaTai;
+      renderThongKe(theoMa);
+      const ds = boLocNhanh ? theoMa.filter(NHOM_NHANH[boLocNhanh]) : theoMa;
       document.getElementById("stat-so-luong").textContent = ds.length;
       renderDanhSach(ds);
     }
     document.getElementById("loc-ma").addEventListener("input", hienThiDanhSach);
 
     async function taiDanhSach() {
-      cyDs.innerHTML = "Đang tải...";
+      cyDs.innerHTML = '<div class="kv-trong">Đang tải...</div>';
       try {
-        const ds = await apiGet(`/quan-ly/chuyen${locHienTai() ? "?" + locHienTai() : ""}`);
-        dsChuyenDaTai = ds;
+        dsChuyenDaTai = await apiGet(`/quan-ly/chuyen${locHienTai() ? "?" + locHienTai() : ""}`);
         hienThiDanhSach();
       } catch (err) {
         cyDs.innerHTML = `<div class="text-error">${esc(err.message)}</div>`;
       }
     }
 
-    document.querySelectorAll("#loc-tuyen, #loc-chieu, #loc-tu-ngay, #loc-den-ngay, #loc-trang-thai, #loc-gan-xe").forEach((el) => {
+    document.querySelectorAll("#loc-tuyen, #loc-tu-ngay, #loc-den-ngay, #loc-trang-thai").forEach((el) => {
       el.addEventListener("change", taiDanhSach);
     });
 
     document.getElementById("loc-btn-xoa").addEventListener("click", () => {
       document.getElementById("loc-ma").value = "";
       document.getElementById("loc-tuyen").value = "";
-      document.getElementById("loc-chieu").value = "";
       document.getElementById("loc-tu-ngay").value = "";
       document.getElementById("loc-den-ngay").value = "";
       document.getElementById("loc-trang-thai").value = "";
-      document.getElementById("loc-gan-xe").value = "";
+      boLocChieu = "";
+      boLocNhanh = "";
+      renderChipChieu();
       taiDanhSach();
     });
 
     // ---------- Danh sách, nhóm theo ngày ----------
-    function nhanNgay(ngayKey) {
-      const [y, m, d] = ngayKey.split("-").map(Number);
-      const dt = new Date(y, m - 1, d);
-      return `${TEN_THU_DAY_DU[dt.getDay()]}, ${pad2(d)}/${pad2(m)}/${y}`;
-    }
-
     function nhomTheoNgay(ds) {
       const nhom = new Map(); // "YYYY-M-D" -> [chuyến...], giữ đúng thứ tự API trả về (đã ORDER BY giờ)
       ds.forEach((c) => {
@@ -199,36 +216,55 @@
       return nhom;
     }
 
-    function dongChuyen(c) {
+    function tieuDeNgay(ngayKey, list) {
+      const [y, m, d] = ngayKey.split("-").map(Number);
+      const dt = new Date(y, m - 1, d);
+      const homNay = new Date();
+      homNay.setHours(0, 0, 0, 0);
+      const chenh = Math.round((dt - homNay) / 86400000);
+      const nhanPhu = chenh === 0 ? "Hôm nay" : chenh === 1 ? "Ngày mai" : chenh === -1 ? "Hôm qua" : "";
+      const chuaGan = list.filter(NHOM_NHANH.chua_gan_xe).length;
+      return `
+        <div class="cyn-ngay__dau${chenh === 0 ? " cyn-ngay__dau--nay" : ""}${chenh < 0 ? " cyn-ngay__dau--qua" : ""}">
+          <span class="cyn-ngay__so"><b>${pad2(d)}</b><small>Th${m}</small></span>
+          <span class="cyn-ngay__ten"><strong>${TEN_THU_DAY_DU[dt.getDay()]}</strong><span>${nhanPhu ? nhanPhu + " · " : ""}${pad2(d)}/${pad2(m)}/${y}</span></span>
+          <span class="cyn-ngay__dem">${list.length} chuyến</span>
+          ${chuaGan ? `<span class="pill pill--nho pill--gia-thoi-han">${chuaGan} chờ gán xe</span>` : ""}
+        </div>`;
+    }
+
+    function theChuyen(c) {
       const d = new Date(c.gio_khoi_hanh);
       const gio = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
       return `
-        <button type="button" class="cy-dong" data-id="${c.id}" style="--mau:${mauTrangThai(c.trang_thai)}">
-          <span class="cy-dong__gio">${gio}</span>
-          ${htmlMa(esc(c.ma))}
-          <span class="cy-dong__tuyen">${esc(c.ten_tuyen)}</span>
-          <span class="pill pill--nho ${c.chieu === "xuoi" ? "pill--khu-vuc" : "pill--gia-thoi-han"}">${c.chieu === "xuoi" ? "Xuôi" : "Ngược"}</span>
-          <span class="nv-text-phu">${esc(c.ten_loai_xe)}</span>
-          <span class="pill pill--nho ${pillTrangThai(c.trang_thai)}">${NHAN_TRANG_THAI[c.trang_thai] || c.trang_thai}</span>
-          ${c.bien_so_xe ? `<span class="pill pill--nho pill--gia-vinh-vien">Xe ${esc(c.bien_so_xe)}</span>` : '<span class="pill pill--nho pill--gia-thoi-han">Chưa gán xe</span>'}
-          ${c.so_ve_dang_hoat_dong ? `<span class="pill pill--nho pill--nhom-tuyen">${c.so_ve_dang_hoat_dong} vé</span>` : ""}
+        <button type="button" class="cyn-the" data-id="${c.id}" style="--mau:${mauTrangThai(c.trang_thai)}">
+          <span class="cyn-the__gio"><b>${gio}</b><small>${NHAN_TRANG_THAI[c.trang_thai] || c.trang_thai}</small></span>
+          <span class="cyn-the__chinh">
+            <span class="cyn-the__tuyen">${esc(c.ten_tuyen)}</span>
+            <span class="cyn-the__phu">
+              ${htmlMa(esc(c.ma))}
+              <span class="pill pill--nho ${c.chieu === "xuoi" ? "pill--khu-vuc" : "pill--gia-thoi-han"}">${c.chieu === "xuoi" ? "Xuôi" : "Ngược"}</span>
+              <span class="cyn-the__loai">${esc(c.ma_loai_xe)} · ${esc(c.ten_loai_xe)}</span>
+            </span>
+          </span>
+          <span class="cyn-the__xe">${c.bien_so_xe ? `<span class="xe-bien-so cyn-bien-so">${esc(c.bien_so_xe)}</span>` : '<span class="cyn-chua-gan">Chưa gán xe</span>'}</span>
+          <span class="cyn-the__ve${c.so_ve_dang_hoat_dong ? " co-ve" : ""}">${c.so_ve_dang_hoat_dong ? `<b>${c.so_ve_dang_hoat_dong}</b> vé` : "Chưa có vé"}</span>
         </button>`;
     }
 
     function renderDanhSach(ds) {
       if (!ds.length) {
-        cyDs.innerHTML = '<div class="nv-table__empty">Không có chuyến nào khớp bộ lọc.</div>';
+        cyDs.innerHTML = '<div class="kv-trong">Không có chuyến nào khớp bộ lọc.</div>';
         return;
       }
 
-      const nhom = nhomTheoNgay(ds);
-      cyDs.innerHTML = [...nhom.entries()]
+      cyDs.innerHTML = [...nhomTheoNgay(ds).entries()]
         .map(
           ([ngayKey, list]) => `
-            <div class="cy-nhom-ngay">
-              <div class="cy-nhom-ngay__tieu-de">${nhanNgay(ngayKey)} <span class="nv-text-phu">${list.length} chuyến</span></div>
-              <div class="cy-nhom-ngay__ds">${list.map(dongChuyen).join("")}</div>
-            </div>`
+            <section class="cyn-ngay">
+              ${tieuDeNgay(ngayKey, list)}
+              <div class="cyn-ngay__ds">${list.map(theChuyen).join("")}</div>
+            </section>`
         )
         .join("");
 
@@ -236,6 +272,8 @@
         btn.addEventListener("click", () => moModalChiTiet(btn.dataset.id));
       });
     }
+
+    renderChipChieu();
 
     (async () => {
       try {
