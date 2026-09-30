@@ -62,6 +62,8 @@ rectangle "Hệ thống Quản lý Nhà xe Khách" {
   usecase "UC-32 Quản lý loại xe" as UC32
   usecase "UC-33 Cấu hình giá vé" as UC33
   usecase "UC-18 Thiết lập lịch\nchạy định kỳ" as UC18
+  usecase "UC-47 Sinh chuyến từ lịch chạy\n(chọn khoảng ngày)" as UC47
+  usecase "UC-48 Quản lý chuyến đã sinh\n(xem, sửa giờ, xóa)" as UC48
   usecase "UC-34 Quản lý xe" as UC34
   usecase "UC-35 Quản lý biên chế xe" as UC35
   usecase "UC-36 Tạo tài khoản cán bộ\n(quản lý: mọi vai trò, gốc mới tạo\nquản lý/quản lý nhân sự;\nquản lý nhân sự: chỉ 4 vai trò vận hành)" as UC36
@@ -142,6 +144,8 @@ QL --> UC31
 QL --> UC32
 QL --> UC33
 QL --> UC18
+QL --> UC47
+QL --> UC48
 QL --> UC34
 QL --> UC35
 QL --> UC36
@@ -164,6 +168,8 @@ UC15 ..> UC02 : <<include>>
 UC16 ..> UC02 : <<include>>
 UC17 ..> UC02 : <<include>>
 UC18 ..> UC02 : <<include>>
+UC47 ..> UC02 : <<include>>
+UC48 ..> UC02 : <<include>>
 UC44 ..> UC02 : <<include>>
 UC19 ..> UC02 : <<include>>
 UC20 ..> UC02 : <<include>>

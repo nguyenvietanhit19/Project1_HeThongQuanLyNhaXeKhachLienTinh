@@ -64,7 +64,7 @@ Lưu ý `thoi_gian_du_kien_phut` **luôn lưu theo chiều xuôi** (cộng dồn
 ## 4. Việc cần làm theo từng người
 
 ### 4.1. Người 4 — Điều độ viên / chuyến xe (Nghia)
-- [ ] **Sinh chuyến (UC-18, `jobs/sinh_chuyen_dinh_ky.py`):** copy `chieu` từ `lich_chay_dinh_ky` sang `chuyen_xe.chieu`. Cột này `NOT NULL`, không có default.
+- [x] **Sinh chuyến (UC-47, `lich_chay_service.py` — đã làm, sinh thủ công không còn job):** copy `chieu` từ `lich_chay_dinh_ky` sang `chuyen_xe.chieu`. Cột này `NOT NULL`, không có default.
 - [ ] **Gán xe (UC-44):** dùng `xe.tuyen_id` (thay cho `nhom_tuyen_id`). Xe có `tuyen_id` khác NULL chỉ được gán cho chuyến cùng `tuyen_id`, **bất kể chiều**. Xe `tuyen_id = NULL` là xe dự phòng.
 - [ ] **Vị trí xe suy luận (mục 3.3 `NGHIEP_VU.md`):** điểm cuối của chuyến xe vừa chạy phụ thuộc chiều (bảng mục 3). Kiểm tra xe có "đúng vị trí" để nhận chuyến kế tiếp.
 - [ ] Thống nhất với Dũng về `chuyen_xe_service.py`: Dũng đã có file này (phần phụ xe) từ nhánh phụ xe. Cần chốt **ai giữ file, ai bổ sung hàm** để tránh 2 bản trùng.
