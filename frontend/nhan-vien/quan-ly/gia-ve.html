@@ -104,6 +104,7 @@
   <script src="/nhan-vien/quan-ly/api-client.js"></script>
   <script src="/nhan-vien/quan-ly/auth-check.js"></script>
   <script src="/nhan-vien/quan-ly/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/data-table.js"></script>
   <script>
     const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
     if (nguoiDung) {
@@ -123,7 +124,6 @@
     const NHAN_TRANG_THAI = { du: "Đủ giá", chua_du: "Chưa đủ", chua_co: "Chưa có giá" };
     const THU_TU_TRANG_THAI = { chua_co: 0, chua_du: 1, du: 2 }; // tuyến cần xử lý xếp lên đầu
 
-    const esc = (x) => String(x ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     const laGiaThuong = (g) => !g.ap_dung_tu && !g.ap_dung_den;
 
     function dinhDangTien(so) {
@@ -226,9 +226,8 @@
           return `
             <button type="button" class="gv-tuyen gv-tuyen--${p.trangThai.replace("_", "-")}${t.id === tuyenDangChon ? " is-active" : ""}" data-id="${t.id}">
               <span class="gv-tuyen__cham"></span>
-              <span class="gv-tuyen__ten">${esc(t.ten)}</span>
+              <span class="gv-tuyen__ten"><span class="ma-tag">${t.ma}</span> ${t.ten}</span>
               <span class="gv-tuyen__dem">${p.daCo}/${p.tong}</span>
-              <span class="gv-tuyen__lo-trinh"><span class="ma-tag">${esc(t.ma)}</span>${esc(p.kv.map((k) => k.ten).join(" → "))}</span>
               <span class="gv-tuyen__thanh"><i style="width:${phanTram}%"></i></span>
             </button>`;
         })
@@ -264,7 +263,7 @@
 
       box.innerHTML = `
         <div class="gv-ct__dau">
-          <h2>${htmlMa(esc(tuyen.ma))} ${esc(tuyen.ten)}</h2>
+          <h2>${htmlMa(tuyen.ma)} ${tuyen.ten}</h2>
           <span class="gv-badge gv-badge--${p.trangThai.replace("_", "-")}">${NHAN_TRANG_THAI[p.trangThai]}</span>
           <button class="btn-primary nv-btn-them gv-ct__them" id="btn-them" type="button">+ Thêm giá vé</button>
         </div>
@@ -274,19 +273,22 @@
           <span><strong>${p.daCo}/${p.tong}</strong> cặp có giá thường</span>
         </div>
 
-        ${htmlMaTran(p)}
+        ${
+          p.thieu.length
+            ? `<div class="gv-ct__thieu">
+                <span>Còn thiếu:</span>
+                ${p.thieu.map((c) => `<button type="button" class="gv-thieu-chip" data-di="${c.i}" data-den="${c.j}">+ ${p.kv[c.i].ten} → ${p.kv[c.j].ten}</button>`).join("")}
+              </div>`
+            : ""
+        }
 
-        <div class="gv-ct__tieu-de">Tất cả mức giá <span class="nv-text-phu">${p.ds.length} mức</span></div>
         <div id="bang-gia-ve"></div>`;
 
       document.getElementById("btn-them").addEventListener("click", () => moModalThem());
-
-      // Ô ma trận: ô thiếu -> thêm giá cho đúng cặp, ô đã có giá thường -> sửa giá đó
-      box.querySelectorAll("[data-them-di]").forEach((btn) => {
-        btn.addEventListener("click", () => moModalThem(p.kv[Number(btn.dataset.themDi)].khu_vuc_id, p.kv[Number(btn.dataset.themDen)].khu_vuc_id));
-      });
-      box.querySelectorAll("[data-sua-id]").forEach((btn) => {
-        btn.addEventListener("click", () => moModalSua(dsGiaVe.find((g) => g.id === btn.dataset.suaId)));
+      box.querySelectorAll(".gv-thieu-chip").forEach((btn) => {
+        btn.addEventListener("click", () =>
+          moModalThem(p.kv[Number(btn.dataset.di)].khu_vuc_id, p.kv[Number(btn.dataset.den)].khu_vuc_id)
+        );
       });
 
       const dsSapXep = [...p.ds].sort(
@@ -296,74 +298,16 @@
           (a.ap_dung_tu || "").localeCompare(b.ap_dung_tu || "")
       );
 
-      const bang = document.getElementById("bang-gia-ve");
-      if (!dsSapXep.length) {
-        bang.innerHTML = '<div class="gv-trong">Tuyến này chưa có mức giá nào — bấm "+ Thêm giá vé" hoặc chọn một ô trong bảng trên.</div>';
-      } else {
-        bang.innerHTML = `<div class="gv-gia-ds">${dsSapXep
-          .map(
-            (g) => `
-              <div class="gv-gia${laGiaThuong(g) ? "" : " gv-gia--mua"}">
-                <div class="gv-gia__chang"><strong>${esc(g.ten_diem_di)}</strong><span class="gv-gia__mui-ten">→</span><strong>${esc(g.ten_diem_den)}</strong></div>
-                <div class="gv-gia__tien">${dinhDangTien(g.gia_goc)}</div>
-                <div class="gv-gia__han">${dinhDangThoiHan(g)}</div>
-                <div class="gv-gia__nut">
-                  <button type="button" class="nv-btn-sua" data-act="sua" data-id="${g.id}">Sửa</button>
-                  <button type="button" class="nv-btn-xoa" data-act="xoa" data-id="${g.id}">Xóa</button>
-                </div>
-              </div>`
-          )
-          .join("")}</div>`;
-
-        bang.querySelectorAll("[data-act]").forEach((btn) => {
-          const g = dsGiaVe.find((x) => x.id === btn.dataset.id);
-          btn.addEventListener("click", () => {
-            if (btn.dataset.act === "sua") moModalSua(g);
-            else if (confirm(`Xóa giá vé "${g.ten_diem_di} → ${g.ten_diem_den}"? Không thể hoàn tác.`)) xoaGiaVe(g);
-          });
-        });
-      }
-    }
-
-    // Ma trận điểm đi (hàng) × điểm đến (cột): thấy ngay cặp nào đã có giá thường, cặp nào còn thiếu
-    function htmlMaTran(p) {
-      const n = p.kv.length;
-      if (n < 2) return "";
-      const timGia = (i, j) => p.ds.filter((g) => g.diem_di_id === p.kv[i].khu_vuc_id && g.diem_den_id === p.kv[j].khu_vuc_id);
-
-      const dauCot = p.kv
-        .slice(1)
-        .map((k) => `<th scope="col">${esc(k.ten)}</th>`)
-        .join("");
-
-      const hang = p.kv
-        .slice(0, -1)
-        .map((k, i) => {
-          const o = p.kv
-            .map((_, j) => {
-              if (j === 0) return "";
-              if (j <= i) return '<td class="gv-o gv-o--x"></td>';
-              const gia = timGia(i, j);
-              const thuong = gia.find(laGiaThuong);
-              const soMua = gia.filter((g) => !laGiaThuong(g)).length;
-              const ghiChuMua = soMua ? `<small>+${soMua} giá theo mùa</small>` : "";
-              if (thuong) {
-                return `<td class="gv-o"><button type="button" class="gv-o__nut gv-o__nut--co" data-sua-id="${thuong.id}" title="Sửa giá này"><b>${dinhDangTien(thuong.gia_goc)}</b>${ghiChuMua}</button></td>`;
-              }
-              return `<td class="gv-o"><button type="button" class="gv-o__nut gv-o__nut--thieu" data-them-di="${i}" data-them-den="${j}" title="Thêm giá thường cho chặng này"><b>+ Thêm giá</b>${soMua ? `<small>chỉ có giá theo mùa</small>` : ""}</button></td>`;
-            })
-            .join("");
-          return `<tr><th scope="row">${esc(k.ten)}</th>${o}</tr>`;
-        })
-        .join("");
-
-      return `
-        <div class="gv-ma-tran-wrap">
-          <table class="gv-ma-tran">
-            <thead><tr><th class="gv-ma-tran__goc"><span>Đi từ ↓</span><span>Đến →</span></th>${dauCot}</tr></thead>
-            <tbody>${hang}</tbody>
-          </table>
-        </div>`;
+      renderDataTable(
+        document.getElementById("bang-gia-ve"),
+        [
+          { key: "chang", label: "Chặng", render: (r) => `<strong>${r.ten_diem_di}</strong> <span class="nv-text-phu">→</span> <strong>${r.ten_diem_den}</strong>` },
+          { key: "gia_goc", label: "Giá gốc", render: (r) => dinhDangTien(r.gia_goc) },
+          { key: "thoi_han", label: "Thời hạn", render: dinhDangThoiHan },
+        ],
+        dsSapXep,
+        { onEdit: moModalSua, onDelete: xoaGiaVe, tenXoa: (r) => `${r.ten_diem_di} → ${r.ten_diem_den}` }
+      );
     }
 
     function renderTatCa() {

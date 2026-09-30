@@ -1792,29 +1792,30 @@ body.nhan-vien-shell {
   color: #B45309;
 }
 
-/* ===== Trang Giá vé — thống kê trạng thái + danh sách tuyến trái + chi tiết phải ===== */
+/* ===== Trang Giá vé — thống kê 4 trạng thái + danh sách tuyến trái + chi tiết phải ===== */
 
 .gv-thong-ke {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin-bottom: 18px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .gv-stat {
   --mau: var(--color-secondary);
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 18px;
-  border-radius: 18px;
-  border: 2px solid transparent;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  border: 1.5px solid transparent;
+  border-left: 5px solid var(--mau);
   background: var(--color-bg-surface);
   box-shadow: var(--shadow-soft);
   font-family: inherit;
   text-align: left;
   cursor: pointer;
-  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
 .gv-stat:hover {
@@ -1823,20 +1824,11 @@ body.nhan-vien-shell {
 
 .gv-stat.is-active {
   border-color: var(--mau);
-  background: color-mix(in srgb, var(--mau) 7%, white);
+  background: color-mix(in srgb, var(--mau) 8%, white);
 }
 
 .gv-stat__so {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  min-width: 46px;
-  height: 46px;
-  padding: 0 6px;
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--mau) 14%, white);
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 800;
   line-height: 1;
   color: var(--mau);
@@ -1845,7 +1837,6 @@ body.nhan-vien-shell {
 .gv-stat__nhan {
   font-size: 13px;
   font-weight: 600;
-  line-height: 1.3;
   color: var(--color-text-muted);
 }
 
@@ -1855,16 +1846,16 @@ body.nhan-vien-shell {
 
 .gv-layout {
   display: grid;
-  grid-template-columns: 330px minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 16px;
   align-items: start;
 }
 
 .gv-khung {
   background: var(--color-bg-surface);
-  border-radius: 20px;
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-soft);
-  padding: 18px;
+  padding: 14px;
 }
 
 .gv-ds {
@@ -1872,105 +1863,80 @@ body.nhan-vien-shell {
   top: 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-height: calc(100vh - 200px);
-  padding: 16px;
+  gap: 10px;
+  max-height: calc(100vh - 210px);
 }
 
 .gv-tim {
-  height: 42px;
-  padding: 0 16px;
-  font-size: 14px;
+  height: 34px;
+  padding: 0 12px;
+  font-size: 13px;
   margin: 0;
-  border-radius: var(--radius-pill);
-  background: #F7F6FA;
-  border-color: transparent;
-}
-
-.gv-tim:focus {
-  background: #fff;
-  border-color: var(--color-secondary);
 }
 
 .gv-ds__list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   overflow-y: auto;
   min-height: 0;
-  padding: 2px 4px 2px 0;
+  padding-right: 2px;
 }
 
 .gv-tuyen {
   --mau: #16A34A;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
   align-items: center;
-  column-gap: 10px;
-  row-gap: 5px;
-  padding: 11px 14px 10px;
-  border-radius: 14px;
+  column-gap: 8px;
+  row-gap: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
   border: 1.5px solid #ECECF0;
-  border-left: 5px solid var(--mau);
   background: var(--color-bg-surface);
   font-family: inherit;
   text-align: left;
   cursor: pointer;
-  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .gv-tuyen:hover {
-  transform: translateX(2px);
-  box-shadow: var(--shadow-soft);
+  border-color: var(--mau);
 }
 
 .gv-tuyen.is-active {
   border-color: var(--mau);
-  background: color-mix(in srgb, var(--mau) 8%, white);
+  background: color-mix(in srgb, var(--mau) 9%, white);
 }
 
 .gv-tuyen--chua-du { --mau: #D97706; }
 .gv-tuyen--chua-co { --mau: #DC2626; }
 
 .gv-tuyen__cham {
-  display: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--mau);
 }
 
 .gv-tuyen__ten {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
-  color: var(--color-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .gv-tuyen__dem {
-  padding: 2px 10px;
-  border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--mau) 14%, white);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--mau);
-}
-
-.gv-tuyen__lo-trinh {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  font-size: 12px;
-  color: var(--color-text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .gv-tuyen__thanh {
   grid-column: 1 / -1;
-  height: 5px;
-  border-radius: 5px;
+  height: 4px;
+  border-radius: 4px;
   background: rgba(0, 0, 0, 0.07);
   overflow: hidden;
 }
@@ -1978,7 +1944,6 @@ body.nhan-vien-shell {
 .gv-tuyen__thanh i {
   display: block;
   height: 100%;
-  border-radius: 5px;
   background: var(--mau);
 }
 
@@ -1986,39 +1951,35 @@ body.nhan-vien-shell {
   font-size: 13px;
   color: var(--color-text-muted);
   text-align: center;
-  padding: 24px 12px;
+  padding: 18px 8px;
 }
 
 .gv-trong--lon {
-  padding: 80px 8px;
+  padding: 60px 8px;
 }
 
 .gv-ct__dau {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 .gv-ct__dau h2 {
-  display: flex;
-  align-items: center;
-  gap: 10px;
   margin: 0;
-  font-size: 21px;
+  font-size: 17px;
 }
 
 .gv-ct__them {
   margin-left: auto;
-  height: 42px;
-  padding: 0 20px;
-  font-size: 14px;
+  height: 36px;
+  padding: 0 18px;
+  font-size: 13px;
   width: auto;
 }
 
 .gv-badge {
-  padding: 4px 12px;
+  padding: 3px 10px;
   border-radius: var(--radius-pill);
   font-size: 12px;
   font-weight: 700;
@@ -2039,24 +2000,19 @@ body.nhan-vien-shell {
 .gv-ct__tien-do {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   font-size: 13px;
-  margin-bottom: 18px;
+  margin-bottom: 10px;
 }
 
 .gv-ct__tien-do > span {
   white-space: nowrap;
-  color: var(--color-text-muted);
-}
-
-.gv-ct__tien-do strong {
-  color: var(--color-text-primary);
 }
 
 .gv-ct__thanh {
   flex: 1;
-  height: 10px;
-  border-radius: 10px;
+  height: 8px;
+  border-radius: 8px;
   background: rgba(0, 0, 0, 0.08);
   overflow: hidden;
 }
@@ -2064,7 +2020,7 @@ body.nhan-vien-shell {
 .gv-ct__thanh i {
   display: block;
   height: 100%;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #22C55E;
   transition: width 0.3s ease;
 }
@@ -2072,175 +2028,34 @@ body.nhan-vien-shell {
 .gv-ct__thanh--chua-du i { background: #F59E0B; }
 .gv-ct__thanh--chua-co i { background: #EF4444; }
 
-.gv-ct__tieu-de {
+.gv-ct__thieu {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin: 24px 0 12px;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-/* ---------- Ma trận điểm đi × điểm đến ---------- */
-.gv-ma-tran-wrap {
-  overflow-x: auto;
-  border: 1.5px solid #ECECF0;
-  border-radius: 16px;
-}
-
-.gv-ma-tran {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-}
-
-.gv-ma-tran th {
-  padding: 10px 14px;
-  background: #F5F2FA;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(220, 38, 38, 0.06);
   font-size: 12px;
   font-weight: 700;
-  color: var(--color-secondary-dark);
-  text-align: center;
-  white-space: nowrap;
-}
-
-.gv-ma-tran tbody th {
-  text-align: left;
-  border-top: 1px solid #ECECF0;
-  border-right: 1px solid #ECECF0;
-}
-
-.gv-ma-tran__goc {
-  text-align: left !important;
-  min-width: 120px;
-}
-
-.gv-ma-tran__goc span {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-text-muted);
-}
-
-.gv-o {
-  min-width: 118px;
-  padding: 6px;
-  border-top: 1px solid #ECECF0;
-  border-left: 1px solid #ECECF0;
-  text-align: center;
-  vertical-align: middle;
-}
-
-.gv-ma-tran td:first-of-type,
-.gv-ma-tran tbody th + td {
-  border-left: 0;
-}
-
-.gv-o--x {
-  background: repeating-linear-gradient(135deg, #FAFAFC 0 6px, #F1F0F5 6px 7px);
-}
-
-.gv-o__nut {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  width: 100%;
-  min-height: 54px;
-  padding: 6px 8px;
-  border-radius: 12px;
-  border: 1.5px solid transparent;
-  font-family: inherit;
-  cursor: pointer;
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
-}
-
-.gv-o__nut:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-soft);
-}
-
-.gv-o__nut b {
-  font-size: 14px;
-}
-
-.gv-o__nut small {
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.gv-o__nut--co {
-  background: rgba(34, 197, 94, 0.12);
-  color: #15803D;
-}
-
-.gv-o__nut--co small {
-  color: #B45309;
-}
-
-.gv-o__nut--thieu {
-  background: rgba(220, 38, 38, 0.05);
-  border: 1.5px dashed rgba(220, 38, 38, 0.5);
   color: var(--color-danger);
 }
 
-.gv-o__nut--thieu:hover {
-  background: rgba(220, 38, 38, 0.1);
-}
-
-/* ---------- Danh sách mức giá ---------- */
-.gv-gia-ds {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.gv-gia {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
-  align-items: center;
-  gap: 18px;
-  padding: 12px 16px;
-  border-radius: 14px;
-  border: 1.5px solid #ECECF0;
-  border-left: 5px solid #22C55E;
+.gv-thieu-chip {
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  border: 1.5px dashed rgba(220, 38, 38, 0.5);
   background: var(--color-bg-surface);
-  transition: box-shadow 0.15s ease;
+  color: var(--color-danger);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.gv-gia--mua {
-  border-left-color: var(--color-primary);
-  background: #FFFBF3;
-}
-
-.gv-gia:hover {
-  box-shadow: var(--shadow-soft);
-}
-
-.gv-gia__chang {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  font-size: 14px;
-}
-
-.gv-gia__mui-ten {
-  color: var(--color-text-muted);
-}
-
-.gv-gia__tien {
-  font-size: 17px;
-  font-weight: 800;
-  color: var(--color-secondary);
-  white-space: nowrap;
-}
-
-.gv-gia__nut {
-  display: flex;
-  gap: 8px;
+.gv-thieu-chip:hover {
+  background: rgba(220, 38, 38, 0.1);
 }
 
 @media (max-width: 900px) {
@@ -2254,15 +2069,7 @@ body.nhan-vien-shell {
 
   .gv-ds {
     position: static;
-    max-height: 340px;
-  }
-
-  .gv-gia {
-    grid-template-columns: 1fr auto;
-  }
-
-  .gv-gia__chang {
-    grid-column: 1 / -1;
+    max-height: 320px;
   }
 }
 
