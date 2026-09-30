@@ -1,9 +1,9 @@
 """Raw SQL cho bảng chuyen_xe/lich_su_diem_dung_chuyen — DATABASE.md mục 3.3, 3.4.
 
-Chỉ chứa các hàm cần cho phần phụ xe (xem chuyến của mình, xác nhận xuất
-phát/tới điểm/sự cố — UC-15,16,17). Gán xe (UC-44), đổi xe khi hỏng
-(UC-19/20/40), sinh chuyến định kỳ (UC-18) thuộc điều độ viên/quản lý,
-chưa cài đặt ở đây.
+Chứa các hàm cho phần phụ xe (xem chuyến của mình, xác nhận xuất phát/tới
+điểm/sự cố — UC-15,16,17), sinh chuyến theo khoảng ngày, và xem/sửa/xóa chuyến
+từ góc nhìn quản lý (UC-18, cuối file — gọi từ lich_chay_service.py). Gán xe
+(UC-44), đổi xe khi hỏng (UC-19/20/40) thuộc điều độ viên, chưa cài đặt ở đây.
 """
 
 from app.db import get_connection, release_connection
@@ -206,5 +206,170 @@ def gan_co_xung_dot_vi_tri_cho_chuyen_tuong_lai(xe_id: str, chuyen_id_hien_tai: 
                 (xe_id, chuyen_id_hien_tai),
             )
         conn.commit()
+    finally:
+        release_connection(conn)
+
+
+# ---------------------------------------------------------
+# Sinh chuyến theo khoảng ngày (UC-18)
+# ---------------------------------------------------------
+def da_co_chuyen_theo_ngay(lich_chay_dinh_ky_id: str, ngay) -> bool:
+    """True nếu lịch này đã có chuyến sinh cho đúng ngày `ngay` (date, giờ địa
+    phương) — chống sinh trùng khi quản lý bấm "Sinh chuyến" nhiều lần cho các
+    khoảng ngày chồng nhau."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT 1 FROM chuyen_xe
+                WHERE lich_chay_dinh_ky_id = %s AND (gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = %s
+                LIMIT 1
+                """,
+                (lich_chay_dinh_ky_id, ngay),
+            )
+            return cur.fetchone() is not None
+    finally:
+        release_connection(conn)
+
+
+def tao_chuyen_tu_lich_dinh_ky(tuyen_id: str, chieu: str, loai_xe_id: str, lich_chay_dinh_ky_id: str, gio_khoi_hanh) -> str:
+    """xe_id để trống — điều độ viên gán sau qua UC-44 (mục 3.5 NGHIEP_VU.md)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO chuyen_xe (tuyen_id, chieu, loai_xe_id, lich_chay_dinh_ky_id, gio_khoi_hanh)
+                VALUES (%s, %s, %s, %s, %s) RETURNING id
+                """,
+                (tuyen_id, chieu, loai_xe_id, lich_chay_dinh_ky_id, gio_khoi_hanh),
+            )
+            chuyen_id = cur.fetchone()[0]
+        conn.commit()
+        return chuyen_id
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
+# ---------------------------------------------------------
+# Xem/sửa/xóa chuyến từ góc nhìn quản lý (UC-18) — lọc theo tuyến/chiều/ngày/
+# trạng thái/đã-gán-xe cho trang "Chuyến". Chỉ sửa giờ/xóa chuyến CHƯA gán xe;
+# gán xe, đổi xe, xử lý sự cố thuộc điều độ viên, không cài đặt ở đây.
+# ---------------------------------------------------------
+_SELECT_CHUYEN_QL = """
+    SELECT c.id, c.ma, c.tuyen_id, t.ma AS ma_tuyen, t.ten AS ten_tuyen, c.chieu, c.gio_khoi_hanh,
+           c.loai_xe_id, lx.ma AS ma_loai_xe, lx.ten AS ten_loai_xe, c.trang_thai,
+           c.xe_id, x.bien_so AS bien_so_xe, c.lich_chay_dinh_ky_id,
+           (SELECT count(*) FROM ve v WHERE v.chuyen_id = c.id AND v.trang_thai IN ('giu_cho', 'da_thanh_toan')) AS so_ve_dang_hoat_dong
+    FROM chuyen_xe c
+    JOIN tuyen t ON t.id = c.tuyen_id
+    JOIN loai_xe lx ON lx.id = c.loai_xe_id
+    LEFT JOIN xe x ON x.id = c.xe_id
+"""
+
+
+def danh_sach_chuyen(
+    tuyen_id: str | None = None,
+    chieu: str | None = None,
+    tu_thoi_diem=None,
+    den_thoi_diem=None,
+    trang_thai: str | None = None,
+    da_gan_xe: bool | None = None,
+    lich_chay_id: str | None = None,
+) -> list[dict]:
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            dieu_kien = []
+            tham_so: list = []
+            if tuyen_id:
+                dieu_kien.append("c.tuyen_id = %s")
+                tham_so.append(tuyen_id)
+            if chieu:
+                dieu_kien.append("c.chieu = %s")
+                tham_so.append(chieu)
+            if tu_thoi_diem:
+                dieu_kien.append("c.gio_khoi_hanh >= %s")
+                tham_so.append(tu_thoi_diem)
+            if den_thoi_diem:
+                dieu_kien.append("c.gio_khoi_hanh < %s")
+                tham_so.append(den_thoi_diem)
+            if trang_thai:
+                dieu_kien.append("c.trang_thai = %s")
+                tham_so.append(trang_thai)
+            if lich_chay_id:
+                dieu_kien.append("c.lich_chay_dinh_ky_id = %s")
+                tham_so.append(lich_chay_id)
+            if da_gan_xe is True:
+                dieu_kien.append("c.xe_id IS NOT NULL")
+            elif da_gan_xe is False:
+                dieu_kien.append("c.xe_id IS NULL")
+
+            where_sql = (" WHERE " + " AND ".join(dieu_kien)) if dieu_kien else ""
+            cur.execute(_SELECT_CHUYEN_QL + where_sql + " ORDER BY c.gio_khoi_hanh", tham_so)
+            return _thanh_list(cur, cur.fetchall())
+    finally:
+        release_connection(conn)
+
+
+def tim_chuyen_theo_id_ql(chuyen_id: str) -> dict | None:
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(_SELECT_CHUYEN_QL + " WHERE c.id = %s", (chuyen_id,))
+            return _thanh_dict(cur, cur.fetchone())
+    finally:
+        release_connection(conn)
+
+
+def tim_trung_loai_xe_va_gio(loai_xe_id: str, gio_khoi_hanh, tru_id: str) -> bool:
+    """True nếu đã có chuyến KHÁC (id != tru_id) cùng loại xe, cùng ngày và
+    cùng giờ xuất phát (tính theo giờ VN) — dùng chặn sửa giờ chuyến (UC-18)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT 1 FROM chuyen_xe
+                WHERE loai_xe_id = %s AND id != %s
+                  AND (gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = (%s::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
+                  AND (gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh')::time = (%s::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::time
+                LIMIT 1
+                """,
+                (loai_xe_id, tru_id, gio_khoi_hanh, gio_khoi_hanh),
+            )
+            return cur.fetchone() is not None
+    finally:
+        release_connection(conn)
+
+
+def sua_gio_chuyen(chuyen_id: str, gio_khoi_hanh) -> None:
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE chuyen_xe SET gio_khoi_hanh = %s WHERE id = %s", (gio_khoi_hanh, chuyen_id))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
+def xoa_chuyen(chuyen_id: str) -> None:
+    """Có thể ném ForeignKeyViolation nếu chuyến còn dữ liệu tham chiếu (VD vé
+    đã hủy/hết hạn nhưng vẫn còn dòng) — service.py bắt lỗi này."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM chuyen_xe WHERE id = %s", (chuyen_id,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         release_connection(conn)

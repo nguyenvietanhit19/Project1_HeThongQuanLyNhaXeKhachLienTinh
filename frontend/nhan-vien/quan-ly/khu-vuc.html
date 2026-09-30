@@ -114,6 +114,7 @@
         renderDataTable(
           bangKhuVuc,
           [
+            { key: "ma", label: "Mã", render: (r) => htmlMa(r.ma) },
             { key: "ten", label: "Tên khu vực" },
             { key: "tinh_thanh", label: "Tỉnh/thành", render: (r) => `<span class="nv-text-phu">${r.tinh_thanh}</span>` },
           ],

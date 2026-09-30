@@ -153,6 +153,7 @@
         renderDataTable(
           bangDiem,
           [
+            { key: "ma", label: "Mã", render: (r) => htmlMa(r.ma) },
             { key: "ten", label: "Tên điểm" },
             { key: "khu_vuc_id", label: "Khu vực", render: (r) => `<span class="pill pill--khu-vuc">${khuVucTheoId(r.khu_vuc_id)?.ten || "—"}</span>` },
             { key: "tinh_thanh", label: "Tỉnh/thành", render: (r) => `<span class="nv-text-phu">${khuVucTheoId(r.khu_vuc_id)?.tinh_thanh || "—"}</span>` },
@@ -203,6 +204,7 @@
       form.reset();
       document.getElementById("diem_id").value = "";
       comboKhuVuc.xoa();
+      document.getElementById("khu_vuc_search").disabled = false;
       moModal();
     }
 
@@ -210,6 +212,8 @@
       document.getElementById("modal-tieu-de").textContent = "Sửa điểm đón/trả";
       document.getElementById("diem_id").value = diem.id;
       comboKhuVuc.chon(diem.khu_vuc_id);
+      // Mã điểm (KV001-DT...) gắn với khu vực lúc tạo nên không cho đổi khu vực khi sửa.
+      document.getElementById("khu_vuc_search").disabled = true;
       document.getElementById("ten").value = diem.ten;
       document.getElementById("dia_chi").value = diem.dia_chi;
       document.getElementById("loai").value = diem.loai;

@@ -106,7 +106,10 @@ body.nhan-vien-shell {
   color: rgba(255, 255, 255, 0.75);
   text-decoration: none;
   font-size: 14px;
-  font-weight: 600;
+  /* 400/700 thay vì 600 — weight 600 (Semibold) đôi khi hiển thị đậm nhạt
+     không đều giữa các cụm chữ trên Windows, 400/700 luôn có font thật,
+     tránh browser tự "giả đậm". Mục đang chọn tách biệt bằng weight 700. */
+  font-weight: 400;
   transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 
@@ -126,6 +129,7 @@ body.nhan-vien-shell {
 .nv-sidebar__link.active {
   background: var(--color-primary);
   color: var(--color-text-primary);
+  font-weight: 700;
   box-shadow: var(--shadow-float);
 }
 
@@ -469,6 +473,22 @@ body.nhan-vien-shell {
   background: rgba(91, 62, 150, 0.14);
 }
 
+.nv-btn-phu {
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid rgba(245, 166, 35, 0.55);
+  background: rgba(245, 166, 35, 0.12);
+  color: #9A5B00;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.nv-btn-phu:hover {
+  border-color: var(--color-primary);
+  background: rgba(245, 166, 35, 0.24);
+}
 .nv-hang-hanh-dong {
   display: flex;
   gap: 8px;
@@ -2053,6 +2073,592 @@ body.nhan-vien-shell {
   }
 }
 
+/* ===== Trang Xe / Lịch chạy — pill trạng thái + modal biên chế ===== */
+
+.pill--xam {
+  background: rgba(0, 0, 0, 0.07);
+  color: var(--color-text-muted);
+}
+
+.pill--do {
+  background: rgba(220, 38, 38, 0.1);
+  color: #B91C1C;
+}
+
+.pill--nho {
+  padding: 3px 10px;
+  font-size: 12px;
+}
+
+.xe-bc-nhom {
+  margin-bottom: 14px;
+}
+
+.xe-bc-nhom__tieu-de {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.xe-bc-nhom__dem {
+  margin-left: auto;
+}
+
+.xe-bc-dong {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  border: 1.5px solid #ECECF0;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.xe-bc-dong__ten {
+  font-weight: 600;
+}
+
+.xe-bc-dong__sdt {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.xe-bc-dong__go {
+  margin-left: auto;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--color-danger);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.xe-bc-dong__go:hover {
+  background: rgba(220, 38, 38, 0.22);
+}
+
+.xe-bc-trong {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  padding: 8px 12px;
+  border: 1.5px dashed #DCDCE3;
+  border-radius: 10px;
+}
+
+.xe-bc-them {
+  display: flex;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1.5px dashed #DCDCE3;
+}
+
+.xe-bc-them select {
+  flex: 1;
+  margin: 0;
+}
+
+.xe-bc-them .btn-primary {
+  width: auto;
+  padding: 0 22px;
+}
+
+/* ===== Modal "Sinh chuyến" theo khoảng ngày (trang Lịch chạy) ===== */
+
+.nv-sc-ket-qua {
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+  background: rgba(34, 197, 94, 0.1);
+  color: #15803D;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ===== Trang Lịch chạy — danh sách tuyến trái, timetable 2 chiều phải ===== */
+
+.lc-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.lc-khung {
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: 14px;
+}
+
+.lc-ds {
+  position: sticky;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: calc(100vh - 210px);
+}
+
+.lc-tim {
+  height: 34px;
+  padding: 0 12px;
+  font-size: 13px;
+  margin: 0;
+}
+
+.lc-ds__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 2px;
+}
+
+.lc-tuyen {
+  --mau: var(--color-secondary);
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1.5px solid #ECECF0;
+  background: var(--color-bg-surface);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.lc-tuyen:hover {
+  border-color: var(--mau);
+}
+
+.lc-tuyen.is-active {
+  border-color: var(--mau);
+  background: color-mix(in srgb, var(--mau) 9%, white);
+}
+
+.lc-tuyen--trong {
+  --mau: #DC2626;
+}
+
+.lc-tuyen__cham {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--mau);
+}
+
+.lc-tuyen__ten {
+  font-size: 13px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lc-tuyen__dem {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--mau);
+}
+
+.lc-trong {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: 18px 8px;
+}
+
+.lc-trong--lon {
+  padding: 60px 8px;
+}
+
+.lc-ct__dau {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.lc-ct__dau h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.lc-ct__them {
+  margin-left: auto;
+  height: 36px;
+  padding: 0 18px;
+  font-size: 13px;
+  width: auto;
+}
+
+.lc-chieu {
+  margin-bottom: 20px;
+}
+
+.lc-chieu:last-child {
+  margin-bottom: 0;
+}
+
+.lc-chieu__tieu-de {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1.5px solid #ECECF0;
+}
+
+.lc-gio-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lc-gio-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+  border: 1.5px solid #ECECF0;
+  flex-wrap: wrap;
+  transition: border-color 0.15s ease;
+}
+
+.lc-gio-card:hover {
+  border-color: #D8D2E8;
+}
+
+.lc-gio-card--tat {
+  opacity: 0.6;
+}
+
+.lc-gio-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lc-gio-card__gio {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 170px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.lc-gio-card__gio-so {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-secondary-dark);
+}
+
+.lc-gio-card__gio-so em {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-danger);
+  vertical-align: super;
+  margin-left: 1px;
+}
+
+.lc-gio-card__mui-ten {
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.lc-gio-card__chevron {
+  width: 16px;
+  height: 16px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.lc-gio-item.is-mo .lc-gio-card__chevron {
+  transform: rotate(180deg);
+}
+
+.lc-lo-trinh {
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(91, 62, 150, 0.05);
+  border: 1.5px solid #ECECF0;
+}
+
+.lc-lo-trinh__hang {
+  display: grid;
+  grid-template-columns: 26px 64px minmax(140px, 1.6fr) minmax(90px, 1fr) 100px;
+  align-items: center;
+  column-gap: 10px;
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.lc-lo-trinh__hang:not(:last-child) {
+  border-bottom: 1px dashed #E5E5E8;
+}
+
+.lc-lo-trinh__hang--dau {
+  padding-top: 0;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  border-bottom: 1.5px solid #E5E5E8 !important;
+}
+
+.lc-lo-trinh__gio {
+  font-weight: 700;
+  color: var(--color-secondary-dark);
+}
+
+.lc-lo-trinh__gio em {
+  font-style: normal;
+  font-size: 10px;
+  color: var(--color-danger);
+  vertical-align: super;
+}
+
+.lc-lo-trinh__ten {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lc-gio-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 180px;
+}
+
+.lc-gio-card__actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.lc-gio-card__actions button {
+  padding: 5px 12px;
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .lc-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .lc-ds {
+    position: static;
+    max-height: 320px;
+  }
+
+  .lc-gio-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .lc-gio-card__actions {
+    width: 100%;
+  }
+}
+
+/* ===== Trang Chuyến — bộ lọc + danh sách nhóm theo ngày + modal chi tiết ===== */
+
+.cy-loc {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.cy-loc__truong {
+  min-width: 150px;
+  flex: 1;
+}
+
+.cy-loc__truong .nv-label {
+  margin: 0 0 6px;
+}
+
+.cy-loc__truong .input-field {
+  margin: 0;
+}
+
+.cy-loc__xoa {
+  width: auto;
+  padding: 0 18px;
+  height: 42px;
+  flex-shrink: 0;
+}
+
+.cy-nhom-ngay {
+  margin-bottom: 18px;
+}
+
+.cy-nhom-ngay:last-child {
+  margin-bottom: 0;
+}
+
+.cy-nhom-ngay__tieu-de {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-secondary-dark);
+  margin-bottom: 10px;
+  padding: 4px 0 6px 12px;
+  border-left: 4px solid var(--color-primary);
+  border-bottom: 1.5px solid #ECECF0;
+}
+
+.cy-nhom-ngay__ds {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cy-dong {
+  --mau: var(--color-secondary);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--mau) 5%, white);
+  border: 1.5px solid #ECECF0;
+  border-left: 4px solid var(--mau);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cy-dong:hover {
+  border-color: var(--mau);
+  border-left-color: var(--mau);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-soft);
+}
+
+.cy-dong__gio {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--mau);
+  background: color-mix(in srgb, var(--mau) 14%, white);
+  border-radius: var(--radius-pill);
+  padding: 4px 10px;
+  min-width: 48px;
+  text-align: center;
+}
+
+.cy-dong__tuyen {
+  font-weight: 600;
+  min-width: 140px;
+}
+
+.ct-dong {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px dashed #E5E5E8;
+  font-size: 14px;
+}
+
+.cy-ct__nut {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.cy-ct__luu {
+  width: auto;
+  padding: 0 20px;
+  height: 36px;
+}
+
+#ct-form-sua {
+  margin-top: 4px;
+}
+
+.cy-ct-dau {
+  --mau: var(--color-secondary);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--mau) 12%, white), color-mix(in srgb, var(--mau) 4%, white));
+  border-left: 5px solid var(--mau);
+}
+
+.cy-ct-dau__gio {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--mau);
+}
+
+.cy-ct-dau__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-right: auto;
+}
+
+.cy-ct-dau__info strong {
+  font-size: 15px;
+}
+
+.cy-ct__tieu-de {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-secondary-dark);
+  margin: 16px 0 8px;
+  padding-top: 12px;
+  border-top: 1.5px dashed #E5E5E8;
+}
+
+@media (max-width: 900px) {
+  .cy-loc__truong {
+    min-width: 45%;
+  }
+
+  .cy-dong {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
 /* ===== Responsive: sidebar thành thanh ngang cuộn được trên màn hẹp ===== */
 
 @media (max-width: 880px) {
@@ -2121,4 +2727,139 @@ body.nhan-vien-shell {
   .nv-chon-tuyen-card select {
     max-width: none;
   }
+}
+
+/* ===== Mã tự sinh (KV001, T001, LX001...) — font đều nét để dễ đọc/đọc qua điện thoại ===== */
+.ma-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--color-surface-alt, rgba(0, 0, 0, 0.05));
+  color: var(--color-text-muted);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* Nút Sửa của lịch chạy đã sinh chuyến — làm mờ nhưng vẫn bấm được để hiện lý do */
+.nv-btn-sua.is-khoa {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ===== Lịch các ngày đã sinh chuyến của 1 lịch chạy (modal trang Lịch chạy) ===== */
+.lc-link-chuyen {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-secondary);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.lc-link-chuyen:hover {
+  color: var(--color-secondary-dark);
+  text-decoration-style: solid;
+}
+
+.lcl-dau {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 8px 0 12px;
+}
+
+.lcl-luoi {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.lcl-thu {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  padding-bottom: 2px;
+}
+
+.lcl-ngay {
+  --mau: var(--color-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-height: 54px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1.5px solid #ECECF0;
+  font-family: inherit;
+  background: transparent;
+}
+
+.lcl-ngay--trong {
+  border-color: transparent;
+}
+
+.lcl-ngay__so {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.lcl-ngay--co {
+  background: color-mix(in srgb, var(--mau) 8%, white);
+  border-color: color-mix(in srgb, var(--mau) 45%, white);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.lcl-ngay--co:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-soft);
+  border-color: var(--mau);
+}
+
+.lcl-ngay--co .lcl-ngay__so {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.lcl-ngay__gio {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--mau);
+}
+
+/* Ngày hôm nay: khoanh tròn số ngày. Chuyến của các ngày đã qua: đổi sang màu vàng nhạt, không theo màu trạng thái. */
+.lcl-ngay--hom-nay .lcl-ngay__so {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  margin: -3px 0 0 -4px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--color-text-primary);
+  font-weight: 700;
+}
+
+.lcl-ngay--qua {
+  --mau: #B45309;
+  background: #FEF3C7;
+  border-color: #FCD34D;
+}
+
+.lcl-ngay--qua .lcl-ngay__so {
+  color: #92400E;
+  font-weight: 600;
+}
+
+.lcl-ngay--qua.lcl-ngay--hom-nay .lcl-ngay__so {
+  color: var(--color-text-primary);
 }

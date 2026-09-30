@@ -410,6 +410,7 @@
         renderDataTable(
           bangTuyen,
           [
+            { key: "ma", label: "Mã", render: (r) => htmlMa(r.ma) },
             { key: "ten", label: "Tên tuyến" },
             {
               key: "lo_trinh",

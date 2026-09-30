@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Lịch chạy — Quản lý</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+</head>
+<body class="nhan-vien-shell">
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
+
+    <div class="nv-main">
+      <header class="nv-topbar">
+        <h1>Lịch chạy</h1>
+        <div class="nv-topbar__user">
+          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
+          <div class="nv-topbar__identity">
+            <span class="ho-ten" id="topbar-ho-ten"></span>
+            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
+          </div>
+          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
+        </div>
+      </header>
+
+      <main class="nv-content">
+        <div class="nv-page-intro">
+          <div class="nv-page-intro__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/>
+            </svg>
+          </div>
+          <div class="nv-page-intro__body">
+            <p class="nv-page-intro__title">Lịch chạy định kỳ</p>
+            <p class="nv-page-intro__desc">Chọn 1 tuyến để xem giờ chạy 2 chiều. Bấm "Sinh chuyến" trên từng giờ để tạo sẵn chuyến (chưa gán xe cụ thể) cho 1 khoảng ngày — bấm lại cho khoảng ngày chồng lấn vẫn an toàn.</p>
+          </div>
+          <div class="nv-page-intro__stat">
+            <span class="nv-page-intro__stat-num" id="stat-so-luong">—</span>
+            <span class="nv-page-intro__stat-label">lịch chạy</span>
+          </div>
+        </div>
+
+        <div class="lc-layout">
+          <aside class="lc-khung lc-ds">
+            <input class="input-field lc-tim" type="search" id="lc-tim" placeholder="Tìm tuyến hoặc mã tuyến..." />
+            <div class="lc-ds__list" id="lc-ds-tuyen">Đang tải...</div>
+          </aside>
+
+          <section class="lc-khung lc-chi-tiet" id="lc-chi-tiet"></section>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="nv-modal-overlay" id="modal-overlay" hidden>
+    <div class="nv-modal" style="max-width:520px;">
+      <form id="form-lich">
+        <div class="nv-modal__header">
+          <div class="nv-modal__header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/>
+            </svg>
+          </div>
+          <h2 id="modal-tieu-de">Thêm lịch chạy</h2>
+        </div>
+        <div class="nv-modal__body">
+          <input type="hidden" id="lich_id" />
+
+          <label class="nv-label" for="tuyen_id">Tuyến</label>
+          <select class="input-field" id="tuyen_id" required></select>
+
+          <label class="nv-label" for="chieu">Chiều chạy</label>
+          <select class="input-field" id="chieu" required></select>
+
+          <div class="nv-form-row">
+            <div>
+              <label class="nv-label" for="gio_khoi_hanh">Giờ khởi hành</label>
+              <input class="input-field" type="time" id="gio_khoi_hanh" required />
+            </div>
+            <div>
+              <label class="nv-label" for="loai_xe_id">Loại xe dự kiến</label>
+              <select class="input-field" id="loai_xe_id" required></select>
+            </div>
+          </div>
+
+          <div id="loi-form" class="text-error" hidden></div>
+          <div class="nv-modal__actions">
+            <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
+            <button type="submit" class="btn-primary">Lưu</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="nv-modal-overlay" id="modal-lich-ngay" hidden>
+    <div class="nv-modal" style="max-width:560px;">
+      <div class="nv-modal__header">
+        <div class="nv-modal__header-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3.5" y="4.5" width="17" height="16" rx="2.5"/><path d="M3.5 9h17M8 3v3M16 3v3"/>
+          </svg>
+        </div>
+        <h2>Chuyến đã sinh</h2>
+      </div>
+      <div class="nv-modal__body">
+        <p id="lcl-mo-ta" class="nv-hint"></p>
+        <div class="lcl-dau">
+          <button type="button" class="nv-btn-secondary" id="lcl-truoc" aria-label="Tháng trước">‹</button>
+          <strong id="lcl-thang"></strong>
+          <button type="button" class="nv-btn-secondary" id="lcl-sau" aria-label="Tháng sau">›</button>
+        </div>
+        <div id="lcl-luoi">Đang tải...</div>
+        <div class="nv-modal__actions">
+          <button type="button" class="nv-btn-secondary" id="lcl-btn-dong">Đóng</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="nv-modal-overlay" id="modal-sinh-chuyen" hidden>
+    <div class="nv-modal" style="max-width:480px;">
+      <div class="nv-modal__header">
+        <div class="nv-modal__header-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3.5" y="4.5" width="17" height="16" rx="2.5"/><path d="M3.5 9h17M8 3v3M16 3v3"/>
+          </svg>
+        </div>
+        <h2>Sinh chuyến</h2>
+      </div>
+      <div class="nv-modal__body">
+        <p id="sc-mo-ta" class="nv-hint"></p>
+
+        <div class="nv-form-row">
+          <div>
+            <label class="nv-label" for="sc_tu_ngay">Từ ngày</label>
+            <input class="input-field" type="date" id="sc_tu_ngay" required />
+          </div>
+          <div>
+            <label class="nv-label" for="sc_den_ngay">Đến ngày</label>
+            <input class="input-field" type="date" id="sc_den_ngay" required />
+          </div>
+        </div>
+
+        <div id="sc-loi" class="text-error" hidden></div>
+        <div id="sc-ket-qua" class="nv-sc-ket-qua" hidden></div>
+
+        <div class="nv-modal__actions">
+          <button type="button" class="nv-btn-secondary" id="sc-btn-dong">Đóng</button>
+          <button type="button" class="btn-primary" id="sc-btn-sinh">Sinh chuyến</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/nhan-vien/quan-ly/api-client.js"></script>
+  <script src="/nhan-vien/quan-ly/auth-check.js"></script>
+  <script src="/nhan-vien/quan-ly/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/chuyen-chi-tiet.js"></script>
+  <script src="/nhan-vien/quan-ly/data-table.js"></script>
+  <script>
+    const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
+    if (nguoiDung) {
+      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-ly/lich-chay.html");
+      renderTopbarUser();
+    }
+    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+    let dsLich = [];
+    let dsTuyen = [];
+    let dsLoaiXe = [];
+    let huongTheoTuyen = new Map(); // tuyen_id -> { dau, cuoi } tên khu vực đầu/cuối theo chiều xuôi
+    let diemTheoTuyen = new Map(); // tuyen_id -> danh sách điểm (sắp theo thu_tu tăng dần), dùng tính giờ đến từng điểm
+    let tuyenDangChon = null;
+    let tuKhoa = "";
+
+    const lcDsTuyen = document.getElementById("lc-ds-tuyen");
+    const lcChiTiet = document.getElementById("lc-chi-tiet");
+    const selectTuyen = document.getElementById("tuyen_id");
+    const selectChieu = document.getElementById("chieu");
+
+    // "Xuôi" = đúng thứ tự danh sách điểm lúc tạo tuyến; "ngược" = đọc ngược lại
+    function nhanChieu(tuyenId, chieu) {
+      const h = huongTheoTuyen.get(tuyenId);
+      if (!h) return chieu === "xuoi" ? "Xuôi" : "Ngược";
+      return chieu === "xuoi" ? `Xuôi: ${h.dau} → ${h.cuoi}` : `Ngược: ${h.cuoi} → ${h.dau}`;
+    }
+
+    function capNhatNhanChieu() {
+      const giaTriCu = selectChieu.value;
+      selectChieu.innerHTML = ["xuoi", "nguoc"].map((c) => `<option value="${c}">${esc(nhanChieu(selectTuyen.value, c))}</option>`).join("");
+      if (giaTriCu) selectChieu.value = giaTriCu;
+    }
+    selectTuyen.addEventListener("change", capNhatNhanChieu);
+
+    const pad2 = (n) => String(n).padStart(2, "0");
+    const gioNgan = (t) => String(t).slice(0, 5); // "06:30:00" -> "06:30"
+    const lichTheoTuyen = (tuyenId) => dsLich.filter((l) => l.tuyen_id === tuyenId);
+
+    // ---------- Tính giờ đến từng điểm dựa trên lộ trình lúc tạo tuyến ----------
+    // gio_khoi_hanh (HH:MM[:SS]) + phut -> { gio: "HH:MM", qua_ngay: 0/1/2... } — có thể vượt qua nửa đêm
+    function congGio(gioKhoiHanh, phut) {
+      const [h, m] = gioKhoiHanh.split(":").map(Number);
+      const tongPhut = h * 60 + m + phut;
+      const phutTrongNgay = ((tongPhut % 1440) + 1440) % 1440;
+      return {
+        gio: `${String(Math.floor(phutTrongNgay / 60)).padStart(2, "0")}:${String(phutTrongNgay % 60).padStart(2, "0")}`,
+        qua_ngay: Math.floor(tongPhut / 1440),
+      };
+    }
+
+    function tongThoiGianTuyen(tuyenId) {
+      const diem = diemTheoTuyen.get(tuyenId);
+      return diem && diem.length ? diem[diem.length - 1].thoi_gian_du_kien_phut : null;
+    }
+
+    // Danh sách điểm + số phút cộng dồn TÍNH ĐÚNG THEO CHIỀU của chuyến — chiều
+    // ngược đọc ngược danh sách, thời gian giữa 2 điểm liền kề giữ nguyên độ lớn
+    // như chiều xuôi (NGHIEP_VU.md mục 3.1/2.4: thời gian di chuyển đối xứng 2 chiều).
+    function loTrinhTheoChieu(tuyenId, chieu) {
+      const diem = diemTheoTuyen.get(tuyenId);
+      if (!diem || !diem.length) return [];
+      const tongPhut = diem[diem.length - 1].thoi_gian_du_kien_phut;
+      const ds = chieu === "xuoi" ? diem : [...diem].reverse();
+      return ds.map((d) => ({
+        ten: d.ten,
+        ten_khu_vuc: d.ten_khu_vuc,
+        loai: d.loai,
+        phut: chieu === "xuoi" ? d.thoi_gian_du_kien_phut : tongPhut - d.thoi_gian_du_kien_phut,
+      }));
+    }
+
+    // ---------- Danh sách tuyến bên trái ----------
+    function tuyenDaLoc() {
+      const tk = tuKhoa.trim().toLowerCase();
+      return dsTuyen
+        .filter((t) => !tk || t.ten.toLowerCase().includes(tk) || t.ma.toLowerCase().includes(tk))
+        .sort((a, b) => {
+          const trongA = lichTheoTuyen(a.id).length === 0;
+          const trongB = lichTheoTuyen(b.id).length === 0;
+          if (trongA !== trongB) return trongA ? -1 : 1; // tuyến chưa có lịch nào lên đầu
+          return a.ten.localeCompare(b.ten, "vi");
+        });
+    }
+
+    function renderDanhSachTuyen() {
+      const ds = tuyenDaLoc();
+      if (!ds.length) {
+        lcDsTuyen.innerHTML = `<div class="lc-trong">${dsTuyen.length ? "Không có tuyến nào khớp." : "Chưa có tuyến — tạo ở mục Tuyến trước."}</div>`;
+        return;
+      }
+
+      lcDsTuyen.innerHTML = ds
+        .map((t) => {
+          const soLich = lichTheoTuyen(t.id).length;
+          return `
+            <button type="button" class="lc-tuyen ${soLich === 0 ? "lc-tuyen--trong" : ""}${t.id === tuyenDangChon ? " is-active" : ""}" data-id="${t.id}">
+              <span class="lc-tuyen__cham"></span>
+              <span class="lc-tuyen__ten">${htmlMa(esc(t.ma))} ${esc(t.ten)}</span>
+              <span class="lc-tuyen__dem">${soLich || "—"}</span>
+            </button>`;
+        })
+        .join("");
+
+      lcDsTuyen.querySelectorAll("[data-id]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          tuyenDangChon = btn.dataset.id;
+          renderDanhSachTuyen();
+          renderChiTiet();
+        });
+      });
+    }
+
+    document.getElementById("lc-tim").addEventListener("input", (e) => {
+      tuKhoa = e.target.value;
+      renderDanhSachTuyen();
+    });
+
+    // ---------- Chi tiết tuyến đang chọn — timetable 2 chiều ----------
+    function gioCard(lich) {
+      const tongPhut = tongThoiGianTuyen(lich.tuyen_id);
+      const denNoi = tongPhut != null ? congGio(lich.gio_khoi_hanh, tongPhut) : null;
+      return `
+        <div class="lc-gio-item">
+          <div class="lc-gio-card ${lich.dang_ap_dung ? "" : "lc-gio-card--tat"}">
+            <button type="button" class="lc-gio-card__gio" data-toggle-lo-trinh="${lich.id}" title="Bấm để xem lộ trình">
+              <span class="lc-gio-card__gio-so">${gioNgan(lich.gio_khoi_hanh)}</span>
+              ${
+                denNoi
+                  ? `<span class="lc-gio-card__mui-ten">→</span><span class="lc-gio-card__gio-so">${denNoi.gio}${denNoi.qua_ngay ? `<em>+${denNoi.qua_ngay}</em>` : ""}</span>`
+                  : ""
+              }
+              <svg class="lc-gio-card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div class="lc-gio-card__meta">
+              <span class="pill pill--nho pill--khu-vuc">${esc(lich.ma_loai_xe)} · ${esc(lich.ten_loai_xe)}</span>
+              <span class="pill pill--nho ${lich.dang_ap_dung ? "pill--gia-vinh-vien" : "pill--xam"}">${lich.dang_ap_dung ? "Đang áp dụng" : "Đã ngừng"}</span>
+              ${
+                lich.so_chuyen_da_sinh > 0
+                  ? `<button type="button" class="lc-link-chuyen" data-act="ngay-da-sinh" data-id="${lich.id}">${lich.so_chuyen_da_sinh} chuyến đã sinh</button>`
+                  : '<span class="nv-text-phu">0 chuyến đã sinh</span>'
+              }
+            </div>
+            <div class="lc-gio-card__actions">
+              <button type="button" class="nv-btn-phu" data-act="sinh" data-id="${lich.id}">Sinh chuyến</button>
+              <button type="button" class="nv-btn-phu" data-act="ap-dung" data-id="${lich.id}">${lich.dang_ap_dung ? "Ngừng" : "Bật lại"}</button>
+              <button type="button" class="nv-btn-sua${lich.so_chuyen_da_sinh > 0 ? " is-khoa" : ""}" data-act="sua" data-id="${lich.id}" title="${lich.so_chuyen_da_sinh > 0 ? "Lịch đã sinh chuyến nên không sửa được" : ""}">Sửa</button>
+              <button type="button" class="nv-btn-xoa" data-act="xoa" data-id="${lich.id}">Xóa</button>
+            </div>
+          </div>
+          <div class="lc-lo-trinh" id="lo-trinh-${lich.id}" hidden></div>
+        </div>`;
+    }
+
+    function renderLoTrinh(lich) {
+      const diem = loTrinhTheoChieu(lich.tuyen_id, lich.chieu);
+      if (!diem.length) return '<div class="lc-trong">Không tìm thấy lộ trình của tuyến này.</div>';
+
+      const hang = diem
+        .map((d, idx) => {
+          const { gio, qua_ngay } = congGio(lich.gio_khoi_hanh, d.phut);
+          return `
+            <div class="lc-lo-trinh__hang">
+              <span class="nv-chi-tiet-tuyen__thu-tu">${idx + 1}</span>
+              <span class="lc-lo-trinh__gio">${gio}${qua_ngay ? `<em>+${qua_ngay}</em>` : ""}</span>
+              <span class="lc-lo-trinh__ten">${esc(d.ten)}</span>
+              <span><span class="pill pill--nho pill--khu-vuc">${esc(d.ten_khu_vuc)}</span></span>
+              <span>${d.loai === "van_phong" ? '<span class="pill pill--primary">Văn phòng</span>' : '<span class="pill pill--diem-dung">Điểm dừng</span>'}</span>
+            </div>`;
+        })
+        .join("");
+
+      return `
+        <div class="lc-lo-trinh__hang lc-lo-trinh__hang--dau">
+          <span>#</span><span>Giờ</span><span>Điểm dừng</span><span>Khu vực</span><span>Loại</span>
+        </div>
+        ${hang}`;
+    }
+
+    function toggleLoTrinh(lichId) {
+      const box = document.getElementById(`lo-trinh-${lichId}`);
+      const item = box.closest(".lc-gio-item");
+      if (!box.hidden) {
+        box.hidden = true;
+        item.classList.remove("is-mo");
+        return;
+      }
+      const lich = dsLich.find((l) => l.id === lichId);
+      box.innerHTML = renderLoTrinh(lich);
+      box.hidden = false;
+      item.classList.add("is-mo");
+    }
+
+    function khoiChieu(nhan, ds) {
+      return `
+        <div class="lc-chieu">
+          <div class="lc-chieu__tieu-de">${esc(nhan)} <span class="nv-text-phu">${ds.length ? `${ds.length} lịch` : ""}</span></div>
+          ${ds.length ? `<div class="lc-gio-list">${ds.map(gioCard).join("")}</div>` : '<div class="lc-trong">Chưa có lịch chạy chiều này.</div>'}
+        </div>`;
+    }
+
+    function renderChiTiet() {
+      const tuyen = dsTuyen.find((t) => t.id === tuyenDangChon);
+      if (!tuyen) {
+        lcChiTiet.innerHTML = `<div class="lc-trong lc-trong--lon">${dsTuyen.length ? "Chọn 1 tuyến ở danh sách bên trái." : "Chưa có tuyến nào."}</div>`;
+        return;
+      }
+
+      const lichCuaTuyen = lichTheoTuyen(tuyen.id);
+      const xuoi = lichCuaTuyen.filter((l) => l.chieu === "xuoi").sort((a, b) => a.gio_khoi_hanh.localeCompare(b.gio_khoi_hanh));
+      const nguoc = lichCuaTuyen.filter((l) => l.chieu === "nguoc").sort((a, b) => a.gio_khoi_hanh.localeCompare(b.gio_khoi_hanh));
+
+      lcChiTiet.innerHTML = `
+        <div class="lc-ct__dau">
+          <h2>${htmlMa(esc(tuyen.ma))} ${esc(tuyen.ten)}</h2>
+          <button class="btn-primary nv-btn-them lc-ct__them" id="lc-btn-them" type="button">+ Thêm lịch chạy</button>
+        </div>
+        ${khoiChieu(nhanChieu(tuyen.id, "xuoi"), xuoi)}
+        ${khoiChieu(nhanChieu(tuyen.id, "nguoc"), nguoc)}
+      `;
+
+      document.getElementById("lc-btn-them").addEventListener("click", () => moModalThem(tuyen.id));
+
+      lcChiTiet.querySelectorAll("[data-toggle-lo-trinh]").forEach((btn) => {
+        btn.addEventListener("click", () => toggleLoTrinh(btn.dataset.toggleLoTrinh));
+      });
+
+      lcChiTiet.querySelectorAll("[data-act]").forEach((btn) => {
+        const lich = dsLich.find((l) => l.id === btn.dataset.id);
+        btn.addEventListener("click", () => {
+          if (btn.dataset.act === "sinh") moModalSinhChuyen(lich);
+          else if (btn.dataset.act === "ngay-da-sinh") moModalLichNgay(lich);
+          else if (btn.dataset.act === "ap-dung") doiApDung(lich);
+          else if (btn.dataset.act === "sua") {
+            if (lich.so_chuyen_da_sinh > 0) {
+              alert(`Lịch này đã sinh ${lich.so_chuyen_da_sinh} chuyến nên không sửa được.
+Muốn đổi giờ/chiều/loại xe: bấm "Ngừng" lịch này rồi tạo lịch mới.`);
+              return;
+            }
+            moModalSua(lich);
+          }
+          else if (btn.dataset.act === "xoa") {
+            if (confirm(`Xóa lịch "${lich.ten_tuyen}" lúc ${gioNgan(lich.gio_khoi_hanh)}? Không thể hoàn tác.`)) xoaLich(lich);
+          }
+        });
+      });
+    }
+
+    async function doiApDung(lich) {
+      try {
+        await apiPatch(`/quan-ly/lich-chay/${lich.id}/ap-dung`, { dang_ap_dung: !lich.dang_ap_dung });
+        taiDanhSach();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function xoaLich(lich) {
+      try {
+        await apiDelete(`/quan-ly/lich-chay/${lich.id}`);
+        taiDanhSach();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // ---------- Nạp danh mục + hướng xuôi/ngược của từng tuyến ----------
+    async function naploadDauVao() {
+      [dsTuyen, dsLoaiXe] = await Promise.all([apiGet("/quan-ly/tuyen"), apiGet("/quan-ly/loai-xe")]);
+
+      const chiTiets = await Promise.all(dsTuyen.map((t) => apiGet(`/quan-ly/tuyen/${t.id}`).catch(() => null)));
+      dsTuyen.forEach((t, i) => {
+        const diem = [...(chiTiets[i]?.danh_sach_diem || [])].sort((a, b) => a.thu_tu - b.thu_tu);
+        if (diem.length) {
+          huongTheoTuyen.set(t.id, { dau: diem[0].ten_khu_vuc, cuoi: diem[diem.length - 1].ten_khu_vuc });
+          diemTheoTuyen.set(t.id, diem);
+        }
+      });
+
+      selectTuyen.innerHTML = dsTuyen.length
+        ? dsTuyen.map((t) => `<option value="${t.id}">${esc(t.ma)} · ${esc(t.ten)}</option>`).join("")
+        : '<option value="">Chưa có tuyến — tạo ở mục Tuyến trước</option>';
+      document.getElementById("loai_xe_id").innerHTML = dsLoaiXe.length
+        ? dsLoaiXe.map((l) => `<option value="${l.id}">${esc(l.ma)} · ${esc(l.ten)}</option>`).join("")
+        : '<option value="">Chưa có loại xe — tạo ở mục Loại xe trước</option>';
+      capNhatNhanChieu();
+    }
+
+    async function taiDanhSach() {
+      try {
+        dsLich = await apiGet("/quan-ly/lich-chay");
+        document.getElementById("stat-so-luong").textContent = dsLich.length;
+        if (tuyenDangChon === null) tuyenDangChon = tuyenDaLoc()[0]?.id || null; // chỉ tự chọn ở lần tải đầu
+        renderDanhSachTuyen();
+        renderChiTiet();
+      } catch (err) {
+        lcChiTiet.innerHTML = `<div class="text-error">${esc(err.message)}</div>`;
+      }
+    }
+
+    (async () => {
+      try {
+        await naploadDauVao();
+        await taiDanhSach();
+      } catch (err) {
+        lcChiTiet.innerHTML = `<div class="text-error">${esc(err.message)}</div>`;
+      }
+    })();
+
+    // ---------- Modal thêm/sửa ----------
+    const modalOverlay = document.getElementById("modal-overlay");
+    const form = document.getElementById("form-lich");
+    const loiForm = document.getElementById("loi-form");
+
+    function moModalThem(tuyenId) {
+      if (!dsLoaiXe.length) {
+        alert("Cần có ít nhất 1 loại xe trước khi lập lịch chạy (mục Loại xe).");
+        return;
+      }
+      document.getElementById("modal-tieu-de").textContent = "Thêm lịch chạy";
+      form.reset();
+      document.getElementById("lich_id").value = "";
+      selectTuyen.value = tuyenId;
+      selectTuyen.disabled = true; // đã chọn đúng tuyến từ danh sách bên trái
+      capNhatNhanChieu();
+      loiForm.hidden = true;
+      modalOverlay.hidden = false;
+    }
+
+    function moModalSua(lich) {
+      document.getElementById("modal-tieu-de").textContent = "Sửa lịch chạy";
+      document.getElementById("lich_id").value = lich.id;
+      selectTuyen.value = lich.tuyen_id;
+      selectTuyen.disabled = true; // đổi tuyến = tạo lịch mới
+      capNhatNhanChieu();
+      selectChieu.value = lich.chieu;
+      document.getElementById("gio_khoi_hanh").value = gioNgan(lich.gio_khoi_hanh);
+      document.getElementById("loai_xe_id").value = lich.loai_xe_id;
+      loiForm.hidden = true;
+      modalOverlay.hidden = false;
+    }
+
+    document.getElementById("btn-huy").addEventListener("click", () => { modalOverlay.hidden = true; });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loiForm.hidden = true;
+
+      const id = document.getElementById("lich_id").value;
+      const chung = {
+        chieu: selectChieu.value,
+        gio_khoi_hanh: document.getElementById("gio_khoi_hanh").value,
+        loai_xe_id: document.getElementById("loai_xe_id").value,
+      };
+
+      const btn = form.querySelector("button[type=submit]");
+      btn.classList.add("is-loading");
+      try {
+        if (id) await apiPut(`/quan-ly/lich-chay/${id}`, chung);
+        else await apiPost("/quan-ly/lich-chay", { tuyen_id: selectTuyen.value, ...chung });
+        modalOverlay.hidden = true;
+        taiDanhSach();
+      } catch (err) {
+        loiForm.textContent = err.message;
+        loiForm.hidden = false;
+      } finally {
+        btn.classList.remove("is-loading");
+      }
+    });
+
+    // ---------- Modal lịch các ngày đã sinh chuyến của 1 lịch ----------
+    const modalLichNgay = document.getElementById("modal-lich-ngay");
+    const lclLuoi = document.getElementById("lcl-luoi");
+    const TEN_THU_NGAN = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+    let lichDangXemNgay = null;
+    let chuyenTheoNgay = new Map(); // "yyyy-mm-dd" (giờ địa phương) -> chuyến
+    let thangDangXem = null; // { nam, thang } với thang 0-11
+
+    const khoaNgay = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+    async function moModalLichNgay(lich) {
+      lichDangXemNgay = lich;
+      thangDangXem = null;
+      document.getElementById("lcl-mo-ta").innerHTML = `<strong>${esc(lich.ten_tuyen)}</strong> · ${esc(nhanChieu(lich.tuyen_id, lich.chieu))} · ${gioNgan(lich.gio_khoi_hanh)} · ${esc(lich.ma_loai_xe)}`;
+      lclLuoi.innerHTML = "Đang tải...";
+      modalLichNgay.hidden = false;
+      await taiChuyenCuaLich();
+    }
+
+    async function taiChuyenCuaLich() {
+      try {
+        const ds = await apiGet(`/quan-ly/chuyen?lich_chay_id=${lichDangXemNgay.id}`);
+        chuyenTheoNgay = new Map(ds.map((c) => [khoaNgay(new Date(c.gio_khoi_hanh)), c]));
+        if (!thangDangXem) {
+          // mặc định mở tháng của chuyến gần hôm nay nhất phía trước, không có thì chuyến cuối cùng
+          const homNay = khoaNgay(new Date());
+          const keys = [...chuyenTheoNgay.keys()].sort();
+          const moc = keys.find((k) => k >= homNay) || keys[keys.length - 1];
+          const goc = moc ? new Date(`${moc}T00:00:00`) : new Date();
+          thangDangXem = { nam: goc.getFullYear(), thang: goc.getMonth() };
+        }
+        renderLichNgay();
+      } catch (err) {
+        lclLuoi.innerHTML = `<div class="text-error">${esc(err.message)}</div>`;
+      }
+    }
+
+    function renderLichNgay() {
+      const { nam, thang } = thangDangXem;
+      document.getElementById("lcl-thang").textContent = `Tháng ${thang + 1}/${nam}`;
+
+      const soNgay = new Date(nam, thang + 1, 0).getDate();
+      const lechDau = (new Date(nam, thang, 1).getDay() + 6) % 7; // thứ Hai = 0
+      const homNay = khoaNgay(new Date());
+      let o = TEN_THU_NGAN.map((t) => `<div class="lcl-thu">${t}</div>`).join("");
+      for (let i = 0; i < lechDau; i++) o += '<div class="lcl-ngay lcl-ngay--trong"></div>';
+      for (let ngay = 1; ngay <= soNgay; ngay++) {
+        const key = `${nam}-${pad2(thang + 1)}-${pad2(ngay)}`;
+        const c = chuyenTheoNgay.get(key);
+        const lopHomNay = key === homNay ? " lcl-ngay--hom-nay" : "";
+        if (c) {
+          const d = new Date(c.gio_khoi_hanh);
+          const daQua = key < homNay;
+          o += `<button type="button" class="lcl-ngay lcl-ngay--co${daQua ? " lcl-ngay--qua" : ""}${lopHomNay}" data-id="${c.id}"${daQua ? "" : ` style="--mau:${ChuyenChiTiet.mauTrangThai(c.trang_thai)}"`}>
+                  <span class="lcl-ngay__so">${ngay}</span>
+                  <span class="lcl-ngay__gio">${pad2(d.getHours())}:${pad2(d.getMinutes())}</span>
+                </button>`;
+        } else {
+          o += `<div class="lcl-ngay${lopHomNay}"><span class="lcl-ngay__so">${ngay}</span></div>`;
+        }
+      }
+      lclLuoi.innerHTML = `<div class="lcl-luoi">${o}</div>`;
+
+      lclLuoi.querySelectorAll("[data-id]").forEach((btn) => {
+        btn.addEventListener("click", () =>
+          ChuyenChiTiet.mo(btn.dataset.id, {
+            onThayDoi: () => {
+              taiChuyenCuaLich();
+              taiDanhSach(); // cập nhật lại số "chuyến đã sinh" ở thẻ giờ
+            },
+          })
+        );
+      });
+    }
+
+    function doiThang(delta) {
+      const d = new Date(thangDangXem.nam, thangDangXem.thang + delta, 1);
+      thangDangXem = { nam: d.getFullYear(), thang: d.getMonth() };
+      renderLichNgay();
+    }
+    document.getElementById("lcl-truoc").addEventListener("click", () => doiThang(-1));
+    document.getElementById("lcl-sau").addEventListener("click", () => doiThang(1));
+    document.getElementById("lcl-btn-dong").addEventListener("click", () => {
+      modalLichNgay.hidden = true;
+    });
+
+    // ---------- Modal "Sinh chuyến" theo khoảng ngày ----------
+    const modalSinhChuyen = document.getElementById("modal-sinh-chuyen");
+    const scTuNgay = document.getElementById("sc_tu_ngay");
+    const scDenNgay = document.getElementById("sc_den_ngay");
+    const scLoi = document.getElementById("sc-loi");
+    const scKetQua = document.getElementById("sc-ket-qua");
+    let lichDangSinhChuyen = null;
+
+    function dinhDangNgay(iso) {
+      const [y, m, d] = iso.split("-");
+      return `${d}/${m}/${y}`;
+    }
+
+    function moModalSinhChuyen(lich) {
+      lichDangSinhChuyen = lich;
+      document.getElementById("sc-mo-ta").innerHTML = `<strong>${esc(lich.ten_tuyen)}</strong> · ${esc(nhanChieu(lich.tuyen_id, lich.chieu))} · ${gioNgan(lich.gio_khoi_hanh)}`;
+
+      const homNay = new Date().toISOString().slice(0, 10);
+      scTuNgay.min = homNay;
+      scTuNgay.value = homNay;
+      const mocSau = new Date();
+      mocSau.setDate(mocSau.getDate() + 6);
+      scDenNgay.min = homNay;
+      scDenNgay.value = mocSau.toISOString().slice(0, 10);
+
+      scLoi.hidden = true;
+      scKetQua.hidden = true;
+      modalSinhChuyen.hidden = false;
+    }
+
+    document.getElementById("sc-btn-dong").addEventListener("click", () => {
+      modalSinhChuyen.hidden = true;
+      taiDanhSach(); // cập nhật lại "chuyến đã sinh" ở thẻ giờ
+    });
+
+    document.getElementById("sc-btn-sinh").addEventListener("click", async () => {
+      scLoi.hidden = true;
+      scKetQua.hidden = true;
+
+      if (!scTuNgay.value || !scDenNgay.value) {
+        scLoi.textContent = "Chọn đủ ngày bắt đầu và ngày kết thúc";
+        scLoi.hidden = false;
+        return;
+      }
+      if (scTuNgay.value > scDenNgay.value) {
+        scLoi.textContent = "Ngày bắt đầu phải trước hoặc bằng ngày kết thúc";
+        scLoi.hidden = false;
+        return;
+      }
+
+      const btn = document.getElementById("sc-btn-sinh");
+      btn.classList.add("is-loading");
+      try {
+        const ket_qua = await apiPost(`/quan-ly/lich-chay/${lichDangSinhChuyen.id}/sinh-chuyen`, {
+          tu_ngay: scTuNgay.value,
+          den_ngay: scDenNgay.value,
+        });
+        const phanDaCoSan = ket_qua.so_ngay_da_co_san ? ` (${ket_qua.so_ngay_da_co_san} ngày đã có sẵn từ trước, bỏ qua)` : "";
+        scKetQua.textContent = `✓ Đã sinh ${ket_qua.so_chuyen_moi_sinh} chuyến mới, từ ${dinhDangNgay(scTuNgay.value)} đến ${dinhDangNgay(scDenNgay.value)}${phanDaCoSan}.`;
+        scKetQua.hidden = false;
+      } catch (err) {
+        scLoi.textContent = err.message;
+        scLoi.hidden = false;
+      } finally {
+        btn.classList.remove("is-loading");
+      }
+    });
+  </script>
+</body>
+</html>
