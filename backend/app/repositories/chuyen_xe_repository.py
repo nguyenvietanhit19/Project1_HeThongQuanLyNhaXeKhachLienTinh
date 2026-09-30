@@ -348,9 +348,13 @@ def tim_trung_loai_xe_va_gio(loai_xe_id: str, gio_khoi_hanh, tru_id: str) -> boo
 
 
 def sua_gio_chuyen(chuyen_id: str, gio_khoi_hanh) -> None:
+    """Quản lý sửa giờ (UC-48): đổi cả mã chuyến theo giờ mới. Cờ SET LOCAL chỉ sống trong giao dịch
+    này — mọi đường khác đổi gio_khoi_hanh (VD điều độ viên dời giờ khi đang hoãn) không bật cờ nên
+    mã chuyến giữ nguyên (trigger cap_nhat_ma_chuyen_xe, migration 20260930_1100)."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
+            cur.execute("SET LOCAL app.doi_ma_theo_gio = 'on'")
             cur.execute("UPDATE chuyen_xe SET gio_khoi_hanh = %s WHERE id = %s", (gio_khoi_hanh, chuyen_id))
         conn.commit()
     except Exception:

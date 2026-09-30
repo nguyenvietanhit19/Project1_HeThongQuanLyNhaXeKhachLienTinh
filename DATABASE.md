@@ -191,7 +191,7 @@ Danh mục loại xe — **`quan_ly` tự thêm/sửa tùy ý** (VD "Ghế ngồ
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | UUID PK | |
-| `ma` | TEXT NOT NULL UNIQUE | Mã tự sinh dạng `<mã tuyến>-<mã loại xe>-<yymmdd>-<hhmm>-<DI\|VE>` (VD `T001-LX001-260930-0630-DI`), giờ tính theo `Asia/Ho_Chi_Minh`. **Chốt lúc `INSERT`, không đổi khi sửa `gio_khoi_hanh`** (UC-48) — giờ trong mã có thể lệch giờ thực sau khi sửa, chủ ý (mục 10) |
+| `ma` | TEXT NOT NULL UNIQUE | Mã tự sinh dạng `<mã tuyến>-<mã loại xe>-<yymmdd>-<hhmm>-<DI\|VE>` (VD `T001-LX001-260930-0630-DI`), giờ tính theo `Asia/Ho_Chi_Minh`. Tính lúc `INSERT` và **tính lại khi `quan_ly` sửa giờ (UC-48)**; mọi đường khác đổi `gio_khoi_hanh` (điều độ viên dời giờ lúc `dang_hoan`, UC-20/45) **giữ nguyên mã** — cơ chế cờ giao dịch ở mục 10 |
 | `tuyen_id` | UUID NOT NULL, FK → `tuyen(id)` | |
 | `chieu` | TEXT NOT NULL, CHECK IN (`xuoi`, `nguoc`) | Chiều chạy của đúng lần chạy này — copy từ `lich_chay_dinh_ky.chieu` lúc sinh chuyến (mục 3.5 file này). Quyết định thứ tự điểm dừng hiệu lực (`NGHIEP_VU.md` mục 3.1/3.4/6) |
 | `xe_id` | UUID NULLABLE, FK → `xe(id)` | **Xe gốc** — quyết định biên chế tài xế/phụ xe (mục 3.2) và vị trí suy luận cho các chuyến sau (mục 3.3). **Không đổi** khi xe hỏng — xem `xe_thuc_te_id`. **`NULL`** = chuyến đã sinh sẵn từ lịch chạy định kỳ nhưng **chưa được gán xe cụ thể** (mục 3.5 `NGHIEP_VU.md`, UC-44) — vẫn bán vé bình thường dựa vào `loai_xe_id` bên dưới, biên chế tài xế/phụ xe và vị trí suy luận chỉ có ý nghĩa từ lúc gán xe. Nếu còn `NULL` khi tới đúng `gio_khoi_hanh` → job tự động bật `dang_hoan` (UC-45, mục 3.3) — không tự hủy |
@@ -489,8 +489,9 @@ nguoi_dung(quan_ly) 1──N nhat_ky_admin
 | `diem_don_tra` | `khu_vuc.ma + '-DT' + lpad(so_diem_da_cap, 3, '0')` | `UPDATE khu_vuc SET so_diem_da_cap = so_diem_da_cap + 1 ... RETURNING` **khóa dòng khu vực**, nên 2 người cùng thêm điểm vào 1 khu vực được xếp hàng, không trùng số. Khu vực không tồn tại → lỗi FK (23503) |
 | `chuyen_xe` | `tuyen.ma + '-' + loai_xe.ma + '-' + to_char(gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYMMDD-HH24MI') + '-' + (DI nếu xuoi, VE nếu nguoc)` | gồm cả loại xe vì cùng tuyến/chiều/giờ vẫn có thể có 2 chuyến khác loại xe |
 
-- Trigger `BEFORE UPDATE` (`giu_nguyen_ma`) đặt lại `NEW.ma := OLD.ma` — **mã không sửa được** dù truyền vào.
+- Trigger `BEFORE UPDATE` (`giu_nguyen_ma`) đặt lại `NEW.ma := OLD.ma` — **mã không sửa được** dù truyền vào (áp dụng cho `khu_vuc`, `diem_don_tra`, `tuyen`, `loai_xe`).
+- **Riêng `chuyen_xe`** dùng trigger `cap_nhat_ma_chuyen_xe` (migration `20260930_1100`): mặc định giữ mã cũ, **chỉ tính lại mã** (hàm `tao_ma_chuyen`, cũng là công thức lúc `INSERT`) khi giao dịch có cờ `app.doi_ma_theo_gio = 'on'`. Repository `sua_gio_chuyen` (UC-48) chạy `SET LOCAL app.doi_ma_theo_gio = 'on'` ngay trước `UPDATE`; cờ `SET LOCAL` tự hết hiệu lực khi giao dịch kết thúc. Đường điều độ viên dời giờ lúc `dang_hoan` không bật cờ nên mã không đổi (chuyến khi đó đã có khách).
 - Trigger `BEFORE UPDATE` (`chan_doi_khu_vuc_diem`) chặn đổi `diem_don_tra.khu_vuc_id` (lỗi 23514).
 - Số thứ tự sequence/`so_diem_da_cap` **không lùi** khi xóa bản ghi → mã đã cấp không tái sử dụng.
 - Migration điền mã cho dữ liệu có sẵn trước (khu vực theo tỉnh + tên; điểm theo tên trong từng khu vực; tuyến theo `ngay_tao`; loại xe theo tên), đặt lại sequence/bộ đếm, rồi mới `SET NOT NULL` + `UNIQUE`.
-- Mã chuyến có `UNIQUE`: nếu 1 chuyến đã sửa giờ giữ mã cũ (`...-0630-DI`) mà sau đó có chuyến khác cùng (tuyến, loại xe, chiều) sinh đúng giờ 06:30 cùng ngày từ **lịch khác** thì trùng mã → `INSERT` lỗi UNIQUE; trường hợp hiếm, chưa xử lý riêng.
+- Mã chuyến có `UNIQUE`: sau khi sửa giờ, mã mới không thể trùng chuyến khác vì Service đã chặn trùng (loại xe, ngày, giờ) trước khi ghi; `UNIQUE` chỉ còn là lưới an toàn cuối.

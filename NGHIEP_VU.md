@@ -172,7 +172,7 @@ Quy tắc chung:
 - **Hệ thống tự sinh** lúc tạo, người dùng không nhập, không sửa được.
 - **Số thứ tự tăng dần, không bao giờ dùng lại** kể cả khi xóa bản ghi — mã đã từng cấp luôn chỉ ứng với đúng 1 bản ghi (số có 3 chữ số trở lên, vượt 999 thì tự dài thêm).
 - **Không nhúng tên** vào mã (tên khu vực/tuyến có thể sửa, mã thì không đổi); riêng mã điểm đón/trả có mã khu vực nên **điểm không được đổi khu vực sau khi tạo** (UC-30).
-- **Mã chuyến có nghĩa** (nhìn là biết tuyến, loại xe, ngày giờ, chiều) và gồm cả loại xe vì 1 tuyến có thể có 2 chuyến cùng chiều, cùng giờ nhưng khác loại xe. Mã **chốt lúc sinh chuyến, không đổi khi sửa giờ** (UC-48) — nên sau khi sửa giờ, giờ trong mã có thể không còn khớp giờ thực; đó là chủ ý (mã đã in/đọc cho người khác không được đổi theo).
+- **Mã chuyến có nghĩa** (nhìn là biết tuyến, loại xe, ngày giờ, chiều) và gồm cả loại xe vì 1 tuyến có thể có 2 chuyến cùng chiều, cùng giờ nhưng khác loại xe. Mã được sinh lúc sinh chuyến (UC-47) và **đổi theo giờ khi quản lý sửa giờ** (UC-48) — để giờ trong mã luôn khớp giờ thực; việc này an toàn vì quản lý chỉ sửa giờ được khi chuyến còn "sạch" (chưa gán xe, chưa khởi hành, chưa có vé) nên chưa ai ngoài hệ thống dùng tới mã. **Ngoại lệ: khi giờ chạy bị dời vì lý do khác** (điều độ viên cập nhật giờ mới lúc chuyến "đang hoãn", mục 3.3 — chuyến khi đó đã có khách) thì **mã giữ nguyên**, không đổi theo giờ mới.
 - Mọi màn hình quản trị hiển thị mã, cho phép tìm theo mã.
 
 ---
@@ -774,7 +774,7 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
   - Tại bước 3: chuyến đã gán xe / đã khởi hành / đã có vé → không cho sửa/xóa, **nói rõ lý do** (không ẩn nút); việc của chuyến đã gán xe hay đã có khách thuộc điều độ viên và quy trình hoàn tiền.
   - Tại bước 4: giờ mới đã qua, hoặc trùng loại xe + trùng giờ xuất phát với chuyến khác cùng ngày → chặn, báo lý do.
   - Muốn chuyến sang **ngày khác** → xóa chuyến rồi sinh lại từ lịch (UC-47), không sửa ngày.
-- **Hậu điều kiện**: Danh sách chuyến phản ánh đúng giờ/số lượng mới; mã chuyến giữ nguyên dù giờ đã đổi (mục 3.6).
+- **Hậu điều kiện**: Danh sách chuyến phản ánh đúng giờ/số lượng mới; mã chuyến được cập nhật theo giờ mới (mục 3.6) — riêng việc giờ bị dời khi chuyến đang hoãn không đổi mã.
 
 ### UC-44. Gán xe cho chuyến
 

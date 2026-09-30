@@ -724,10 +724,12 @@ if (Muốn làm gì?) then (sửa giờ)
     :Báo lỗi;
     stop
   endif
-  :Lưu giờ mới\n(mã chuyến giữ nguyên như cũ);
+  :Lưu giờ mới — mã chuyến cũng được\nđổi theo giờ mới;
   note right
     Muốn chuyến sang ngày khác:
     xóa chuyến rồi sinh lại từ lịch chạy.
+    (Khi chuyến bị hoãn và điều độ viên dời giờ,
+    mã chuyến giữ nguyên, không đổi.)
   end note
 else (xóa chuyến)
   :Xác nhận xóa;
