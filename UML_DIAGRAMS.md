@@ -221,6 +221,8 @@ rectangle "Hệ thống" {
   usecase "Quản lý loại xe\n(sơ đồ ghế, sức chứa, hệ số giá)" as UC32
   usecase "Đặt giá vé cho\ntừng cặp điểm" as UC33
   usecase "Thiết lập lịch chạy định kỳ\n(tuyến, chiều, giờ, loại xe)" as UC18
+  usecase "Sinh chuyến từ lịch chạy\n(chọn khoảng ngày)" as UC47
+  usecase "Quản lý chuyến đã sinh\n(xem, sửa giờ, xóa)" as UC48
   usecase "Quản lý xe" as UC34
   usecase "Phân tài xế và phụ xe\ncố định cho từng xe" as UC35
   usecase "Tạo tài khoản\ncho nhân viên/quản lý khác" as UC36
@@ -236,6 +238,8 @@ QL --> UC31
 QL --> UC32
 QL --> UC33
 QL --> UC18
+QL --> UC47
+QL --> UC48
 QL --> UC34
 QL --> UC35
 QL --> UC36
@@ -249,6 +253,8 @@ UC31 ..> UC02 : <<include>>
 UC32 ..> UC02 : <<include>>
 UC33 ..> UC02 : <<include>>
 UC18 ..> UC02 : <<include>>
+UC47 ..> UC02 : <<include>>
+UC48 ..> UC02 : <<include>>
 UC34 ..> UC02 : <<include>>
 UC35 ..> UC02 : <<include>>
 UC36 ..> UC02 : <<include>>
@@ -635,19 +641,97 @@ stop
 
 ### UC-18. Thiết lập lịch chạy định kỳ
 
-*Khách đặt được vé cho chuyến tận nhiều tuần/tháng sau, nhưng biển số xe cụ thể chỉ xuất hiện gần ngày chạy (giống cách các app đặt vé xe khách thật hoạt động) — vì vậy quản lý chỉ cần quyết định tuyến/giờ/loại xe từ trước, còn xe cụ thể do điều độ viên gán sau (xem use case riêng).*
+*Khách đặt được vé cho chuyến tận nhiều tuần/tháng sau, nhưng biển số xe cụ thể chỉ xuất hiện gần ngày chạy (giống cách các app đặt vé xe khách thật hoạt động) — vì vậy quản lý chỉ cần quyết định tuyến/giờ/loại xe từ trước, còn xe cụ thể do điều độ viên gán sau (xem use case riêng). Lịch chạy chỉ là "khuôn mẫu"; chuyến thật được sinh ra ở use case kế tiếp.*
 
 ```plantuml
 @startuml AD_UC18_LichDinhKy
 start
 :Chọn một tuyến đã có sẵn;
+if (Tuyến này đã có giá vé chưa?) then (chưa)
+  :Báo phải đặt giá vé cho tuyến trước;
+  stop
+endif
 :Chọn chiều chạy (chiều đi hoặc chiều về —\ntuyến giờ chạy được cả 2 chiều);
 :Nhập giờ khởi hành trong ngày;
 :Chọn loại xe dự kiến phục vụ khung giờ này;
-:Lưu lại thành lịch chạy định kỳ;
-:Hệ thống tự động sinh sẵn chuyến cho nhiều ngày tới\n(chưa gán xe cụ thể nào) — khách đã có thể tìm và\nđặt vé ngay, dựa theo đúng loại xe đã chọn;
-if (Sau này muốn ngừng lịch này thì sao?) then (ngừng áp dụng)
-  :Chỉ ngừng sinh chuyến mới —\ncác chuyến đã sinh sẵn (có thể đã bán vé)\nvẫn giữ nguyên, không bị hủy;
+if (Đã có lịch y hệt (cùng tuyến, chiều, giờ, loại xe)?) then (có)
+  :Báo trùng lịch;
+  stop
+endif
+:Lưu lại thành lịch chạy định kỳ —\nlúc này chưa có chuyến nào được tạo;
+if (Sau này muốn thay đổi lịch này?) then (ngừng áp dụng)
+  :Chỉ ngừng tạo chuyến mới từ lịch này —\ncác chuyến đã tạo (có thể đã bán vé)\nvẫn giữ nguyên, không bị hủy;
+else (sửa hoặc xóa)
+  if (Lịch này đã từng tạo chuyến chưa?) then (đã tạo)
+    :Không cho sửa hay xóa —\nbáo hãy ngừng lịch này rồi lập lịch mới;
+  else (chưa)
+    :Cho sửa hoặc xóa tự do;
+  endif
+endif
+stop
+@enduml
+```
+
+### UC-47. Sinh chuyến từ lịch chạy định kỳ
+
+*Không có công việc chạy nền tự tạo chuyến: quản lý tự quyết định mở bán tới ngày nào bằng cách chọn hẳn khoảng ngày. Bấm lại cho khoảng ngày chồng lên lần trước vẫn an toàn — ngày nào đã có chuyến thì bỏ qua.*
+
+```plantuml
+@startuml AD_UC47_SinhChuyen
+start
+:Chọn một lịch chạy và bấm "Sinh chuyến";
+if (Lịch này còn đang áp dụng?) then (đã ngừng)
+  :Báo hãy bật lại lịch trước khi sinh chuyến;
+  stop
+endif
+:Chọn ngày bắt đầu và ngày kết thúc;
+if (Khoảng ngày hợp lệ?\n(không có ngày đã qua, không quá 180 ngày)) then (không)
+  :Báo lỗi, yêu cầu chọn lại;
+  stop
+endif
+repeat
+  if (Ngày này lịch đã có chuyến rồi?) then (rồi)
+    :Bỏ qua ngày này;
+  else (chưa)
+    :Tạo một chuyến cho ngày này\n(chưa gán xe cụ thể nào, có mã chuyến riêng);
+  endif
+repeat while (Còn ngày nào trong khoảng?) is (còn)
+:Báo kết quả: tạo mới bao nhiêu chuyến,\nbỏ qua bao nhiêu ngày đã có sẵn;
+note right
+  Các chuyến mới đã có thể cho khách tìm và
+  đặt vé ngay, dựa theo đúng loại xe của lịch.
+end note
+stop
+@enduml
+```
+
+### UC-48. Quản lý chuyến đã sinh (xem, sửa giờ, xóa)
+
+*Quản lý chỉ động vào được chuyến còn "sạch" — chưa gán xe, chưa tới giờ chạy, chưa có khách đặt vé. Chuyến đã gán xe hay đã có khách thuộc về điều độ viên và quy trình hoàn tiền, không sửa ở đây.*
+
+```plantuml
+@startuml AD_UC48_QuanLyChuyen
+start
+:Xem danh sách chuyến, lọc theo tuyến, chiều,\nkhoảng ngày, tình trạng hoặc tìm theo mã chuyến;
+:Chọn một chuyến để xem chi tiết\n(mã chuyến, loại xe, xe, số vé, lộ trình và giờ đến từng điểm);
+if (Chuyến còn "sạch"?\n(chưa gán xe, chưa chạy, chưa có vé)) then (không)
+  :Hiện rõ lý do không sửa hay xóa được\n(đã gán xe / đã chạy / đã có khách đặt);
+  stop
+endif
+if (Muốn làm gì?) then (sửa giờ)
+  :Nhập giờ mới — chỉ đổi giờ, ngày giữ nguyên;
+  if (Giờ mới còn ở phía trước,\nkhông trùng giờ với chuyến cùng loại xe\ntrong ngày?) then (không)
+    :Báo lỗi;
+    stop
+  endif
+  :Lưu giờ mới\n(mã chuyến giữ nguyên như cũ);
+  note right
+    Muốn chuyến sang ngày khác:
+    xóa chuyến rồi sinh lại từ lịch chạy.
+  end note
+else (xóa chuyến)
+  :Xác nhận xóa;
+  :Chuyến biến mất khỏi danh sách;
 endif
 stop
 @enduml
@@ -975,10 +1059,18 @@ stop
 ```plantuml
 @startuml AD_UC30_QuanLyDiemDonTra
 start
-:Chọn thêm mới hoặc sửa một điểm đón trả;
-:Chọn khu vực chứa điểm này và nhập địa chỉ cụ thể;
+if (Thêm mới hay sửa?) then (thêm mới)
+  :Chọn khu vực chứa điểm này và nhập địa chỉ cụ thể;
+else (sửa)
+  :Sửa tên, địa chỉ hoặc loại điểm;
+  note right
+    Khu vực của điểm đã tạo không đổi được
+    (mã điểm gắn với khu vực). Muốn điểm ở
+    khu vực khác: tạo điểm mới rồi xóa điểm cũ.
+  end note
+endif
 :Chọn đây là văn phòng có quầy vé\nhay chỉ là điểm dừng dọc đường;
-:Lưu lại;
+:Lưu lại — hệ thống tự đặt mã cho điểm\n(theo mã khu vực, VD KV001-DT001);
 stop
 @enduml
 ```

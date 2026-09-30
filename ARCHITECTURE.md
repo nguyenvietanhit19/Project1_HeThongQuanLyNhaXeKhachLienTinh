@@ -83,7 +83,8 @@ project-root/
 │   │   │   ├── dat_ve_service.py              # giữ ghế, chống trùng ghế, đặt cọc (mục 3.4, 6)
 │   │   │   ├── thanh_toan_service.py          # thanh toán ngay / tại quầy
 │   │   │   ├── hoan_tien_service.py            # tạo/quản lý hàng đợi lich_su_hoan_tien; gọi API hoàn tiền VNPay khi có mã giao dịch (mục 7 NGHIEP_VU.md)
-│   │   │   ├── lich_chay_dinh_ky_service.py    # CRUD lich_chay_dinh_ky, sinh chuyen_xe theo cửa sổ N ngày (mục 3.5 NGHIEP_VU.md, UC-18) — gọi bởi cả route quan_ly.py lẫn job định kỳ
+│   │   │   ├── lich_chay_service.py            # CRUD lich_chay_dinh_ky (UC-18, khóa sửa khi đã sinh chuyến) + sinh chuyen_xe thủ công theo khoảng ngày do quan_ly chọn (UC-47, mục 3.5 NGHIEP_VU.md) — chỉ route quan_ly.py gọi, không còn job
+│   │   │   ├── chuyen_service.py               # quan_ly xem/lọc/sửa giờ/xóa chuyến còn "sạch" (UC-48) — khác chuyen_xe_service.py (vòng đời/gán xe của điều độ viên)
 │   │   │   ├── chuyen_xe_service.py           # vòng đời chuyến, gán xe (UC-44), đổi xe, sự cố (mục 3.3, 4)
 │   │   │   ├── xe_nhan_su_service.py          # biên chế cố định/tạm thời (mục 3.2)
 │   │   │   ├── gui_hang_service.py            # tạo đơn theo tuyến, phụ xe chọn xếp lên chuyến cụ thể (mục 10.2) — không còn tính sức chứa tự động
@@ -100,12 +101,11 @@ project-root/
 │   │   │   ├── dieu_do.py                     # điều độ viên: gán xe cho chuyến (UC-44), đổi xe, xử lý sự cố/nhân sự
 │   │   │   ├── ke_toan.py                     # kế toán: danh sách hoàn tiền chờ xử lý, đánh dấu đã chuyển khoản thủ công (mục 8.8 NGHIEP_VU.md) — toàn hệ thống
 │   │   │   ├── tai_khoan_can_bo.py            # tạo/khóa/mở khóa tài khoản cán bộ (UC-36/37/38) — dùng chung cho quan_ly và quan_ly_nhan_su (mục 8.9 NGHIEP_VU.md), Service phân quyền theo vai_tro + la_tai_khoan_goc của actor lẫn tài khoản mục tiêu
-│   │   │   ├── quan_ly.py                     # quản lý: danh mục, lịch chạy định kỳ (UC-18), cấu hình, thống kê
+│   │   │   ├── quan_ly.py                     # quản lý: danh mục, lịch chạy định kỳ (UC-18), sinh chuyến (UC-47), quản lý chuyến (UC-48), cấu hình, thống kê
 │   │   │   └── websocket.py                   # điểm kết nối real-time
 │   │   │
 │   │   ├── jobs/                          # tác vụ chạy định kỳ (không phải request-response)
-│   │   │   ├── quet_het_han.py                # quét ve quá hạn → het_han/khong_den; chuyen_xe chưa gán xe khi tới giờ chạy → dang_hoan (UC-45); don_hang cho_lay quá 7/14 ngày → cảnh báo/hàng tồn (UC-46, mục 5)
-│   │   │   └── sinh_chuyen_dinh_ky.py          # sinh chuyen_xe từ lich_chay_dinh_ky theo cửa sổ N ngày (mục 3.5 NGHIEP_VU.md)
+│   │   │   └── quet_het_han.py                # quét ve quá hạn → het_han/khong_den; chuyen_xe chưa gán xe khi tới giờ chạy → dang_hoan (UC-45); don_hang cho_lay quá 7/14 ngày → cảnh báo/hàng tồn (UC-46, mục 5). Không có job sinh chuyến — quan_ly sinh thủ công (UC-47)
 │   │   │
 │   │   ├── middleware/
 │   │   │   └── auth_middleware.py         # xác thực JWT, phân quyền theo vai_tro (kể cả kiểm tra la_tai_khoan_goc khi thao tác lên tài khoản quan_ly/quan_ly_nhan_su, DATABASE.md mục 1.1)
@@ -152,7 +152,7 @@ project-root/
 - **`services/`** — nơi chứa "luật chơi" của hệ thống. Đọc thư mục này là hiểu được toàn bộ nghiệp vụ của app mà không cần biết SQL hay HTTP là gì. `dat_ve_service.py` là service phức tạp nhất, đối chiếu trực tiếp với `NGHIEP_VU.md` mục 3.4 + 6.
 - **`routes/`** — chỉ là lớp giao tiếp HTTP, cực mỏng, hầu như chỉ có 3-5 dòng mỗi endpoint. Tách riêng `phu_xe.py` khỏi `quay_ve.py`/`dieu_do.py` vì phụ xe dùng giao diện di động riêng (`NGHIEP_VU.md` mục 8.2), không phải dashboard desktop như các vai trò cán bộ khác.
 - **`jobs/`** — khác hẳn `routes/`: không được HTTP request gọi tới, mà chạy tự động theo lịch (APScheduler). Cần vì `NGHIEP_VU.md` mục 5/9 yêu cầu **ghi nhận vĩnh viễn** trạng thái `het_han`/`khong_den` (dùng để đếm vi phạm no-show) — không thể chỉ tính toán "ảo" mỗi lần có người hỏi, phải có thời điểm thực sự ghi vào DB.
-- **`migrations/`** — lịch sử thay đổi cấu trúc database, thay cho việc chỉnh tay trực tiếp trên Postgres.
+- **`migrations/`** — lịch sử thay đổi cấu trúc database, thay cho việc chỉnh tay trực tiếp trên Postgres. Một số quy tắc dữ liệu đặt ở **trigger DB** thay vì Service để mọi đường ghi đều bị ràng buộc: **mã hiển thị tự sinh** (`ma` của khu vực/điểm/tuyến/loại xe/chuyến, không sửa được — `DATABASE.md` mục 10) và **chặn đổi khu vực của điểm đón/trả**.
 - **`tests/unit/` vs `tests/integration/`** — unit test kiểm tra logic nghiệp vụ (Service) bằng cách giả lập Repository, chạy cực nhanh, không cần DB. Integration test kiểm tra Repository có chạy đúng với Postgres thật hay không — **đặc biệt quan trọng cho `ve_repository.py`**, vì logic khóa dòng/overlap chỉ có thể kiểm chứng đúng trên Postgres thật, không mock được.
 - **`frontend/`** tách khỏi `backend/` hoàn toàn, và tách làm 2 thư mục con vì 2 nhóm người dùng có nhu cầu giao diện khác hẳn nhau (khách hàng dùng trình duyệt thường; phụ xe dùng điện thoại di động, thao tác nhanh trên danh sách khách lên/xuống từng điểm — không quét mã gì cả, chỉ cần màn hình cảm ứng bình thường, xem `NGHIEP_VU.md` mục 8.2).
 

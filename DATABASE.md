@@ -12,6 +12,7 @@ Tài liệu này mô tả đầy đủ cấu trúc bảng của cơ sở dữ li
 - **Mật khẩu**: cột `mat_khau` luôn lưu giá trị đã băm (bcrypt, giữ nguyên thư viện từ bản v1), không bao giờ lưu plaintext.
 - **Xóa dữ liệu**: hệ thống không xóa cứng (`DELETE`) tài khoản/vé/đơn hàng — khóa/vô hiệu hóa bằng cờ boolean hoặc chuyển trạng thái, giữ lại lịch sử (`NGHIEP_VU.md` mục 8.7 điểm 5: "không xóa vĩnh viễn, giữ lịch sử").
 - **Class Table Inheritance cho `nguoi_dung`**: bảng `nguoi_dung` là bảng cha chung cho mọi vai trò **có tài khoản đăng nhập**; mỗi vai trò có bảng con riêng chứa cột chỉ áp dụng cho vai trò đó — tránh một bảng khổng lồ với hàng loạt cột `NULL` tùy vai trò. **Tài xế không có bảng con trong `nguoi_dung`** vì không có tài khoản (`NGHIEP_VU.md` mục 3.2/8.3) — xem mục 1.3.
+- **Mã hiển thị `ma` (mục 10)**: `khu_vuc`, `diem_don_tra`, `tuyen`, `loai_xe`, `chuyen_xe` có thêm cột `ma` (TEXT NOT NULL UNIQUE) do **trigger BEFORE INSERT tự sinh** — chỉ để người đọc/tra cứu (`NGHIEP_VU.md` mục 3.6), **không thay `id`**: mọi khóa ngoại vẫn trỏ về `id` UUID. Mã không sửa được (trigger BEFORE UPDATE giữ nguyên) và số thứ tự không tái sử dụng.
 - **Không có bảng gán nhân sự theo từng chuyến** (`phan_cong_chuyen`) — quyết định có chủ đích của `NGHIEP_VU.md` mục 3.2: tài xế/phụ xe của 1 chuyến luôn suy ra từ `xe_nhan_su` tại thời điểm truy vấn, không lưu tĩnh.
 - **Không có ràng buộc `UNIQUE(chuyen_id, so_ghe)` trên bảng `ve`** — cố ý: 1 ghế hợp lệ có nhiều vé cùng lúc nếu chặng không giao nhau (`NGHIEP_VU.md` mục 6). Chống trùng ghế thực hiện bằng khóa dòng (`SELECT ... FOR UPDATE`) + kiểm tra overlap ở tầng Service, không phải constraint của DB.
 
@@ -95,6 +96,8 @@ Tầng thô, dùng để tìm kiếm (`NGHIEP_VU.md` mục 3.1).
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | UUID PK | |
+| `ma` | TEXT NOT NULL UNIQUE | Mã tự sinh dạng `KV001` (sequence `seq_ma_khu_vuc`, mục 10) |
+| `so_diem_da_cap` | INTEGER NOT NULL DEFAULT 0 | Bộ đếm số thứ tự điểm đã cấp trong khu vực này, dùng sinh `diem_don_tra.ma` (`KV001-DT001`…). Chỉ tăng, không giảm khi xóa điểm — số đã cấp không dùng lại (mục 10) |
 | `ten` | TEXT NOT NULL | VD `"Lào Cai (TP Lào Cai, Bến Đền, Xuân Giao, Phố Lu)"` |
 | `tinh_thanh` | TEXT NOT NULL | Chỉ để hiển thị/lọc thô — cùng 1 tỉnh có thể có nhiều `khu_vuc` tách biệt (VD Sapa, Bắc Hà cùng tỉnh Lào Cai nhưng khác `khu_vuc`) |
 
@@ -105,7 +108,8 @@ Tầng chi tiết, nằm trong 1 `khu_vuc` — mọi điểm ở đây đều l�
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | UUID PK | |
-| `khu_vuc_id` | UUID NOT NULL, FK → `khu_vuc(id)` | |
+| `ma` | TEXT NOT NULL UNIQUE | Mã tự sinh dạng `<mã khu vực>-DT<số>` (VD `KV001-DT001`), số **đếm riêng trong từng khu vực** qua `khu_vuc.so_diem_da_cap` (mục 10) |
+| `khu_vuc_id` | UUID NOT NULL, FK → `khu_vuc(id)` | **Không đổi được sau khi tạo** (mã điểm gắn với khu vực) — chặn ở Service (`UC-30`) và bằng trigger BEFORE UPDATE ở DB |
 | `ten` | TEXT NOT NULL | |
 | `dia_chi` | TEXT NOT NULL | |
 | `loai` | TEXT NOT NULL, CHECK IN (`van_phong`, `diem_dung`) | `van_phong`: có quầy vé/nhân viên, hợp lệ làm điểm đón lẫn điểm trả, trung bình 1 điểm/`khu_vuc`. `diem_dung`: điểm dừng dọc đường không có nhân viên, **chỉ hợp lệ làm điểm trả** (kiểm tra ở Service, mục 3.1) |
@@ -119,6 +123,7 @@ Không có bảng `ben_xe` riêng — `loai = 'van_phong'` chính là "văn phò
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | UUID PK | |
+| `ma` | TEXT NOT NULL UNIQUE | Mã tự sinh dạng `T001` (sequence `seq_ma_tuyen`, mục 10) |
 | `ten` | TEXT NOT NULL | VD `"Hà Nội – Sapa"` — đặt tên theo hành trình vật lý, không còn theo 1 chiều cụ thể |
 | `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
 
@@ -163,6 +168,7 @@ Danh mục loại xe — **`quan_ly` tự thêm/sửa tùy ý** (VD "Ghế ngồ
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | UUID PK | |
+| `ma` | TEXT NOT NULL UNIQUE | Mã tự sinh dạng `LX001` (sequence `seq_ma_loai_xe`, mục 10) |
 | `ten` | TEXT NOT NULL UNIQUE | |
 | `he_so_gia` | NUMERIC(4,2) NOT NULL DEFAULT 1.0 | Hệ số nhân với `gia_ve.gia_goc` để ra giá bán thực tế — cấu hình **1 lần cho toàn hệ thống**, dùng chung cho mọi tuyến |
 | `so_do_ghe` | JSONB NOT NULL | Sơ đồ ghế thật (số ghế + cách bố trí) — dùng JSON thay vì bảng `ghe_xe` riêng, đơn giản hơn cho quy mô BTL. Mọi xe cùng `loai_xe` dùng chung đúng 1 sơ đồ này |
@@ -185,6 +191,7 @@ Danh mục loại xe — **`quan_ly` tự thêm/sửa tùy ý** (VD "Ghế ngồ
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | UUID PK | |
+| `ma` | TEXT NOT NULL UNIQUE | Mã tự sinh dạng `<mã tuyến>-<mã loại xe>-<yymmdd>-<hhmm>-<DI\|VE>` (VD `T001-LX001-260930-0630-DI`), giờ tính theo `Asia/Ho_Chi_Minh`. **Chốt lúc `INSERT`, không đổi khi sửa `gio_khoi_hanh`** (UC-48) — giờ trong mã có thể lệch giờ thực sau khi sửa, chủ ý (mục 10) |
 | `tuyen_id` | UUID NOT NULL, FK → `tuyen(id)` | |
 | `chieu` | TEXT NOT NULL, CHECK IN (`xuoi`, `nguoc`) | Chiều chạy của đúng lần chạy này — copy từ `lich_chay_dinh_ky.chieu` lúc sinh chuyến (mục 3.5 file này). Quyết định thứ tự điểm dừng hiệu lực (`NGHIEP_VU.md` mục 3.1/3.4/6) |
 | `xe_id` | UUID NULLABLE, FK → `xe(id)` | **Xe gốc** — quyết định biên chế tài xế/phụ xe (mục 3.2) và vị trí suy luận cho các chuyến sau (mục 3.3). **Không đổi** khi xe hỏng — xem `xe_thuc_te_id`. **`NULL`** = chuyến đã sinh sẵn từ lịch chạy định kỳ nhưng **chưa được gán xe cụ thể** (mục 3.5 `NGHIEP_VU.md`, UC-44) — vẫn bán vé bình thường dựa vào `loai_xe_id` bên dưới, biên chế tài xế/phụ xe và vị trí suy luận chỉ có ý nghĩa từ lúc gán xe. Nếu còn `NULL` khi tới đúng `gio_khoi_hanh` → job tự động bật `dang_hoan` (UC-45, mục 3.3) — không tự hủy |
@@ -200,6 +207,8 @@ Danh mục loại xe — **`quan_ly` tự thêm/sửa tùy ý** (VD "Ghế ngồ
 | `ly_do_su_co` | TEXT NULLABLE | Mô tả chi tiết sự cố (VD "nổ lốp", "sạt lở km 45") khi chuyển `gap_su_co`/`da_huy`, hoặc lý do đang `dang_hoan` |
 | `co_canh_bao_xung_dot_vi_tri` | BOOLEAN NOT NULL DEFAULT false | Set `true` cho mọi chuyến `chua_khoi_hanh` cùng `xe_id` ngay khi 1 chuyến trước đó của xe này chuyển `gap_su_co` giữa đường (mục 3.3) — bất kể sau đó tự khắc phục, delay dài, hay `da_huy`. Điều độ viên xem lại thủ công sau khi sự cố resolve: nếu xe vẫn tới kịp thì chỉ chỉnh giờ rồi gỡ cờ; nếu không tới kịp thì xử lý qua UC-20 (tìm xe thay thế/hoãn) trước khi gỡ cờ. **Không dùng cho trường hợp đổi xe thực tế trước giờ chạy** (đã có `xe_thuc_te_id` xử lý riêng, không làm lệch vị trí suy luận của `xe_id`) |
 | `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+
+**Sửa/xóa chuyến bởi `quan_ly`** (UC-48) chỉ khi chuyến còn "sạch": `xe_id IS NULL`, `trang_thai = 'chua_khoi_hanh'`, không có `ve` nào `giu_cho`/`da_thanh_toan` — kiểm tra ở Service. Sửa giờ chỉ đổi phần giờ, **giữ nguyên ngày** (tính theo giờ VN), giờ mới phải ở tương lai và không trùng (`loai_xe_id`, ngày, giờ) với chuyến khác.
 
 Ràng buộc "không trùng lịch", "đúng vị trí xe", "đúng tuyến cố định của xe" (mục 3.2/3.3) đều kiểm tra ở Service lúc `INSERT`/`UPDATE xe_id`, không phải constraint DB. Ràng buộc "cùng `loai_xe`" khi gán `xe_thuc_te_id` cũng kiểm tra ở Service. **Xe thuê ngoài** (mục 3.3, khi hết xe dự phòng nội bộ) không cần cột/bảng riêng — chỉ là 1 bản ghi `xe` bình thường được điều độ viên thêm tạm vào hệ thống, đủ điều kiện `loai_xe`/vị trí như xe nội bộ.
 
@@ -218,19 +227,21 @@ UNIQUE: (`chuyen_id`, `diem_don_tra_id`).
 
 ### 3.5. `lich_chay_dinh_ky`
 
-Do `quan_ly` thiết lập (mục 3.5/8.7 `NGHIEP_VU.md`, UC-18) — nguồn duy nhất sinh ra `chuyen_xe` mới trong hệ thống. Tách "lên lịch chuyến chạy khi nào, loại xe gì" (kế hoạch dài hạn) khỏi "xe cụ thể (biển số) nào chạy" (vận hành ngắn hạn, `dieu_do_vien` xử lý riêng qua UC-44).
+Do `quan_ly` thiết lập (mục 3.5/8.7 `NGHIEP_VU.md`, UC-18) và chủ động sinh chuyến từ đó (UC-47) — nguồn duy nhất sinh ra `chuyen_xe` mới trong hệ thống. Tách "lên lịch chuyến chạy khi nào, loại xe gì" (kế hoạch dài hạn) khỏi "xe cụ thể (biển số) nào chạy" (vận hành ngắn hạn, `dieu_do_vien` xử lý riêng qua UC-44).
 
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | UUID PK | |
 | `tuyen_id` | UUID NOT NULL, FK → `tuyen(id)` | |
 | `chieu` | TEXT NOT NULL, CHECK IN (`xuoi`, `nguoc`) | Tuyến giờ chạy được cả 2 chiều (mục 2.3) nên phải chọn rõ dòng lịch này chạy chiều nào — copy sang `chuyen_xe.chieu` mỗi lần sinh chuyến |
-| `gio_khoi_hanh` | TIME NOT NULL | Giờ khởi hành trong ngày (không phải ngày cụ thể) — dùng làm mẫu để job định kỳ sinh `chuyen_xe.gio_khoi_hanh` (kèm ngày cụ thể) mỗi ngày |
+| `gio_khoi_hanh` | TIME NOT NULL | Giờ khởi hành trong ngày (không phải ngày cụ thể) — dùng làm mẫu để `quan_ly` sinh `chuyen_xe.gio_khoi_hanh` (kèm ngày cụ thể) khi bấm "Sinh chuyến" (UC-47) |
 | `loai_xe_id` | UUID NOT NULL, FK → `loai_xe(id)` | Loại xe dự kiến phục vụ khung giờ này — copy sang `chuyen_xe.loai_xe_id` mỗi lần sinh chuyến |
 | `dang_ap_dung` | BOOLEAN NOT NULL DEFAULT true | `false` = ngừng sinh chuyến mới từ lịch này — **không xóa/ảnh hưởng** các `chuyen_xe` đã sinh sẵn trước đó |
 | `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
 
-**Job định kỳ sinh chuyến** (`ARCHITECTURE.md` mục 5): với mỗi `lich_chay_dinh_ky` có `dang_ap_dung = true`, tạo `chuyen_xe` cho các ngày còn thiếu trong cửa sổ N ngày tới (N = tham số hệ thống `quan_ly` cấu hình, mục 8.7 `NGHIEP_VU.md`) — kiểm tra tránh sinh trùng ngày đã có sẵn (VD `UNIQUE(lich_chay_dinh_ky_id, ngày)` tính từ `gio_khoi_hanh`, hoặc job tự truy vấn chuyến gần nhất đã sinh rồi tiếp tục từ đó).
+**Sinh chuyến thủ công** (UC-47, `NGHIEP_VU.md` mục 3.5) — **không còn job nền, không còn tham số "N ngày tới"**: `quan_ly` chọn 1 lịch `dang_ap_dung = true` và khoảng ngày (không quá khứ, tối đa 180 ngày/lần); Service lặp từng ngày, ghép ngày + `gio_khoi_hanh` thành `TIMESTAMPTZ` **kèm múi giờ `Asia/Ho_Chi_Minh` tường minh** (session Postgres mặc định UTC, thiếu bước này giờ lệch 7 tiếng), **bỏ qua ngày lịch này đã có chuyến** (truy vấn `EXISTS chuyen_xe WHERE lich_chay_dinh_ky_id = ? AND ngày(gio_khoi_hanh theo giờ VN) = ?`) — nên bấm lại/khoảng chồng lấn không sinh trùng. Không có `UNIQUE` DB cho cặp (lịch, ngày); chống trùng ở Service.
+
+**Lịch đã sinh chuyến thì khóa sửa** (UC-18): nếu có ít nhất 1 `chuyen_xe.lich_chay_dinh_ky_id` trỏ tới lịch này thì Service từ chối sửa `chieu`/`gio_khoi_hanh`/`loai_xe_id` (và xóa lịch bị FK chặn) — vì chuyến cũ giữ giá trị lúc sinh, sửa lịch sẽ làm 2 bên lệch nhau và các ngày đã có chuyến không bao giờ được sinh lại theo lịch mới. Muốn đổi: `dang_ap_dung = false` rồi tạo lịch mới. `tuyen_id` của lịch không bao giờ đổi được.
 
 **Index nên đánh thêm**: `chuyen_xe(xe_id) WHERE xe_id IS NULL` — dùng cho danh sách "chuyến cần gán xe" của điều độ viên (UC-44), đặc biệt lọc thêm theo ngưỡng cảnh báo 48 tiếng (mục 3.5 `NGHIEP_VU.md`).
 
@@ -455,7 +466,7 @@ nguoi_dung(quan_ly) 1──N nhat_ky_admin
 
 - **Câu lệnh `CREATE EXTENSION "pgcrypto"`** cần chạy trong migration đầu tiên để có hàm `gen_random_uuid()`.
 - Index nên đánh thêm: `ve(chuyen_id, so_ghe)` (mục 4 — bắt buộc vì bị `SELECT ... FOR UPDATE` quét thường xuyên, khác `don_hang` vốn không còn cơ chế khóa dòng tương tự từ khi bỏ chống quá tải tự động, mục 10.2), `don_hang(tuyen_id) WHERE chuyen_id IS NULL` (danh sách đơn chờ chất lên xe theo tuyến, UC-26, mục 10.2), `chuyen_xe(xe_id, gio_khoi_hanh)` (dùng cho truy vấn vị trí xe, mục 7), `chuyen_xe(xe_id) WHERE xe_thuc_te_id IS NOT NULL` (dùng để liệt kê nhanh mọi chuyến đang chạy thay của 1 xe gốc, UC-40), `chuyen_xe(xe_id) WHERE xe_id IS NULL` (danh sách "chuyến cần gán xe", UC-44, mục 3.5), `ho_so_can_bo_diem(van_phong_id)` (điều độ viên/nhân viên quầy vé lọc theo phạm vi mình phụ trách gần như mọi truy vấn).
-- **Job sinh `chuyen_xe` từ `lich_chay_dinh_ky`** (`NGHIEP_VU.md` mục 3.5, UC-18): chạy định kỳ (VD hàng ngày), với mỗi lịch `dang_ap_dung = true`, sinh thêm chuyến cho các ngày còn thiếu trong cửa sổ N ngày cấu hình — cần logic tránh sinh trùng (kiểm tra đã có chuyến cho ngày đó của đúng `lich_chay_dinh_ky_id` chưa) và xử lý khi `quan_ly` sửa giờ/loại xe của lịch định kỳ đang áp dụng (chỉ ảnh hưởng các chuyến sinh **sau** thời điểm sửa, không đổi ngược các chuyến đã sinh/đã bán vé).
+- **Sinh `chuyen_xe` từ `lich_chay_dinh_ky` là thao tác thủ công của `quan_ly`** (`NGHIEP_VU.md` mục 3.5, UC-47) — không có job định kỳ (đã bỏ; `jobs/` chỉ còn các job quét theo thời gian của UC-43/45/46 và quét hết hạn/no-show). Cần logic tránh sinh trùng theo (lịch, ngày) và ghép múi giờ VN tường minh (xem mục 3.5 file này).
 - **Bảng `thong_bao`** là đề xuất bổ sung của tôi (giống bản v1) — xác nhận lại có cần hay chấp nhận mất thông báo khi khách offline trước khi đưa vào migration chính thức.
 - **Cơ chế "đặt cọc" cho lô nhiều vé** (`NGHIEP_VU.md` mục 3.4): khi lô >600.000đ chưa đủ số vé `la_ve_dat_coc` được thanh toán trong 5 phút, toàn bộ lô (cùng `ma_dat_cho`) phải chuyển `het_han` — đây là logic Service quét theo `ma_dat_cho`, không có constraint DB nào diễn tả trực tiếp được, cần test kỹ ở tầng integration test.
 - **Cơ chế "hoãn" chuyến (`chuyen_xe.dang_hoan`) + ngưỡng cảnh báo 6 tiếng** (`NGHIEP_VU.md` mục 3.3): việc bật/tắt `dang_hoan`, dời `gio_khoi_hanh` nhiều lần, và mở quyền hủy-hoàn-100% cho vé `da_thanh_toan` (UC-41) đều là logic Service, không phải constraint DB — đặc biệt lưu ý chuyến **không bao giờ** được phép tự động chuyển `da_huy` chỉ vì hết xe thay thế, kể cả khi vượt ngưỡng cảnh báo. Có **2 đường bật cờ `dang_hoan`** cần cài đặt riêng: điều độ viên bật thủ công (UC-20, xe đã gán rồi hỏng) và job định kỳ tự bật (UC-45 ⏱, chưa từng gán được xe mà đã tới `gio_khoi_hanh`) — job UC-45 nên gộp chung vào đúng `jobs/quet_het_han.py` (`ARCHITECTURE.md` mục 5), quét `chuyen_xe` có `xe_id IS NULL AND gio_khoi_hanh <= now() AND trang_thai = 'chua_khoi_hanh'`.
@@ -463,3 +474,23 @@ nguoi_dung(quan_ly) 1──N nhat_ky_admin
 - **Chuyển khoản thủ công của `ke_toan` (UC-22) chỉ ghi nhận kết quả, không tích hợp ngân hàng**: hệ thống không có API/webhook nào với ngân hàng cho bước này (khác VNPay dùng cho thanh toán/hoàn tự động) — `ke_toan` tự chuyển khoản ngoài hệ thống rồi mới quay lại nhập `so_tai_khoan_nhan`/`ten_ngan_hang_nhan`/`ten_chu_tai_khoan_nhan` và đánh dấu `trang_thai = 'da_hoan_chuyen_khoan_thu_cong'` — chỉ để lưu vết đối soát, hệ thống không tự động xác minh các thông tin này đúng hay không.
 - **Phân quyền đọc `lich_su_hoan_tien`**: các cột `so_tai_khoan_nhan`/`ten_ngan_hang_nhan`/`ten_chu_tai_khoan_nhan` là dữ liệu nhạy cảm — chỉ `ke_toan`/`quan_ly` đọc được, các vai trò khác (kể cả nhân viên quầy vé tra cứu tình trạng hoàn tiền, mục 8.4 `NGHIEP_VU.md`) chỉ thấy `trang_thai`/`thoi_gian_hoan_xong`, không thấy thông tin tài khoản.
 - **Seed tài khoản `quan_ly` gốc**: migration khởi tạo phải insert đúng 1 dòng `nguoi_dung` với `vai_tro = 'quan_ly'`, `la_tai_khoan_goc = true` — kèm partial unique index (mục 1.1) để không ai (kể cả bug ở tầng Service) vô tình tạo thêm dòng `true` thứ 2. Phân quyền tạo/khóa `quan_ly`/`quan_ly_nhan_su` (UC-36/37/38 `NGHIEP_VU.md`) kiểm tra hoàn toàn ở Service dựa trên cột này, không có `CHECK` constraint nào diễn tả được logic "chỉ actor X mới thao tác được vai trò Y".
+
+---
+
+## 10. Mã hiển thị tự sinh (`ma`)
+
+Áp dụng cho 5 bảng: `khu_vuc`, `diem_don_tra`, `tuyen`, `loai_xe`, `chuyen_xe` — quy tắc nghiệp vụ ở `NGHIEP_VU.md` mục 3.6. Cài đặt bằng **trigger** (migration `20260930_1000_them_ma_tu_sinh.sql`) để mọi đường `INSERT` — kể cả code của các thành viên khác — đều tự có mã mà không phải sửa từng repository:
+
+| Bảng | Cách sinh | Chi tiết |
+|---|---|---|
+| `khu_vuc` | `'KV' + lpad(nextval('seq_ma_khu_vuc'), 3, '0')` | sequence toàn cục |
+| `tuyen` | `'T' + lpad(nextval('seq_ma_tuyen'), 3, '0')` | sequence toàn cục |
+| `loai_xe` | `'LX' + lpad(nextval('seq_ma_loai_xe'), 3, '0')` | sequence toàn cục |
+| `diem_don_tra` | `khu_vuc.ma + '-DT' + lpad(so_diem_da_cap, 3, '0')` | `UPDATE khu_vuc SET so_diem_da_cap = so_diem_da_cap + 1 ... RETURNING` **khóa dòng khu vực**, nên 2 người cùng thêm điểm vào 1 khu vực được xếp hàng, không trùng số. Khu vực không tồn tại → lỗi FK (23503) |
+| `chuyen_xe` | `tuyen.ma + '-' + loai_xe.ma + '-' + to_char(gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYMMDD-HH24MI') + '-' + (DI nếu xuoi, VE nếu nguoc)` | gồm cả loại xe vì cùng tuyến/chiều/giờ vẫn có thể có 2 chuyến khác loại xe |
+
+- Trigger `BEFORE UPDATE` (`giu_nguyen_ma`) đặt lại `NEW.ma := OLD.ma` — **mã không sửa được** dù truyền vào.
+- Trigger `BEFORE UPDATE` (`chan_doi_khu_vuc_diem`) chặn đổi `diem_don_tra.khu_vuc_id` (lỗi 23514).
+- Số thứ tự sequence/`so_diem_da_cap` **không lùi** khi xóa bản ghi → mã đã cấp không tái sử dụng.
+- Migration điền mã cho dữ liệu có sẵn trước (khu vực theo tỉnh + tên; điểm theo tên trong từng khu vực; tuyến theo `ngay_tao`; loại xe theo tên), đặt lại sequence/bộ đếm, rồi mới `SET NOT NULL` + `UNIQUE`.
+- Mã chuyến có `UNIQUE`: nếu 1 chuyến đã sửa giờ giữ mã cũ (`...-0630-DI`) mà sau đó có chuyến khác cùng (tuyến, loại xe, chiều) sinh đúng giờ 06:30 cùng ngày từ **lịch khác** thì trùng mã → `INSERT` lỗi UNIQUE; trường hợp hiếm, chưa xử lý riêng.

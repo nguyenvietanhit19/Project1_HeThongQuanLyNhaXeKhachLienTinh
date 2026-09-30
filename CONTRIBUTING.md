@@ -19,18 +19,18 @@ Nhóm đã cân nhắc 2 cách:
 
 | # | Người | Vai trò | UC | Ghi chú |
 |---|---|---|---|---|
-| **1** | **Trưởng nhóm** | Đăng ký/Đăng nhập + toàn bộ **Quản lý** | 01,02,03,18,29,30,31,32,33,34,35,36,37,38,39 (15 UC) | Người tạo khu vực/điểm/tuyến/lịch chạy định kỳ/loại xe/giá vé/xe/biên chế/tài khoản — đúng người hiểu sâu nhất cấu trúc dữ liệu nền |
+| **1** | **Trưởng nhóm** | Đăng ký/Đăng nhập + toàn bộ **Quản lý** | 01,02,03,18,29,30,31,32,33,34,35,36,37,38,39,47,48 (17 UC) | Người tạo khu vực/điểm/tuyến/lịch chạy định kỳ/loại xe/giá vé/xe/biên chế/tài khoản — đúng người hiểu sâu nhất cấu trúc dữ liệu nền |
 | **2** | | **Khách hàng + Nhân viên quầy vé** | 04,05,08,09,10,11,14,41,42 (9 UC) | Ôm luôn thuật toán chống trùng ghế (phần khó/nhạy cảm nhất hệ thống — xem mục 5.1) |
 | **3** | | **Phụ xe** | 12,13,15,16,17,26,27,28,39 (9 UC) | Chỉ gọi hàm có sẵn từ người 1, 4, 5 — không tự viết logic |
 | **4** | | **Điều độ viên** | 19,20,40,44,45,39 (6 UC) | |
 | **5** | | **Nhân viên gửi hàng + Kế toán** | 21,22,23,24,25,43,46 (7 UC) | |
 
-Tổng 44 UC (đúng số UC còn hiệu lực, UC-06/07 đã retire — xem `NGHIEP_VU.md` mục 11). UC-39 (thống kê) xuất hiện ở nhiều người vì mỗi vai trò chỉ xem đúng phạm vi của mình (`NGHIEP_VU.md` UC-39) — phần này nhẹ, không tính là điểm nóng.
+Tổng 46 UC (đúng số UC còn hiệu lực, UC-06/07 đã retire — xem `NGHIEP_VU.md` mục 11). UC-39 (thống kê) xuất hiện ở nhiều người vì mỗi vai trò chỉ xem đúng phạm vi của mình (`NGHIEP_VU.md` UC-39) — phần này nhẹ, không tính là điểm nóng.
 
 ### Chi tiết backend/frontend từng người
 
 **1 — Đăng ký/đăng nhập + Quản lý** (Trưởng nhóm)
-- Backend: `nguoi_dung_repository`, `mat_khau_service`, `tai_khoan_can_bo_service`, `email_service`, `auth_middleware`, `khu_vuc/diem_don_tra/tuyen_repository`, `lich_chay_dinh_ky_service`, `xe/loai_xe/gia_ve/xe_nhan_su_repository`, `websocket_manager` (hạ tầng, xem mục 5.3), routes: `auth.py`, `tai_khoan_can_bo.py`, `quan_ly.py`.
+- Backend: `nguoi_dung_repository`, `mat_khau_service`, `tai_khoan_can_bo_service`, `email_service`, `auth_middleware`, `khu_vuc/diem_don_tra/tuyen_repository`, `lich_chay_service` (UC-18/47), `chuyen_service` (UC-48), `xe/loai_xe/gia_ve/xe_nhan_su_repository`, `websocket_manager` (hạ tầng, xem mục 5.3), routes: `auth.py`, `tai_khoan_can_bo.py`, `quan_ly.py`.
 - Frontend: đăng ký/đăng nhập/quên mật khẩu (`frontend/khach-hang/`), `frontend/nhan-vien/dang-nhap.html` (trang đăng nhập chung duy nhất cho mọi vai trò cán bộ, tự viết script riêng — không phụ thuộc file của vai trò nào), và toàn bộ `frontend/nhan-vien/quan-ly/` (nav, api-client, auth-check, css... đều là file riêng của domain này, không dùng chung với vai trò khác — xem mục 5.5).
 - Cũng là người dựng **khung dự án ngày đầu tiên** — xem mục 5.4.
 
@@ -43,7 +43,7 @@ Tổng 44 UC (đúng số UC còn hiệu lực, UC-06/07 đã retire — xem `NG
 - Frontend: `frontend/nhan-vien/phu-xe/` (giao diện di động).
 
 **4 — Điều độ viên**
-- Backend: `chuyen_xe_repository`, `chuyen_xe_service` (vòng đời chuyến, vị trí xe, gán xe, đổi xe, sự cố), `jobs/sinh_chuyen_dinh_ky.py` (UC-18, đọc lịch định kỳ của người 1), `jobs/quet_chua_gan_xe.py` (UC-45), route `dieu_do.py`.
+- Backend: `chuyen_xe_repository`, `chuyen_xe_service` (vòng đời chuyến, vị trí xe, gán xe, đổi xe, sự cố), `jobs/quet_chua_gan_xe.py` (UC-45), route `dieu_do.py`.
 - Frontend: `frontend/nhan-vien/dieu-do/` (gán xe, xử lý sự cố, đổi xe).
 
 **5 — Nhân viên gửi hàng + Kế toán**
@@ -146,7 +146,6 @@ Bản kế hoạch kỹ thuật gốc (`ARCHITECTURE.md`) gộp hết tác vụ 
 
 ```
 jobs/quet_ve_het_han.py          # người 2 — UC-14 (no-show, hết hạn giữ chỗ)
-jobs/sinh_chuyen_dinh_ky.py      # người 4 — UC-18 (đọc lich_chay_dinh_ky của người 1)
 jobs/quet_chua_gan_xe.py         # người 4 — UC-45 (dang_hoan khi chưa gán xe)
 jobs/quet_hang_ton.py            # người 5 — UC-46
 jobs/quet_hoan_tien_tu_dong.py   # người 5 — UC-43 (chỉ ĐỌC chuyen_xe của người 4, tự ghi bảng của mình)
