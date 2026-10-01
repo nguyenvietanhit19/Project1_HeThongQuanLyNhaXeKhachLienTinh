@@ -19,7 +19,10 @@ def _lay_ve_cua_chuyen(ve_id: str, chuyen_id: str) -> dict:
 
 
 def xac_nhan_len_xe(chuyen_id: str, ve_id: str, nguoi_dung_id: str) -> None:
-    lay_chuyen_cua_phu_xe(chuyen_id, nguoi_dung_id)
+    """UC-12 — tiền điều kiện: chuyến `dang_chay`, vé `da_thanh_toan`."""
+    chuyen = lay_chuyen_cua_phu_xe(chuyen_id, nguoi_dung_id)
+    if chuyen["trang_thai"] != "dang_chay":
+        raise GiaTriLoi("Chuyến chưa xuất phát hoặc đã kết thúc, không thể xác nhận khách lên xe")
     ve = _lay_ve_cua_chuyen(ve_id, chuyen_id)
     if ve["trang_thai"] != "da_thanh_toan":
         raise GiaTriLoi("Vé không hợp lệ để lên xe (chưa thanh toán hoặc đã xử lý)")
