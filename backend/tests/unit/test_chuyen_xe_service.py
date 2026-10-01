@@ -61,9 +61,39 @@ def test_xac_nhan_xuat_phat_sai_trang_thai(monkeypatch):
 def test_xac_nhan_xuat_phat_thanh_cong(monkeypatch):
     monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen())
     goi = {}
-    monkeypatch.setattr(svc.chuyen_xe_repo, "cap_nhat_xac_nhan_xuat_phat", lambda cid: goi.setdefault("cid", cid))
+    monkeypatch.setattr(svc.chuyen_xe_repo, "cap_nhat_xac_nhan_xuat_phat", lambda cid: goi.setdefault("cid", cid) and True)
     svc.xac_nhan_xuat_phat("chuyen-1", "nguoi-dung-1")
     assert goi["cid"] == "chuyen-1"
+
+
+@pytest.mark.parametrize("trang_thai", ["dang_chay", "gap_su_co", "hoan_thanh", "da_huy"])
+def test_xac_nhan_xuat_phat_chi_cho_phep_khi_chua_khoi_hanh(monkeypatch, trang_thai):
+    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen(trang_thai=trang_thai))
+    goi = []
+    monkeypatch.setattr(svc.chuyen_xe_repo, "cap_nhat_xac_nhan_xuat_phat", lambda cid: goi.append(cid) or True)
+    with pytest.raises(GiaTriLoi):
+        svc.xac_nhan_xuat_phat("chuyen-1", "nguoi-dung-1")
+    assert goi == []
+
+
+def test_xac_nhan_xuat_phat_bao_loi_khi_chuyen_vua_doi_trang_thai(monkeypatch):
+    # Giữa lúc kiểm tra và lúc ghi, người khác đã xác nhận trước (UPDATE ... WHERE trang_thai = 'chua_khoi_hanh' không khớp dòng nào)
+    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen())
+    monkeypatch.setattr(svc.chuyen_xe_repo, "cap_nhat_xac_nhan_xuat_phat", lambda cid: False)
+    with pytest.raises(GiaTriLoi):
+        svc.xac_nhan_xuat_phat("chuyen-1", "nguoi-dung-1")
+
+
+def test_xac_nhan_xuat_phat_phu_xe_khong_thuoc_xe_bi_chan(monkeypatch):
+    def tu_choi(cid, nid):
+        raise KhongDuQuyen("Chuyến này không thuộc về bạn")
+
+    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", tu_choi)
+    goi = []
+    monkeypatch.setattr(svc.chuyen_xe_repo, "cap_nhat_xac_nhan_xuat_phat", lambda cid: goi.append(cid) or True)
+    with pytest.raises(KhongDuQuyen):
+        svc.xac_nhan_xuat_phat("chuyen-1", "nguoi-dung-khac")
+    assert goi == []
 
 
 def test_xac_nhan_toi_diem_chuyen_chua_xuat_phat(monkeypatch):

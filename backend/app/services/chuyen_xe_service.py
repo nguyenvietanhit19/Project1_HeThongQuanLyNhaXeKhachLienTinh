@@ -159,7 +159,8 @@ def xac_nhan_xuat_phat(chuyen_id: str, nguoi_dung_id: str) -> None:
     if chuyen["trang_thai"] != "chua_khoi_hanh":
         raise GiaTriLoi("Chuyến không ở trạng thái chưa khởi hành")
 
-    chuyen_xe_repo.cap_nhat_xac_nhan_xuat_phat(chuyen_id)
+    if not chuyen_xe_repo.cap_nhat_xac_nhan_xuat_phat(chuyen_id):
+        raise GiaTriLoi("Chuyến vừa được xác nhận xuất phát hoặc đổi trạng thái, vui lòng tải lại")
 
 
 def hanh_trinh(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:

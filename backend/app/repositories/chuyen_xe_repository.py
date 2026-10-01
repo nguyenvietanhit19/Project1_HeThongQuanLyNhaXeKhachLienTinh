@@ -100,7 +100,11 @@ def lay_diem_da_xac_nhan(chuyen_id: str) -> list[dict]:
         release_connection(conn)
 
 
-def cap_nhat_xac_nhan_xuat_phat(chuyen_id: str) -> None:
+def cap_nhat_xac_nhan_xuat_phat(chuyen_id: str) -> bool:
+    """True nếu chuyển được sang dang_chay. Điều kiện trang_thai nằm ngay
+    trong câu UPDATE để bấm đúp / 2 phụ xe cùng bấm không xác nhận 2 lần
+    (đè lên gio_xac_nhan_xuat_phat đã ghi) hay xác nhận lên chuyến vừa đổi
+    trạng thái giữa lúc kiểm tra và lúc ghi."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -108,11 +112,13 @@ def cap_nhat_xac_nhan_xuat_phat(chuyen_id: str) -> None:
                 """
                 UPDATE chuyen_xe
                 SET trang_thai = 'dang_chay', gio_xac_nhan_xuat_phat = now()
-                WHERE id = %s
+                WHERE id = %s AND trang_thai = 'chua_khoi_hanh'
                 """,
                 (chuyen_id,),
             )
+            da_cap_nhat = cur.rowcount > 0
         conn.commit()
+        return da_cap_nhat
     finally:
         release_connection(conn)
 
