@@ -183,7 +183,7 @@ def test_bao_su_co_sai_trang_thai(monkeypatch):
 
 def test_bao_su_co_thanh_cong_va_gui_thong_bao_khach(monkeypatch):
     monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen(trang_thai="dang_chay"))
-    monkeypatch.setattr(svc.chuyen_xe_repo, "cap_nhat_gap_su_co", lambda cid, loai, ly_do: None)
+    monkeypatch.setattr(svc.chuyen_xe_repo, "cap_nhat_gap_su_co", lambda cid, loai, ly_do: True)
     goi_co = {}
     monkeypatch.setattr(
         svc.chuyen_xe_repo,
@@ -243,3 +243,56 @@ def test_xac_nhan_toi_diem_trung_gian_khong_hoan_thanh(monkeypatch):
     monkeypatch.setattr(svc.ve_repo, "tim_khach_cho_don_sau_diem", lambda cid, thu_tu: [])
     assert svc.xac_nhan_toi_diem("chuyen-1", "d2", "nguoi-dung-1") is False
     assert hoan_thanh == []
+
+
+@pytest.mark.parametrize("ly_do", ["", "   "])
+def test_bao_su_co_thieu_mo_ta(ly_do):
+    with pytest.raises(GiaTriLoi):
+        svc.bao_su_co("chuyen-1", "loi_nha_xe", ly_do, "nguoi-dung-1")
+
+
+@pytest.mark.parametrize("trang_thai", ["gap_su_co", "hoan_thanh", "da_huy"])
+def test_bao_su_co_khi_chuyen_khong_dang_chay(monkeypatch, trang_thai):
+    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen(trang_thai=trang_thai))
+    goi = []
+    monkeypatch.setattr(svc.chuyen_xe_repo, "cap_nhat_gap_su_co", lambda cid, loai, ly_do: goi.append(cid) or True)
+    with pytest.raises(GiaTriLoi):
+        svc.bao_su_co("chuyen-1", "loi_nha_xe", "hong xe", "nguoi-dung-1")
+    assert goi == []
+
+
+def test_bao_su_co_khong_gui_thong_bao_khi_chuyen_vua_doi_trang_thai(monkeypatch):
+    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen(trang_thai="dang_chay"))
+    monkeypatch.setattr(svc.chuyen_xe_repo, "cap_nhat_gap_su_co", lambda cid, loai, ly_do: False)
+    xung_dot, da_gui = [], []
+    monkeypatch.setattr(
+        svc.chuyen_xe_repo, "gan_co_xung_dot_vi_tri_cho_chuyen_tuong_lai", lambda xid, cid: xung_dot.append(cid)
+    )
+    monkeypatch.setattr(svc, "_gui_thong_bao", lambda nid, nd: da_gui.append(nid))
+    with pytest.raises(GiaTriLoi):
+        svc.bao_su_co("chuyen-1", "loi_nha_xe", "hong xe", "nguoi-dung-1")
+    assert xung_dot == [] and da_gui == []
+
+
+def test_bao_su_co_phu_xe_khong_thuoc_xe_bi_chan(monkeypatch):
+    def tu_choi(cid, nid):
+        raise KhongDuQuyen("Chuyến này không thuộc về bạn")
+
+    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", tu_choi)
+    with pytest.raises(KhongDuQuyen):
+        svc.bao_su_co("chuyen-1", "loi_nha_xe", "hong xe", "nguoi-dung-khac")
+
+
+def test_bao_su_co_loi_khach_quan_van_gui_thong_bao(monkeypatch):
+    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen(trang_thai="dang_chay"))
+    luu = {}
+    monkeypatch.setattr(
+        svc.chuyen_xe_repo, "cap_nhat_gap_su_co", lambda cid, loai, ly_do: luu.update(loai=loai, ly_do=ly_do) or True
+    )
+    monkeypatch.setattr(svc.chuyen_xe_repo, "gan_co_xung_dot_vi_tri_cho_chuyen_tuong_lai", lambda xid, cid: None)
+    monkeypatch.setattr(svc.ve_repo, "tim_khach_hang_dang_hoat_dong_theo_chuyen", lambda cid: [{"khach_hang_id": "kh-1"}])
+    da_gui = []
+    monkeypatch.setattr(svc, "_gui_thong_bao", lambda nid, nd: da_gui.append(nid))
+    svc.bao_su_co("chuyen-1", "loi_khach_quan", "sat lo", "nguoi-dung-1")
+    assert luu == {"loai": "loi_khach_quan", "ly_do": "sat lo"}
+    assert da_gui == ["kh-1"]

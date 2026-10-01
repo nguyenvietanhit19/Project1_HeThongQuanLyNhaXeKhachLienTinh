@@ -224,14 +224,18 @@ def xac_nhan_toi_diem(chuyen_id: str, diem_don_tra_id: str, nguoi_dung_id: str) 
 
 
 def bao_su_co(chuyen_id: str, loai_su_co: str, ly_do: str, nguoi_dung_id: str) -> None:
+    """UC-17. Phụ xe chọn nguyên nhân theo thông tin tài xế cung cấp bằng lời."""
     if loai_su_co not in LOAI_SU_CO_HOP_LE:
         raise GiaTriLoi("Nguyên nhân sự cố không hợp lệ")
+    if not ly_do.strip():
+        raise GiaTriLoi("Vui lòng nhập mô tả sự cố")
 
     chuyen = lay_chuyen_cua_phu_xe(chuyen_id, nguoi_dung_id)
     if chuyen["trang_thai"] != "dang_chay":
         raise GiaTriLoi("Chỉ báo được sự cố khi chuyến đang chạy")
 
-    chuyen_xe_repo.cap_nhat_gap_su_co(chuyen_id, loai_su_co, ly_do)
+    if not chuyen_xe_repo.cap_nhat_gap_su_co(chuyen_id, loai_su_co, ly_do):
+        raise GiaTriLoi("Chuyến vừa được báo sự cố hoặc đổi trạng thái, vui lòng tải lại")
     chuyen_xe_repo.gan_co_xung_dot_vi_tri_cho_chuyen_tuong_lai(chuyen["xe_id"], chuyen_id)
 
     # mục 8.1 điểm 4 — báo khách đang có vé active trên chuyến này.

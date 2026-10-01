@@ -157,7 +157,11 @@ def cap_nhat_hoan_thanh(chuyen_id: str) -> None:
         release_connection(conn)
 
 
-def cap_nhat_gap_su_co(chuyen_id: str, loai_su_co: str, ly_do: str) -> None:
+def cap_nhat_gap_su_co(chuyen_id: str, loai_su_co: str, ly_do: str) -> bool:
+    """True nếu chuyển được sang gap_su_co. `AND trang_thai = 'dang_chay'` nằm
+    trong UPDATE để báo đúp không ghi đè loại/lý do sự cố đã lưu (quyết định
+    quyền hoàn tiền của khách — mục 3.3/4/7), và không biến chuyến vừa
+    hoan_thanh/da_huy thành gap_su_co."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -165,11 +169,13 @@ def cap_nhat_gap_su_co(chuyen_id: str, loai_su_co: str, ly_do: str) -> None:
                 """
                 UPDATE chuyen_xe
                 SET trang_thai = 'gap_su_co', loai_su_co = %s, ly_do_su_co = %s
-                WHERE id = %s
+                WHERE id = %s AND trang_thai = 'dang_chay'
                 """,
                 (loai_su_co, ly_do, chuyen_id),
             )
+            da_cap_nhat = cur.rowcount > 0
         conn.commit()
+        return da_cap_nhat
     finally:
         release_connection(conn)
 
