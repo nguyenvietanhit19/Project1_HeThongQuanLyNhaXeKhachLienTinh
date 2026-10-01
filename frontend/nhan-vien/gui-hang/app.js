@@ -8,6 +8,7 @@ let donHangHienTai = null;
 let danhSachTuyen = [];
 let danhSachVanPhong = [];
 let vanPhongTrucId = null;
+let phamViToanHeThong = false;
 
 // Cấu hình phân trang & Bộ lọc Client-side cho các bảng dữ liệu
 const phanTrangDonGanDay = {
@@ -123,13 +124,15 @@ async function taiDanhSachTuyenVaVanPhong() {
   const selectNhan = document.getElementById("diem_nhan_id");
 
   try {
-    const [resTuyen, resVanPhong] = await Promise.all([
+    const [resTuyen, resVanPhong, resPhamVi] = await Promise.all([
       apiGet("/gui-hang/tuyen"),
       apiGet("/gui-hang/van-phong"),
+      apiGet("/gui-hang/pham-vi"),
     ]);
 
     danhSachTuyen = resTuyen || [];
     danhSachVanPhong = resVanPhong || [];
+    phamViToanHeThong = resPhamVi?.pham_vi_toan_he_thong === true;
 
     // Nạp tuyến vận chuyển
     if (selectTuyen && danhSachTuyen.length > 0) {
@@ -144,16 +147,19 @@ async function taiDanhSachTuyenVaVanPhong() {
     }
 
     if (danhSachVanPhong.length > 0) {
-      // 1. Quản lý ca trực: lấy từ localStorage hoặc chọn văn phòng đầu tiên
-      vanPhongTrucId = localStorage.getItem("van_phong_truc_id");
+      // Nhân viên lấy văn phòng cố định từ hồ sơ trên BE; chỉ quản lý mới chọn phạm vi.
+      vanPhongTrucId = phamViToanHeThong
+        ? localStorage.getItem("quan_ly_van_phong_id")
+        : resPhamVi?.van_phong_id;
       let vpTruc = danhSachVanPhong.find(v => v.id === vanPhongTrucId);
-      if (!vpTruc) {
+      if (!vpTruc && phamViToanHeThong) {
         vpTruc = danhSachVanPhong[0];
         vanPhongTrucId = vpTruc.id;
         try {
-          localStorage.setItem("van_phong_truc_id", vanPhongTrucId);
+          localStorage.setItem("quan_ly_van_phong_id", vanPhongTrucId);
         } catch (_) {}
       }
+      if (!vpTruc) throw new Error("Tài khoản chưa được phân công văn phòng gửi hàng.");
 
       // Cập nhật tên văn phòng trên Topbar
       const elTenVP = document.getElementById("tenVanPhongHienTai");
@@ -165,8 +171,10 @@ async function taiDanhSachTuyenVaVanPhong() {
       if (selectGui) {
         selectGui.innerHTML = danhSachVanPhong.map(vp => `<option value="${vp.id}">${vp.ten} (${vp.dia_chi || ""})</option>`).join("");
         selectGui.value = vanPhongTrucId;
-        selectGui.disabled = true;
+        selectGui.disabled = !phamViToanHeThong;
       }
+      const btnDoiQuay = document.getElementById("btnDoiQuayTruc");
+      if (btnDoiQuay) btnDoiQuay.hidden = !phamViToanHeThong;
 
       // 3. Nạp văn phòng nhận (mặc định loại trừ văn phòng gửi để tránh chọn nhầm)
       if (selectNhan) {
@@ -184,23 +192,23 @@ async function taiDanhSachTuyenVaVanPhong() {
       // 4. Đồng bộ dropdown phạm vi thống kê & tồn kho
       const selectPhamViTK = document.getElementById("selectPhamViThongKe");
       if (selectPhamViTK && danhSachVanPhong.length > 0) {
-        selectPhamViTK.innerHTML = '<option value="">🌐 Toàn hệ thống nhà xe</option>' + danhSachVanPhong
-          .map(vp => `<option value="${vp.id}">${vp.ten}</option>`)
-          .join("");
-        if (vanPhongTrucId) {
-          selectPhamViTK.value = vanPhongTrucId;
-        }
+        selectPhamViTK.innerHTML = phamViToanHeThong
+          ? '<option value="">🌐 Toàn hệ thống nhà xe</option>' + danhSachVanPhong.map(vp => `<option value="${vp.id}">${vp.ten}</option>`).join("")
+          : `<option value="${vanPhongTrucId}">${vpTruc.ten}</option>`;
+        selectPhamViTK.value = phamViToanHeThong ? (vanPhongTrucId || "") : vanPhongTrucId;
+        selectPhamViTK.disabled = !phamViToanHeThong;
       }
 
       const selectPhamViHT = document.getElementById("selectPhamViHangTon");
       if (selectPhamViHT && danhSachVanPhong.length > 0) {
-        selectPhamViHT.innerHTML = '<option value="">🌐 Toàn bộ các kho</option>' + danhSachVanPhong
-          .map(vp => `<option value="${vp.id}">${vp.ten}</option>`)
-          .join("");
-        if (vanPhongTrucId) {
-          selectPhamViHT.value = vanPhongTrucId;
-        }
+        selectPhamViHT.innerHTML = phamViToanHeThong
+          ? '<option value="">🌐 Toàn bộ các kho</option>' + danhSachVanPhong.map(vp => `<option value="${vp.id}">${vp.ten}</option>`).join("")
+          : `<option value="${vanPhongTrucId}">${vpTruc.ten}</option>`;
+        selectPhamViHT.value = phamViToanHeThong ? (vanPhongTrucId || "") : vanPhongTrucId;
+        selectPhamViHT.disabled = !phamViToanHeThong;
       }
+      taiDanhSachHangTon();
+      taiThongKe();
     }
   } catch (err) {
     console.error("Không thể tải danh sách tuyến/văn phòng:", err);
@@ -212,6 +220,10 @@ async function taiDanhSachTuyenVaVanPhong() {
 
 // Cho phép nhân viên đổi quầy trực khi luân chuyển ca
 function doiVanPhongTruc() {
+  if (!phamViToanHeThong) {
+    showToast("error", "Không đủ quyền", "Văn phòng của nhân viên được cố định theo tài khoản.");
+    return;
+  }
   if (!danhSachVanPhong || danhSachVanPhong.length === 0) {
     showToast("warning", "Chưa có dữ liệu", "Đang tải danh sách văn phòng, vui lòng thử lại sau giây lát.");
     return;
@@ -230,8 +242,13 @@ function doiVanPhongTruc() {
   const vpMoi = danhSachVanPhong[index];
   vanPhongTrucId = vpMoi.id;
   try {
-    localStorage.setItem("van_phong_truc_id", vanPhongTrucId);
+    localStorage.setItem("quan_ly_van_phong_id", vanPhongTrucId);
   } catch (_) {}
+
+  const selectPhamViTK = document.getElementById("selectPhamViThongKe");
+  if (selectPhamViTK) selectPhamViTK.value = vanPhongTrucId;
+  const selectPhamViHT = document.getElementById("selectPhamViHangTon");
+  if (selectPhamViHT) selectPhamViHT.value = vanPhongTrucId;
 
   const elTenVP = document.getElementById("tenVanPhongHienTai");
   if (elTenVP) elTenVP.textContent = vpMoi.ten;
@@ -239,7 +256,7 @@ function doiVanPhongTruc() {
   const selectGui = document.getElementById("diem_gui_id");
   if (selectGui) {
     selectGui.value = vanPhongTrucId;
-    selectGui.disabled = true;
+    selectGui.disabled = false;
   }
 
   const selectNhan = document.getElementById("diem_nhan_id");
@@ -258,6 +275,8 @@ function doiVanPhongTruc() {
   }
 
   xuLyThayDoiDiemNhan();
+  taiDanhSachHangTon();
+  taiThongKe();
   showToast("success", "Đổi quầy trực thành công", `Quầy trực hiện tại: ${vpMoi.ten}`);
 }
 
@@ -309,6 +328,15 @@ function xuLyThayDoiLoaiHang() {
   }
 }
 
+function capNhatXacNhanDaThuTruoc() {
+  const hinhThuc = document.querySelector('input[name="phuong_thuc_thanh_toan"]:checked')?.value;
+  const wrap = document.getElementById("xacNhanDaThuTruocWrap");
+  const checkbox = document.getElementById("chkDaThuTruoc");
+  const laTraTruoc = hinhThuc === "nguoi_gui_tra_truoc";
+  if (wrap) wrap.style.display = laTraTruoc ? "flex" : "none";
+  if (!laTraTruoc && checkbox) checkbox.checked = false;
+}
+
 async function xuLyTaoDon(event) {
   event.preventDefault();
   const form = event.target;
@@ -352,6 +380,13 @@ async function xuLyTaoDon(event) {
     return;
   }
 
+  const hinhThucThanhToan = form.phuong_thuc_thanh_toan.value;
+  const daThuTruoc = document.getElementById("chkDaThuTruoc")?.checked === true;
+  if (hinhThucThanhToan === "nguoi_gui_tra_truoc" && !daThuTruoc) {
+    showToast("warning", "Chưa xác nhận thu tiền", "Hãy xác nhận đã nhận đủ cước của người gửi trước khi tạo đơn.");
+    return;
+  }
+
   btnSubmit.disabled = true;
 
   try {
@@ -369,7 +404,8 @@ async function xuLyTaoDon(event) {
       sdt_nguoi_gui: sdtGui,
       ten_nguoi_nhan: form.ten_nguoi_nhan.value.trim(),
       sdt_nguoi_nhan: sdtNhan,
-      phuong_thuc_thanh_toan: form.phuong_thuc_thanh_toan.value,
+      phuong_thuc_thanh_toan: hinhThucThanhToan,
+      xac_nhan_da_thu_truoc: daThuTruoc,
     };
 
     const donHang = await apiPost("/gui-hang/tao-don", body);
@@ -380,8 +416,9 @@ async function xuLyTaoDon(event) {
     const selectGui = document.getElementById("diem_gui_id");
     if (selectGui) {
       selectGui.value = vanPhongTrucId;
-      selectGui.disabled = true;
+      selectGui.disabled = !phamViToanHeThong;
     }
+    capNhatXacNhanDaThuTruoc();
     xuLyThayDoiLoaiHang();
 
     // Thông báo Toast thành công
@@ -432,12 +469,23 @@ function hienThiModalBienNhan(don) {
   document.getElementById("modalNguoiGui").textContent = `${don.ten_nguoi_gui} (${don.sdt_nguoi_gui})`;
   document.getElementById("modalNguoiNhan").textContent = `${don.ten_nguoi_nhan} (${don.sdt_nguoi_nhan})`;
   document.getElementById("modalCanNang").textContent = `${don.can_nang_kg} kg`;
+  const elLienHeVP = document.getElementById("modalLienHeVanPhongNhan");
+  if (elLienHeVP) {
+    elLienHeVP.textContent = [don.dia_chi_diem_nhan, don.sdt_lien_he_diem_nhan]
+      .filter(Boolean).join(" · ") || "Chưa cập nhật thông tin liên hệ";
+  }
   document.getElementById("modalGiaCuoc").textContent = `${parseInt(don.gia_cuoc).toLocaleString("vi-VN")} đ`;
   
   const hinhThuc = don.phuong_thuc_thanh_toan === "cod_nguoi_nhan_tra" 
-    ? "Thu COD (Người nhận trả sau)" 
+    ? "Người nhận thanh toán khi lấy hàng (COD)"
     : "Người gửi trả trước (Đã thanh toán)";
   document.getElementById("modalThanhToan").textContent = hinhThuc;
+  const elNhanGiaCuoc = document.getElementById("modalNhanGiaCuocLabel");
+  if (elNhanGiaCuoc) {
+    elNhanGiaCuoc.textContent = don.phuong_thuc_thanh_toan === "cod_nguoi_nhan_tra"
+      ? "CƯỚC NGƯỜI NHẬN CẦN THANH TOÁN:"
+      : "CƯỚC ĐÃ THU TẠI QUẦY:";
+  }
 
   document.getElementById("modalBienNhan").classList.add("active");
 }
@@ -790,7 +838,9 @@ function renderTrangDonGanDay(trang = 1) {
   tbody.innerHTML = items.map(d => {
     const isCod = d.phuong_thuc_thanh_toan === "cod_nguoi_nhan_tra";
     const paymentBadge = isCod
-      ? '<span class="badge-payment cod">🚚 Thu COD</span>'
+      ? (d.da_thu_tien
+        ? '<span class="badge-payment prepaid">✅ Đã thu COD</span>'
+        : '<span class="badge-payment cod">🚚 Chưa thu COD</span>')
       : '<span class="badge-payment prepaid">💵 Đã trả trước</span>';
 
     const dDate = new Date(d.ngay_tao);
@@ -802,10 +852,14 @@ function renderTrangDonGanDay(trang = 1) {
       : "--/--/----";
 
     let actionBtnHtml = "";
-    if (d.trang_thai === "cho_lay" || d.trang_thai === "qua_han_luu_kho") {
+    if (d.trang_thai === "cho_lay" && (phamViToanHeThong || String(d.diem_nhan_id) === String(vanPhongTrucId))) {
       actionBtnHtml = `<button type="button" class="btn-action-deliver" onclick="moModalGiaoHang('${d.ma_van_don}')" title="Bàn giao hàng cho người nhận & thu tiền COD">🚚 Giao hàng</button>`;
+    } else if (d.trang_thai === "cho_lay") {
+      actionBtnHtml = '<span style="color:#6B7280; font-size:0.8rem; font-style:italic; padding:0.4rem 0.6rem;">Chờ văn phòng nhận</span>';
     } else if (d.trang_thai === "da_giao") {
       actionBtnHtml = `<button type="button" class="btn-action-slip" onclick="inPhieuXuatKhoTheoMa('${d.ma_van_don}')" title="Xem lại & In phiếu xuất kho">📄 Phiếu giao</button>`;
+    } else if (d.trang_thai === "qua_han_luu_kho") {
+      actionBtnHtml = '<span style="color:#B45309; font-size:0.8rem; font-style:italic; padding:0.4rem 0.6rem;">Liên hệ xử lý kho</span>';
     } else {
       actionBtnHtml = `<span style="color:#9CA3AF; font-size:0.8rem; font-style:italic; padding:0.4rem 0.6rem;">Đang chuyển</span>`;
     }
@@ -938,12 +992,19 @@ async function moModalGiaoHang(maVanDon) {
   const isCod = don.phuong_thuc_thanh_toan === "cod_nguoi_nhan_tra";
   const elThanhToanBox = document.getElementById("modalGiaoHangThanhToanBox");
   if (elThanhToanBox) {
-    if (isCod) {
+    if (isCod && !don.da_thu_tien) {
       elThanhToanBox.className = "modal-cod-alert is-cod";
       elThanhToanBox.innerHTML = `
         <div class="cod-alert-badge">💵 ĐƠN THU TIỀN COD TRƯỚC KHI GIAO</div>
         <div class="cod-alert-amount">${parseInt(don.gia_cuoc).toLocaleString("vi-VN")} đ</div>
         <div class="cod-alert-subtext">⚠️ Thu đủ tiền từ người nhận trước khi bàn giao kiện hàng!</div>
+      `;
+    } else if (isCod) {
+      elThanhToanBox.className = "modal-cod-alert is-prepaid";
+      elThanhToanBox.innerHTML = `
+        <div class="cod-alert-badge">✅ ĐÃ THU ĐỦ TIỀN COD</div>
+        <div class="cod-alert-amount" style="font-size:1.8rem; color:#16A34A;">${parseInt(don.gia_cuoc).toLocaleString("vi-VN")} đ</div>
+        <div class="cod-alert-subtext">Khoản thu đã được ghi nhận trên hệ thống.</div>
       `;
     } else {
       elThanhToanBox.className = "modal-cod-alert is-prepaid";
@@ -967,8 +1028,10 @@ async function moModalGiaoHang(maVanDon) {
   setElText("modalGiaoHangCanNang", `${don.can_nang_kg || 0} kg`);
   setElText("modalGiaoHangNguoiGui", `${don.ten_nguoi_gui || "--"} (📞 ${don.sdt_nguoi_gui || "--"})`);
 
-  const chk = document.getElementById("chkKiemTraKienHang");
-  if (chk) chk.checked = true;
+  const codWrap = document.getElementById("xacNhanCODWrap");
+  const codCheck = document.getElementById("chkXacNhanThuCOD");
+  if (codWrap) codWrap.style.display = isCod && !don.da_thu_tien ? "block" : "none";
+  if (codCheck) codCheck.checked = false;
 
   document.getElementById("modalGiaoHangCOD")?.classList.add("active");
 }
@@ -981,10 +1044,12 @@ function dongModalGiaoHang() {
 async function xacNhanGiaoHangTuModal() {
   if (!donHangDangGiao) return;
 
-  const chk = document.getElementById("chkKiemTraKienHang");
-  if (chk && !chk.checked) {
-    showToast("warning", "Chưa xác nhận kiểm hàng", "Vui lòng xác nhận người nhận đã kiểm tra kiện hàng trước khi bàn giao!");
-    return;
+  if (donHangDangGiao.phuong_thuc_thanh_toan === "cod_nguoi_nhan_tra" && !donHangDangGiao.da_thu_tien) {
+    const codCheck = document.getElementById("chkXacNhanThuCOD");
+    if (!codCheck?.checked) {
+      showToast("warning", "Chưa xác nhận thu COD", "Vui lòng xác nhận đã nhận đủ tiền COD từ người nhận.");
+      return;
+    }
   }
 
   const btn = document.getElementById("btnXacNhanGiaoHangModal");
@@ -994,11 +1059,18 @@ async function xacNhanGiaoHangTuModal() {
   }
 
   try {
+    if (donHangDangGiao.phuong_thuc_thanh_toan === "cod_nguoi_nhan_tra" && !donHangDangGiao.da_thu_tien) {
+      donHangDangGiao = await apiPost("/gui-hang/xac-nhan-thu-cod", {
+        ma_van_don: donHangDangGiao.ma_van_don,
+        xac_nhan_da_thu: true,
+      });
+    }
     const res = await apiPost("/gui-hang/giao-hang", { ma_van_don: donHangDangGiao.ma_van_don });
     showToast("success", "Giao hàng thành công", `Đã bàn giao đơn hàng ${donHangDangGiao.ma_van_don} thành công!`);
     
     dongModalGiaoHang();
     await taiDanhSachDonGanDay();
+    await taiDanhSachHangTon();
     taiThongKe();
 
     // Mở ngay modal Phiếu xuất kho để in cho khách ký đối soát
@@ -1186,8 +1258,13 @@ function renderTrangHangTon(trang = 1) {
         <td class="text-right"><span class="price-tag">${parseInt(d.gia_cuoc).toLocaleString("vi-VN")} đ</span></td>
         <td class="text-center">${statusBadge}</td>
         <td style="white-space: nowrap;">${thoiGianKhoHtml}</td>
-        <td class="text-center">
-          <button class="btn-action-sm" onclick="lienHeLai('${d.id}')">📞 Báo đã gọi nhắc</button>
+        <td class="text-center" style="white-space:nowrap;">
+          ${d.trang_thai === "cho_lay"
+            ? `<button type="button" class="btn-action-deliver" onclick="moModalGiaoHang('${d.ma_van_don}')">🚚 Giao hàng</button>`
+            : ""}
+          ${!d.da_thong_bao_nguoi_nhan
+            ? `<button type="button" class="btn-action-sm" onclick="lienHeLai('${d.id}')">📞 Báo đã gọi nhắc</button>`
+            : ""}
         </td>
       </tr>
     `;
@@ -1256,7 +1333,7 @@ function doiPhamViThoiGianBieuDo(soNgay) {
   const btn = document.getElementById(`btnRange${soNgay}`);
   if (btn) btn.classList.add("active");
 
-  renderColumnChart(soNgay);
+  taiThongKe();
 }
 
 function renderColumnChart(soNgay = 7) {
@@ -1264,64 +1341,27 @@ function renderColumnChart(soNgay = 7) {
   if (!container) return;
 
   const data = duLieuThongKeHienTai || {};
-  const tongDon = data.tong_so_don ?? data.tong_don_gui_di ?? (danhSachDonGanDay ? danhSachDonGanDay.length : 0);
-  const daGiao = data.da_giao ?? data.so_don_da_giao ?? 0;
-  const dangChuyen = (data.dang_van_chuyen ?? data.so_don_dang_van_chuyen ?? 0) + (data.cho_van_chuyen ?? data.so_don_cho_xep_xe ?? 0);
-  const choLay = data.cho_lay ?? data.so_don_cho_lay ?? 0;
-
-  // Cập nhật số liệu chú thích (Legend)
+  const theoNgay = Array.isArray(data.theo_ngay) ? data.theo_ngay : [];
+  const tongTiepNhan = theoNgay.reduce((sum, row) => sum + Number(row.don_tiep_nhan || 0), 0);
+  const tongDaGiao = theoNgay.reduce((sum, row) => sum + Number(row.da_giao || 0), 0);
   const elLegDaGiao = document.getElementById("legendDaGiaoCount");
-  const elLegDangXuLy = document.getElementById("legendDangXuLyCount");
-  const elLegChoLay = document.getElementById("legendChoLayCount");
-  if (elLegDaGiao) elLegDaGiao.textContent = daGiao;
-  if (elLegDangXuLy) elLegDangXuLy.textContent = dangChuyen;
-  if (elLegChoLay) elLegChoLay.textContent = choLay;
+  const elLegTiepNhan = document.getElementById("legendDangXuLyCount");
+  if (elLegDaGiao) elLegDaGiao.textContent = tongDaGiao;
+  if (elLegTiepNhan) elLegTiepNhan.textContent = tongTiepNhan;
 
-  // Tạo danh sách các ngày theo phạm vi (7, 14, 30 ngày)
-  const now = new Date();
-  const days = [];
-  for (let i = soNgay - 1; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(now.getDate() - i);
-    const dayStr = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
-    days.push({
-      dateStr: dayStr,
-      fullDate: d.toISOString().split("T")[0],
-      daGiao: 0,
-      dangXuLy: 0
-    });
-  }
-
-  // Nếu có danh sách đơn thực tế từ danhSachDonGanDay hoặc backend, gom nhóm theo ngày
-  if (danhSachDonGanDay && danhSachDonGanDay.length > 0) {
-    danhSachDonGanDay.forEach(don => {
-      const donDate = don.ngay_tao ? don.ngay_tao.split("T")[0] : "";
-      const dayItem = days.find(d => d.fullDate === donDate);
-      if (dayItem) {
-        if (don.trang_thai === "da_giao") {
-          dayItem.daGiao += 1;
-        } else {
-          dayItem.dangXuLy += 1;
-        }
-      }
-    });
-  }
-
-  // Nếu chưa có nhiều đơn phân bổ hoặc test data, phân bổ tự nhiên theo tỷ lệ từ aggregate metrics
-  const hasRealDaily = days.some(d => d.daGiao > 0 || d.dangXuLy > 0);
-  if (!hasRealDaily) {
-    const baseDailyGiao = Math.max(1, Math.round(daGiao / Math.min(soNgay, 7)));
-    const baseDailyXuLy = Math.max(1, Math.round(dangChuyen / Math.min(soNgay, 7)));
-
-    days.forEach((d, idx) => {
-      const factor = 0.7 + ((idx * 7 + 3) % 7) * 0.1;
-      d.daGiao = Math.round(baseDailyGiao * factor);
-      d.dangXuLy = Math.round(baseDailyXuLy * (1.3 - factor * 0.4));
-    });
-  }
+  // Hiển thị dữ liệu thực do BE đã nhóm theo ngày tạo và ngày giao.
+  const days = theoNgay.map(row => {
+    const [, month, day] = row.ngay.split("-");
+    return {
+      dateStr: `${day}/${month}`,
+      fullDate: row.ngay,
+      daGiao: Number(row.da_giao || 0),
+      tiepNhan: Number(row.don_tiep_nhan || 0),
+    };
+  }).slice(-soNgay);
 
   // Tìm giá trị max để scale chiều cao cột
-  const maxVal = Math.max(...days.map(d => Math.max(d.daGiao, d.dangXuLy)), 5);
+  const maxVal = Math.max(...days.map(d => Math.max(d.daGiao, d.tiepNhan)), 5);
   const ceiling = Math.ceil(maxVal * 1.25);
 
   // Kích thước SVG
@@ -1356,11 +1396,11 @@ function renderColumnChart(soNgay = 7) {
     const groupX = padLeft + idx * groupW;
     const centerX = groupX + groupW / 2;
 
-    const hGiao = Math.max(2, (item.daGiao / ceiling) * chartH);
+    const hGiao = (item.daGiao / ceiling) * chartH;
     const yGiao = padTop + chartH - hGiao;
     const xGiao = centerX - barW - 2;
 
-    const hXuLy = Math.max(2, (item.dangXuLy / ceiling) * chartH);
+    const hXuLy = (item.tiepNhan / ceiling) * chartH;
     const yXuLy = padTop + chartH - hXuLy;
     const xXuLy = centerX + 2;
 
@@ -1372,8 +1412,8 @@ function renderColumnChart(soNgay = 7) {
 
     barsSvg += `
       <!-- Nhóm cột ngày ${item.dateStr} -->
-      <g class="chart-col-group" data-date="${item.dateStr}" data-giao="${item.daGiao}" data-xuly="${item.dangXuLy}"
-         onmouseenter="hienThiTooltipBieuDo(event, '${item.dateStr}', ${item.daGiao}, ${item.dangXuLy})"
+      <g class="chart-col-group" data-date="${item.dateStr}" data-giao="${item.daGiao}" data-xuly="${item.tiepNhan}"
+         onmouseenter="hienThiTooltipBieuDo(event, '${item.dateStr}', ${item.daGiao}, ${item.tiepNhan})"
          onmouseleave="anTooltipBieuDo()">
         <rect x="${xGiao}" y="${yGiao}" width="${barW}" height="${hGiao}" rx="4" fill="#10B981" class="chart-bar bar-green" style="cursor:pointer;"/>
         <rect x="${xXuLy}" y="${yXuLy}" width="${barW}" height="${hXuLy}" rx="4" fill="#3B82F6" class="chart-bar bar-blue" style="cursor:pointer;"/>
@@ -1406,7 +1446,7 @@ function hienThiTooltipBieuDo(event, dateStr, daGiao, dangXuLy) {
       <span>✔️ Đã giao:</span><strong>${daGiao} đơn</strong>
     </div>
     <div style="display:flex; justify-content:space-between; gap:10px; color:#60A5FA;">
-      <span>🚚 Đang xử lý:</span><strong>${dangXuLy} đơn</strong>
+        <span>📦 Tiếp nhận:</span><strong>${dangXuLy} đơn</strong>
     </div>
   `;
 
@@ -1428,7 +1468,9 @@ async function taiThongKe() {
   try {
     const selectPhamVi = document.getElementById("selectPhamViThongKe");
     const diemId = selectPhamVi ? selectPhamVi.value : "";
-    const url = diemId ? `/gui-hang/thong-ke?diem_id=${encodeURIComponent(diemId)}` : "/gui-hang/thong-ke";
+    const query = new URLSearchParams({ so_ngay: String(phamViThoiGianBieuDoHienTai) });
+    if (diemId) query.set("diem_id", diemId);
+    const url = `/gui-hang/thong-ke?${query.toString()}`;
     const data = await apiGet(url);
     if (!data) return;
 
@@ -1462,7 +1504,7 @@ async function taiThongKe() {
     setVal("statCodDaThu", `${parseInt(codDaThu).toLocaleString("vi-VN")} đ`);
 
     // Tính phần trăm phân bổ trạng thái cho các Progress Bar
-    const tongTrangThai = tongDon > 0 ? tongDon : ((choXep + dangChuyen + choLay + daGiao + hangTon) || 1);
+    const tongTrangThai = (choXep + dangChuyen + choLay + daGiao + hangTon) || 1;
     const pctDaGiao = Math.round((daGiao / tongTrangThai) * 100);
     const pctDangChuyen = Math.round((dangChuyen / tongTrangThai) * 100);
     const pctChoLay = Math.round((choLay / tongTrangThai) * 100);
@@ -1474,6 +1516,8 @@ async function taiThongKe() {
     setVal("pctChoLay", `${pctChoLay}% (${choLay} đơn)`);
     setVal("pctChoXep", `${pctChoXep}% (${choXep} đơn)`);
     setVal("pctHangTon", `${pctHangTon}% (${hangTon} đơn)`);
+    setVal("kpiDonChoLay", choLay);
+    setVal("kpiCanhBaoChoLau", data.so_don_canh_bao_7_ngay ?? 0);
 
     const setWidth = (id, pct) => {
       const el = document.getElementById(id);
@@ -1485,29 +1529,6 @@ async function taiThongKe() {
     setWidth("barChoLay", pctChoLay);
     setWidth("barChoXep", pctChoXep);
     setWidth("barHangTon", pctHangTon);
-
-    // Tính chỉ số vận hành thực tế từ dữ liệu đơn hàng CSDL
-    const tongDonDaXuLyGiao = daGiao + hangTon;
-    let pctDungHan = 100;
-    let subDungHan = "100% không quá hạn";
-    if (tongDonDaXuLyGiao > 0) {
-      pctDungHan = Math.round((daGiao / tongDonDaXuLyGiao) * 1000) / 10;
-      subDungHan = `${daGiao}/${tongDonDaXuLyGiao} đơn đúng hạn`;
-    } else {
-      subDungHan = "Chưa có đơn quá hạn";
-    }
-    setVal("kpiDungHan", `${pctDungHan}%`);
-    setVal("kpiDungHanSub", subDungHan);
-
-    // Điểm CSAT (chỉ số hài lòng quy đổi dựa trên tỷ lệ xử lý đúng hạn)
-    let diemCsat = 5.0;
-    let subDanhGia = "Đạt chuẩn 5 sao";
-    if (tongDonDaXuLyGiao > 0) {
-      diemCsat = Math.max(3.0, Math.round((3.5 + (pctDungHan / 100) * 1.5) * 10) / 10);
-      subDanhGia = pctDungHan >= 95 ? "Chất lượng xuất sắc" : (pctDungHan >= 80 ? "Chất lượng khá" : "Cần rà soát kho");
-    }
-    setVal("kpiDanhGia", `${diemCsat.toFixed(1)} / 5.0`);
-    setVal("kpiDanhGiaSub", subDanhGia);
 
     // Vẽ biểu đồ cột
     renderColumnChart(phamViThoiGianBieuDoHienTai);
@@ -1525,6 +1546,11 @@ function khoiTaoTrang() {
       activeTab = savedTab;
     }
   } catch (_) {}
+
+  document.querySelectorAll('input[name="phuong_thuc_thanh_toan"]').forEach(input => {
+    input.addEventListener("change", capNhatXacNhanDaThuTruoc);
+  });
+  capNhatXacNhanDaThuTruoc();
 
   chuyenTab(activeTab);
   taiDanhSachLoaiHang();

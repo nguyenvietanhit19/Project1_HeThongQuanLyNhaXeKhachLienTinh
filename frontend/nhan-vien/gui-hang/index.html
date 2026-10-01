@@ -66,7 +66,7 @@
                   <div class="form-group">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
                       <label class="form-label required" style="margin-bottom: 0;">Văn phòng gửi</label>
-                      <button type="button" class="btn-text-action" onclick="doiVanPhongTruc()" title="Đổi quầy làm việc">🔄 Đổi quầy trực</button>
+                      <button type="button" id="btnDoiQuayTruc" class="btn-text-action" onclick="doiVanPhongTruc()" title="Đổi phạm vi quản lý" hidden>🔄 Đổi văn phòng</button>
                     </div>
                     <select id="diem_gui_id" name="diem_gui_id" class="form-select" required onchange="xuLyThayDoiDiemGui()">
                       <option value="">-- Đang nạp văn phòng... --</option>
@@ -133,6 +133,10 @@
                       </div>
                     </label>
                   </div>
+                  <label class="delivery-checkbox-label" id="xacNhanDaThuTruocWrap" style="display:flex; margin-top:0.75rem;">
+                    <input type="checkbox" id="chkDaThuTruoc">
+                    <span>Tôi xác nhận đã thu đủ cước từ người gửi tại quầy.</span>
+                  </label>
                 </div>
               </div>
 
@@ -259,8 +263,6 @@
             <label for="selectPhamViHangTon" style="font-weight: 600; font-size: 0.88rem; color: #4B5563;">Kho:</label>
             <select id="selectPhamViHangTon" class="form-select" style="min-width: 220px;" onchange="taiDanhSachHangTon()">
               <option value="">🌐 Toàn bộ các kho</option>
-              <option value="44444444-4444-4444-4444-444444444444" selected>VP Trung tâm TP Lào Cai</option>
-              <option value="33333333-3333-3333-3333-333333333333">VP Bến xe Mỹ Đình (Hà Nội)</option>
             </select>
             <button type="button" class="btn-action-sm" onclick="taiDanhSachHangTon()" title="Làm mới">🔄</button>
           </div>
@@ -337,8 +339,6 @@
             <label for="selectPhamViThongKe" style="font-weight: 600; font-size: 0.88rem; color: #4B5563;">Phạm vi:</label>
             <select id="selectPhamViThongKe" class="form-select" style="min-width: 220px;" onchange="taiThongKe()">
               <option value="">🌐 Toàn hệ thống nhà xe</option>
-              <option value="33333333-3333-3333-3333-333333333333">VP Bến xe Mỹ Đình (Hà Nội)</option>
-              <option value="44444444-4444-4444-4444-444444444444">VP Trung tâm TP Lào Cai</option>
             </select>
             <button type="button" class="btn-action-sm" onclick="taiThongKe()" title="Làm mới số liệu">🔄 Làm mới</button>
           </div>
@@ -448,11 +448,7 @@
             </div>
             <div class="legend-item">
               <span class="legend-color-box legend-color-blue"></span>
-              <span class="legend-text">Đang xử lý / Vận chuyển (<strong id="legendDangXuLyCount">0</strong> đơn)</span>
-            </div>
-            <div class="legend-item">
-              <span class="legend-color-box legend-color-orange"></span>
-              <span class="legend-text">Tồn kho chờ nhận (<strong id="legendChoLayCount">0</strong> đơn)</span>
+                <span class="legend-text">Đơn tiếp nhận (<strong id="legendDangXuLyCount">0</strong> đơn)</span>
             </div>
           </div>
         </div>
@@ -522,17 +518,17 @@
 
           <!-- Các chỉ số chất lượng dịch vụ vận hành -->
           <div class="service-kpi-subgrid">
-            <div class="service-kpi-box" title="Công thức: Đơn đã giao / (Đơn đã giao + Đơn tồn kho quá hạn) * 100%">
-              <div class="service-kpi-icon">⏱️</div>
-              <div class="service-kpi-val" id="kpiDungHan">--%</div>
-              <div class="service-kpi-lbl">Giao đúng hẹn</div>
-              <div class="service-kpi-formula" id="kpiDungHanSub">Đang tính toán...</div>
+            <div class="service-kpi-box" title="Số đơn hiện đang chờ người nhận đến lấy tại văn phòng.">
+              <div class="service-kpi-icon">📦</div>
+              <div class="service-kpi-val" id="kpiDonChoLay">0</div>
+              <div class="service-kpi-lbl">Đơn đang chờ lấy</div>
+              <div class="service-kpi-formula">Tại văn phòng nhận</div>
             </div>
-            <div class="service-kpi-box" title="Điểm hài lòng dịch vụ (CSAT thang 5 sao) chuẩn hóa theo chất lượng xử lý đơn hàng">
-              <div class="service-kpi-icon">⭐</div>
-              <div class="service-kpi-val" id="kpiDanhGia">-- / 5.0</div>
-              <div class="service-kpi-lbl">Hài lòng dịch vụ</div>
-              <div class="service-kpi-formula" id="kpiDanhGiaSub">Đang tính toán...</div>
+            <div class="service-kpi-box" title="Số đơn đã đến hạn cảnh báo chờ lâu và cần nhân viên liên hệ người nhận.">
+              <div class="service-kpi-icon">📞</div>
+              <div class="service-kpi-val" id="kpiCanhBaoChoLau">0</div>
+              <div class="service-kpi-lbl">Cần liên hệ người nhận</div>
+              <div class="service-kpi-formula">Cảnh báo lưu kho từ 7 ngày</div>
             </div>
           </div>
         </div>
@@ -566,6 +562,10 @@
         <strong id="modalLoTrinh">--</strong>
       </div>
       <div class="receipt-row">
+        <span style="color: #6B7280;">Địa chỉ / điện thoại VP nhận:</span>
+        <strong id="modalLienHeVanPhongNhan">--</strong>
+      </div>
+      <div class="receipt-row">
         <span style="color: #6B7280;">Người gửi:</span>
         <strong id="modalNguoiGui">--</strong>
       </div>
@@ -582,12 +582,12 @@
         <strong id="modalThanhToan">--</strong>
       </div>
       <div class="receipt-row total">
-        <span>TỔNG CƯỚC THU:</span>
+        <span id="modalNhanGiaCuocLabel">CƯỚC VẬN CHUYỂN:</span>
         <span id="modalGiaCuoc">0 đ</span>
       </div>
 
       <div style="font-size: 0.75rem; color: #9CA3AF; text-align: center; margin-top: 1.25rem; font-style: italic;">
-        * Vui lòng giữ biên nhận này để đối soát khi cần thiết. Quý khách có thể tra cứu hành trình kiện hàng bằng mã vận đơn trên website.
+        * Vui lòng giữ biên nhận này để đối soát. Khi tra cứu hành trình, quý khách cần mã vận đơn và SĐT người gửi hoặc người nhận.
       </div>
 
       <div class="receipt-actions">
@@ -784,11 +784,10 @@
           </div>
         </div>
 
-        <!-- Cam kết kiểm hàng -->
-        <div class="delivery-check-rule">
+        <div class="delivery-check-rule" id="xacNhanCODWrap" style="display:none;">
           <label class="delivery-checkbox-label">
-            <input type="checkbox" id="chkKiemTraKienHang" checked>
-            <span>Tôi xác nhận người nhận đã kiểm tra kiện hàng còn nguyên bao bì / niêm phong và đồng ý nhận hàng.</span>
+            <input type="checkbox" id="chkXacNhanThuCOD">
+            <span>Tôi xác nhận đã thu đủ tiền COD hiển thị ở trên từ người nhận.</span>
           </label>
         </div>
       </div>

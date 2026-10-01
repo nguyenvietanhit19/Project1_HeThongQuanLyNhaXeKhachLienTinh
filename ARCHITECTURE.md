@@ -61,6 +61,7 @@ project-root/
 │   │   │   ├── ve_schema.py
 │   │   │   ├── chuyen_xe_schema.py
 │   │   │   ├── don_hang_schema.py
+│   │   │   ├── ho_so_can_bo_diem_schema.py
 │   │   │   └── ...
 │   │   │
 │   │   ├── repositories/                  # raw SQL, 1 file = 1 bảng/entity dữ liệu
@@ -73,12 +74,14 @@ project-root/
 │   │   │   ├── xe_repository.py
 │   │   │   ├── chuyen_xe_repository.py
 │   │   │   ├── ve_repository.py               # trung tâm: khóa ghế, kiểm tra overlap (mục 6)
-│   │   │   └── don_hang_repository.py         # gửi hàng (mục 10)
+│   │   │   ├── don_hang_repository.py         # gửi hàng (mục 10)
+│   │   │   └── ho_so_can_bo_diem_repository.py # phạm vi văn phòng NV gửi hàng
 │   │   │
 │   │   ├── services/                      # quy tắc nghiệp vụ + service hạ tầng
 │   │   │   ├── mat_khau_service.py            # đăng ký/đăng nhập/quên mật khẩu — kế thừa bản v1
 │   │   │   ├── tai_khoan_can_bo_service.py    # tạo/khóa/mở khóa tài khoản cán bộ (UC-36/37/38) — kiểm tra quyền actor vs vai trò mục tiêu, chặn khóa quan_ly gốc (mục 8.9 NGHIEP_VU.md)
 │   │   │   ├── email_service.py               # gửi mail OTP qua Brevo API (HTTPS) — hạ tầng
+│   │   │   ├── ho_so_can_bo_diem_service.py    # phân công NV gửi hàng vào văn phòng
 │   │   │   ├── tim_kiem_chuyen_service.py     # tìm theo điểm đi/đến (mục 3.4 bước 1-2)
 │   │   │   ├── dat_ve_service.py              # giữ ghế, chống trùng ghế, đặt cọc (mục 3.4, 6)
 │   │   │   ├── thanh_toan_service.py          # thanh toán ngay / tại quầy

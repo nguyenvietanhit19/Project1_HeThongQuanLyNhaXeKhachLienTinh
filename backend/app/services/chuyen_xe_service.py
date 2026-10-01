@@ -22,6 +22,11 @@ from app.utils.loi import GiaTriLoi, KhongDuQuyen
 LOAI_SU_CO_HOP_LE = ("loi_nha_xe", "loi_khach_quan")
 
 
+def _lo_trinh_theo_chieu(chuyen: dict) -> list[dict]:
+    diem_list = dia_diem_repo.danh_sach_diem_theo_tuyen(chuyen["tuyen_id"])
+    return list(reversed(diem_list)) if chuyen.get("chieu") == "nguoc" else diem_list
+
+
 def _gui_thong_bao(nguoi_nhan_id: str, noi_dung: str) -> None:
     """Ghi vào DB TRƯỚC (khách offline vẫn đọc lại được sau,
     DATABASE.md mục 6.1) rồi mới đẩy real-time — đúng thứ tự
@@ -59,7 +64,7 @@ def diem_hien_tai(chuyen: dict) -> dict:
     Dùng chung cho khach_tai_diem_hien_tai() ở đây và
     gui_hang_service.danh_sach_cho_chat() — cả hai đều cần biết "điểm hiện
     tại" của cùng 1 chuyến."""
-    diem_list = dia_diem_repo.danh_sach_diem_theo_tuyen(chuyen["tuyen_id"])
+    diem_list = _lo_trinh_theo_chieu(chuyen)
     if not diem_list:
         raise GiaTriLoi("Tuyến chưa có điểm đón/trả nào")
 
@@ -67,7 +72,7 @@ def diem_hien_tai(chuyen: dict) -> dict:
     if not da_xac_nhan:
         return diem_list[0]
 
-    diem_id_hien_tai = da_xac_nhan[0]["diem_don_tra_id"]  # thu_tu DESC -> dòng đầu là mới nhất
+    diem_id_hien_tai = da_xac_nhan[0]["diem_don_tra_id"]  # lần xác nhận gần nhất đứng đầu
     for diem in diem_list:
         if diem["diem_don_tra_id"] == diem_id_hien_tai:
             return diem
@@ -167,7 +172,7 @@ def hanh_trinh(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
     giao diện hiển thị hành trình và biết điểm tiếp theo cần xác nhận
     (mục 8.2 điểm 5)."""
     chuyen = lay_chuyen_cua_phu_xe(chuyen_id, nguoi_dung_id)
-    diem_list = dia_diem_repo.danh_sach_diem_theo_tuyen(chuyen["tuyen_id"])
+    diem_list = _lo_trinh_theo_chieu(chuyen)
     da_xac_nhan = {d["diem_don_tra_id"]: d["gio_thuc_te"] for d in chuyen_xe_repo.lay_diem_da_xac_nhan(chuyen_id)}
 
     return [
@@ -188,7 +193,7 @@ def xac_nhan_toi_diem(chuyen_id: str, diem_don_tra_id: str, nguoi_dung_id: str) 
     if chuyen["trang_thai"] != "dang_chay":
         raise GiaTriLoi("Chuyến chưa xuất phát")
 
-    diem_list = dia_diem_repo.danh_sach_diem_theo_tuyen(chuyen["tuyen_id"])
+    diem_list = _lo_trinh_theo_chieu(chuyen)
     diem_muc_tieu = next((d for d in diem_list if d["diem_don_tra_id"] == diem_don_tra_id), None)
     if diem_muc_tieu is None:
         raise GiaTriLoi("Điểm này không thuộc tuyến của chuyến")
@@ -197,7 +202,7 @@ def xac_nhan_toi_diem(chuyen_id: str, diem_don_tra_id: str, nguoi_dung_id: str) 
     if diem_don_tra_id in da_xac_nhan_ids:
         raise GiaTriLoi("Điểm này đã được xác nhận đến trước đó")
 
-    # Điểm đầu tuyến (thu_tu nhỏ nhất) là nơi xe xuất phát (UC-15), không
+    # Điểm đầu theo chiều chuyến là nơi xe xuất phát (UC-15), không
     # phải điểm "đến" — các điểm còn lại phải xác nhận đúng thứ tự, không
     # được nhảy cóc bỏ qua 1 điểm giữa đường.
     con_lai = [d for d in diem_list[1:] if d["diem_don_tra_id"] not in da_xac_nhan_ids]
@@ -212,7 +217,7 @@ def xac_nhan_toi_diem(chuyen_id: str, diem_don_tra_id: str, nguoi_dung_id: str) 
         chuyen_xe_repo.cap_nhat_hoan_thanh(chuyen_id)
 
     # mục 8.2 điểm 5 — cập nhật ETA cho khách đang chờ đón ở các điểm PHÍA
-    # SAU điểm vừa xác nhận (không phải toàn bộ khách trên chuyến).
+    # SAU điểm vừa xác nhận theo chiều chuyến.
     if not da_hoan_thanh:
         noi_dung = f"Xe vừa đến {diem_muc_tieu['ten']} — cập nhật giờ dự kiến đón bạn"
         for khach in ve_repo.tim_khach_cho_don_sau_diem(chuyen_id, diem_muc_tieu["thu_tu"]):

@@ -3,9 +3,9 @@
  * Tự động gắn Bearer Token và chuẩn hóa bắt lỗi.
  */
 
-const API_BASE_URL = window.location.hostname === "127.0.0.1" 
-  ? "http://127.0.0.1:8000" 
-  : "http://localhost:8000";
+const API_BASE_URL = ["localhost", "127.0.0.1"].includes(window.location.hostname)
+  ? "http://localhost:8000"
+  : "https://nha-xe-khach-backend.onrender.com";
 
 async function apiFetch(duongDan, tuyChon = {}) {
   const token = localStorage.getItem("token");

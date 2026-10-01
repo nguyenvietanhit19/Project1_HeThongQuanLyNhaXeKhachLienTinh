@@ -42,18 +42,18 @@ def xoa_khu_vuc(khu_vuc_id: str) -> None:
 # ---------------------------------------------------------
 
 
-def tao_diem_don_tra(khu_vuc_id: str, ten: str, dia_chi: str, loai: str) -> dict:
+def tao_diem_don_tra(khu_vuc_id: str, ten: str, dia_chi: str, loai: str, sdt_lien_he: str | None = None) -> dict:
     if not repo.tim_khu_vuc_theo_id(khu_vuc_id):
         raise GiaTriLoi("Khu vực không tồn tại")
-    return repo.tao_diem_don_tra(khu_vuc_id, ten, dia_chi, loai)
+    return repo.tao_diem_don_tra(khu_vuc_id, ten, dia_chi, loai, sdt_lien_he)
 
 
-def sua_diem_don_tra(diem_id: str, khu_vuc_id: str, ten: str, dia_chi: str, loai: str) -> None:
+def sua_diem_don_tra(diem_id: str, khu_vuc_id: str, ten: str, dia_chi: str, loai: str, sdt_lien_he: str | None = None) -> None:
     if not repo.tim_diem_don_tra_theo_id(diem_id):
         raise GiaTriLoi("Không tìm thấy điểm đón/trả")
     if not repo.tim_khu_vuc_theo_id(khu_vuc_id):
         raise GiaTriLoi("Khu vực không tồn tại")
-    repo.sua_diem_don_tra(diem_id, khu_vuc_id, ten, dia_chi, loai)
+    repo.sua_diem_don_tra(diem_id, khu_vuc_id, ten, dia_chi, loai, sdt_lien_he)
 
 
 def danh_sach_diem_don_tra(khu_vuc_id: str | None = None) -> list[dict]:

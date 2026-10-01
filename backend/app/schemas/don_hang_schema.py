@@ -46,6 +46,7 @@ class TaoDonHangRequest(BaseModel):
     phuong_thuc_thanh_toan: Literal["nguoi_gui_tra_truoc", "cod_nguoi_nhan_tra"] = Field(
         ..., description="Hình thức: người gửi trả tiền trước hoặc COD người nhận trả"
     )
+    xac_nhan_da_thu_truoc: bool = Field(False, description="Nhân viên xác nhận đã nhận tiền nếu người gửi trả trước")
 
 
 # ---------------------------------------------------------
@@ -53,6 +54,22 @@ class TaoDonHangRequest(BaseModel):
 # ---------------------------------------------------------
 class GiaoHangRequest(BaseModel):
     ma_van_don: str = Field(..., description="Mã vận đơn khách đọc lúc nhận hàng")
+
+
+class XacNhanThuCODRequest(BaseModel):
+    ma_van_don: str
+    xac_nhan_da_thu: bool = Field(..., description="Nhân viên xác nhận đã thu đủ cước COD bằng tiền mặt")
+
+
+class TheoDoiDonHangResponse(BaseModel):
+    """Thông tin tối thiểu cho khách tra cứu công khai bằng mã vận đơn."""
+    ma_van_don: str
+    trang_thai: Literal["cho_van_chuyen", "da_len_xe", "cho_lay", "da_giao", "qua_han_luu_kho"]
+    ten_diem_gui: str | None = None
+    ten_diem_nhan: str | None = None
+    ngay_tao: datetime
+    thoi_gian_den_diem_nhan: datetime | None = None
+    ngay_giao: datetime | None = None
 
 
 # ---------------------------------------------------------
@@ -78,6 +95,8 @@ class DonHangResponse(BaseModel):
     ten_tuyen: str | None = None
     ten_diem_gui: str | None = None
     ten_diem_nhan: str | None = None
+    dia_chi_diem_nhan: str | None = None
+    sdt_lien_he_diem_nhan: str | None = None
 
     can_nang_kg: Decimal
     dai_cm: Decimal | None = None
@@ -90,6 +109,9 @@ class DonHangResponse(BaseModel):
     ten_nguoi_nhan: str
     sdt_nguoi_nhan: str
     phuong_thuc_thanh_toan: str
+    da_thu_tien: bool = False
+    nhan_vien_thu_id: UUID | None = None
+    ngay_thu: datetime | None = None
 
     trang_thai: Literal["cho_van_chuyen", "da_len_xe", "cho_lay", "da_giao", "qua_han_luu_kho"]
     nhan_vien_gui_id: UUID

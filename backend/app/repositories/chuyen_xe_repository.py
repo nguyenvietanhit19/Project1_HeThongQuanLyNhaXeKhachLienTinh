@@ -79,7 +79,7 @@ def lay_ten_tuyen_va_bien_so(tuyen_id: str, xe_id: str) -> dict:
 
 
 def lay_diem_da_xac_nhan(chuyen_id: str) -> list[dict]:
-    """Điểm đã được phụ xe xác nhận đến, sắp theo thu_tu — dùng để suy ra
+    """Điểm phụ xe đã xác nhận, lần xác nhận mới nhất đứng đầu — dùng để suy ra
     điểm hiện tại (mục 8.2 điểm 1/5)."""
     conn = get_connection()
     try:
@@ -91,7 +91,7 @@ def lay_diem_da_xac_nhan(chuyen_id: str) -> list[dict]:
                 JOIN chuyen_xe cx ON cx.id = ls.chuyen_id
                 JOIN tuyen_diem_don_tra tdt ON tdt.tuyen_id = cx.tuyen_id AND tdt.diem_don_tra_id = ls.diem_don_tra_id
                 WHERE ls.chuyen_id = %s
-                ORDER BY tdt.thu_tu DESC
+                ORDER BY ls.gio_thuc_te DESC
                 """,
                 (chuyen_id,),
             )

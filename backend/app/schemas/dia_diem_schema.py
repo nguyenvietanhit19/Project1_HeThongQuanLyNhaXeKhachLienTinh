@@ -34,6 +34,7 @@ class DiemDonTraRequest(BaseModel):
     khu_vuc_id: UUID
     ten: str = Field(..., min_length=1)
     dia_chi: str = Field(..., min_length=1)
+    sdt_lien_he: str | None = Field(None, min_length=8, max_length=15)
     loai: Literal["van_phong", "diem_dung"]
 
 
@@ -42,6 +43,7 @@ class DiemDonTraResponse(BaseModel):
     khu_vuc_id: UUID
     ten: str
     dia_chi: str
+    sdt_lien_he: str | None = None
     loai: Literal["van_phong", "diem_dung"]
 
 

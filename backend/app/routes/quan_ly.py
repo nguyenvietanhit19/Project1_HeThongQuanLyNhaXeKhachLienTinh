@@ -19,7 +19,9 @@ from app.schemas.dia_diem_schema import (
     TuyenResponse,
 )
 from app.schemas.gia_ve_schema import GiaVeRequest, GiaVeResponse, SuaGiaVeRequest
+from app.schemas.ho_so_can_bo_diem_schema import GanVanPhongRequest, NhanVienGuiHangPhanCongResponse
 from app.schemas.xe_schema import LoaiXeRequest, LoaiXeResponse
+from app.services import ho_so_can_bo_diem_service
 from app.services import dia_diem_service as service
 from app.services import gia_ve_service
 from app.services import xe_service
@@ -57,18 +59,32 @@ def xoa_khu_vuc(khu_vuc_id: UUID):
 # ---------------------------------------------------------
 @router.post("/diem-don-tra", response_model=DiemDonTraResponse, status_code=201)
 def tao_diem_don_tra(du_lieu: DiemDonTraRequest):
-    return service.tao_diem_don_tra(str(du_lieu.khu_vuc_id), du_lieu.ten, du_lieu.dia_chi, du_lieu.loai)
+    return service.tao_diem_don_tra(
+        str(du_lieu.khu_vuc_id), du_lieu.ten, du_lieu.dia_chi, du_lieu.loai, du_lieu.sdt_lien_he
+    )
 
 
 @router.put("/diem-don-tra/{diem_id}")
 def sua_diem_don_tra(diem_id: UUID, du_lieu: DiemDonTraRequest):
-    service.sua_diem_don_tra(str(diem_id), str(du_lieu.khu_vuc_id), du_lieu.ten, du_lieu.dia_chi, du_lieu.loai)
+    service.sua_diem_don_tra(
+        str(diem_id), str(du_lieu.khu_vuc_id), du_lieu.ten, du_lieu.dia_chi, du_lieu.loai, du_lieu.sdt_lien_he
+    )
     return {"thong_bao": "Cập nhật điểm đón/trả thành công"}
 
 
 @router.get("/diem-don-tra", response_model=list[DiemDonTraResponse])
 def danh_sach_diem_don_tra(khu_vuc_id: UUID | None = None):
     return service.danh_sach_diem_don_tra(str(khu_vuc_id) if khu_vuc_id else None)
+
+
+@router.get("/nhan-vien-gui-hang", response_model=list[NhanVienGuiHangPhanCongResponse])
+def danh_sach_phan_cong_nhan_vien_gui_hang():
+    return ho_so_can_bo_diem_service.danh_sach_nhan_vien_gui_hang()
+
+
+@router.put("/nhan-vien-gui-hang/{nguoi_dung_id}/van-phong", response_model=NhanVienGuiHangPhanCongResponse)
+def gan_van_phong_nhan_vien_gui_hang(nguoi_dung_id: UUID, du_lieu: GanVanPhongRequest):
+    return ho_so_can_bo_diem_service.gan_van_phong(str(nguoi_dung_id), str(du_lieu.van_phong_id))
 
 
 @router.delete("/diem-don-tra/{diem_id}")

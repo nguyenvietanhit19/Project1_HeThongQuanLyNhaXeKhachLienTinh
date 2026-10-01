@@ -156,9 +156,11 @@ def tim_khach_cho_don_sau_diem(chuyen_id: str, thu_tu_hien_tai: int) -> list[dic
                 JOIN tuyen_diem_don_tra tdt
                     ON tdt.tuyen_id = cx.tuyen_id AND tdt.diem_don_tra_id = v.diem_don_id
                 WHERE v.chuyen_id = %s AND v.trang_thai IN ('da_thanh_toan', 'giu_cho')
-                      AND v.khach_hang_id IS NOT NULL AND tdt.thu_tu > %s
+                      AND v.khach_hang_id IS NOT NULL
+                      AND ((cx.chieu = 'xuoi' AND tdt.thu_tu > %s)
+                           OR (cx.chieu = 'nguoc' AND tdt.thu_tu < %s))
                 """,
-                (chuyen_id, thu_tu_hien_tai),
+                (chuyen_id, thu_tu_hien_tai, thu_tu_hien_tai),
             )
             return _thanh_list(cur, cur.fetchall())
     finally:

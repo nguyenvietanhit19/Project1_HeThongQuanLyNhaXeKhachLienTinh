@@ -34,5 +34,6 @@ function dangXuat() {
   localStorage.removeItem("token");
   localStorage.removeItem("vai_tro");
   localStorage.removeItem("ho_ten");
+  localStorage.removeItem("quan_ly_van_phong_id");
   window.location.href = "/nhan-vien/dang-nhap.html";
 }

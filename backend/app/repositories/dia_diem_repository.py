@@ -105,17 +105,17 @@ def xoa_khu_vuc(khu_vuc_id: str) -> None:
 # ---------------------------------------------------------
 # 2. Điểm đón/trả
 # ---------------------------------------------------------
-def tao_diem_don_tra(khu_vuc_id: str, ten: str, dia_chi: str, loai: str) -> dict:
+def tao_diem_don_tra(khu_vuc_id: str, ten: str, dia_chi: str, loai: str, sdt_lien_he: str | None = None) -> dict:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO diem_don_tra (khu_vuc_id, ten, dia_chi, loai)
-                VALUES (%s, %s, %s, %s)
-                RETURNING id, khu_vuc_id, ten, dia_chi, loai
+                INSERT INTO diem_don_tra (khu_vuc_id, ten, dia_chi, loai, sdt_lien_he)
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING id, khu_vuc_id, ten, dia_chi, sdt_lien_he, loai
                 """,
-                (khu_vuc_id, ten, dia_chi, loai),
+                (khu_vuc_id, ten, dia_chi, loai, sdt_lien_he),
             )
             ket_qua = _thanh_dict(cur, cur.fetchone())
         conn.commit()
@@ -124,17 +124,17 @@ def tao_diem_don_tra(khu_vuc_id: str, ten: str, dia_chi: str, loai: str) -> dict
         release_connection(conn)
 
 
-def sua_diem_don_tra(diem_id: str, khu_vuc_id: str, ten: str, dia_chi: str, loai: str) -> None:
+def sua_diem_don_tra(diem_id: str, khu_vuc_id: str, ten: str, dia_chi: str, loai: str, sdt_lien_he: str | None = None) -> None:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
                 """
                 UPDATE diem_don_tra
-                SET khu_vuc_id = %s, ten = %s, dia_chi = %s, loai = %s
+                SET khu_vuc_id = %s, ten = %s, dia_chi = %s, loai = %s, sdt_lien_he = %s
                 WHERE id = %s
                 """,
-                (khu_vuc_id, ten, dia_chi, loai, diem_id),
+                (khu_vuc_id, ten, dia_chi, loai, sdt_lien_he, diem_id),
             )
         conn.commit()
     finally:
@@ -146,7 +146,7 @@ def tim_diem_don_tra_theo_id(diem_id: str) -> dict | None:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, khu_vuc_id, ten, dia_chi, loai FROM diem_don_tra WHERE id = %s",
+                "SELECT id, khu_vuc_id, ten, dia_chi, sdt_lien_he, loai FROM diem_don_tra WHERE id = %s",
                 (diem_id,),
             )
             return _thanh_dict(cur, cur.fetchone())
@@ -161,7 +161,7 @@ def tim_nhieu_diem_don_tra_theo_id(diem_ids: list[str]) -> list[dict]:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, khu_vuc_id, ten, dia_chi, loai FROM diem_don_tra WHERE id = ANY(%s::uuid[])",
+                "SELECT id, khu_vuc_id, ten, dia_chi, sdt_lien_he, loai FROM diem_don_tra WHERE id = ANY(%s::uuid[])",
                 (diem_ids,),
             )
             return _thanh_list(cur, cur.fetchall())
@@ -175,11 +175,11 @@ def danh_sach_diem_don_tra(khu_vuc_id: str | None = None) -> list[dict]:
         with conn.cursor() as cur:
             if khu_vuc_id:
                 cur.execute(
-                    "SELECT id, khu_vuc_id, ten, dia_chi, loai FROM diem_don_tra WHERE khu_vuc_id = %s ORDER BY ten",
+                    "SELECT id, khu_vuc_id, ten, dia_chi, sdt_lien_he, loai FROM diem_don_tra WHERE khu_vuc_id = %s ORDER BY ten",
                     (khu_vuc_id,),
                 )
             else:
-                cur.execute("SELECT id, khu_vuc_id, ten, dia_chi, loai FROM diem_don_tra ORDER BY ten")
+                cur.execute("SELECT id, khu_vuc_id, ten, dia_chi, sdt_lien_he, loai FROM diem_don_tra ORDER BY ten")
             return _thanh_list(cur, cur.fetchall())
     finally:
         release_connection(conn)

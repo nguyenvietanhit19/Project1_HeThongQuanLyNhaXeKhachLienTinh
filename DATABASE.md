@@ -51,6 +51,8 @@ Số lần vi phạm no-show **không lưu thành cột đếm riêng** (mục 7
 
 Cả 3 vai trò chỉ cần thêm đúng 1 thông tin giống nhau: văn phòng cố định phụ trách — gộp chung 1 bảng con, phân biệt qua `nguoi_dung.vai_tro`.
 
+Với `nhan_vien_gui_hang`, văn phòng gán ở đây là phạm vi bắt buộc của BE: điểm gửi, hàng chờ nhận, tra cứu chi tiết và thao tác thu/giao COD đều được đối chiếu với hồ sơ; không dùng lựa chọn lưu ở trình duyệt làm quyền truy cập. `quan_ly` được phép chọn phạm vi toàn hệ thống.
+
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `nguoi_dung_id` | UUID PK, FK → `nguoi_dung(id)` ON DELETE CASCADE | |
@@ -108,6 +110,7 @@ Tầng chi tiết, nằm trong 1 `khu_vuc` — mọi điểm ở đây đều l�
 | `khu_vuc_id` | UUID NOT NULL, FK → `khu_vuc(id)` | |
 | `ten` | TEXT NOT NULL | |
 | `dia_chi` | TEXT NOT NULL | |
+| `sdt_lien_he` | TEXT NULLABLE | Số điện thoại liên hệ của văn phòng; in trên biên nhận gửi hàng |
 | `loai` | TEXT NOT NULL, CHECK IN (`van_phong`, `diem_dung`) | `van_phong`: có quầy vé/nhân viên, hợp lệ làm điểm đón lẫn điểm trả, trung bình 1 điểm/`khu_vuc`. `diem_dung`: điểm dừng dọc đường không có nhân viên, **chỉ hợp lệ làm điểm trả** (kiểm tra ở Service, mục 3.1) |
 
 Không có bảng `ben_xe` riêng — `loai = 'van_phong'` chính là "văn phòng/bến xe" (mục 3.1, tránh trùng lặp dữ liệu).
@@ -324,6 +327,9 @@ UNIQUE: (`ve_id`) — 1 vé chỉ hoàn tiền đúng 1 lần (không có cơ ch
 | `ten_nguoi_gui`, `sdt_nguoi_gui` | TEXT NOT NULL | Không cần tài khoản, không thu email (mục 10.1) |
 | `ten_nguoi_nhan`, `sdt_nguoi_nhan` | TEXT NOT NULL | |
 | `phuong_thuc_thanh_toan` | TEXT NOT NULL, CHECK IN (`nguoi_gui_tra_truoc`, `cod_nguoi_nhan_tra`) | |
+| `da_thu_tien` | BOOLEAN NOT NULL DEFAULT false | `true` khi cước đã được thu; đơn trả trước được đánh dấu lúc lập đơn, COD chỉ đánh dấu tại quầy nhận trước khi giao |
+| `nhan_vien_thu_id` | UUID NULLABLE, FK → `nguoi_dung(id)` | Nhân viên ghi nhận lần thu cước; dùng đối soát |
+| `ngay_thu` | TIMESTAMPTZ NULLABLE | Thời điểm ghi nhận thu tiền |
 | `ma_van_don` | TEXT NOT NULL UNIQUE | In trên biên nhận đưa người gửi — không gửi SMS/email tự động (mục 10.3.1) |
 | `trang_thai` | TEXT NOT NULL DEFAULT `'cho_van_chuyen'`, CHECK IN (`cho_van_chuyen`, `da_len_xe`, `cho_lay`, `da_giao`, `qua_han_luu_kho`) | Vòng đời ở mục 10.3. `qua_han_luu_kho` ("hàng tồn") không phải trạng thái tự hủy — chỉ đánh dấu cần xử lý thủ công (UC-25/46) |
 | `nhan_vien_gui_id` | UUID NOT NULL, FK → `nguoi_dung(id)` | Người tạo đơn (mục 10.4.1) |
@@ -333,6 +339,8 @@ UNIQUE: (`ve_id`) — 1 vé chỉ hoàn tiền đúng 1 lần (không có cơ ch
 | `co_canh_bao_cho_lau` | BOOLEAN NOT NULL DEFAULT false | Tự động bật bởi job khi `cho_lay` đủ 7 ngày mà chưa `da_giao` (UC-46 ⏱) — nhắc nhân viên gửi hàng xử lý (UC-25). Không liên quan tới việc hủy/thanh lý, chỉ để nhắc |
 | `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
 | `ngay_giao` | TIMESTAMPTZ NULLABLE | |
+
+Luồng giao hàng chỉ cho phép `cho_lay`; API bàn giao kiểm tra `da_thu_tien = true` và văn phòng nhận. Tra cứu công khai cần mã vận đơn kèm SĐT một bên để xác minh, chỉ trả trạng thái, tên hai văn phòng và các mốc thời gian, không trả PII hay thanh toán.
 
 **Index nên đánh thêm**: `(tuyen_id) WHERE chuyen_id IS NULL` — dùng cho danh sách "đơn hàng đang chờ chất lên chuyến" của phụ xe tại 1 điểm (UC-26), sắp theo `ngay_tao` (thứ tự thời gian, mục 10.2). `(chuyen_id)` — dùng khi tra cứu đơn hàng theo chuyến cụ thể (VD danh sách cần dỡ ở UC-27). `(trang_thai, thoi_gian_den_diem_nhan) WHERE trang_thai = 'cho_lay'` — dùng cho job quét mốc 7/14 ngày (UC-46).
 
@@ -443,6 +451,7 @@ chuyen_xe 0──N don_hang    (chuyen_id — nullable, chỉ gán lúc phụ xe
 diem_don_tra 1──N don_hang (diem_gui_id), diem_don_tra 1──N don_hang (diem_nhan_id)
 loai_hang 1──N don_hang
 nguoi_dung 1──N don_hang (nhan_vien_gui_id)
+nguoi_dung 0──N don_hang (nhan_vien_nhan_id, nhan_vien_thu_id)
 
 nguoi_dung 1──N thong_bao
 ve 0──N thong_bao

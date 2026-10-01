@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+  <title>Phân công nhân viên gửi hàng — Quản lý</title>
+  <link rel="stylesheet" href="/shared/design-tokens.css" />
+  <link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+</head>
+<body class="nhan-vien-shell">
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
+    <div class="nv-main">
+      <header class="nv-topbar">
+        <h1>Phân công nhân viên gửi hàng</h1>
+        <div class="nv-topbar__user">
+          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
+          <div class="nv-topbar__identity">
+            <span class="ho-ten" id="topbar-ho-ten"></span>
+            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
+          </div>
+          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
+        </div>
+      </header>
+      <main class="nv-content">
+        <div class="nv-page-intro">
+          <div class="nv-page-intro__icon" aria-hidden="true">👥</div>
+          <div class="nv-page-intro__body">
+            <p class="nv-page-intro__title">Văn phòng phụ trách</p>
+            <p class="nv-page-intro__desc">Mỗi nhân viên gửi hàng chỉ thao tác trong một văn phòng được phân công.</p>
+          </div>
+          <div class="nv-page-intro__stat">
+            <span class="nv-page-intro__stat-num" id="stat-so-luong">—</span>
+            <span class="nv-page-intro__stat-label">nhân viên</span>
+          </div>
+        </div>
+        <div class="nv-card">
+          <div class="nv-card__header">
+            <h2>Danh sách nhân viên gửi hàng</h2>
+            <button class="nv-btn-secondary" id="btn-tai-lai" type="button">Làm mới</button>
+          </div>
+          <div id="bang-nhan-vien">Đang tải...</div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="/nhan-vien/quan-ly/api-client.js"></script>
+  <script src="/nhan-vien/quan-ly/auth-check.js"></script>
+  <script src="/nhan-vien/quan-ly/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/data-table.js"></script>
+  <script>
+    const nguoiDung = yeuCauVaiTro("quan_ly");
+    if (nguoiDung) {
+      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-ly/nhan-vien-gui-hang.html");
+      renderTopbarUser();
+    }
+    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+    document.getElementById("btn-tai-lai").addEventListener("click", taiDanhSach);
+
+    const bangNhanVien = document.getElementById("bang-nhan-vien");
+    let danhSachNhanVien = [];
+    let danhSachVanPhong = [];
+
+    async function taiDanhSach() {
+      bangNhanVien.textContent = "Đang tải...";
+      try {
+        const [nhanVien, diem] = await Promise.all([
+          apiGet("/quan-ly/nhan-vien-gui-hang"),
+          apiGet("/quan-ly/diem-don-tra"),
+        ]);
+        danhSachNhanVien = nhanVien || [];
+        danhSachVanPhong = (diem || []).filter((vp) => vp.loai === "van_phong");
+        document.getElementById("stat-so-luong").textContent = danhSachNhanVien.length;
+        renderDataTable(
+          bangNhanVien,
+          [
+            { key: "ho_ten", label: "Họ tên" },
+            { key: "email", label: "Email" },
+            { key: "ten_van_phong", label: "Văn phòng hiện tại", render: (nv) => nv.ten_van_phong || "Chưa phân công" },
+            {
+              key: "van_phong_id",
+              label: "Chọn văn phòng",
+              render: (nv) => `<select class="input-field select-van-phong-nv" data-nguoi-dung-id="${nv.nguoi_dung_id}" aria-label="Văn phòng của ${nv.ho_ten}">
+                <option value="">-- Chọn văn phòng --</option>
+                ${danhSachVanPhong.map((vp) => `<option value="${vp.id}" ${vp.id === nv.van_phong_id ? "selected" : ""}>${vp.ten}</option>`).join("")}
+              </select>`,
+            },
+          ],
+          danhSachNhanVien,
+          {
+            editLabel: "Lưu phân công",
+            onEdit: async (nv) => {
+              const select = bangNhanVien.querySelector(`select[data-nguoi-dung-id="${nv.nguoi_dung_id}"]`);
+              if (!select?.value) {
+                alert("Hãy chọn văn phòng trước khi lưu phân công.");
+                return;
+              }
+              try {
+                await apiPut(`/quan-ly/nhan-vien-gui-hang/${nv.nguoi_dung_id}/van-phong`, { van_phong_id: select.value });
+                await taiDanhSach();
+              } catch (err) {
+                alert(err.message);
+              }
+            },
+          }
+        );
+      } catch (err) {
+        bangNhanVien.innerHTML = `<div class="text-error">${err.message}</div>`;
+      }
+    }
+    taiDanhSach();
+  </script>
+</body>
+</html>
