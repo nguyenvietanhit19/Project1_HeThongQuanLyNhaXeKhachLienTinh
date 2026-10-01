@@ -10,12 +10,16 @@ Service quản lý vòng đời đơn hàng gửi theo tuyến:
 from datetime import datetime
 from uuid import uuid4
 
+from app.repositories import bao_cao_su_co_hang_repository as bao_cao_repo
 from app.repositories import chuyen_xe_repository as chuyen_xe_repo
 from app.repositories import dia_diem_repository as dia_diem_repo
 from app.repositories import don_hang_repository as don_hang_repo
+from app.repositories import thong_bao_repository as thong_bao_repo
 from app.schemas.don_hang_schema import TaoDonHangRequest
+from app.services import chuyen_xe_service
 from app.services.chuyen_xe_service import diem_hien_tai, lay_chuyen_cua_phu_xe
-from app.utils.loi import GiaTriLoi
+from app.services.websocket_manager import broadcast_sync
+from app.utils.loi import GiaTriLoi, KhongDuQuyen
 
 
 # ====================================================================
@@ -238,6 +242,39 @@ def xac_nhan_do_hang_cua_phu_xe(don_hang_id: str, nguoi_dung_id: str) -> None:
 
     if not don_hang_repo.do_hang_neu_dang_tren_xe(don_hang_id):
         raise GiaTriLoi("Đơn hàng vừa được dỡ hoặc đổi trạng thái, vui lòng tải lại")
+
+
+def bao_that_lac(don_hang_id: str, mo_ta: str, nguoi_dung_id: str) -> None:
+    """UC-28: phụ xe ghi nhận thất lạc/hư hỏng phát hiện lúc chất (UC-26) hoặc
+    dỡ (UC-27) hàng — KHÔNG đổi trạng thái đơn, không chặn UC-26/27.
+
+    Quyền: đơn đã gắn chuyến → phải là chuyến của chính phụ xe; đơn còn chờ
+    chất (`cho_van_chuyen`, chưa có chuyến — hư hỏng phát hiện ngay lúc cầm
+    kiện hàng lên xe) → phụ xe phải có chuyến của xe mình cùng tuyến.
+    Báo cáo chuyển tới nhân viên gửi hàng đã tạo đơn (mục UC-28 bước 2)."""
+    mo_ta = mo_ta.strip()
+    if not mo_ta:
+        raise GiaTriLoi("Vui lòng mô tả tình trạng thất lạc/hư hỏng")
+
+    don = don_hang_repo.tim_theo_id(don_hang_id)
+    if not don:
+        raise GiaTriLoi("Không tìm thấy đơn hàng")
+
+    if don["chuyen_id"]:
+        lay_chuyen_cua_phu_xe(str(don["chuyen_id"]), nguoi_dung_id)
+    else:
+        if don["trang_thai"] != "cho_van_chuyen":
+            raise GiaTriLoi("Đơn hàng không ở giai đoạn chất/dỡ hàng")
+        chuyen_cua_toi = chuyen_xe_service.danh_sach_chuyen_cua_toi(nguoi_dung_id)
+        if not any(str(c["tuyen_id"]) == str(don["tuyen_id"]) for c in chuyen_cua_toi):
+            raise KhongDuQuyen("Đơn hàng này không thuộc tuyến xe của bạn")
+
+    bao_cao_repo.tao(don_hang_id, nguoi_dung_id, mo_ta)
+
+    # Ghi DB TRƯỚC rồi mới đẩy real-time (cùng thứ tự chuyen_xe_service._gui_thong_bao).
+    noi_dung = f"Phụ xe báo hàng {don['ma_van_don']} thất lạc/hư hỏng: {mo_ta}"
+    thong_bao_repo.tao(str(don["nhan_vien_gui_id"]), noi_dung)
+    broadcast_sync(str(don["nhan_vien_gui_id"]), noi_dung)
 
 
 def xac_nhan_do_hang(don_hang_id: str) -> dict:

@@ -228,3 +228,102 @@ def test_xac_nhan_do_hang_bam_dup_khong_do_lai(monkeypatch):
     _chuan_bi_do(monkeypatch, do_duoc=False)
     with pytest.raises(GiaTriLoi):
         svc.xac_nhan_do_hang_cua_phu_xe("don-1", "nguoi-dung-1")
+
+
+# ---------------------------------------------------------------- UC-28
+def _chuan_bi_bao_cao(monkeypatch, don=None, chuyen_cua_toi=None):
+    don_mac_dinh = _don(chuyen_id="chuyen-1", trang_thai="da_len_xe", ma_van_don="VD01", nhan_vien_gui_id="nv-gui-1") if don is None else don
+    monkeypatch.setattr(svc.don_hang_repo, "tim_theo_id", lambda did: don_mac_dinh)
+    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen())
+    monkeypatch.setattr(
+        svc.chuyen_xe_service, "danh_sach_chuyen_cua_toi", lambda nid: [{"tuyen_id": "tuyen-1"}] if chuyen_cua_toi is None else chuyen_cua_toi
+    )
+    ghi = []
+    monkeypatch.setattr(svc.bao_cao_repo, "tao", lambda did, nid, mo_ta: ghi.append((did, nid, mo_ta)))
+    thong_bao = []
+    monkeypatch.setattr(svc.thong_bao_repo, "tao", lambda nid, nd: thong_bao.append((nid, nd)))
+    monkeypatch.setattr(svc, "broadcast_sync", lambda nid, nd: None)
+    return ghi, thong_bao
+
+
+def test_bao_that_lac_don_tren_xe_ghi_bao_cao_va_bao_nhan_vien_gui_hang(monkeypatch):
+    ghi, thong_bao = _chuan_bi_bao_cao(monkeypatch)
+    svc.bao_that_lac("don-1", "  vo thung  ", "nguoi-dung-1")
+    assert ghi == [("don-1", "nguoi-dung-1", "vo thung")]  # mô tả đã được cắt khoảng trắng
+    assert len(thong_bao) == 1 and thong_bao[0][0] == "nv-gui-1" and "VD01" in thong_bao[0][1]
+
+
+@pytest.mark.parametrize("mo_ta", ["", "   "])
+def test_bao_that_lac_thieu_mo_ta(monkeypatch, mo_ta):
+    ghi, _ = _chuan_bi_bao_cao(monkeypatch)
+    with pytest.raises(GiaTriLoi):
+        svc.bao_that_lac("don-1", mo_ta, "nguoi-dung-1")
+    assert ghi == []
+
+
+def test_bao_that_lac_khong_tim_thay_don(monkeypatch):
+    ghi, _ = _chuan_bi_bao_cao(monkeypatch)
+    monkeypatch.setattr(svc.don_hang_repo, "tim_theo_id", lambda did: None)
+    with pytest.raises(GiaTriLoi):
+        svc.bao_that_lac("don-1", "hu hong", "nguoi-dung-1")
+    assert ghi == []
+
+
+def test_bao_that_lac_don_cua_chuyen_khac_xe_bi_chan(monkeypatch):
+    ghi, _ = _chuan_bi_bao_cao(monkeypatch)
+    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", _khong_thuoc_xe)
+    with pytest.raises(KhongDuQuyen):
+        svc.bao_that_lac("don-1", "hu hong", "nguoi-dung-khac")
+    assert ghi == []
+
+
+def test_bao_that_lac_don_dang_cho_chat_cung_tuyen_duoc_phep(monkeypatch):
+    # Hư hỏng phát hiện ngay lúc cầm kiện hàng lên xe (UC-26) — đơn chưa có chuyến
+    ghi, _ = _chuan_bi_bao_cao(
+        monkeypatch,
+        don=_don(chuyen_id=None, trang_thai="cho_van_chuyen", ma_van_don="VD02", nhan_vien_gui_id="nv-gui-1"),
+    )
+    svc.bao_that_lac("don-1", "rach bao bi", "nguoi-dung-1")
+    assert len(ghi) == 1
+
+
+def test_bao_that_lac_don_dang_cho_chat_khac_tuyen_bi_chan(monkeypatch):
+    ghi, _ = _chuan_bi_bao_cao(
+        monkeypatch,
+        don=_don(chuyen_id=None, trang_thai="cho_van_chuyen", tuyen_id="tuyen-khac", nhan_vien_gui_id="nv-gui-1"),
+    )
+    with pytest.raises(KhongDuQuyen):
+        svc.bao_that_lac("don-1", "rach bao bi", "nguoi-dung-1")
+    assert ghi == []
+
+
+def test_bao_that_lac_phu_xe_chua_co_chuyen_nao_bi_chan(monkeypatch):
+    ghi, _ = _chuan_bi_bao_cao(
+        monkeypatch,
+        don=_don(chuyen_id=None, trang_thai="cho_van_chuyen", nhan_vien_gui_id="nv-gui-1"),
+        chuyen_cua_toi=[],
+    )
+    with pytest.raises(KhongDuQuyen):
+        svc.bao_that_lac("don-1", "rach bao bi", "nguoi-dung-1")
+    assert ghi == []
+
+
+@pytest.mark.parametrize("trang_thai", ["cho_lay", "da_giao", "qua_han_luu_kho"])
+def test_bao_that_lac_don_ngoai_giai_doan_chat_do_khong_co_chuyen(monkeypatch, trang_thai):
+    # Đơn không gắn chuyến mà cũng không còn chờ chất: không thuộc UC-26/27 nên phụ xe không báo qua màn hình này
+    ghi, _ = _chuan_bi_bao_cao(
+        monkeypatch, don=_don(chuyen_id=None, trang_thai=trang_thai, nhan_vien_gui_id="nv-gui-1")
+    )
+    with pytest.raises(GiaTriLoi):
+        svc.bao_that_lac("don-1", "hu hong", "nguoi-dung-1")
+    assert ghi == []
+
+
+def test_bao_that_lac_khong_doi_trang_thai_don(monkeypatch):
+    # Báo cáo không chặn UC-26/27: không gọi bất kỳ hàm đổi trạng thái đơn nào
+    _chuan_bi_bao_cao(monkeypatch)
+    doi_trang_thai = []
+    for ten in ("cap_nhat_chat_hang_len_chuyen", "chat_len_chuyen_neu_dang_cho", "do_hang_neu_dang_tren_xe", "cap_nhat_do_hang_tai_diem"):
+        monkeypatch.setattr(svc.don_hang_repo, ten, lambda *a, _ten=ten: doi_trang_thai.append(_ten))
+    svc.bao_that_lac("don-1", "hu hong", "nguoi-dung-1")
+    assert doi_trang_thai == []
