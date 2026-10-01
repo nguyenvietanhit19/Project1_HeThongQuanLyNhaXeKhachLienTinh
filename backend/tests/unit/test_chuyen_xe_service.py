@@ -16,7 +16,7 @@ def _nhan_su_phu_xe(**overrides):
 
 
 def _chuyen(**overrides):
-    data = {"id": "chuyen-1", "tuyen_id": "tuyen-1", "xe_id": "xe-1", "trang_thai": "chua_khoi_hanh",
+    data = {"id": "chuyen-1", "tuyen_id": "tuyen-1", "xe_id": "xe-1", "trang_thai": "chua_khoi_hanh", "chieu": "xuoi",
             "gio_khoi_hanh": datetime(2020, 1, 1, tzinfo=timezone.utc)}
     data.update(overrides)
     return data

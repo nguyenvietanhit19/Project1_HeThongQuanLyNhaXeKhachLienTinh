@@ -17,7 +17,7 @@ from app.repositories import don_hang_repository as don_hang_repo
 from app.repositories import thong_bao_repository as thong_bao_repo
 from app.schemas.don_hang_schema import TaoDonHangRequest
 from app.services import chuyen_xe_service
-from app.services.chuyen_xe_service import diem_hien_tai, lay_chuyen_cua_phu_xe
+from app.services.chuyen_xe_service import diem_hien_tai, diem_theo_chieu, lay_chuyen_cua_phu_xe
 from app.services.websocket_manager import broadcast_sync
 from app.utils.loi import GiaTriLoi, KhongDuQuyen
 
@@ -168,9 +168,22 @@ def xac_nhan_chat_hang(don_hang_id: str, chuyen_id: str) -> dict:
     return don_cap_nhat
 
 
+def _don_cung_chieu_chuyen(don: dict, diem_theo_huong: list[dict]) -> bool:
+    """Đơn đi CÙNG CHIỀU chuyến: điểm gửi đứng trước điểm nhận theo hướng đi.
+
+    1 tuyến chạy cả 2 chiều nên đơn Hà Nội→Sapa và Sapa→Hà Nội cùng
+    `tuyen_id`; chuyến xuôi không được chất đơn ngược chiều và ngược lại
+    (THAY_DOI_TUYEN_2_CHIEU.md mục 4.4). Điểm không thuộc tuyến → coi là
+    không hợp lệ."""
+    vi_tri = {str(d["diem_don_tra_id"]): i for i, d in enumerate(diem_theo_huong)}
+    gui, nhan = vi_tri.get(str(don["diem_gui_id"])), vi_tri.get(str(don["diem_nhan_id"]))
+    return gui is not None and nhan is not None and gui < nhan
+
+
 def danh_sach_cho_chat(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
-    """UC-26 bước 1 (mục 10.2): đơn `cho_van_chuyen` cùng tuyến với chuyến, còn
-    chờ TẠI ĐIỂM phụ xe đang đứng, đơn cũ hiện trước (chỉ để tham khảo).
+    """UC-26 bước 1 (mục 10.2): đơn `cho_van_chuyen` cùng tuyến VÀ cùng chiều
+    với chuyến, còn chờ TẠI ĐIỂM phụ xe đang đứng, đơn cũ hiện trước (chỉ để
+    tham khảo).
 
     Khác lay_danh_sach_cho_xep_xe() (route gui_hang.py, chỉ lọc theo tuyến):
     phụ xe gắn với 1 xe nên được kiểm tra đúng chuyến của mình và lọc thêm
@@ -180,8 +193,13 @@ def danh_sach_cho_chat(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
         raise GiaTriLoi("Chuyến không ở trạng thái phù hợp để chất hàng")
 
     diem = diem_hien_tai(chuyen)
+    diem_theo_huong = diem_theo_chieu(chuyen)
     don_cua_tuyen = don_hang_repo.lay_danh_sach_cho_xep_xe(chuyen["tuyen_id"])
-    return [d for d in don_cua_tuyen if str(d["diem_gui_id"]) == str(diem["diem_don_tra_id"])]
+    return [
+        d
+        for d in don_cua_tuyen
+        if str(d["diem_gui_id"]) == str(diem["diem_don_tra_id"]) and _don_cung_chieu_chuyen(d, diem_theo_huong)
+    ]
 
 
 def xac_nhan_chat_hang_cua_phu_xe(don_hang_id: str, chuyen_id: str, nguoi_dung_id: str) -> None:
@@ -200,6 +218,8 @@ def xac_nhan_chat_hang_cua_phu_xe(don_hang_id: str, chuyen_id: str, nguoi_dung_i
         raise GiaTriLoi("Đơn hàng không ở trạng thái chờ chất lên chuyến")
     if str(don["tuyen_id"]) != str(chuyen["tuyen_id"]):
         raise GiaTriLoi("Đơn hàng không cùng tuyến với chuyến này")
+    if not _don_cung_chieu_chuyen(don, diem_theo_chieu(chuyen)):
+        raise GiaTriLoi("Đơn hàng đi ngược chiều với chuyến này")
 
     if not don_hang_repo.chat_len_chuyen_neu_dang_cho(don_hang_id, chuyen_id):
         raise GiaTriLoi("Đơn hàng vừa được chất lên chuyến khác, vui lòng tải lại danh sách")

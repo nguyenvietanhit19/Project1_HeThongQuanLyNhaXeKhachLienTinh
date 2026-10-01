@@ -9,7 +9,7 @@ from app.utils.loi import GiaTriLoi, KhongDuQuyen
 
 
 def _chuyen(**overrides):
-    data = {"id": "chuyen-1", "tuyen_id": "tuyen-1", "xe_id": "xe-1", "trang_thai": "dang_chay"}
+    data = {"id": "chuyen-1", "tuyen_id": "tuyen-1", "xe_id": "xe-1", "trang_thai": "dang_chay", "chieu": "xuoi"}
     data.update(overrides)
     return data
 
@@ -28,7 +28,17 @@ def _khong_thuoc_xe(cid, nid):
 
 
 # ---------------------------------------------------------------- UC-26
+def _tuyen_3_diem(monkeypatch):
+    """Tuyến d1 -> d2 -> d3 (thu_tu 1,2,3 theo chiều xuôi)."""
+    monkeypatch.setattr(
+        svc.chuyen_xe_service.dia_diem_repo,
+        "danh_sach_diem_theo_tuyen",
+        lambda tid: [{"diem_don_tra_id": f"d{i}", "thu_tu": i, "ten": f"Diem {i}"} for i in (1, 2, 3)],
+    )
+
+
 def test_danh_sach_cho_chat_chi_lay_don_tai_diem_hien_tai(monkeypatch):
+    _tuyen_3_diem(monkeypatch)
     monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen())
     monkeypatch.setattr(svc, "diem_hien_tai", lambda chuyen: {"diem_don_tra_id": "d1"})
     monkeypatch.setattr(
@@ -54,6 +64,7 @@ def test_danh_sach_cho_chat_phu_xe_khong_thuoc_xe_bi_chan(monkeypatch):
 
 
 def _chuan_bi_chat(monkeypatch, chuyen=None, don=None, chat_duoc=True):
+    _tuyen_3_diem(monkeypatch)
     monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: chuyen or _chuyen())
     monkeypatch.setattr(svc.don_hang_repo, "tim_theo_id", lambda did: don)
     goi = []

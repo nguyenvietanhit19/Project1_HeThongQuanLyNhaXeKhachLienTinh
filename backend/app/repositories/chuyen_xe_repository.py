@@ -27,7 +27,7 @@ def tim_theo_id(chuyen_id: str) -> dict | None:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, tuyen_id, xe_id, loai_xe_id, xe_thuc_te_id, gio_khoi_hanh,
+                SELECT id, tuyen_id, chieu, xe_id, loai_xe_id, xe_thuc_te_id, gio_khoi_hanh,
                        trang_thai, dang_hoan, gio_xac_nhan_xuat_phat, gio_hoan_thanh,
                        loai_su_co, ly_do_su_co, co_canh_bao_xung_dot_vi_tri
                 FROM chuyen_xe WHERE id = %s

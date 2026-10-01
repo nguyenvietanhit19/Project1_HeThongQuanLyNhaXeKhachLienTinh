@@ -59,6 +59,21 @@ def lay_chuyen_cua_phu_xe(chuyen_id: str, nguoi_dung_id: str) -> dict:
     return chuyen
 
 
+def diem_theo_chieu(chuyen: dict) -> list[dict]:
+    """Các điểm của tuyến theo ĐÚNG HƯỚNG xe chạy: điểm xuất phát đứng đầu,
+    điểm cuối đứng cuối.
+
+    `tuyen_diem_don_tra.thu_tu` luôn lưu theo chiều xuôi; chuyến `nguoc` đi
+    theo `thu_tu` giảm dần (THAY_DOI_TUYEN_2_CHIEU.md mục 3). Mọi nơi cần
+    "điểm đầu / điểm cuối / điểm kế tiếp / điểm phía sau" phải lấy từ danh
+    sách này, không tự giả định `thu_tu` tăng = hướng xe đi. Giá trị `thu_tu`
+    gốc trong từng phần tử được giữ nguyên (dùng cho truy vấn SQL)."""
+    diem_list = sorted(dia_diem_repo.danh_sach_diem_theo_tuyen(chuyen["tuyen_id"]), key=lambda d: d["thu_tu"])
+    if chuyen["chieu"] == "nguoc":
+        diem_list.reverse()
+    return diem_list
+
+
 def diem_hien_tai(chuyen: dict) -> dict:
     """Điểm phụ xe đang đứng: điểm cuối cùng đã xác nhận đến, hoặc điểm đầu
     tuyến nếu chưa xác nhận điểm nào (mục 8.2 điểm 1/5).
@@ -66,19 +81,19 @@ def diem_hien_tai(chuyen: dict) -> dict:
     Dùng chung cho khach_tai_diem_hien_tai() ở đây và
     gui_hang_service.danh_sach_cho_chat() — cả hai đều cần biết "điểm hiện
     tại" của cùng 1 chuyến."""
-    diem_list = dia_diem_repo.danh_sach_diem_theo_tuyen(chuyen["tuyen_id"])
+    diem_list = diem_theo_chieu(chuyen)
     if not diem_list:
         raise GiaTriLoi("Tuyến chưa có điểm đón/trả nào")
 
-    da_xac_nhan = chuyen_xe_repo.lay_diem_da_xac_nhan(chuyen["id"])
-    if not da_xac_nhan:
+    da_xac_nhan_ids = {d["diem_don_tra_id"] for d in chuyen_xe_repo.lay_diem_da_xac_nhan(chuyen["id"])}
+    if not da_xac_nhan_ids:
         return diem_list[0]
 
-    diem_id_hien_tai = da_xac_nhan[0]["diem_don_tra_id"]  # thu_tu DESC -> dòng đầu là mới nhất
-    for diem in diem_list:
-        if diem["diem_don_tra_id"] == diem_id_hien_tai:
-            return diem
-    raise GiaTriLoi("Dữ liệu điểm dừng không nhất quán với tuyến")
+    # Điểm hiện tại = điểm xa nhất THEO HƯỚNG ĐI trong số các điểm đã xác nhận đến.
+    diem_da_toi = [d for d in diem_list if d["diem_don_tra_id"] in da_xac_nhan_ids]
+    if not diem_da_toi:
+        raise GiaTriLoi("Dữ liệu điểm dừng không nhất quán với tuyến")
+    return diem_da_toi[-1]
 
 
 def chi_tiet_cho_phu_xe(chuyen_id: str, nguoi_dung_id: str) -> dict:
@@ -181,18 +196,18 @@ def hanh_trinh(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
     giao diện hiển thị hành trình và biết điểm tiếp theo cần xác nhận
     (mục 8.2 điểm 5)."""
     chuyen = lay_chuyen_cua_phu_xe(chuyen_id, nguoi_dung_id)
-    diem_list = dia_diem_repo.danh_sach_diem_theo_tuyen(chuyen["tuyen_id"])
+    diem_list = diem_theo_chieu(chuyen)
     da_xac_nhan = {d["diem_don_tra_id"]: d["gio_thuc_te"] for d in chuyen_xe_repo.lay_diem_da_xac_nhan(chuyen_id)}
 
     return [
         {
             "diem_don_tra_id": diem["diem_don_tra_id"],
             "ten_diem": diem["ten"],
-            "thu_tu": diem["thu_tu"],
+            "thu_tu": vi_tri,  # thứ tự THEO HƯỚNG ĐI (1 = điểm xuất phát), không phải thu_tu gốc của tuyến
             "da_toi": diem["diem_don_tra_id"] in da_xac_nhan,
             "gio_thuc_te": da_xac_nhan.get(diem["diem_don_tra_id"]),
         }
-        for diem in diem_list
+        for vi_tri, diem in enumerate(diem_list, start=1)
     ]
 
 
@@ -202,7 +217,7 @@ def xac_nhan_toi_diem(chuyen_id: str, diem_don_tra_id: str, nguoi_dung_id: str) 
     if chuyen["trang_thai"] != "dang_chay":
         raise GiaTriLoi("Chuyến chưa xuất phát")
 
-    diem_list = dia_diem_repo.danh_sach_diem_theo_tuyen(chuyen["tuyen_id"])
+    diem_list = diem_theo_chieu(chuyen)
     diem_muc_tieu = next((d for d in diem_list if d["diem_don_tra_id"] == diem_don_tra_id), None)
     if diem_muc_tieu is None:
         raise GiaTriLoi("Điểm này không thuộc tuyến của chuyến")
@@ -211,7 +226,7 @@ def xac_nhan_toi_diem(chuyen_id: str, diem_don_tra_id: str, nguoi_dung_id: str) 
     if diem_don_tra_id in da_xac_nhan_ids:
         raise GiaTriLoi("Điểm này đã được xác nhận đến trước đó")
 
-    # Điểm đầu tuyến (thu_tu nhỏ nhất) là nơi xe xuất phát (UC-15), không
+    # Điểm đầu theo hướng đi (xuôi: thu_tu nhỏ nhất, ngược: lớn nhất) là nơi xe xuất phát (UC-15), không
     # phải điểm "đến" — các điểm còn lại phải xác nhận đúng thứ tự, không
     # được nhảy cóc bỏ qua 1 điểm giữa đường.
     con_lai = [d for d in diem_list[1:] if d["diem_don_tra_id"] not in da_xac_nhan_ids]

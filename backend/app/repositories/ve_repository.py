@@ -100,7 +100,11 @@ def tim_ve_qua_gio_len_xe(x_phut: int) -> list[dict]:
                     ON tdt.tuyen_id = cx.tuyen_id AND tdt.diem_don_tra_id = v.diem_don_id
                 WHERE v.trang_thai IN ('da_thanh_toan', 'giu_cho')
                   AND cx.trang_thai != 'da_huy'
-                  AND cx.gio_khoi_hanh + (tdt.thoi_gian_du_kien_phut || ' minutes')::interval
+                  AND cx.gio_khoi_hanh + (
+                        CASE WHEN cx.chieu = 'xuoi' THEN tdt.thoi_gian_du_kien_phut
+                             ELSE (SELECT MAX(t2.thoi_gian_du_kien_phut) FROM tuyen_diem_don_tra t2 WHERE t2.tuyen_id = cx.tuyen_id)
+                                  - tdt.thoi_gian_du_kien_phut
+                        END || ' minutes')::interval
                         - (%s || ' minutes')::interval <= now()
                 """,
                 (x_phut,),
@@ -144,7 +148,8 @@ def dem_vi_pham_no_show(khach_hang_id: str, so_ngay_gan_day: int) -> int:
 def tim_khach_cho_don_sau_diem(chuyen_id: str, thu_tu_hien_tai: int) -> list[dict]:
     """Khách có tài khoản, vé còn hiệu lực, đón tại 1 điểm PHÍA SAU điểm
     phụ xe vừa xác nhận đến — dùng để báo cập nhật ETA qua WebSocket
-    (NGHIEP_VU.md mục 8.2 điểm 5)."""
+    (NGHIEP_VU.md mục 8.2 điểm 5). "Phía sau" tính THEO HƯỚNG ĐI: chuyến
+    xuôi là thu_tu lớn hơn, chuyến ngược là thu_tu nhỏ hơn."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -156,9 +161,10 @@ def tim_khach_cho_don_sau_diem(chuyen_id: str, thu_tu_hien_tai: int) -> list[dic
                 JOIN tuyen_diem_don_tra tdt
                     ON tdt.tuyen_id = cx.tuyen_id AND tdt.diem_don_tra_id = v.diem_don_id
                 WHERE v.chuyen_id = %s AND v.trang_thai IN ('da_thanh_toan', 'giu_cho')
-                      AND v.khach_hang_id IS NOT NULL AND tdt.thu_tu > %s
+                      AND v.khach_hang_id IS NOT NULL
+                      AND CASE WHEN cx.chieu = 'xuoi' THEN tdt.thu_tu > %s ELSE tdt.thu_tu < %s END
                 """,
-                (chuyen_id, thu_tu_hien_tai),
+                (chuyen_id, thu_tu_hien_tai, thu_tu_hien_tai),
             )
             return _thanh_list(cur, cur.fetchall())
     finally:
