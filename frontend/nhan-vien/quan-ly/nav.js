@@ -29,9 +29,24 @@ const MENU_QUAN_LY = [
     icon: '<rect x="3" y="7" width="18" height="9" rx="3"/><path d="M7 16v2M17 16v2"/><path d="M3 12h18"/>',
   },
   {
+    label: "Xe",
+    href: "/nhan-vien/quan-ly/xe.html",
+    icon: '<rect x="3" y="5" width="18" height="11" rx="2.5"/><path d="M3 11h18M7 16v3M17 16v3"/><circle cx="7.5" cy="13.5" r="0.8"/><circle cx="16.5" cy="13.5" r="0.8"/>',
+  },
+  {
     label: "Giá vé",
     href: "/nhan-vien/quan-ly/gia-ve.html",
     icon: '<circle cx="12" cy="12" r="9"/><path d="M9 15V9l1.8 1.8L12 9l1.2 1.8L15 9v6"/>',
+  },
+  {
+    label: "Lịch chạy",
+    href: "/nhan-vien/quan-ly/lich-chay.html",
+    icon: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/>',
+  },
+  {
+    label: "Chuyến",
+    href: "/nhan-vien/quan-ly/chuyen.html",
+    icon: '<path d="M3 12h18M3 12l4-5M3 12l4 5M21 12l-4-5M21 12l-4 5"/>',
   },
 ];
 

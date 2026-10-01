@@ -4,8 +4,10 @@
  * innerHTML. Riêng của domain Quản lý — vai trò khác cần bảng tương tự thì
  * tự viết bản của họ, không import file này.
  *
- *   renderDataTable(containerEl, columns, rows, { onEdit, editLabel, onDelete, tenXoa, onRowClick })
+ *   renderDataTable(containerEl, columns, rows, { onEdit, editLabel, onDelete, tenXoa, onRowClick, extraActions })
  *   - columns: [{ key, label, render?(row) }]
+ *   - extraActions: optional — [{ label: string | (row) => string, onClick(row) }] nút
+ *     hành động thêm, đặt TRƯỚC nút Sửa (VD "Biên chế", "Ngừng áp dụng")
  *   - onEdit(row): optional — nếu có, thêm 1 nút hành động mỗi hàng
  *   - editLabel: chữ trên nút hành động sửa/xem, mặc định "Sửa"
  *   - onDelete(row): optional — nếu có, thêm nút "Xóa"; tự hỏi xác nhận
@@ -18,13 +20,13 @@
  *     (đã có "Đang tải..."), tự điền nội dung vào đó (có thể await gọi API).
  */
 
-function renderDataTable(containerEl, columns, rows, { onEdit, editLabel = "Sửa", onDelete, tenXoa, onRowClick } = {}) {
+function renderDataTable(containerEl, columns, rows, { onEdit, editLabel = "Sửa", onDelete, tenXoa, onRowClick, extraActions = [] } = {}) {
   if (!rows.length) {
     containerEl.innerHTML = '<div class="nv-table__empty">Chưa có dữ liệu</div>';
     return;
   }
 
-  const coCotHanhDong = onEdit || onDelete;
+  const coCotHanhDong = onEdit || onDelete || extraActions.length;
   const soCot = columns.length + (coCotHanhDong ? 1 : 0);
   const theadCols = columns.map((c) => `<th>${c.label}</th>`).join("") + (coCotHanhDong ? "<th></th>" : "");
 
@@ -33,7 +35,10 @@ function renderDataTable(containerEl, columns, rows, { onEdit, editLabel = "Sử
       const tds = columns.map((c) => `<td>${c.render ? c.render(row) : (row[c.key] ?? "")}</td>`).join("");
       const nutSua = onEdit ? `<button class="nv-btn-sua" data-idx="${idx}" type="button">${editLabel}</button>` : "";
       const nutXoa = onDelete ? `<button class="nv-btn-xoa" data-idx="${idx}" type="button">Xóa</button>` : "";
-      const actionTd = coCotHanhDong ? `<td style="text-align:right"><div class="nv-hang-hanh-dong">${nutSua}${nutXoa}</div></td>` : "";
+      const nutPhu = extraActions
+        .map((a, i) => `<button class="nv-btn-phu" data-extra="${i}" data-idx="${idx}" type="button">${typeof a.label === "function" ? a.label(row) : a.label}</button>`)
+        .join("");
+      const actionTd = coCotHanhDong ? `<td style="text-align:right"><div class="nv-hang-hanh-dong">${nutPhu}${nutSua}${nutXoa}</div></td>` : "";
       const lopMoRong = onRowClick ? " nv-table__hang-mo-rong" : "";
       const lopSoc = idx % 2 === 1 ? " nv-table__row--soc" : "";
       return `<tr data-idx="${idx}" class="${lopMoRong}${lopSoc}">${tds}${actionTd}</tr>`;
@@ -48,6 +53,13 @@ function renderDataTable(containerEl, columns, rows, { onEdit, editLabel = "Sử
       </table>
     </div>
   `;
+
+  containerEl.querySelectorAll(".nv-btn-phu").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      extraActions[Number(btn.dataset.extra)].onClick(rows[Number(btn.dataset.idx)]);
+    });
+  });
 
   if (onEdit) {
     containerEl.querySelectorAll(".nv-btn-sua").forEach((btn) => {

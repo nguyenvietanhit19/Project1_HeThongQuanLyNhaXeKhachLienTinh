@@ -23,6 +23,7 @@ class KhuVucRequest(BaseModel):
 
 class KhuVucResponse(BaseModel):
     id: UUID
+    ma: str
     ten: str
     tinh_thanh: str
 
@@ -39,6 +40,7 @@ class DiemDonTraRequest(BaseModel):
 
 class DiemDonTraResponse(BaseModel):
     id: UUID
+    ma: str
     khu_vuc_id: UUID
     ten: str
     dia_chi: str
@@ -70,9 +72,11 @@ class TaoTuyenRequest(BaseModel):
 
 class DiemTrongTuyenResponse(BaseModel):
     diem_don_tra_id: UUID
+    ma_diem: str
     ten: str
     khu_vuc_id: UUID
     ten_khu_vuc: str
+    ma_khu_vuc: str
     loai: Literal["van_phong", "diem_dung"]
     thu_tu: int
     thoi_gian_du_kien_phut: int
@@ -80,6 +84,7 @@ class DiemTrongTuyenResponse(BaseModel):
 
 class TuyenResponse(BaseModel):
     id: UUID
+    ma: str
     ten: str
     ngay_tao: datetime
 

@@ -42,14 +42,15 @@
           </div>
         </div>
 
-        <div class="nv-card">
-          <div class="nv-card__header">
-            <h2>Danh sách tuyến</h2>
-            <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Tạo tuyến</button>
+        <div class="kv-thanh-cong">
+          <div class="kv-tim">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input type="search" id="tu-tim" placeholder="Tìm theo tên, mã tuyến hoặc khu vực đi qua..." autocomplete="off" />
           </div>
-          <p style="font-size:13px; color:var(--color-text-muted); margin:-8px 0 12px;">Bấm vào 1 dòng để xem chi tiết điểm dừng — bấm lại để đóng.</p>
-          <div id="bang-tuyen">Đang tải...</div>
+          <span class="kv-tom-tat" id="tu-tom-tat"></span>
+          <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Tạo tuyến</button>
         </div>
+        <div id="bang-tuyen">Đang tải...</div>
       </main>
     </div>
   </div>
@@ -103,7 +104,6 @@
   <script src="/nhan-vien/quan-ly/api-client.js"></script>
   <script src="/nhan-vien/quan-ly/auth-check.js"></script>
   <script src="/nhan-vien/quan-ly/nav.js"></script>
-  <script src="/nhan-vien/quan-ly/data-table.js"></script>
   <script>
     const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
     if (nguoiDung) {
@@ -115,6 +115,9 @@
     let dsKhuVuc = [];
     let dsDiemDonTra = [];
     let dsTuyen = [];
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const boDau = (s) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+
     let chuoiKhuVucTheoTuyen = new Map(); // tuyen_id -> { chuoi: [tên khu vực...], soDiem }
     let danhSachDiemState = [];
     const khuVucDangChon = new Set(); // khu_vuc_id đang mở để chọn điểm (theo thứ tự bấm)
@@ -407,30 +410,88 @@
           })
         );
 
-        renderDataTable(
-          bangTuyen,
-          [
-            { key: "ten", label: "Tên tuyến" },
-            {
-              key: "lo_trinh",
-              label: "Trình tự khu vực",
-              render: (r) => {
-                const { chuoi, soDiem } = chuoiKhuVucTheoTuyen.get(r.id);
-                if (!chuoi.length) return '<span class="nv-text-phu">—</span>';
-                return `<div class="nv-chuoi-khu-vuc">${chuoi
-                  .map((ten) => `<span class="pill pill--khu-vuc">${ten}</span>`)
-                  .join('<span class="nv-chuoi-khu-vuc__mui-ten">→</span>')}<span class="nv-text-phu">· ${soDiem} điểm</span></div>`;
-              },
-            },
-            { key: "ngay_tao", label: "Ngày tạo", render: (r) => `<span class="nv-text-phu">${dinhDangNgayGio(r.ngay_tao)}</span>` },
-          ],
-          dsTuyen,
-          { onEdit: moModalSua, onDelete: xoaTuyen, tenXoa: (r) => r.ten, onRowClick: xemChiTietTuyen }
-        );
+        renderDanhSach();
       } catch (err) {
-        bangTuyen.innerHTML = `<div class="text-error">${err.message}</div>`;
+        bangTuyen.innerHTML = `<div class="text-error">${esc(err.message)}</div>`;
       }
     }
+
+    function renderDanhSach() {
+      const bangTuyen = document.getElementById("bang-tuyen");
+      const tk = boDau(document.getElementById("tu-tim").value.trim());
+      const loc = tk
+        ? dsTuyen.filter((t) => boDau(`${t.ten} ${t.ma} ${(chuoiKhuVucTheoTuyen.get(t.id)?.chuoi || []).join(" ")}`).includes(tk))
+        : dsTuyen;
+      document.getElementById("tu-tom-tat").textContent = dsTuyen.length ? `${loc.length} tuyến` : "";
+
+      if (!dsTuyen.length) {
+        bangTuyen.innerHTML = '<div class="kv-trong">Chưa có tuyến nào — bấm "+ Tạo tuyến" để tạo tuyến đầu tiên.</div>';
+        return;
+      }
+      if (!loc.length) {
+        bangTuyen.innerHTML = '<div class="kv-trong">Không có tuyến nào khớp từ khóa tìm kiếm.</div>';
+        return;
+      }
+
+      bangTuyen.innerHTML = `<div class="tu-ds">${[...loc]
+        .sort((a, b) => a.ma.localeCompare(b.ma))
+        .map((t) => {
+          const { chuoi, soDiem } = chuoiKhuVucTheoTuyen.get(t.id) || { chuoi: [], soDiem: 0 };
+          return `
+            <article class="tu-the" data-id="${t.id}">
+              <div class="tu-the__dau" data-toggle>
+                <span class="tu-the__icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="19" r="2.3"/><circle cx="18" cy="5" r="2.3"/><path d="M6 16.7V13a4 4 0 0 1 4-4h2a4 4 0 0 0 4-4V5.3" stroke-dasharray="2.6 2.6"/></svg>
+                </span>
+                <div class="tu-the__chinh">
+                  <div class="tu-the__tieu"><h3 class="tu-the__ten">${esc(t.ten)}</h3>${htmlMa(esc(t.ma))}</div>
+                  <div class="nv-chuoi-khu-vuc">
+                    ${
+                      chuoi.length
+                        ? chuoi.map((ten) => `<span class="pill pill--khu-vuc">${esc(ten)}</span>`).join('<span class="nv-chuoi-khu-vuc__mui-ten">→</span>') +
+                          `<span class="nv-text-phu">· ${soDiem} điểm</span>`
+                        : '<span class="nv-text-phu">Chưa có điểm dừng</span>'
+                    }
+                  </div>
+                </div>
+                <span class="tu-the__ngay nv-text-phu">Tạo ${dinhDangNgayGio(t.ngay_tao)}</span>
+                <div class="tu-the__nut">
+                  <button type="button" class="nv-btn-sua" data-act="sua" data-id="${t.id}">Sửa</button>
+                  <button type="button" class="nv-btn-xoa" data-act="xoa" data-id="${t.id}">Xóa</button>
+                </div>
+                <svg class="tu-the__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+              </div>
+              <div class="tu-the__ct" hidden></div>
+            </article>`;
+        })
+        .join("")}</div>`;
+
+      // Bấm phần đầu thẻ để mở/đóng danh sách điểm dừng (nút Sửa/Xóa không kích hoạt việc này)
+      bangTuyen.querySelectorAll("[data-toggle]").forEach((dau) => {
+        dau.addEventListener("click", async (e) => {
+          if (e.target.closest("button[data-act]")) return;
+          const the = dau.closest(".tu-the");
+          const ct = the.querySelector(".tu-the__ct");
+          const dangMo = !ct.hidden;
+          the.classList.toggle("dang-mo", !dangMo);
+          ct.hidden = dangMo;
+          if (!dangMo) {
+            ct.innerHTML = '<div class="nv-table__dang-tai">Đang tải...</div>';
+            await xemChiTietTuyen(dsTuyen.find((x) => x.id === the.dataset.id), ct);
+          }
+        });
+      });
+
+      bangTuyen.querySelectorAll("button[data-act]").forEach((btn) => {
+        const t = dsTuyen.find((v) => v.id === btn.dataset.id);
+        btn.addEventListener("click", () => {
+          if (btn.dataset.act === "sua") moModalSua(t);
+          else if (confirm(`Xóa tuyến "${t.ten}"? Không thể hoàn tác.`)) xoaTuyen(t);
+        });
+      });
+    }
+
+    document.getElementById("tu-tim").addEventListener("input", renderDanhSach);
 
     async function xoaTuyen(tuyen) {
       try {

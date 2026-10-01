@@ -26,10 +26,13 @@ class SuaGiaVeRequest(BaseModel):
 class GiaVeResponse(BaseModel):
     id: UUID
     tuyen_id: UUID
+    ma_tuyen: str | None = None
     ten_tuyen: str | None = None
     diem_di_id: UUID
+    ma_diem_di: str | None = None
     ten_diem_di: str | None = None
     diem_den_id: UUID
+    ma_diem_den: str | None = None
     ten_diem_den: str | None = None
     gia_goc: int
     ap_dung_tu: date | None = None
