@@ -112,7 +112,7 @@ def cap_nhat_xac_nhan_xuat_phat(chuyen_id: str) -> bool:
                 """
                 UPDATE chuyen_xe
                 SET trang_thai = 'dang_chay', gio_xac_nhan_xuat_phat = now()
-                WHERE id = %s AND trang_thai = 'chua_khoi_hanh'
+                WHERE id = %s AND trang_thai = 'chua_khoi_hanh' AND gio_khoi_hanh <= now()
                 """,
                 (chuyen_id,),
             )

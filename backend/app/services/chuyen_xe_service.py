@@ -11,6 +11,8 @@ chung 1 file vì cùng đang xây tuần tự).
 "quản lý danh mục" đã có sẵn.
 """
 
+from datetime import datetime, timedelta, timezone
+
 from app.repositories import chuyen_xe_repository as chuyen_xe_repo
 from app.repositories import dia_diem_repository as dia_diem_repo
 from app.repositories import nhan_su_van_hanh_repository as nhan_su_repo
@@ -20,6 +22,11 @@ from app.services.websocket_manager import broadcast_sync
 from app.utils.loi import GiaTriLoi, KhongDuQuyen
 
 LOAI_SU_CO_HOP_LE = ("loi_nha_xe", "loi_khach_quan")
+GIO_VIET_NAM = timezone(timedelta(hours=7))
+
+
+def _bay_gio() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 def _gui_thong_bao(nguoi_nhan_id: str, noi_dung: str) -> None:
@@ -159,6 +166,11 @@ def xac_nhan_xuat_phat(chuyen_id: str, nguoi_dung_id: str) -> None:
     chuyen = lay_chuyen_cua_phu_xe(chuyen_id, nguoi_dung_id)
     if chuyen["trang_thai"] != "chua_khoi_hanh":
         raise GiaTriLoi("Chuyến không ở trạng thái chưa khởi hành")
+    # UC-15: chỉ được xác nhận đúng giờ hoặc muộn hơn, không xuất phát sớm.
+    # (Repository kiểm lại ngay trong UPDATE bằng now() của DB.)
+    if _bay_gio() < chuyen["gio_khoi_hanh"]:
+        gio_vn = chuyen["gio_khoi_hanh"].astimezone(GIO_VIET_NAM).strftime("%H:%M %d/%m/%Y")
+        raise GiaTriLoi(f"Chưa đến giờ khởi hành ({gio_vn}), không thể xác nhận xuất phát sớm")
 
     if not chuyen_xe_repo.cap_nhat_xac_nhan_xuat_phat(chuyen_id):
         raise GiaTriLoi("Chuyến vừa được xác nhận xuất phát hoặc đổi trạng thái, vui lòng tải lại")

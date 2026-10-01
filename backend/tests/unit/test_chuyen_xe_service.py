@@ -1,6 +1,8 @@
 """Unit test cho chuyen_xe_service — giả lập Repository bằng monkeypatch,
 không cần DB thật (ARCHITECTURE.md mục 3 'tests/unit')."""
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from app.services import chuyen_xe_service as svc
@@ -14,7 +16,8 @@ def _nhan_su_phu_xe(**overrides):
 
 
 def _chuyen(**overrides):
-    data = {"id": "chuyen-1", "tuyen_id": "tuyen-1", "xe_id": "xe-1", "trang_thai": "chua_khoi_hanh"}
+    data = {"id": "chuyen-1", "tuyen_id": "tuyen-1", "xe_id": "xe-1", "trang_thai": "chua_khoi_hanh",
+            "gio_khoi_hanh": datetime(2020, 1, 1, tzinfo=timezone.utc)}
     data.update(overrides)
     return data
 
@@ -296,3 +299,30 @@ def test_bao_su_co_loi_khach_quan_van_gui_thong_bao(monkeypatch):
     svc.bao_su_co("chuyen-1", "loi_khach_quan", "sat lo", "nguoi-dung-1")
     assert luu == {"loai": "loi_khach_quan", "ly_do": "sat lo"}
     assert da_gui == ["kh-1"]
+
+
+GIO_KH = datetime(2026, 10, 1, 8, 0, tzinfo=timezone.utc)
+
+
+def _chuan_bi_xuat_phat(monkeypatch, bay_gio):
+    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen(gio_khoi_hanh=GIO_KH))
+    monkeypatch.setattr(svc, "_bay_gio", lambda: bay_gio)
+    goi = []
+    monkeypatch.setattr(svc.chuyen_xe_repo, "cap_nhat_xac_nhan_xuat_phat", lambda cid: goi.append(cid) or True)
+    return goi
+
+
+@pytest.mark.parametrize("som", [timedelta(seconds=1), timedelta(minutes=10), timedelta(hours=5)])
+def test_xac_nhan_xuat_phat_som_hon_gio_khoi_hanh_bi_chan(monkeypatch, som):
+    goi = _chuan_bi_xuat_phat(monkeypatch, GIO_KH - som)
+    with pytest.raises(GiaTriLoi) as loi:
+        svc.xac_nhan_xuat_phat("chuyen-1", "nguoi-dung-1")
+    assert "15:00 01/10/2026" in str(loi.value)  # hiển thị giờ Việt Nam (UTC+7)
+    assert goi == []
+
+
+@pytest.mark.parametrize("tre", [timedelta(0), timedelta(minutes=3), timedelta(hours=2)])
+def test_xac_nhan_xuat_phat_dung_gio_hoac_muon_hon_duoc_phep(monkeypatch, tre):
+    goi = _chuan_bi_xuat_phat(monkeypatch, GIO_KH + tre)
+    svc.xac_nhan_xuat_phat("chuyen-1", "nguoi-dung-1")
+    assert goi == ["chuyen-1"]
