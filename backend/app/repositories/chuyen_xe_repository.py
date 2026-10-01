@@ -183,9 +183,12 @@ def cap_nhat_gap_su_co(chuyen_id: str, loai_su_co: str, ly_do: str) -> bool:
 def thong_ke_theo_xe(xe_id: str, tu_ngay, den_ngay) -> list[dict]:
     """Mỗi dòng = 1 chuyến của xe trong khoảng ngày, kèm số ghế đã bán và
     doanh thu — dùng cho UC-39 (thống kê của phụ xe, chỉ tính chuyến của
-    xe mình). Quy ước `loai_xe.so_do_ghe` có khóa "so_luong" = tổng số
-    ghế (mục 3.1 NGHIEP_VU.md, JSON tự do vì hệ thống không có bảng ghe_xe
-    riêng)."""
+    xe mình). `loai_xe.so_do_ghe` là MẢNG JSON mỗi phần tử 1 ghế
+    (`xe_schema.GheXe`, UC-32) nên tổng ghế = độ dài mảng.
+
+    `tu_ngay` (gồm) / `den_ngay` (loại trừ) là NGÀY theo giờ Việt Nam, không
+    phải mốc UTC — DB chạy múi giờ UTC nên so thẳng với gio_khoi_hanh sẽ
+    lệch 7 tiếng: chuyến 05:00 sáng ngày D (giờ VN) bị tính vào ngày D-1."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -193,13 +196,15 @@ def thong_ke_theo_xe(xe_id: str, tu_ngay, den_ngay) -> list[dict]:
                 """
                 SELECT
                     cx.id, cx.trang_thai,
-                    (lx.so_do_ghe->>'so_luong')::int AS tong_ghe,
+                    CASE WHEN jsonb_typeof(lx.so_do_ghe) = 'array' THEN jsonb_array_length(lx.so_do_ghe) END AS tong_ghe,
                     COUNT(v.id) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe')) AS so_ve_ban,
                     COALESCE(SUM(v.gia) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe')), 0) AS doanh_thu
                 FROM chuyen_xe cx
                 JOIN loai_xe lx ON lx.id = cx.loai_xe_id
                 LEFT JOIN ve v ON v.chuyen_id = cx.id
-                WHERE cx.xe_id = %s AND cx.gio_khoi_hanh >= %s AND cx.gio_khoi_hanh < %s
+                WHERE cx.xe_id = %s
+                  AND (cx.gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= %s
+                  AND (cx.gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < %s
                 GROUP BY cx.id, cx.trang_thai, lx.so_do_ghe
                 """,
                 (xe_id, tu_ngay, den_ngay),

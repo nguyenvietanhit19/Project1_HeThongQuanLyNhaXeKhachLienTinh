@@ -125,7 +125,8 @@ def thong_ke_cua_toi(nguoi_dung_id: str, tu_ngay, den_ngay) -> dict:
     if not chuyen_list:
         return {"so_chuyen": 0, "doanh_thu": 0, "ty_le_lap_day_trung_binh": 0, "so_chuyen_su_co": 0, "so_chuyen_huy": 0}
 
-    ty_le_lap_day = [c["so_ve_ban"] / c["tong_ghe"] for c in chuyen_list if c["tong_ghe"]]
+    # Chuyến đã hủy không tính vào tỷ lệ lấp đầy (không chạy nên không có "ghế bán được" để so).
+    ty_le_lap_day = [c["so_ve_ban"] / c["tong_ghe"] for c in chuyen_list if c["tong_ghe"] and c["trang_thai"] != "da_huy"]
 
     return {
         "so_chuyen": len(chuyen_list),
