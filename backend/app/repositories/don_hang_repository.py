@@ -188,6 +188,29 @@ def cap_nhat_chat_hang_len_chuyen(don_hang_id: str, chuyen_id: str) -> dict | No
         release_connection(conn)
 
 
+def chat_len_chuyen_neu_dang_cho(don_hang_id: str, chuyen_id: str) -> bool:
+    """UC-26 (Phụ xe) — bản có điều kiện của cap_nhat_chat_hang_len_chuyen():
+    chỉ chất khi đơn còn `cho_van_chuyen` và chưa gắn chuyến nào, kiểm ngay
+    trong UPDATE để 2 phụ xe (2 chuyến cùng tuyến) cùng chất 1 đơn thì chỉ
+    1 người thành công. True nếu chất được."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE don_hang
+                SET trang_thai = 'da_len_xe', chuyen_id = %s
+                WHERE id = %s AND trang_thai = 'cho_van_chuyen' AND chuyen_id IS NULL
+                """,
+                (chuyen_id, don_hang_id),
+            )
+            da_chat = cur.rowcount > 0
+        conn.commit()
+        return da_chat
+    finally:
+        release_connection(conn)
+
+
 def cap_nhat_do_hang_tai_diem(don_hang_id: str) -> dict | None:
     """UC-27 (Phụ xe): Dỡ hàng xuống văn phòng điểm nhận, bắt đầu tính hạn lưu kho."""
     conn = get_connection()
