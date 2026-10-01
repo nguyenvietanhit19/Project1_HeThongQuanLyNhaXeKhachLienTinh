@@ -10,6 +10,7 @@ Service quản lý vòng đời đơn hàng gửi theo tuyến:
 from datetime import datetime
 from uuid import uuid4
 
+from app.repositories import chuyen_xe_repository as chuyen_xe_repo
 from app.repositories import dia_diem_repository as dia_diem_repo
 from app.repositories import don_hang_repository as don_hang_repo
 from app.schemas.don_hang_schema import TaoDonHangRequest
@@ -198,6 +199,45 @@ def xac_nhan_chat_hang_cua_phu_xe(don_hang_id: str, chuyen_id: str, nguoi_dung_i
 
     if not don_hang_repo.chat_len_chuyen_neu_dang_cho(don_hang_id, chuyen_id):
         raise GiaTriLoi("Đơn hàng vừa được chất lên chuyến khác, vui lòng tải lại danh sách")
+
+
+def danh_sach_cho_do(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
+    """UC-27 (mục 8.2 điểm 9): đơn đang trên xe (`da_len_xe`) cần dỡ tại đúng
+    điểm phụ xe đang đứng. Cho phép cả chuyến `hoan_thanh` — xác nhận đến
+    điểm cuối chuyển chuyến sang hoan_thanh, nhưng hàng nhận tại điểm cuối
+    đó vẫn cần dỡ nốt ngay sau đó."""
+    chuyen = lay_chuyen_cua_phu_xe(chuyen_id, nguoi_dung_id)
+    if chuyen["trang_thai"] not in ("dang_chay", "hoan_thanh"):
+        raise GiaTriLoi("Chuyến không ở trạng thái phù hợp để dỡ hàng")
+
+    diem = diem_hien_tai(chuyen)
+    return don_hang_repo.tim_don_can_do_tai_diem(chuyen_id, diem["diem_don_tra_id"])
+
+
+def xac_nhan_do_hang_cua_phu_xe(don_hang_id: str, nguoi_dung_id: str) -> None:
+    """UC-27: phụ xe bấm xác nhận đã dỡ hàng → `cho_lay`, ghi
+    `thoi_gian_den_diem_nhan` (mốc bắt đầu tính 7/14 ngày của UC-46).
+
+    Tiền điều kiện (spec): đơn `da_len_xe` và xe ĐÃ TỚI điểm nhận của đơn —
+    chặn dỡ nhầm đơn của điểm còn phía sau."""
+    don = don_hang_repo.tim_theo_id(don_hang_id)
+    if not don:
+        raise GiaTriLoi("Không tìm thấy đơn hàng")
+    if not don["chuyen_id"]:
+        raise GiaTriLoi("Đơn hàng chưa từng được chất lên chuyến nào")
+
+    chuyen = lay_chuyen_cua_phu_xe(str(don["chuyen_id"]), nguoi_dung_id)
+    if chuyen["trang_thai"] not in ("dang_chay", "hoan_thanh"):
+        raise GiaTriLoi("Chuyến không ở trạng thái phù hợp để dỡ hàng")
+    if don["trang_thai"] != "da_len_xe":
+        raise GiaTriLoi("Đơn hàng không ở trạng thái đang trên xe")
+
+    da_toi = {str(d["diem_don_tra_id"]) for d in chuyen_xe_repo.lay_diem_da_xac_nhan(str(chuyen["id"]))}
+    if str(don["diem_nhan_id"]) not in da_toi:
+        raise GiaTriLoi("Xe chưa tới điểm nhận của đơn hàng này")
+
+    if not don_hang_repo.do_hang_neu_dang_tren_xe(don_hang_id):
+        raise GiaTriLoi("Đơn hàng vừa được dỡ hoặc đổi trạng thái, vui lòng tải lại")
 
 
 def xac_nhan_do_hang(don_hang_id: str) -> dict:

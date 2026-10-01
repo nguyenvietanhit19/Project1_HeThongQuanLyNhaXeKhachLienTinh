@@ -231,6 +231,29 @@ def cap_nhat_do_hang_tai_diem(don_hang_id: str) -> dict | None:
         release_connection(conn)
 
 
+def do_hang_neu_dang_tren_xe(don_hang_id: str) -> bool:
+    """UC-27 (Phụ xe) — bản có điều kiện của cap_nhat_do_hang_tai_diem(): chỉ
+    dỡ khi đơn còn `da_len_xe`, kiểm ngay trong UPDATE để bấm đúp không đặt
+    lại `thoi_gian_den_diem_nhan` (mốc tính 7/14 ngày của UC-46, mục
+    10.3.1). True nếu dỡ được."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE don_hang
+                SET trang_thai = 'cho_lay', thoi_gian_den_diem_nhan = now()
+                WHERE id = %s AND trang_thai = 'da_len_xe'
+                """,
+                (don_hang_id,),
+            )
+            da_do = cur.rowcount > 0
+        conn.commit()
+        return da_do
+    finally:
+        release_connection(conn)
+
+
 def cap_nhat_thong_bao_nguoi_nhan(don_hang_id: str, da_thong_bao: bool) -> None:
     """UC-25: Ghi nhận đã liên hệ người nhận thành công."""
     conn = get_connection()

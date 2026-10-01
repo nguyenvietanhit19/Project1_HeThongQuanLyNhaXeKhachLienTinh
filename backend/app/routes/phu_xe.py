@@ -109,7 +109,7 @@ def xac_nhan_chat_hang(don_hang_id: str, du_lieu: XacNhanChatHangRequest, nguoi_
 
 @router.post("/don-hang/{don_hang_id}/do-hang")
 def xac_nhan_do_hang(don_hang_id: str, nguoi_dung: _phu_xe):
-    gui_hang_service.xac_nhan_do_hang(don_hang_id, nguoi_dung.id)
+    gui_hang_service.xac_nhan_do_hang_cua_phu_xe(don_hang_id, nguoi_dung.id)
     return {"thong_bao": "Đã xác nhận dỡ hàng khỏi xe"}
 
 
