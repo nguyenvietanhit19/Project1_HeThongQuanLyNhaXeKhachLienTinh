@@ -205,7 +205,8 @@ def xac_nhan_toi_diem(chuyen_id: str, diem_don_tra_id: str, nguoi_dung_id: str) 
     if not con_lai or diem_muc_tieu["diem_don_tra_id"] != con_lai[0]["diem_don_tra_id"]:
         raise GiaTriLoi("Phải xác nhận lần lượt theo đúng thứ tự các điểm trên tuyến")
 
-    chuyen_xe_repo.them_lich_su_diem_dung(chuyen_id, diem_don_tra_id)
+    if not chuyen_xe_repo.them_lich_su_diem_dung(chuyen_id, diem_don_tra_id):
+        raise GiaTriLoi("Điểm này đã được xác nhận đến trước đó")
 
     diem_cuoi_tuyen = diem_list[-1]["diem_don_tra_id"]
     da_hoan_thanh = diem_don_tra_id == diem_cuoi_tuyen

@@ -129,7 +129,7 @@ def test_xac_nhan_toi_diem_dung_thu_tu_chua_hoan_thanh(monkeypatch):
     monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen(trang_thai="dang_chay"))
     monkeypatch.setattr(svc.dia_diem_repo, "danh_sach_diem_theo_tuyen", lambda tid: [_diem("d1", 1), _diem("d2", 2), _diem("d3", 3)])
     monkeypatch.setattr(svc.chuyen_xe_repo, "lay_diem_da_xac_nhan", lambda cid: [])
-    monkeypatch.setattr(svc.chuyen_xe_repo, "them_lich_su_diem_dung", lambda cid, did: None)
+    monkeypatch.setattr(svc.chuyen_xe_repo, "them_lich_su_diem_dung", lambda cid, did: True)
     monkeypatch.setattr(svc.ve_repo, "tim_khach_cho_don_sau_diem", lambda cid, tt: [])
     assert svc.xac_nhan_toi_diem("chuyen-1", "d2", "nguoi-dung-1") is False
 
@@ -138,7 +138,7 @@ def test_xac_nhan_toi_diem_diem_cuoi_hoan_thanh(monkeypatch):
     monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen(trang_thai="dang_chay"))
     monkeypatch.setattr(svc.dia_diem_repo, "danh_sach_diem_theo_tuyen", lambda tid: [_diem("d1", 1), _diem("d2", 2), _diem("d3", 3)])
     monkeypatch.setattr(svc.chuyen_xe_repo, "lay_diem_da_xac_nhan", lambda cid: [{"diem_don_tra_id": "d2", "thu_tu": 2}])
-    monkeypatch.setattr(svc.chuyen_xe_repo, "them_lich_su_diem_dung", lambda cid, did: None)
+    monkeypatch.setattr(svc.chuyen_xe_repo, "them_lich_su_diem_dung", lambda cid, did: True)
     goi = {}
     monkeypatch.setattr(svc.chuyen_xe_repo, "cap_nhat_hoan_thanh", lambda cid: goi.setdefault("cid", cid))
     assert svc.xac_nhan_toi_diem("chuyen-1", "d3", "nguoi-dung-1") is True
@@ -149,7 +149,7 @@ def test_xac_nhan_toi_diem_gui_thong_bao_eta_cho_khach_o_diem_sau(monkeypatch):
     monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen(trang_thai="dang_chay"))
     monkeypatch.setattr(svc.dia_diem_repo, "danh_sach_diem_theo_tuyen", lambda tid: [_diem("d1", 1), _diem("d2", 2, "Diem B"), _diem("d3", 3)])
     monkeypatch.setattr(svc.chuyen_xe_repo, "lay_diem_da_xac_nhan", lambda cid: [])
-    monkeypatch.setattr(svc.chuyen_xe_repo, "them_lich_su_diem_dung", lambda cid, did: None)
+    monkeypatch.setattr(svc.chuyen_xe_repo, "them_lich_su_diem_dung", lambda cid, did: True)
     monkeypatch.setattr(svc.ve_repo, "tim_khach_cho_don_sau_diem", lambda cid, tt: [{"khach_hang_id": "kh-1"}])
     da_gui = []
     monkeypatch.setattr(svc, "_gui_thong_bao", lambda nid, nd: da_gui.append((nid, nd)))
@@ -162,7 +162,7 @@ def test_xac_nhan_toi_diem_khong_gui_thong_bao_khi_hoan_thanh(monkeypatch):
     monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen(trang_thai="dang_chay"))
     monkeypatch.setattr(svc.dia_diem_repo, "danh_sach_diem_theo_tuyen", lambda tid: [_diem("d1", 1), _diem("d2", 2)])
     monkeypatch.setattr(svc.chuyen_xe_repo, "lay_diem_da_xac_nhan", lambda cid: [])
-    monkeypatch.setattr(svc.chuyen_xe_repo, "them_lich_su_diem_dung", lambda cid, did: None)
+    monkeypatch.setattr(svc.chuyen_xe_repo, "them_lich_su_diem_dung", lambda cid, did: True)
     monkeypatch.setattr(svc.chuyen_xe_repo, "cap_nhat_hoan_thanh", lambda cid: None)
     da_goi = []
     monkeypatch.setattr(svc.ve_repo, "tim_khach_cho_don_sau_diem", lambda cid, tt: da_goi.append(1))
@@ -200,3 +200,46 @@ def test_bao_su_co_thanh_cong_va_gui_thong_bao_khach(monkeypatch):
 
     assert goi_co == {"xe_id": "xe-1", "cid": "chuyen-1"}
     assert da_gui == ["kh-1", "kh-2"]
+
+
+def test_xac_nhan_toi_diem_bao_loi_khi_diem_vua_duoc_ghi_boi_nguoi_khac(monkeypatch):
+    # Bấm đúp / 2 phụ xe cùng bấm: lần kiểm tra thấy chưa có, nhưng INSERT ... ON CONFLICT DO NOTHING không ghi được dòng nào
+    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen(trang_thai="dang_chay"))
+    monkeypatch.setattr(svc.dia_diem_repo, "danh_sach_diem_theo_tuyen", lambda tid: [_diem("d1", 1), _diem("d2", 2)])
+    monkeypatch.setattr(svc.chuyen_xe_repo, "lay_diem_da_xac_nhan", lambda cid: [])
+    monkeypatch.setattr(svc.chuyen_xe_repo, "them_lich_su_diem_dung", lambda cid, did: False)
+    hoan_thanh = []
+    monkeypatch.setattr(svc.chuyen_xe_repo, "cap_nhat_hoan_thanh", lambda cid: hoan_thanh.append(cid))
+    with pytest.raises(GiaTriLoi):
+        svc.xac_nhan_toi_diem("chuyen-1", "d2", "nguoi-dung-1")
+    assert hoan_thanh == []  # không được chuyển hoan_thanh khi chính lần này không ghi được điểm
+
+
+@pytest.mark.parametrize("trang_thai", ["gap_su_co", "hoan_thanh", "da_huy"])
+def test_xac_nhan_toi_diem_chuyen_khong_con_dang_chay(monkeypatch, trang_thai):
+    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen(trang_thai=trang_thai))
+    with pytest.raises(GiaTriLoi):
+        svc.xac_nhan_toi_diem("chuyen-1", "d2", "nguoi-dung-1")
+
+
+def test_xac_nhan_toi_diem_phu_xe_khong_thuoc_xe_bi_chan(monkeypatch):
+    def tu_choi(cid, nid):
+        raise KhongDuQuyen("Chuyến này không thuộc về bạn")
+
+    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", tu_choi)
+    with pytest.raises(KhongDuQuyen):
+        svc.xac_nhan_toi_diem("chuyen-1", "d2", "nguoi-dung-khac")
+
+
+def test_xac_nhan_toi_diem_trung_gian_khong_hoan_thanh(monkeypatch):
+    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen(trang_thai="dang_chay"))
+    monkeypatch.setattr(
+        svc.dia_diem_repo, "danh_sach_diem_theo_tuyen", lambda tid: [_diem("d1", 1), _diem("d2", 2), _diem("d3", 3)]
+    )
+    monkeypatch.setattr(svc.chuyen_xe_repo, "lay_diem_da_xac_nhan", lambda cid: [])
+    monkeypatch.setattr(svc.chuyen_xe_repo, "them_lich_su_diem_dung", lambda cid, did: True)
+    hoan_thanh = []
+    monkeypatch.setattr(svc.chuyen_xe_repo, "cap_nhat_hoan_thanh", lambda cid: hoan_thanh.append(cid))
+    monkeypatch.setattr(svc.ve_repo, "tim_khach_cho_don_sau_diem", lambda cid, thu_tu: [])
+    assert svc.xac_nhan_toi_diem("chuyen-1", "d2", "nguoi-dung-1") is False
+    assert hoan_thanh == []

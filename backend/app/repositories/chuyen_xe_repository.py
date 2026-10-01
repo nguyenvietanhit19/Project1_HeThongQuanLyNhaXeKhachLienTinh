@@ -123,15 +123,23 @@ def cap_nhat_xac_nhan_xuat_phat(chuyen_id: str) -> bool:
         release_connection(conn)
 
 
-def them_lich_su_diem_dung(chuyen_id: str, diem_don_tra_id: str) -> None:
+def them_lich_su_diem_dung(chuyen_id: str, diem_don_tra_id: str) -> bool:
+    """True nếu ghi mới thành công, False nếu điểm này đã được ghi (bấm đúp /
+    2 phụ xe cùng bấm — UNIQUE (chuyen_id, diem_don_tra_id)) — không để lỗi
+    ràng buộc lọt thành HTTP 500."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO lich_su_diem_dung_chuyen (chuyen_id, diem_don_tra_id) VALUES (%s, %s)",
+                """
+                INSERT INTO lich_su_diem_dung_chuyen (chuyen_id, diem_don_tra_id) VALUES (%s, %s)
+                ON CONFLICT (chuyen_id, diem_don_tra_id) DO NOTHING
+                """,
                 (chuyen_id, diem_don_tra_id),
             )
+            da_ghi = cur.rowcount > 0
         conn.commit()
+        return da_ghi
     finally:
         release_connection(conn)
 
