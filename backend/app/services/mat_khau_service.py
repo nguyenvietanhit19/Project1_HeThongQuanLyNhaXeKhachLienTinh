@@ -13,6 +13,7 @@ from passlib.context import CryptContext
 
 from app.middleware.auth_middleware import tao_token
 from app.repositories import nguoi_dung_repository as repo
+from app.utils.so_dien_thoai import chuan_hoa_so_dien_thoai
 from app.services.email_service import gui_mail
 from app.utils.loi import GiaTriLoi, KhongDuQuyen, LoiHeThong
 
@@ -32,6 +33,7 @@ def _da_het_han(ma_het_han: datetime.datetime | None) -> bool:
 
 
 def gui_ma_dang_ky(email: str, mat_khau: str, ho_ten: str, so_dien_thoai: str) -> None:
+    so_dien_thoai = chuan_hoa_so_dien_thoai(so_dien_thoai)  # sai định dạng -> báo lỗi trước khi tạo tài khoản/gửi mail
     nguoi_dung = repo.tim_theo_email(email)
     ma, het_han = _sinh_ma_va_han()
     mat_khau_hash = _pwd_context.hash(mat_khau)
@@ -123,3 +125,15 @@ def lay_thong_tin(nguoi_dung_id: str) -> dict:
 
 def sua_ho_ten(nguoi_dung_id: str, ho_ten: str) -> None:
     repo.cap_nhat_ho_ten(nguoi_dung_id, ho_ten)
+
+
+def sua_ho_so(nguoi_dung_id: str, ho_ten: str | None = None, so_dien_thoai: str | None = None) -> None:
+    """Sửa họ tên và/hoặc số điện thoại của chính mình — kiểm tra hết trước khi ghi để không sửa dở dang."""
+    ho_ten_moi = ho_ten.strip() if ho_ten is not None else None
+    if ho_ten_moi is not None and not ho_ten_moi:
+        raise GiaTriLoi("Họ và tên không được để trống")
+    sdt_moi = chuan_hoa_so_dien_thoai(so_dien_thoai) if so_dien_thoai is not None else None
+    if ho_ten_moi is not None:
+        repo.cap_nhat_ho_ten(nguoi_dung_id, ho_ten_moi)
+    if sdt_moi is not None:
+        repo.cap_nhat_so_dien_thoai(nguoi_dung_id, sdt_moi)
