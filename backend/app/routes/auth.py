@@ -63,7 +63,7 @@ def xem_thong_tin(nguoi_dung: Annotated[NguoiDungHienTai, Depends(yeu_cau_dang_n
 
 @router.put("/toi")
 def sua_ho_so(du_lieu: SuaHoSoRequest, nguoi_dung: Annotated[NguoiDungHienTai, Depends(yeu_cau_dang_nhap)]):
-    mat_khau_service.sua_ho_ten(nguoi_dung.id, du_lieu.ho_ten)
+    mat_khau_service.sua_ho_so(nguoi_dung.id, du_lieu.ho_ten, du_lieu.so_dien_thoai)
     return {"thong_bao": "Cập nhật thành công"}
 
 

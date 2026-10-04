@@ -8,7 +8,7 @@
 
 body.nhan-vien-shell {
   margin: 0;
-  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-body);
   background: var(--color-bg-canvas);
   color: var(--color-text-primary);
 }

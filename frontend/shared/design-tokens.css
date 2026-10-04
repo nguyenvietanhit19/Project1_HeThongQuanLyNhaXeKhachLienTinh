@@ -10,7 +10,16 @@
  * trị hex ra dùng lẻ trong file khác, luôn dùng qua biến var(--ten-bien).
  */
 
+/* Font chữ — giống dự án GiaoThông AnToàn: Lexend cho chữ thường/số, Be Vietnam Pro cho tiêu đề (cả hai hỗ trợ
+   tiếng Việt đầy đủ). Nạp 1 lần ở đây nên mọi trang nhúng design-tokens.css đều có font; mất mạng thì tự rơi về
+   font hệ thống theo danh sách dự phòng bên dưới. */
+@import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Lexend:wght@300;400;500;600;700;800&display=swap");
+
 :root {
+  /* ===== Font chữ ===== */
+  --font-body: "Lexend", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-heading: "Be Vietnam Pro", "Segoe UI", Roboto, Arial, sans-serif;
+
   /* ===== Màu chủ đạo ===== */
   --color-primary: #F5A623;        /* Cam — CTA, trạng thái active/đã chọn, badge nổi bật */
   --color-primary-dark: #D98C1A;   /* Cam đậm — hover/pressed state */
@@ -193,4 +202,25 @@
    nên không cần cả nhóm đồng ý mới thêm (khác đổi màu/token). */
 [hidden] {
   display: none !important;
+}
+
+/* Font mặc định cho toàn bộ trang — trang nào cần font khác (VD mã số đơn: monospace) tự ghi đè ở nơi đó */
+body {
+  font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
 }

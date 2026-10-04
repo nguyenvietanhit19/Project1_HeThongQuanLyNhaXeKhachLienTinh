@@ -19,16 +19,11 @@
  * Dùng chung 1 file cho cả 3 trang (bố cục giống hệt nhau, chỉ khác nội
  * dung form) — không tách mỗi trang 1 file riêng.
  *
- * LƯU Ý: tai-khoan.html cũng nằm trong thư mục này và tự nạp đúng file
- * auth.css này, nhưng KHÔNG thuộc phạm vi lần sửa này (không phải trang
- * đăng nhập/đăng ký/quên mật khẩu) — vẫn dùng kiểu "thẻ đơn giản căn giữa"
- * cũ (.auth-page/.auth-card), giữ nguyên y hệt bên dưới để không vỡ giao
- * diện trang đó.
  */
 
 body.auth-page {
   background: var(--color-bg-canvas);
-  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-body);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -72,7 +67,7 @@ body.kh-auth-page {
   height: 100dvh;
   overflow: hidden;
   box-sizing: border-box;
-  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-body);
   background: var(--color-bg-canvas);
   background-image: url("/shared/assets/dang-nhap-nen-desktop.jpg");
   background-size: cover;

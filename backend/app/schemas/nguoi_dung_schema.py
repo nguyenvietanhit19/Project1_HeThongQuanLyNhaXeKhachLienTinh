@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
 class DangKyRequest(BaseModel):
@@ -42,7 +42,16 @@ class DoiMatKhauRequest(BaseModel):
 
 
 class SuaHoSoRequest(BaseModel):
-    ho_ten: str = Field(min_length=1)
+    """Sửa hồ sơ của chính mình — gửi trường nào sửa trường đó (họ tên và/hoặc số điện thoại)."""
+
+    ho_ten: str | None = Field(default=None, min_length=1)
+    so_dien_thoai: str | None = None
+
+    @model_validator(mode="after")
+    def phai_co_it_nhat_1_truong(self):
+        if self.ho_ten is None and self.so_dien_thoai is None:
+            raise ValueError("Cần gửi họ tên hoặc số điện thoại để cập nhật")
+        return self
 
 
 class NguoiDungResponse(BaseModel):
