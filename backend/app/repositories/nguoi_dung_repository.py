@@ -39,13 +39,34 @@ def tim_theo_id(nguoi_dung_id: str) -> dict | None:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, email, ho_ten, so_dien_thoai, vai_tro, dang_hoat_dong, ngay_tao
-                FROM nguoi_dung
-                WHERE id = %s
+                SELECT nd.id, nd.email, nd.ho_ten, nd.so_dien_thoai, nd.vai_tro,
+                       nd.dang_hoat_dong, nd.ngay_tao, h.van_phong_id
+                FROM nguoi_dung nd
+                LEFT JOIN ho_so_can_bo_diem h ON h.nguoi_dung_id = nd.id
+                WHERE nd.id = %s
                 """,
                 (nguoi_dung_id,),
             )
             return _thanh_dict(cur, cur.fetchone())
+    finally:
+        release_connection(conn)
+
+
+def gan_van_phong(nguoi_dung_id: str, van_phong_id: str) -> None:
+    """Gán văn phòng phụ trách cho nhân viên quầy/điều độ viên."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO ho_so_can_bo_diem (nguoi_dung_id, van_phong_id)
+                VALUES (%s, %s)
+                ON CONFLICT (nguoi_dung_id)
+                DO UPDATE SET van_phong_id = EXCLUDED.van_phong_id
+                """,
+                (nguoi_dung_id, van_phong_id),
+            )
+        conn.commit()
     finally:
         release_connection(conn)
 
@@ -182,11 +203,15 @@ def cap_nhat_ho_ten(nguoi_dung_id: str, ho_ten: str) -> None:
         release_connection(conn)
 
 
-def danh_sach_id_theo_vai_tro(vai_tro: str) -> list[str]:
+def danh_sach_id_theo_vai_tro(vai_tro: str, chi_dang_hoat_dong: bool = False) -> list[str]:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id FROM nguoi_dung WHERE vai_tro = %s", (vai_tro,))
+            cur.execute(
+                "SELECT id FROM nguoi_dung WHERE vai_tro = %s"
+                + (" AND dang_hoat_dong = true" if chi_dang_hoat_dong else ""),
+                (vai_tro,),
+            )
             return [str(row[0]) for row in cur.fetchall()]
     finally:
         release_connection(conn)

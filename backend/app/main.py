@@ -6,13 +6,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import CORS_ORIGINS
-from app.jobs import quet_no_show
+from app.jobs import quet_hang_ton, quet_no_show
 from app.routes.auth import router as auth_router
 from app.routes.phu_xe import router as phu_xe_router
 from app.routes.gui_hang import router as gui_hang_router
 from app.routes.quan_ly import router as quan_ly_router
 from app.routes.websocket import router as websocket_router
-from app.utils.loi import GiaTriLoi, KhongDuQuyen, LoiHeThong
+from app.routes.thong_bao import router as thong_bao_router
+from app.utils.loi import CamTruyCap, GiaTriLoi, KhongDuQuyen, KhongTimThay, LoiHeThong
 
 scheduler = BackgroundScheduler()
 
@@ -22,6 +23,8 @@ async def lifespan(app: FastAPI):
     # UC-14 (⏱, mục 8.2 điểm 6/mục 9) — chu kỳ 1 phút đủ chính xác cho mốc
     # X phút (mặc định 5), theo đúng ARCHITECTURE.md mục 5.
     scheduler.add_job(quet_no_show.chay, "interval", minutes=1, id="quet_no_show")
+    # UC-46 (⏱, mục 10.3 & mục 12) — quét cảnh báo (7 ngày) & chuyển tồn kho (14 ngày)
+    scheduler.add_job(quet_hang_ton.chay_job_quet_hang_ton, "interval", hours=1, id="quet_hang_ton")
     scheduler.start()
     yield
     scheduler.shutdown()
@@ -51,6 +54,16 @@ def xu_ly_gia_tri_loi(request: Request, exc: GiaTriLoi):
 @app.exception_handler(KhongDuQuyen)
 def xu_ly_khong_du_quyen(request: Request, exc: KhongDuQuyen):
     return JSONResponse(status_code=401, content={"loi": str(exc)})
+
+
+@app.exception_handler(CamTruyCap)
+def xu_ly_cam_truy_cap(request: Request, exc: CamTruyCap):
+    return JSONResponse(status_code=403, content={"loi": str(exc)})
+
+
+@app.exception_handler(KhongTimThay)
+def xu_ly_khong_tim_thay(request: Request, exc: KhongTimThay):
+    return JSONResponse(status_code=404, content={"loi": str(exc)})
 
 
 @app.exception_handler(LoiHeThong)
@@ -85,3 +98,4 @@ app.include_router(auth_router)
 app.include_router(quan_ly_router)
 app.include_router(phu_xe_router)
 app.include_router(gui_hang_router)
+app.include_router(thong_bao_router)

@@ -3,812 +3,760 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/png" href="../../shared/assets/favicon.png">
-  <title>Phân hệ Quản lý Gửi hàng — Nhà xe Liên tỉnh</title>
-  <link rel="stylesheet" href="../../shared/design-tokens.css">
-  <link rel="stylesheet" href="style.css?v=4.0">
+  <link rel="icon" type="image/png" href="/shared/assets/favicon.png">
+  <title>Gửi hàng — GoBus</title>
+  <link rel="stylesheet" href="/shared/design-tokens.css">
+  <link rel="stylesheet" href="/nhan-vien/gui-hang/style.css">
 </head>
-<body>
+<body class="nhan-vien-shell">
 
-  <!-- Thanh điều hướng Header (khởi tạo từ nav.js) -->
-  <div id="main-nav"></div>
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
 
-  <!-- Nội dung chính -->
-  <main class="main-content">
+    <div class="nv-main">
+      <header class="nv-topbar" id="nv-topbar"></header>
 
-    <!-- ========================================================== -->
-    <!-- TAB 1: TIẾP NHẬN GỬI HÀNG (UC-23)                          -->
-    <!-- ========================================================== -->
-    <section id="tab-tao-don" class="tab-pane active">
-      <div class="card-panel">
-        <h2 class="card-title">📦 Tiếp nhận đơn gửi hàng mới tại quầy</h2>
+      <main class="nv-content">
+        <div class="nv-page-intro" id="nv-page-intro"></div>
+        <p class="phim-tat-goi-y" id="phimTatGoiY"></p>
 
-        <form id="formTaoDon" onsubmit="xuLyTaoDon(event)">
-          <div class="form-grid-2">
-            <!-- Cột 1: Thông tin người gửi & người nhận -->
-            <div>
-              <div class="form-section">
-                <div class="section-subtitle">👤 Thông tin Người gửi</div>
-                <div class="form-group">
-                  <label class="form-label required">Họ và tên người gửi</label>
-                  <input type="text" name="ten_nguoi_gui" class="form-input" required placeholder="VD: Nguyễn Văn An">
-                </div>
-                <div class="form-group">
-                  <label class="form-label required">Số điện thoại người gửi</label>
-                  <input type="tel" name="sdt_nguoi_gui" class="form-input" required placeholder="VD: 0912345678" pattern="[0-9]{10,11}">
-                </div>
-              </div>
+        <!-- ========================================================== -->
+        <!-- TAB 1: TIẾP NHẬN GỬI HÀNG              -->
+        <!-- ========================================================== -->
+        <section id="tab-tao-don" class="tab-pane">
+          <div class="nv-card">
+            <h2 class="card-title">📦 Tiếp nhận đơn gửi hàng mới tại quầy</h2>
 
-              <div class="form-section">
-                <div class="section-subtitle">🎯 Thông tin Người nhận</div>
-                <div class="form-group">
-                  <label class="form-label required">Họ và tên người nhận</label>
-                  <input type="text" name="ten_nguoi_nhan" class="form-input" required placeholder="VD: Trần Thị Bích">
-                </div>
-                <div class="form-group">
-                  <label class="form-label required">Số điện thoại người nhận</label>
-                  <input type="tel" name="sdt_nguoi_nhan" class="form-input" required placeholder="VD: 0987654321" pattern="[0-9]{10,11}">
-                </div>
-              </div>
-            </div>
-
-            <!-- Cột 2: Tuyến, Điểm nhận, Thông số hàng & Cước -->
-            <div>
-              <div class="form-section">
-                <div class="section-subtitle">🗺️ Lộ trình vận chuyển</div>
-                <div class="form-group">
-                  <label class="form-label required">Tuyến vận chuyển</label>
-                  <select id="tuyen_id" name="tuyen_id" class="form-select" required>
-                    <option value="">-- Đang nạp danh sách tuyến từ CSDL... --</option>
-                  </select>
-                </div>
-                <div class="form-grid-2">
-                  <div class="form-group">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                      <label class="form-label required" style="margin-bottom: 0;">Văn phòng gửi</label>
-                      <button type="button" class="btn-text-action" onclick="doiVanPhongTruc()" title="Đổi quầy làm việc">🔄 Đổi quầy trực</button>
+            <datalist id="goiYTenGui"></datalist>
+            <datalist id="goiYTenNhan"></datalist>
+            <form id="formTaoDon" novalidate>
+              <div class="form-grid-2">
+                <!-- Cột 1: Người gửi & người nhận -->
+                <div>
+                  <div class="form-section">
+                    <div class="section-subtitle">👤 Người gửi <span class="section-hint">(không cần tài khoản, không thu email)</span></div>
+                    <div class="form-group">
+                      <label class="form-label required" for="ten_nguoi_gui">Họ và tên người gửi</label>
+                      <input type="text" id="ten_nguoi_gui" name="ten_nguoi_gui" class="form-input" required maxlength="100" list="goiYTenGui" placeholder="VD: Nguyễn Văn An" autocomplete="off">
                     </div>
-                    <select id="diem_gui_id" name="diem_gui_id" class="form-select" required onchange="xuLyThayDoiDiemGui()">
-                      <option value="">-- Đang nạp văn phòng... --</option>
-                    </select>
+                    <div class="form-group">
+                      <label class="form-label required" for="sdt_nguoi_gui">Số điện thoại người gửi</label>
+                      <input type="tel" id="sdt_nguoi_gui" name="sdt_nguoi_gui" class="form-input" required inputmode="numeric" placeholder="VD: 0912345678" pattern="[0-9]{10,11}" autocomplete="off">
+                    </div>
                   </div>
-                  <div class="form-group">
-                    <label class="form-label required">Văn phòng nhận</label>
-                    <select id="diem_nhan_id" name="diem_nhan_id" class="form-select" required onchange="xuLyThayDoiDiemNhan()">
-                      <option value="">-- Chọn văn phòng nhận --</option>
-                    </select>
+
+                  <div class="form-section">
+                    <div class="section-subtitle">🎯 Người nhận <span class="section-hint">(văn phòng nhận sẽ gọi SĐT này khi hàng tới)</span></div>
+                    <div class="form-group">
+                      <label class="form-label required" for="ten_nguoi_nhan">Họ và tên người nhận</label>
+                      <input type="text" id="ten_nguoi_nhan" name="ten_nguoi_nhan" class="form-input" required maxlength="100" list="goiYTenNhan" placeholder="VD: Trần Thị Bích" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label required" for="sdt_nguoi_nhan">Số điện thoại người nhận</label>
+                      <input type="tel" id="sdt_nguoi_nhan" name="sdt_nguoi_nhan" class="form-input" required inputmode="numeric" placeholder="VD: 0987654321" pattern="[0-9]{10,11}" autocomplete="off">
+                    </div>
+                  </div>
+
+                  <div class="form-section">
+                    <div class="section-subtitle">🗺️ Lộ trình vận chuyển</div>
+                    <div class="form-group">
+                      <label class="form-label">Văn phòng gửi <span class="section-hint">(theo tài khoản)</span></label>
+                      <div class="form-static" id="tenVanPhongGui">Đang nạp...</div>
+                    </div>
+                    <div class="form-grid-2">
+                      <div class="form-group">
+                        <label class="form-label required" for="khu_vuc_den">Điểm đến (khu vực)</label>
+                        <select id="khu_vuc_den" class="form-select" required>
+                          <option value="">-- Chọn khu vực đến --</option>
+                        </select>
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label required" for="diem_nhan_id">Văn phòng nhận</label>
+                        <select id="diem_nhan_id" name="diem_nhan_id" class="form-select" required disabled>
+                          <option value="">-- Chọn khu vực trước --</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label required" for="tuyen_id">Tuyến vận chuyển</label>
+                      <select id="tuyen_id" name="tuyen_id" class="form-select" required disabled>
+                        <option value="">-- Chọn văn phòng nhận trước --</option>
+                      </select>
+                      <small class="form-hint">Chỉ chọn tuyến, không chọn chuyến — phụ xe sẽ xếp lên chuyến bất kỳ của tuyến này.</small>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div class="form-section">
-                <div class="section-subtitle">⚖️ Thông số kiện hàng & Cước vận chuyển</div>
-                <div class="form-group">
-                  <label class="form-label required">Loại hàng hóa</label>
-                  <select id="loai_hang_id" name="loai_hang_id" class="form-select" required onchange="xuLyThayDoiLoaiHang()">
-                    <option value="">-- Đang tải danh mục... --</option>
+                <!-- Cột 2: Hàng hóa & cước -->
+                <div>
+                  <div class="form-section">
+                    <div class="section-subtitle">⚖️ Cân đo kiện hàng</div>
+                    <div class="form-group">
+                      <label class="form-label required" for="loai_hang_id">Loại hàng hóa</label>
+                      <select id="loai_hang_id" name="loai_hang_id" class="form-select" required>
+                        <option value="">-- Đang tải danh mục... --</option>
+                      </select>
+                      <div id="canhBaoHangCam" class="hang-cam-alert" hidden></div>
+                    </div>
+
+                    <div class="form-grid-4">
+                      <div class="form-group">
+                        <label class="form-label required" for="can_nang_kg">Nặng (kg)</label>
+                        <input type="number" id="can_nang_kg" name="can_nang_kg" class="form-input" required min="0.01" max="999999" step="0.01" placeholder="VD: 5">
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label" for="dai_cm">Dài (cm)</label>
+                        <input type="number" id="dai_cm" name="dai_cm" class="form-input" min="1" max="999999" step="0.1" placeholder="Dài">
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label" for="rong_cm">Rộng (cm)</label>
+                        <input type="number" id="rong_cm" name="rong_cm" class="form-input" min="1" max="999999" step="0.1" placeholder="Rộng">
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label" for="cao_cm">Cao (cm)</label>
+                        <input type="number" id="cao_cm" name="cao_cm" class="form-input" min="1" max="999999" step="0.1" placeholder="Cao">
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="form-section">
+                    <div class="section-subtitle">💰 Cước & thanh toán</div>
+                    <div class="form-group">
+                      <label class="form-label required" for="gia_cuoc">Cước vận chuyển (VNĐ) <span class="section-hint">— nhân viên tự nhập theo cân nặng, loại hàng, điểm đến</span></label>
+                      <input type="number" id="gia_cuoc" name="gia_cuoc" class="form-input input-cuoc" required min="1000" max="999999999999" step="1000" placeholder="Nhập cước đã báo giá cho khách...">
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label required">Hình thức thanh toán cước</label>
+                      <div class="payment-methods">
+                        <label class="payment-card">
+                          <input type="radio" name="phuong_thuc_thanh_toan" value="nguoi_gui_tra_truoc" checked>
+                          <div class="payment-label">
+                            <div>💵 Người gửi trả trước</div>
+                            <div class="payment-sub">Thu tiền mặt tại quầy ngay</div>
+                          </div>
+                        </label>
+                        <label class="payment-card">
+                          <input type="radio" name="phuong_thuc_thanh_toan" value="cod_nguoi_nhan_tra">
+                          <div class="payment-label">
+                            <div>🚚 COD — người nhận trả</div>
+                            <div class="payment-sub">Không thu, người nhận trả khi lấy hàng</div>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                    <label id="xacNhanThuTruocWrap" class="delivery-checkbox-label">
+                      <input type="checkbox" name="xac_nhan_da_thu" id="xacNhanDaThuTruoc">
+                      <span>Đã nhận đủ cước từ người gửi tại quầy</span>
+                    </label>
+                  </div>
+
+                  <button type="submit" id="btnTaoDon" class="btn-submit-order">
+                    <span>Báo giá & Tạo đơn</span> 📄
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <!-- ========================================================== -->
+        <!-- TAB 2: HÀNG ĐẾN & GIAO HÀNG            -->
+        <!-- ========================================================== -->
+        <section id="tab-hang-den" class="tab-pane">
+          <div class="nv-card">
+            <div class="table-header-toolbar">
+              <div>
+                <h2 class="card-title card-title--flat">🚚 Hàng gửi tới văn phòng</h2>
+                <p class="card-desc">Hàng vừa tới thì <strong>gọi báo người nhận ngay</strong>. Người nhận tới quầy: quét mã vận đơn (hoặc nhập SĐT nếu quên mã).</p>
+              </div>
+              <div class="toolbar-actions">
+                <div class="hang-den-loc__bo-loc">
+                  <select id="selectThanhToanHangDen" class="filter-select" aria-label="Lọc theo hình thức thanh toán">
+                    <option value="">Mọi hình thức</option>
+                    <option value="nguoi_gui_tra_truoc">Trả trước</option>
+                    <option value="cod_nguoi_nhan_tra">COD</option>
                   </select>
-                  <small style="color: #6B7280; font-size: 0.78rem; margin-top: 0.25rem; display: block;">* Chỉ hiển thị các mặt hàng được phép gửi (tuyệt đối không nhận vũ khí, chất cháy nổ, hàng cấm).</small>
+                  <select id="selectBaoNguoiNhanHangDen" class="filter-select" aria-label="Lọc theo tình trạng báo người nhận">
+                    <option value="">Mọi tình trạng báo</option>
+                    <option value="chua_bao">Chưa báo người nhận</option>
+                    <option value="da_bao">Đã báo người nhận</option>
+                  </select>
+                  <button type="button" class="btn-filter-reset" id="btnDatLaiHangDen"><span>🔄</span> Đặt lại</button>
                 </div>
+                <button type="button" class="btn-action-sm" id="btnTaiLaiHangDen" title="Tải lại">🔄 Tải lại</button>
+              </div>
+            </div>
 
-                <div class="form-grid-4">
-                  <div class="form-group">
-                    <label class="form-label required">Nặng (kg)</label>
-                    <input type="number" id="can_nang_kg" name="can_nang_kg" class="form-input" required min="0.1" step="0.1" placeholder="VD: 5">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Dài (cm)</label>
-                    <input type="number" id="dai_cm" name="dai_cm" class="form-input" min="1" placeholder="Dài">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Rộng (cm)</label>
-                    <input type="number" id="rong_cm" name="rong_cm" class="form-input" min="1" placeholder="Rộng">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Cao (cm)</label>
-                    <input type="number" id="cao_cm" name="cao_cm" class="form-input" min="1" placeholder="Cao">
-                  </div>
+            <form class="scan-box" id="formTraCuuGiao" autocomplete="off">
+              <span class="scan-box__icon">🔎</span>
+              <input type="text" id="inputTraCuuGiao" class="scan-box__input" placeholder="Quét hoặc gõ mã vận đơn / SĐT người nhận  (gõ để lọc · Enter để giao hàng)">
+              <button type="submit" class="btn-primary">Tra cứu</button>
+            </form>
+
+            <div class="hang-den-loc">
+              <div class="quick-filter-bar" id="chipsHangDen">
+                <button type="button" class="quick-filter-chip active" data-nhom="">Tất cả <span class="chip-count" data-dem="">0</span></button>
+                <button type="button" class="quick-filter-chip" data-nhom="can_goi">Cần gọi báo <span class="chip-count" data-dem="can_goi">0</span></button>
+                <button type="button" class="quick-filter-chip" data-nhom="qua_7_ngay">Quá 7 ngày <span class="chip-count" data-dem="qua_7_ngay">0</span></button>
+                <button type="button" class="quick-filter-chip" data-nhom="cho_lay">Chờ lấy <span class="chip-count" data-dem="cho_lay">0</span></button>
+                <button type="button" class="quick-filter-chip" data-nhom="hang_ton">Hàng tồn <span class="chip-count" data-dem="hang_ton">0</span></button>
+                <button type="button" class="quick-filter-chip" data-nhom="sap_den">Sắp đến <span class="chip-count" data-dem="sap_den">0</span></button>
+              </div>
+            </div>
+
+            <div class="data-table-wrapper">
+              <table class="data-table data-table--hang-den">
+                <thead>
+                  <tr>
+                    <th>Mã vận đơn</th>
+                    <th>Người nhận</th>
+                    <th>Hàng &amp; cước</th>
+                    <th>Tình trạng</th>
+                    <th>Việc cần làm</th>
+                    <th class="text-center">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyHangDen">
+                  <tr><td colspan="6" class="table-empty">Đang tải...</td></tr>
+                </tbody>
+              </table>
+              <div id="phanTrangHangDen" class="pagination-bar"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========================================================== -->
+        <!-- TAB 3: ĐƠN GỬI ĐI (đơn tiếp nhận tại quầy)                 -->
+        <!-- ========================================================== -->
+        <section id="tab-don-gui" class="tab-pane">
+          <div class="nv-card">
+            <div class="table-header-toolbar">
+              <div>
+                <h2 class="card-title card-title--flat">📋 Đơn tiếp nhận tại văn phòng</h2>
+                <p class="card-desc">Theo dõi hành trình đơn đã nhận, in lại biên nhận cho người gửi hoặc nhãn dán kiện hàng.</p>
+              </div>
+              <div class="toolbar-actions">
+                <button type="button" class="btn-action-sm" id="btnXuatCsvDonGui" title="Xuất các đơn đang lọc ra file CSV (mở được bằng Excel)">⬇️ Xuất CSV</button>
+                <button type="button" class="btn-action-sm" id="btnTaiLaiDonGui" title="Tải lại">🔄 Tải lại</button>
+              </div>
+            </div>
+
+            <div class="filter-toolbar-box">
+              <div class="filter-search-wrap">
+                <span class="filter-icon">🔍</span>
+                <input type="text" id="inputTuKhoaDonGui" class="filter-input-search" placeholder="Tìm theo mã vận đơn, họ tên hoặc SĐT người gửi/nhận...">
+              </div>
+              <div class="filter-actions-wrap">
+                <select id="selectTrangThaiDonGui" class="filter-select">
+                  <option value="">📌 Tất cả trạng thái</option>
+                  <option value="cho_van_chuyen">⏳ Chờ xếp xe</option>
+                  <option value="da_len_xe">🚚 Đang trên xe</option>
+                  <option value="cho_lay">📦 Chờ người nhận lấy</option>
+                  <option value="qua_han_luu_kho">🚨 Hàng tồn</option>
+                  <option value="da_giao">✔️ Đã giao</option>
+                </select>
+                <select id="selectThanhToanDonGui" class="filter-select">
+                  <option value="">💳 Tất cả hình thức</option>
+                  <option value="nguoi_gui_tra_truoc">💵 Người gửi trả trước</option>
+                  <option value="cod_nguoi_nhan_tra">🚚 COD người nhận trả</option>
+                </select>
+                <button type="button" class="btn-filter-reset" id="btnDatLaiDonGui"><span>🔄</span> Đặt lại</button>
+              </div>
+            </div>
+
+            <div class="data-table-wrapper">
+              <table class="data-table data-table--hang-den">
+                <thead>
+                  <tr>
+                    <th>Mã vận đơn & thời gian</th>
+                    <th>Người gửi</th>
+                    <th>Người nhận / Nơi nhận</th>
+                    <th>Hàng hóa</th>
+                    <th class="text-right">Cước & thanh toán</th>
+                    <th class="text-center">Trạng thái</th>
+                    <th class="text-center">In lại</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyDonGui">
+                  <tr><td colspan="7" class="table-empty">Đang tải...</td></tr>
+                </tbody>
+              </table>
+              <div id="phanTrangDonGui" class="pagination-bar"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========================================================== -->
+        <!-- TAB 4: HÀNG CHỜ LÂU / HÀNG TỒN              -->
+        <!-- ========================================================== -->
+        <section id="tab-hang-ton" class="tab-pane">
+          <div class="nv-card">
+            <div class="table-header-toolbar">
+              <div>
+                <h2 class="card-title card-title--flat">⚠️ Hàng chờ quá lâu tại văn phòng nhận</h2>
+                <p class="card-desc">
+                  Quá 7 ngày: đã từng báo được người nhận → gọi lại người nhận; chưa từng báo được → gọi người gửi.
+                  Quá 14 ngày (hàng tồn, không tự hủy): liên hệ người gửi; không liên hệ được ai → báo quản lý.
+                </p>
+              </div>
+              <div class="toolbar-actions">
+                <button type="button" class="btn-action-sm" id="btnXuatCsvHangTon" title="Xuất danh sách ra file CSV (mở được bằng Excel)">⬇️ Xuất CSV</button>
+                <button type="button" class="btn-action-sm" id="btnTaiLaiHangTon" title="Tải lại">🔄 Tải lại</button>
+              </div>
+            </div>
+
+            <div class="data-table-wrapper">
+              <table class="data-table data-table--hang-den">
+                <thead>
+                  <tr>
+                    <th>Mã vận đơn</th>
+                    <th>Người nhận</th>
+                    <th>Người gửi</th>
+                    <th>Thời gian chờ</th>
+                    <th>Việc cần làm</th>
+                    <th class="text-center">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyHangTon">
+                  <tr><td colspan="6" class="table-empty">Đang tải...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========================================================== -->
+        <!-- TAB 5: THỐNG KÊ & ĐỐI SOÁT                         -->
+        <!-- ========================================================== -->
+        <section id="tab-thong-ke" class="tab-pane">
+          <div class="card-panel stats-header-card">
+            <div class="stats-header-content">
+              <div>
+                <h2 class="card-title">📊 Thống kê hàng hóa & tiền thu tại quầy</h2>
+                <p class="card-desc">Số liệu tính trực tiếp từ dữ liệu đơn hàng theo khoảng ngày đã chọn (giờ Việt Nam).</p>
+              </div>
+              <div class="stats-filter-box">
+                <label for="tkTuNgay">Từ</label>
+                <input type="date" id="tkTuNgay" class="form-input input-date">
+                <label for="tkDenNgay">đến</label>
+                <input type="date" id="tkDenNgay" class="form-input input-date">
+                <div class="time-range-tabs" id="tkPreset">
+                  <button type="button" class="time-tab" data-so-ngay="1">Hôm nay</button>
+                  <button type="button" class="time-tab" data-so-ngay="7">7 ngày</button>
+                  <button type="button" class="time-tab active" data-so-ngay="30">30 ngày</button>
                 </div>
+              </div>
+            </div>
+          </div>
 
-                <div class="form-group" style="margin-top: 0.5rem;">
-                  <label class="form-label required">Cước vận chuyển (VNĐ) <span style="font-weight: normal; font-size: 0.8rem; color: #6B7280;">— Nhân viên tự nhập</span></label>
-                  <input type="number" id="gia_cuoc" name="gia_cuoc" class="form-input" required min="1000" step="1000" placeholder="Nhập cước phí thỏa thuận..." style="font-size:1.15rem; font-weight:700; color:var(--color-secondary, #5B3E96);">
+          <div class="stats-two-col">
+            <div class="card-panel">
+              <h3 class="panel-title">📤 Hàng gửi đi <span class="panel-sub">(văn phòng gửi)</span></h3>
+              <div class="mini-kpi-grid">
+                <div class="mini-kpi"><div class="mini-kpi__val" id="tkTongGuiDi">0</div><div class="mini-kpi__lbl">Đơn tiếp nhận trong kỳ</div></div>
+                <div class="mini-kpi"><div class="mini-kpi__val" id="tkChoXepXe">0</div><div class="mini-kpi__lbl">Đang chờ xếp xe</div></div>
+                <div class="mini-kpi"><div class="mini-kpi__val" id="tkGuiTrenXe">0</div><div class="mini-kpi__lbl">Đang trên xe</div></div>
+              </div>
+            </div>
+            <div class="card-panel">
+              <h3 class="panel-title">📥 Hàng nhận về <span class="panel-sub">(văn phòng nhận)</span></h3>
+              <div class="mini-kpi-grid">
+                <div class="mini-kpi"><div class="mini-kpi__val" id="tkTongNhanDen">0</div><div class="mini-kpi__lbl">Tới văn phòng trong kỳ</div></div>
+                <div class="mini-kpi"><div class="mini-kpi__val" id="tkDaGiao">0</div><div class="mini-kpi__lbl">Đã giao trong kỳ</div></div>
+                <div class="mini-kpi"><div class="mini-kpi__val" id="tkSapDen">0</div><div class="mini-kpi__lbl">Sắp đến</div></div>
+                <div class="mini-kpi"><div class="mini-kpi__val" id="tkChoLay">0</div><div class="mini-kpi__lbl">Chờ người nhận lấy</div></div>
+                <div class="mini-kpi mini-kpi--warn"><div class="mini-kpi__val" id="tkChuaBao">0</div><div class="mini-kpi__lbl">Chưa gọi báo được</div></div>
+                <div class="mini-kpi mini-kpi--warn"><div class="mini-kpi__val" id="tkCanhBao7">0</div><div class="mini-kpi__lbl">Chờ quá 7 ngày</div></div>
+                <div class="mini-kpi mini-kpi--danger"><div class="mini-kpi__val" id="tkTonKho">0</div><div class="mini-kpi__lbl">Hàng tồn (&gt;14 ngày)</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="cashflow-banner">
+            <div class="cashflow-left">
+              <div class="cashflow-tag">💰 TIỀN MẶT THU TẠI QUẦY TRONG KỲ</div>
+              <div class="cashflow-total" id="tkDoanhThu">0 đ</div>
+              <div class="cashflow-desc">Cước trả trước thu ở văn phòng gửi + cước COD thu ở văn phòng nhận, tính theo thời điểm thu tiền.</div>
+            </div>
+            <div class="cashflow-right">
+              <div class="cashflow-chip">
+                <div class="cashflow-chip-title">💵 Cước người gửi trả trước</div>
+                <div class="cashflow-chip-value" id="tkTienTraTruoc">0 đ</div>
+              </div>
+              <div class="cashflow-chip">
+                <div class="cashflow-chip-title">🚚 Cước COD thu khi giao</div>
+                <div class="cashflow-chip-value" id="tkTienCod">0 đ</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-chart-grid">
+            <div class="card-panel chart-panel">
+              <div class="chart-header">
+                <div>
+                  <h3 class="panel-title">📈 Sản lượng theo ngày</h3>
+                  <p class="card-desc">Đơn tiếp nhận tại văn phòng và đơn giao xong cho người nhận.</p>
                 </div>
-
-                <div class="form-group" style="margin-top: 0.5rem;">
-                  <label class="form-label required">Hình thức thanh toán cước</label>
-                  <div class="payment-methods">
-                    <label class="payment-card">
-                      <input type="radio" name="phuong_thuc_thanh_toan" value="nguoi_gui_tra_truoc" checked>
-                      <div class="payment-label">
-                        <div>💵 Người gửi trả trước</div>
-                        <div style="font-size:0.75rem; color:#6B7280;">Thu tiền mặt tại quầy ngay</div>
-                      </div>
-                    </label>
-                    <label class="payment-card">
-                      <input type="radio" name="phuong_thuc_thanh_toan" value="cod_nguoi_nhan_tra">
-                      <div class="payment-label">
-                        <div>🚚 Thu COD người nhận</div>
-                        <div style="font-size:0.75rem; color:#6B7280;">Người nhận trả khi lấy hàng</div>
-                      </div>
-                    </label>
-                  </div>
+                <div class="time-range-tabs" id="tkBieuDoRange">
+                  <button type="button" class="time-tab active" data-so-ngay="7">7 ngày</button>
+                  <button type="button" class="time-tab" data-so-ngay="14">14 ngày</button>
+                  <button type="button" class="time-tab" data-so-ngay="30">30 ngày</button>
                 </div>
               </div>
-
-              <button type="submit" id="btnTaoDon" class="btn-submit-order">
-                <span>Tạo đơn & In biên nhận</span> 📄
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </section>
-
-    <!-- ========================================================== -->
-    <!-- TAB 2: QUẢN LÝ ĐƠN HÀNG & GIAO HÀNG COD (UC-24)            -->
-    <!-- ========================================================== -->
-    <section id="tab-giao-hang" class="tab-pane">
-      <div class="card-panel">
-        <!-- Tiêu đề & Hướng dẫn nghiệp vụ -->
-        <div class="table-header-toolbar">
-          <div>
-            <h2 class="card-title" style="margin: 0; border-bottom: none; padding-bottom: 0; display: flex; align-items: center; gap: 0.5rem;">
-              <span>🚚</span> Quản lý đơn hàng & Bàn giao nhận hàng (COD)
-            </h2>
-            <p style="margin: 0.35rem 0 0 0; font-size: 0.88rem; color: #6B7280;">
-              Theo dõi kiện hàng tại quầy, lọc nhanh theo luồng xử lý và bàn giao nhận hàng (thu COD & in phiếu xuất kho).
-            </p>
-          </div>
-          <button type="button" class="btn-action-sm" onclick="taiDanhSachDonGanDay()" title="Tải lại danh sách đơn hàng">
-            🔄 Tải lại dữ liệu
-          </button>
-        </div>
-
-        <!-- Dải thẻ lọc nhanh trạng thái đơn hàng (Quick Filter Chips) -->
-        <div class="quick-filter-bar">
-          <button type="button" class="quick-filter-chip active" id="chip-tat-ca" onclick="locNhanhTheoTrangThai('')">
-            <span>📋</span> Tất cả đơn <span class="chip-count" id="chipCountTatCa">0</span>
-          </button>
-          <button type="button" class="quick-filter-chip" id="chip-cho-lay" onclick="locNhanhTheoTrangThai('cho_lay')">
-            <span>📦</span> Sẵn sàng lấy tại kho <span class="chip-count" id="chipCountChoLay">0</span>
-          </button>
-          <button type="button" class="quick-filter-chip" id="chip-da-len-xe" onclick="locNhanhTheoTrangThai('da_len_xe')">
-            <span>🚚</span> Đang trên xe <span class="chip-count" id="chipCountDangChuyen">0</span>
-          </button>
-          <button type="button" class="quick-filter-chip" id="chip-cho-van-chuyen" onclick="locNhanhTheoTrangThai('cho_van_chuyen')">
-            <span>⏳</span> Chờ xếp xe <span class="chip-count" id="chipCountChoXep">0</span>
-          </button>
-          <button type="button" class="quick-filter-chip" id="chip-da-giao" onclick="locNhanhTheoTrangThai('da_giao')">
-            <span>✔️</span> Đã giao thành công <span class="chip-count" id="chipCountDaGiao">0</span>
-          </button>
-          <button type="button" class="quick-filter-chip" id="chip-qua-han-luu-kho" onclick="locNhanhTheoTrangThai('qua_han_luu_kho')">
-            <span>🚨</span> Tồn kho quá hạn <span class="chip-count" id="chipCountQuaHan">0</span>
-          </button>
-        </div>
-
-        <!-- Bộ lọc & Tìm kiếm đơn hàng -->
-        <div class="filter-toolbar-box">
-          <div class="filter-search-wrap">
-            <span class="filter-icon">🔍</span>
-            <input type="text" id="inputFilterTuKhoaDonGanDay" class="filter-input-search" 
-                   placeholder="Tìm nhanh theo mã vận đơn (VD: DH-...), họ tên hoặc SĐT người gửi/nhận..." 
-                   oninput="xuLyTimKiemDonGanDayDebounced()">
-          </div>
-          <div class="filter-actions-wrap">
-            <select id="selectFilterTrangThaiDonGanDay" class="filter-select" onchange="dongBoSelectSangChip(); apDungBoLocDonGanDay();">
-              <option value="">📌 Tất cả trạng thái</option>
-              <option value="cho_lay">📦 Chờ lấy tại kho (sẵn sàng giao)</option>
-              <option value="da_len_xe">🚚 Đang vận chuyển</option>
-              <option value="cho_van_chuyen">⏳ Chờ xếp xe</option>
-              <option value="da_giao">✔️ Đã giao thành công</option>
-              <option value="qua_han_luu_kho">🚨 Tồn kho quá hạn</option>
-            </select>
-
-            <select id="selectFilterThanhToanDonGanDay" class="filter-select" onchange="apDungBoLocDonGanDay()">
-              <option value="">💳 Tất cả hình thức thanh toán</option>
-              <option value="cod_nguoi_nhan_tra">🚚 Thu COD khi nhận</option>
-              <option value="nguoi_gui_tra_truoc">💵 Đã trả cước trước</option>
-            </select>
-
-            <button type="button" class="btn-filter-reset" onclick="datLaiBoLocDonGanDay()" title="Đặt lại bộ lọc">
-              <span>🔄</span> Đặt lại
-            </button>
-          </div>
-        </div>
-
-        <div class="data-table-wrapper">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Mã vận đơn & Thời gian</th>
-                <th>Người gửi</th>
-                <th>Người nhận</th>
-                <th>Hàng hóa & KL</th>
-                <th class="text-right">Cước & Thanh toán</th>
-                <th class="text-center">Trạng thái</th>
-                <th class="text-center">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody id="tbodyDonGanDay">
-              <tr>
-                <td colspan="7" style="text-align: center; padding: 2rem; color: #6B7280;">Đang nạp danh sách đơn hàng...</td>
-              </tr>
-            </tbody>
-          </table>
-          <div id="phanTrangDonGanDay" class="pagination-bar"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ========================================================== -->
-    <!-- TAB 3: HÀNG CHỜ LÂU / TỒN KHO (UC-25)                      -->
-    <!-- ========================================================== -->
-    <section id="tab-hang-ton" class="tab-pane">
-      <div class="card-panel">
-        <div class="stats-header-content" style="margin-bottom: 1.25rem;">
-          <div>
-            <h2 class="card-title" style="margin: 0; border-bottom: none; padding-bottom: 0;">
-              ⚠️ Danh sách Hàng chờ lâu tại Văn phòng
-            </h2>
-            <p style="color: #6B7280; font-size: 0.88rem; margin-top: 0.25rem;">
-              Theo dõi kiện hàng lưu kho quá 7 ngày (cần gọi nhắc người nhận) và quá 14 ngày (hàng tồn cần liên hệ người gửi hoặc thanh lý).
-            </p>
-          </div>
-          <div class="stats-filter-box">
-            <label for="selectPhamViHangTon" style="font-weight: 600; font-size: 0.88rem; color: #4B5563;">Kho:</label>
-            <select id="selectPhamViHangTon" class="form-select" style="min-width: 220px;" onchange="taiDanhSachHangTon()">
-              <option value="">🌐 Toàn bộ các kho</option>
-              <option value="44444444-4444-4444-4444-444444444444" selected>VP Trung tâm TP Lào Cai</option>
-              <option value="33333333-3333-3333-3333-333333333333">VP Bến xe Mỹ Đình (Hà Nội)</option>
-            </select>
-            <button type="button" class="btn-action-sm" onclick="taiDanhSachHangTon()" title="Làm mới">🔄</button>
-          </div>
-        </div>
-
-        <!-- Bộ lọc & Tìm kiếm hàng tồn -->
-        <div class="filter-toolbar-box">
-          <div class="filter-search-wrap">
-            <span class="filter-icon">🔍</span>
-            <input type="text" id="inputFilterTuKhoaHangTon" class="filter-input-search" 
-                   placeholder="Tìm theo mã vận đơn, tên hoặc SĐT người nhận..." 
-                   oninput="xuLyTimKiemHangTonDebounced()">
-          </div>
-          <div class="filter-actions-wrap">
-            <select id="selectFilterMucDoHangTon" class="filter-select" onchange="apDungBoLocHangTon()">
-              <option value="">📌 Tất cả mức độ lưu kho</option>
-              <option value="qua_han_luu_kho">🚨 Quá hạn (>14 ngày)</option>
-              <option value="cho_lau">⚠️ Chờ lâu (>7 ngày)</option>
-              <option value="cho_lay">⏳ Sẵn sàng lấy</option>
-            </select>
-
-            <select id="selectFilterLienHeHangTon" class="filter-select" onchange="apDungBoLocHangTon()">
-              <option value="">📞 Tất cả tình trạng liên hệ</option>
-              <option value="da_thong_bao">✅ Đã gọi báo khách</option>
-              <option value="chua_thong_bao">❌ Chưa liên hệ được</option>
-            </select>
-
-            <button type="button" class="btn-filter-reset" onclick="datLaiBoLocHangTon()" title="Xóa bộ lọc">
-              <span>🔄</span> Đặt lại
-            </button>
-          </div>
-        </div>
-
-        <div class="data-table-wrapper">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Mã vận đơn</th>
-                <th>Người nhận & SĐT</th>
-                <th>Cân nặng</th>
-                <th class="text-right">Cước phí</th>
-                <th class="text-center">Trạng thái</th>
-                <th>Ngày đến kho</th>
-                <th class="text-center">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody id="tbodyHangTon">
-              <tr>
-                <td colspan="7" style="text-align: center; padding: 2rem;">Đang tải...</td>
-              </tr>
-            </tbody>
-          </table>
-          <div id="phanTrangHangTon" class="pagination-bar"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ========================================================== -->
-    <!-- TAB 4: THỐNG KÊ BÁO CÁO & DOANH THU (UC-39)               -->
-    <!-- ========================================================== -->
-    <section id="tab-thong-ke" class="tab-pane">
-      <!-- Thanh công cụ lọc phạm vi thống kê -->
-      <div class="card-panel stats-header-card">
-        <div class="stats-header-content">
-          <div>
-            <h2 class="card-title" style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
-              <span>📊 Báo cáo Thống kê & Doanh thu Quầy</span>
-            </h2>
-            <p style="color: #6B7280; font-size: 0.88rem; margin-top: 0.25rem;">
-              Theo dõi chi tiết số liệu hàng hóa gửi đi, hàng đến nhận và dòng tiền thu tại quầy giao dịch
-            </p>
-          </div>
-          <div class="stats-filter-box">
-            <label for="selectPhamViThongKe" style="font-weight: 600; font-size: 0.88rem; color: #4B5563;">Phạm vi:</label>
-            <select id="selectPhamViThongKe" class="form-select" style="min-width: 220px;" onchange="taiThongKe()">
-              <option value="">🌐 Toàn hệ thống nhà xe</option>
-              <option value="33333333-3333-3333-3333-333333333333">VP Bến xe Mỹ Đình (Hà Nội)</option>
-              <option value="44444444-4444-4444-4444-444444444444">VP Trung tâm TP Lào Cai</option>
-            </select>
-            <button type="button" class="btn-action-sm" onclick="taiThongKe()" title="Làm mới số liệu">🔄 Làm mới</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- 4 Thẻ KPI Chỉ số Hàng hóa -->
-      <div class="kpi-dashboard-grid">
-        <div class="kpi-card">
-          <div class="kpi-card-inner">
-            <div class="kpi-icon-wrap icon-purple">📦</div>
-            <div>
-              <div class="kpi-value" id="statTongDon">0</div>
-              <div class="kpi-label">Tổng đơn tiếp nhận</div>
-              <div class="kpi-sub">Khách gửi tại quầy</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="kpi-card">
-          <div class="kpi-card-inner">
-            <div class="kpi-icon-wrap icon-blue">🚚</div>
-            <div>
-              <div class="kpi-value" id="statDangChuyen">0</div>
-              <div class="kpi-label">Đang vận chuyển</div>
-              <div class="kpi-sub">Đang trên chuyến xe</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="kpi-card">
-          <div class="kpi-card-inner">
-            <div class="kpi-icon-wrap icon-orange">⚠️</div>
-            <div>
-              <div class="kpi-value" id="statHangTon">0</div>
-              <div class="kpi-label">Tồn kho / Chờ xử lý</div>
-              <div class="kpi-sub">Đang lưu kho tại VP</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="kpi-card">
-          <div class="kpi-card-inner">
-            <div class="kpi-icon-wrap icon-green">✅</div>
-            <div>
-              <div class="kpi-value" id="statDaGiao">0</div>
-              <div class="kpi-label">Giao thành công</div>
-              <div class="kpi-sub">Người nhận đã lấy hàng</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Banner Dòng tiền thực thu tại quầy -->
-      <div class="cashflow-banner">
-        <div class="cashflow-left">
-          <div class="cashflow-tag">💰 DÒNG TIỀN THỰC THU TẠI QUẦY</div>
-          <div class="cashflow-total" id="statDoanhThu">0 đ</div>
-          <div class="cashflow-desc">
-            Tổng tiền mặt thực thu vào két tại quầy (bao gồm Cước trả trước + Tiền COD thu từ người nhận).
-          </div>
-        </div>
-        <div class="cashflow-right">
-          <div class="cashflow-chip">
-            <div class="cashflow-chip-title">💵 Cước gửi trả trước</div>
-            <div class="cashflow-chip-value" id="statCuocTraTruoc">0 đ</div>
-            <div class="cashflow-chip-sub">Thu ngay khi khách gửi hàng</div>
-          </div>
-          <div class="cashflow-chip">
-            <div class="cashflow-chip-title">🚚 Tiền COD thu khi giao</div>
-            <div class="cashflow-chip-value" id="statCodDaThu">0 đ</div>
-            <div class="cashflow-chip-sub">Thu từ người nhận lúc giao hàng</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Grid 2 cột: Sơ đồ cột trực quan & Hiệu suất đơn hàng -->
-      <div class="dashboard-chart-grid">
-        <!-- Cột 1: Sơ đồ cột trực quan sản lượng đơn hàng theo ngày -->
-        <div class="card-panel chart-panel">
-          <div class="chart-header">
-            <div>
-              <h3 style="font-size: 1.1rem; font-weight: 700; color: #1F2937; margin: 0;">
-                📈 Biểu đồ sản lượng đơn hàng theo ngày
-              </h3>
-              <p style="font-size: 0.82rem; color: #6B7280; margin: 0.2rem 0 0 0;">
-                Theo dõi biến động số lượng đơn tiếp nhận và đơn giao thành công theo ngày
-              </p>
-            </div>
-            <div class="time-range-tabs">
-              <button type="button" class="time-tab active" id="btnRange7" onclick="doiPhamViThoiGianBieuDo(7)">7 ngày</button>
-              <button type="button" class="time-tab" id="btnRange14" onclick="doiPhamViThoiGianBieuDo(14)">14 ngày</button>
-              <button type="button" class="time-tab" id="btnRange30" onclick="doiPhamViThoiGianBieuDo(30)">30 ngày</button>
-            </div>
-          </div>
-
-          <!-- Khung chứa biểu đồ cột SVG responsive -->
-          <div class="column-chart-container" id="columnChartContainer">
-            <!-- Biểu đồ được sinh tự động bằng JS -->
-          </div>
-
-          <!-- Dải chú thích màu biểu đồ -->
-          <div class="chart-legend-wrap">
-            <div class="legend-item">
-              <span class="legend-color-box legend-color-green"></span>
-              <span class="legend-text">Đã giao thành công (<strong id="legendDaGiaoCount">0</strong> đơn)</span>
-            </div>
-            <div class="legend-item">
-              <span class="legend-color-box legend-color-blue"></span>
-              <span class="legend-text">Đang xử lý / Vận chuyển (<strong id="legendDangXuLyCount">0</strong> đơn)</span>
-            </div>
-            <div class="legend-item">
-              <span class="legend-color-box legend-color-orange"></span>
-              <span class="legend-text">Tồn kho chờ nhận (<strong id="legendChoLayCount">0</strong> đơn)</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Cột 2: Hiệu suất & Phân bổ trạng thái chu kỳ hàng hóa -->
-        <div class="card-panel performance-panel">
-          <h3 style="font-size: 1.1rem; font-weight: 700; color: #1F2937; margin: 0 0 1rem 0;">
-            🎯 Tỷ lệ hoàn tất & Trạng thái đơn hàng
-          </h3>
-
-          <div class="progress-stats-list">
-            <!-- Đã giao -->
-            <div class="progress-stat-row">
-              <div class="progress-info-row">
-                <span class="stat-name">✅ Đã giao hoàn tất</span>
-                <span class="stat-percentage" id="pctDaGiao">0% (0 đơn)</span>
-              </div>
-              <div class="progress-track">
-                <div class="progress-fill fill-green" id="barDaGiao" style="width: 0%;"></div>
+              <div class="column-chart-container" id="columnChartContainer"></div>
+              <div class="chart-legend-wrap">
+                <div class="legend-item"><span class="legend-color-box legend-color-blue"></span><span class="legend-text">Tiếp nhận</span></div>
+                <div class="legend-item"><span class="legend-color-box legend-color-green"></span><span class="legend-text">Đã giao</span></div>
               </div>
             </div>
 
-            <!-- Đang chuyển -->
-            <div class="progress-stat-row">
-              <div class="progress-info-row">
-                <span class="stat-name">🚚 Đang trên xe di chuyển</span>
-                <span class="stat-percentage" id="pctDangChuyen">0% (0 đơn)</span>
+            <div class="card-panel">
+              <div class="chart-header">
+                <div>
+                  <h3 class="panel-title">🧾 Đối soát tiền mặt theo nhân viên</h3>
+                  <p class="card-desc">Số tiền từng nhân viên đã xác nhận thu trong kỳ — đối chiếu két cuối ca.</p>
+                </div>
+                <div class="toolbar-actions">
+                  <button type="button" class="btn-action-sm" id="btnXuatCsvDoiSoat">⬇️ Xuất CSV</button>
+                  <button type="button" class="btn-action-sm" id="btnInDoiSoat">🖨️ In</button>
+                </div>
               </div>
-              <div class="progress-track">
-                <div class="progress-fill fill-blue" id="barDangChuyen" style="width: 0%;"></div>
-              </div>
-            </div>
-
-            <!-- Chờ lấy tại kho -->
-            <div class="progress-stat-row">
-              <div class="progress-info-row">
-                <span class="stat-name">📦 Tại kho chờ người nhận</span>
-                <span class="stat-percentage" id="pctChoLay">0% (0 đơn)</span>
-              </div>
-              <div class="progress-track">
-                <div class="progress-fill fill-orange" id="barChoLay" style="width: 0%;"></div>
-              </div>
-            </div>
-
-            <!-- Chờ xếp xe -->
-            <div class="progress-stat-row">
-              <div class="progress-info-row">
-                <span class="stat-name">⏳ Chờ xếp xe xuất bến</span>
-                <span class="stat-percentage" id="pctChoXep">0% (0 đơn)</span>
-              </div>
-              <div class="progress-track">
-                <div class="progress-fill fill-purple" id="barChoXep" style="width: 0%;"></div>
-              </div>
-            </div>
-
-            <!-- Hàng tồn -->
-            <div class="progress-stat-row">
-              <div class="progress-info-row">
-                <span class="stat-name">🚨 Tồn kho quá hạn</span>
-                <span class="stat-percentage" id="pctHangTon">0% (0 đơn)</span>
-              </div>
-              <div class="progress-track">
-                <div class="progress-fill fill-red" id="barHangTon" style="width: 0%;"></div>
+              <div class="data-table-wrapper">
+                <table class="data-table data-table--compact">
+                  <thead>
+                    <tr>
+                      <th>Nhân viên</th>
+                      <th class="text-right">Trả trước</th>
+                      <th class="text-right">COD</th>
+                      <th class="text-right">Tổng</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbodyDoiSoat"><tr><td colspan="4" class="table-empty">Đang tải...</td></tr></tbody>
+                  <tfoot><tr><th>Tổng cộng</th><th></th><th></th><th class="text-right" id="tkDoiSoatTong">0 đ</th></tr></tfoot>
+                </table>
               </div>
             </div>
           </div>
+        </section>
 
-          <!-- Các chỉ số chất lượng dịch vụ vận hành -->
-          <div class="service-kpi-subgrid">
-            <div class="service-kpi-box" title="Công thức: Đơn đã giao / (Đơn đã giao + Đơn tồn kho quá hạn) * 100%">
-              <div class="service-kpi-icon">⏱️</div>
-              <div class="service-kpi-val" id="kpiDungHan">--%</div>
-              <div class="service-kpi-lbl">Giao đúng hẹn</div>
-              <div class="service-kpi-formula" id="kpiDungHanSub">Đang tính toán...</div>
-            </div>
-            <div class="service-kpi-box" title="Điểm hài lòng dịch vụ (CSAT thang 5 sao) chuẩn hóa theo chất lượng xử lý đơn hàng">
-              <div class="service-kpi-icon">⭐</div>
-              <div class="service-kpi-val" id="kpiDanhGia">-- / 5.0</div>
-              <div class="service-kpi-lbl">Hài lòng dịch vụ</div>
-              <div class="service-kpi-formula" id="kpiDanhGiaSub">Đang tính toán...</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-  </main>
+      </main>
+    </div>
+  </div>
 
   <!-- ========================================================== -->
-  <!-- MODAL: BIÊN NHẬN GỬI HÀNG (IN PHIẾU CHO KHÁCH)             -->
+  <!-- MODAL: BÁO GIÁ & XÁC NHẬN TẠO ĐƠN           -->
   <!-- ========================================================== -->
-  <div id="modalBienNhan" class="modal-overlay">
+  <div id="modalXacNhanTaoDon" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="xnTitle">
     <div class="modal-box">
-      <div class="receipt-header">
-        <img src="../../shared/assets/logo-full.png" alt="Logo Nhà Xe" class="receipt-logo-img" onerror="this.src='/shared/assets/logo-full.png'" />
-        <div class="receipt-title">BIÊN NHẬN GỬI HÀNG</div>
-        <div style="font-size: 0.85rem; color: #6B7280;">HỆ THỐNG VẬN TẢI HÀNH KHÁCH & HÀNG HÓA LIÊN TỈNH</div>
-        <div class="receipt-barcode" id="modalMaVanDon">DH-00000000</div>
-      </div>
-
-      <div class="receipt-row">
-        <span style="color: #6B7280;">Thời gian tạo đơn:</span>
-        <strong id="modalThoiGianTao">--</strong>
-      </div>
-      <div class="receipt-row">
-        <span style="color: #6B7280;">Tuyến vận chuyển:</span>
-        <strong id="modalTuyen">--</strong>
-      </div>
-      <div class="receipt-row">
-        <span style="color: #6B7280;">Nơi gửi - Nơi nhận:</span>
-        <strong id="modalLoTrinh">--</strong>
-      </div>
-      <div class="receipt-row">
-        <span style="color: #6B7280;">Người gửi:</span>
-        <strong id="modalNguoiGui">--</strong>
-      </div>
-      <div class="receipt-row">
-        <span style="color: #6B7280;">Người nhận:</span>
-        <strong id="modalNguoiNhan">--</strong>
-      </div>
-      <div class="receipt-row">
-        <span style="color: #6B7280;">Trọng lượng:</span>
-        <strong id="modalCanNang">--</strong>
-      </div>
-      <div class="receipt-row">
-        <span style="color: #6B7280;">Hình thức cước:</span>
-        <strong id="modalThanhToan">--</strong>
-      </div>
-      <div class="receipt-row total">
-        <span>TỔNG CƯỚC THU:</span>
-        <span id="modalGiaCuoc">0 đ</span>
-      </div>
-
-      <div style="font-size: 0.75rem; color: #9CA3AF; text-align: center; margin-top: 1.25rem; font-style: italic;">
-        * Vui lòng giữ biên nhận này để đối soát khi cần thiết. Quý khách có thể tra cứu hành trình kiện hàng bằng mã vận đơn trên website.
-      </div>
-
+      <h3 class="modal-heading" id="xnTitle">Báo giá cho khách xác nhận</h3>
+      <div id="xnNoiDung"></div>
       <div class="receipt-actions">
-        <button type="button" class="btn-print" onclick="inBienNhan()">🖨️ In biên nhận</button>
-        <button type="button" class="btn-print btn-print-sticker" onclick="inKemNhanDanTuBienNhan()">🏷️ In nhãn dán thùng</button>
-        <button type="button" class="btn-close-modal" onclick="dongModal()">Đóng</button>
+        <button type="button" class="btn-close-modal" data-dong="modalXacNhanTaoDon">Quay lại sửa</button>
+        <button type="button" class="btn-print" id="btnXacNhanTaoDon">✔️ Khách đồng ý — Tạo đơn</button>
       </div>
     </div>
   </div>
 
   <!-- ========================================================== -->
-  <!-- MODAL: NHÃN DÁN KIỆN HÀNG (TEM DÁN THÙNG / DECAL STICKER)  -->
+  <!-- MODAL: BIÊN NHẬN CHO NGƯỜI GỬI         -->
   <!-- ========================================================== -->
-  <div id="modalNhanDan" class="modal-overlay">
+  <div id="modalBienNhan" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <div class="print-area">
+        <div class="receipt-header">
+          <img src="../../shared/assets/logo-full.png" alt="Logo Nhà Xe" class="receipt-logo-img" onerror="this.src='/shared/assets/logo-full.png'" />
+          <div class="receipt-title">BIÊN NHẬN GỬI HÀNG</div>
+          <div class="receipt-note">Giao cho người gửi — vui lòng báo MÃ VẬN ĐƠN cho người nhận</div>
+          <div class="receipt-barcode" id="bnMaVanDon">DH-</div>
+          <svg class="ma-vach" id="bnMaVach" role="img" aria-label="Mã vạch mã vận đơn"></svg>
+          <div class="receipt-note receipt-note--sua" id="bnDaChinhSua" hidden>✏️ Bản đã chỉnh sửa thông tin liên hệ — dùng bản này, bỏ bản in trước.</div>
+        </div>
+        <div class="receipt-row"><span>Thời gian tạo đơn:</span><strong id="bnThoiGian">--</strong></div>
+        <div class="receipt-row"><span>Văn phòng gửi:</span><strong id="bnDiemGui">--</strong></div>
+        <div class="receipt-row receipt-row--block">
+          <span>Nơi nhận hàng:</span>
+          <strong id="bnDiemNhan">--</strong>
+          <small id="bnDiemNhanLienHe"></small>
+        </div>
+        <div class="receipt-row"><span>Tuyến:</span><strong id="bnTuyen">--</strong></div>
+        <div class="receipt-row"><span>Người gửi:</span><strong id="bnNguoiGui">--</strong></div>
+        <div class="receipt-row"><span>Người nhận:</span><strong id="bnNguoiNhan">--</strong></div>
+        <div class="receipt-row"><span>Hàng hóa:</span><strong id="bnHang">--</strong></div>
+        <div class="receipt-row"><span>Hình thức cước:</span><strong id="bnThanhToan">--</strong></div>
+        <div class="receipt-row total"><span id="bnTienNhan">ĐÃ THU:</span><span id="bnTien">0 đ</span></div>
+        <div class="receipt-footnote">Người nhận mang theo mã vận đơn (hoặc SĐT + họ tên) tới văn phòng nhận để lấy hàng. Hàng lưu tại văn phòng nhận; quá 14 ngày chưa ai lấy, văn phòng sẽ liên hệ người gửi.</div>
+      </div>
+      <div class="receipt-actions">
+        <button type="button" class="btn-print" data-in="modalBienNhan">🖨️ In biên nhận</button>
+        <button type="button" class="btn-print btn-print-sticker" id="btnChuyenSangNhan">🏷️ In nhãn dán thùng</button>
+        <button type="button" class="btn-close-modal" data-dong="modalBienNhan">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================== -->
+  <!-- MODAL: NHÃN DÁN KIỆN HÀNG             -->
+  <!-- ========================================================== -->
+  <div id="modalNhanDan" class="modal-overlay" role="dialog" aria-modal="true">
     <div class="modal-box label-modal-box">
-      <div class="shipping-label-sticker" id="printAreaSticker">
-        <div class="label-header">
-          <div class="label-brand">
-            <img src="../../shared/assets/logo-mark.png" alt="Logo" class="label-logo-img" onerror="this.src='/shared/assets/logo-mark.png'" />
-            <span>NHÀ XE LIÊN TỈNH</span>
+      <div class="print-area">
+        <div class="shipping-label-sticker">
+          <div class="label-header">
+            <div class="label-brand">
+              <img src="../../shared/assets/logo-mark.png" alt="Logo" class="label-logo-img" onerror="this.src='/shared/assets/logo-mark.png'" />
+              <span>NHÀ XE LIÊN TỈNH</span>
+            </div>
+            <div class="label-title">TEM VẬN CHUYỂN HÀNG HÓA</div>
           </div>
-          <div class="label-title">TEM VẬN CHUYỂN HÀNG HÓA</div>
-        </div>
-
-        <div class="label-barcode-section">
-          <div class="barcode-visual">
-            <span class="barcode-line"></span><span class="barcode-line thin"></span><span class="barcode-line thick"></span><span class="barcode-line"></span><span class="barcode-line thin"></span><span class="barcode-line thick"></span><span class="barcode-line"></span><span class="barcode-line thick"></span><span class="barcode-line thin"></span><span class="barcode-line"></span><span class="barcode-line thick"></span><span class="barcode-line"></span><span class="barcode-line thin"></span><span class="barcode-line thick"></span><span class="barcode-line"></span><span class="barcode-line thin"></span><span class="barcode-line thick"></span><span class="barcode-line"></span>
+          <div class="label-barcode-section">
+            <div class="label-code" id="ndMaVanDon">DH-</div>
+            <svg class="ma-vach ma-vach--nhan" id="ndMaVach" role="img" aria-label="Mã vạch mã vận đơn"></svg>
           </div>
-          <div class="label-code" id="labelMaVanDon">DH-00000000-000000</div>
-        </div>
-
-        <div class="label-destination-box">
-          <div class="label-dest-caption">NƠI ĐẾN (VĂN PHÒNG NHẬN):</div>
-          <div class="label-dest-name" id="labelDiemNhan">--</div>
-          <div class="label-route-sub" id="labelTuyen">Tuyến vận chuyển: --</div>
-        </div>
-
-        <div class="label-info-grid">
-          <div class="label-info-col">
-            <span class="label-sub-caption">NGƯỜI NHẬN:</span>
-            <div class="label-strong-text" id="labelNguoiNhan">--</div>
-            <div class="label-phone-text" id="labelSdtNhan">📞 --</div>
+          <div class="label-destination-box">
+            <div class="label-dest-caption">NƠI ĐẾN (VĂN PHÒNG NHẬN):</div>
+            <div class="label-dest-name" id="ndDiemNhan">--</div>
+            <div class="label-route-sub" id="ndTuyen">Tuyến: --</div>
           </div>
-          <div class="label-info-col text-right">
-            <span class="label-sub-caption">LOẠI HÀNG & KHỐI LƯỢNG:</span>
-            <div class="label-strong-text" id="labelLoaiHang">--</div>
-            <div class="label-weight-text" id="labelCanNang">⚖️ -- kg</div>
+          <div class="label-info-grid">
+            <div class="label-info-col">
+              <span class="label-sub-caption">NGƯỜI NHẬN:</span>
+              <div class="label-strong-text" id="ndNguoiNhan">--</div>
+              <div class="label-phone-text" id="ndSdtNhan">--</div>
+            </div>
+            <div class="label-info-col text-right">
+              <span class="label-sub-caption">LOẠI HÀNG & KHỐI LƯỢNG:</span>
+              <div class="label-strong-text" id="ndLoaiHang">--</div>
+              <div class="label-weight-text" id="ndCanNang">--</div>
+            </div>
           </div>
-        </div>
-
-        <div class="label-payment-banner" id="labelPaymentBanner">
-          <!-- Nội dung cờ COD hoặc ĐÃ TRẢ TRƯỚC nạp động qua JS -->
-        </div>
-
-        <div class="label-footer-note">
-          * Phụ xe và nhân viên trả hàng vui lòng đối soát mã vận đơn và số điện thoại trước khi giao.
+          <div class="label-payment-banner" id="ndThanhToan"></div>
+          <div class="label-footer-note">* Phụ xe và nhân viên điểm nhận đối soát mã vận đơn + SĐT người nhận trước khi xếp/giao.</div>
         </div>
       </div>
-
       <div class="receipt-actions">
-        <button type="button" class="btn-print" onclick="inNhanDan()">🏷️ In nhãn dán</button>
-        <button type="button" class="btn-close-modal" onclick="dongModalNhanDan()">Đóng</button>
+        <button type="button" class="btn-print" data-in="modalNhanDan">🏷️ In nhãn dán</button>
+        <button type="button" class="btn-close-modal" data-dong="modalNhanDan">Đóng</button>
       </div>
     </div>
   </div>
 
   <!-- ========================================================== -->
-  <!-- MODAL: PHIẾU XUẤT KHO BÀN GIAO HÀNG & THU TIỀN COD         -->
+  <!-- MODAL: CHI TIẾT ĐƠN (tra cứu đơn không ở trạng thái giao được) -->
   <!-- ========================================================== -->
-  <div id="modalPhieuXuatKho" class="modal-overlay">
-    <div class="modal-box delivery-slip-box">
-      <div class="receipt-header">
-        <img src="../../shared/assets/logo-full.png" alt="Logo Nhà Xe" class="receipt-logo-img" onerror="this.src='/shared/assets/logo-full.png'" />
-        <div class="receipt-title">PHIẾU XUẤT KHO & BÀN GIAO HÀNG</div>
-        <div style="font-size: 0.85rem; color: #6B7280;">HỆ THỐNG VẬN TẢI & CHUYỂN PHÁT NHÀ XE LIÊN TỈNH</div>
-        <div class="receipt-barcode" id="xuatKhoMaVanDon">DH-00000000</div>
-      </div>
-
-      <div class="receipt-row">
-        <span style="color: #6B7280;">Thời gian bàn giao:</span>
-        <strong id="xuatKhoThoiGian">--</strong>
-      </div>
-      <div class="receipt-row">
-        <span style="color: #6B7280;">Văn phòng giao hàng:</span>
-        <strong id="xuatKhoVanPhong">--</strong>
-      </div>
-      <div class="receipt-row">
-        <span style="color: #6B7280;">Người nhận hàng:</span>
-        <strong id="xuatKhoNguoiNhan">--</strong>
-      </div>
-      <div class="receipt-row">
-        <span style="color: #6B7280;">Số điện thoại:</span>
-        <strong id="xuatKhoSdtNhan">--</strong>
-      </div>
-      <div class="receipt-row">
-        <span style="color: #6B7280;">Hình thức thanh toán:</span>
-        <strong id="xuatKhoThanhToan">--</strong>
-      </div>
-      <div class="receipt-row total">
-        <span>TIỀN THU TẠI QUẦY:</span>
-        <span id="xuatKhoTienThu">0 đ</span>
-      </div>
-
-      <div class="delivery-pledge-box">
-        <em>Xác nhận: Người nhận đã kiểm tra kiện hàng đầy đủ, nguyên vẹn và đã thanh toán đủ số tiền cước (nếu có) trước khi rời quầy.</em>
-      </div>
-
-      <!-- Khu vực chữ ký đối soát 2 bên -->
-      <div class="signature-grid">
-        <div class="sig-box">
-          <div class="sig-title">NGƯỜI NHẬN HÀNG</div>
-          <div class="sig-sub">(Ký và ghi rõ họ tên)</div>
-          <div class="sig-space"></div>
-        </div>
-        <div class="sig-box">
-          <div class="sig-title">NHÂN VIÊN BÀN GIAO</div>
-          <div class="sig-sub">(Ký và xác nhận đã thu tiền)</div>
-          <div class="sig-space"></div>
-        </div>
-      </div>
-
-      <div class="receipt-actions">
-        <button type="button" class="btn-print" onclick="inPhieuXuatKho()">📄 In phiếu xuất kho</button>
-        <button type="button" class="btn-close-modal" onclick="dongModalPhieuXuatKho()">Đóng</button>
+  <div id="modalChiTietDon" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <h3 class="modal-heading">Chi tiết đơn <span id="ctMaVanDon"></span></h3>
+      <div id="ctCanhBao" class="modal-qua-han-box" hidden></div>
+      <div id="ctNoiDung"></div>
+      <div id="ctLichSu" class="lich-su-lien-he"></div>
+      <div id="ctChinhSua" class="lich-su-lien-he"></div>
+      <div class="receipt-actions" id="ctHanhDong">
+        <button type="button" class="btn-close-modal" data-dong="modalChiTietDon">Đóng</button>
       </div>
     </div>
   </div>
 
   <!-- ========================================================== -->
-  <!-- MODAL: BÀN GIAO KIỆN HÀNG & ĐỐI SOÁT THU TIỀN COD         -->
+  <!-- MODAL: KẾT QUẢ TRA CỨU THEO SĐT        -->
   <!-- ========================================================== -->
-  <div id="modalGiaoHangCOD" class="modal-overlay">
+  <div id="modalKetQuaSdt" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <h3 class="modal-heading">Đơn chờ giao theo SĐT <span id="ksSdt"></span></h3>
+      <p class="card-desc">Đối chiếu <strong>họ tên người nhận</strong> với giấy tờ của người tới lấy trước khi chọn đơn.</p>
+      <div id="ksDanhSach" class="pick-list"></div>
+      <div class="receipt-actions">
+        <button type="button" class="btn-close-modal" data-dong="modalKetQuaSdt">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================== -->
+  <!-- MODAL: BÀN GIAO HÀNG & THU COD                     -->
+  <!-- ========================================================== -->
+  <div id="modalGiaoHangCOD" class="modal-overlay" role="dialog" aria-modal="true">
     <div class="modal-box modal-delivery-box">
       <div class="modal-delivery-header">
         <div class="modal-delivery-title-wrap">
           <div class="modal-delivery-icon">📦</div>
           <div>
-            <h3 class="modal-delivery-title">BÀN GIAO HÀNG & ĐỐI SOÁT COD</h3>
-            <p class="modal-delivery-subtitle">Xác nhận người nhận đã kiểm tra kiện hàng và thu tiền cước (nếu có)</p>
+            <h3 class="modal-delivery-title">BÀN GIAO HÀNG CHO NGƯỜI NHẬN</h3>
+            <p class="modal-delivery-subtitle">Kiểm tra đúng người nhận, thu COD (nếu có) rồi xác nhận giao</p>
           </div>
         </div>
-        <button type="button" class="btn-close-icon" onclick="dongModalGiaoHang()" title="Đóng popup">✕</button>
+        <button type="button" class="btn-close-icon" data-dong="modalGiaoHangCOD" title="Đóng">✕</button>
       </div>
 
       <div class="modal-delivery-body">
-        <!-- Mã vận đơn & Trạng thái -->
         <div class="delivery-order-headline">
           <div class="delivery-code-wrap">
             <span class="label-tiny">MÃ VẬN ĐƠN:</span>
-            <span class="delivery-code-text" id="modalGiaoHangMaVanDon">DH-00000000</span>
+            <span class="delivery-code-text" id="ghMaVanDon">DH-</span>
           </div>
-          <div id="modalGiaoHangBadgeTrangThai">
-            <span class="badge-status badge-cho_lay">Sẵn sàng lấy</span>
-          </div>
+          <div id="ghTrangThai"></div>
         </div>
 
-        <!-- Cảnh báo nếu là đơn quá hạn lưu kho -->
-        <div id="modalGiaoHangQuaHanAlert" style="display:none;" class="modal-qua-han-box">
-          🚨 <strong>CẢNH BÁO: ĐƠN HÀNG ĐÃ QUÁ HẠN LƯU KHO (>14 NGÀY)!</strong><br>
-          Vui lòng yêu cầu người nhận xuất trình CMND/CCCD khớp thông tin trước khi bàn giao.
+        <div id="ghHangTon" class="modal-qua-han-box" hidden>
+          🚨 <strong>Hàng tồn (quá 14 ngày).</strong> Chỉ giao theo đúng hướng xử lý đã thỏa thuận; đối chiếu kỹ giấy tờ người nhận.
         </div>
+        <div id="ghSuCo" class="modal-qua-han-box modal-su-co-box" hidden></div>
 
-        <!-- Hộp cảnh báo Thanh toán & COD -->
-        <div id="modalGiaoHangThanhToanBox" class="modal-cod-alert is-cod">
-          <!-- Render động bằng JS: banner COD hoặc banner Đã trả trước -->
-        </div>
+        <div id="ghThanhToan" class="modal-cod-alert"></div>
 
-        <!-- 2 Thẻ thông tin Khách hàng & Hàng hóa -->
         <div class="delivery-info-grid">
           <div class="delivery-info-card">
-            <div class="delivery-card-title">👤 Người nhận hàng</div>
-            <div class="delivery-customer-name" id="modalGiaoHangTenNhan">--</div>
-            <div class="delivery-customer-phone" id="modalGiaoHangSdtNhan">📞 --</div>
-            <div class="delivery-card-row">
-              <span class="text-muted" style="color:#6B7280;">Văn phòng:</span>
-              <strong id="modalGiaoHangDiemNhan">--</strong>
-            </div>
+            <div class="delivery-card-title">👤 Người nhận (đối chiếu giấy tờ)</div>
+            <div class="delivery-customer-name" id="ghTenNhan">--</div>
+            <div class="delivery-customer-phone" id="ghSdtNhan">--</div>
           </div>
-
           <div class="delivery-info-card">
-            <div class="delivery-card-title">📦 Thông tin Kiện hàng</div>
-            <div class="delivery-card-row">
-              <span class="text-muted" style="color:#6B7280;">Loại hàng:</span>
-              <strong id="modalGiaoHangLoaiHang">--</strong>
-            </div>
-            <div class="delivery-card-row">
-              <span class="text-muted" style="color:#6B7280;">Cân nặng:</span>
-              <strong id="modalGiaoHangCanNang">-- kg</strong>
-            </div>
-            <div class="delivery-card-row" style="margin-top:0.4rem;">
-              <span class="text-muted" style="color:#6B7280;">Người gửi:</span>
-              <span id="modalGiaoHangNguoiGui" style="font-weight:600; color:#1F2937;">--</span>
-            </div>
+            <div class="delivery-card-title">📦 Kiện hàng</div>
+            <div class="delivery-card-row"><span class="text-muted">Loại hàng:</span><strong id="ghLoaiHang">--</strong></div>
+            <div class="delivery-card-row"><span class="text-muted">Cân nặng:</span><strong id="ghCanNang">--</strong></div>
+            <div class="delivery-card-row"><span class="text-muted">Người gửi:</span><span id="ghNguoiGui">--</span></div>
           </div>
         </div>
 
-        <!-- Cam kết kiểm hàng -->
         <div class="delivery-check-rule">
           <label class="delivery-checkbox-label">
-            <input type="checkbox" id="chkKiemTraKienHang" checked>
-            <span>Tôi xác nhận người nhận đã kiểm tra kiện hàng còn nguyên bao bì / niêm phong và đồng ý nhận hàng.</span>
+            <input type="checkbox" id="chkKiemTraKienHang">
+            <span>Người nhận đã kiểm tra kiện hàng và đồng ý nhận.</span>
+          </label>
+        </div>
+        <div class="delivery-check-rule" id="ghXacNhanCodWrap" hidden>
+          <label class="delivery-checkbox-label">
+            <input type="checkbox" id="chkXacNhanThuCOD">
+            <span>Tôi xác nhận <strong>đã thu đủ cước COD</strong> từ người nhận.</span>
           </label>
         </div>
       </div>
 
       <div class="modal-delivery-footer">
-        <button type="button" class="btn-cancel-modal" onclick="dongModalGiaoHang()">Hủy bỏ</button>
-        <button type="button" class="btn-confirm-delivery-modal" id="btnXacNhanGiaoHangModal" onclick="xacNhanGiaoHangTuModal()">
-          <span>✔️ Xác nhận Giao hàng & In phiếu xuất</span>
-        </button>
+        <button type="button" class="btn-cancel-modal" data-dong="modalGiaoHangCOD">Hủy bỏ</button>
+        <button type="button" class="btn-confirm-delivery-modal" id="btnXacNhanGiaoHang">✔️ Xác nhận giao hàng</button>
       </div>
     </div>
   </div>
 
-  <!-- Toast Notification Container -->
+  <!-- ========================================================== -->
+  <!-- MODAL: PHIẾU XUẤT KHO / BÀN GIAO       -->
+  <!-- ========================================================== -->
+  <div id="modalPhieuXuatKho" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal-box delivery-slip-box">
+      <div class="print-area">
+        <div class="receipt-header">
+          <img src="../../shared/assets/logo-full.png" alt="Logo Nhà Xe" class="receipt-logo-img" onerror="this.src='/shared/assets/logo-full.png'" />
+          <div class="receipt-title">PHIẾU BÀN GIAO HÀNG</div>
+          <div class="receipt-barcode" id="pxMaVanDon">DH-</div>
+          <svg class="ma-vach" id="pxMaVach" role="img" aria-label="Mã vạch mã vận đơn"></svg>
+        </div>
+        <div class="receipt-row"><span>Thời gian bàn giao:</span><strong id="pxThoiGian">--</strong></div>
+        <div class="receipt-row"><span>Văn phòng giao:</span><strong id="pxVanPhong">--</strong></div>
+        <div class="receipt-row"><span>Người nhận:</span><strong id="pxNguoiNhan">--</strong></div>
+        <div class="receipt-row"><span>Hình thức cước:</span><strong id="pxThanhToan">--</strong></div>
+        <div class="receipt-row total"><span>THU TẠI QUẦY:</span><span id="pxTienThu">0 đ</span></div>
+        <div class="delivery-pledge-box"><em>Người nhận đã kiểm tra kiện hàng và nhận đủ.</em></div>
+        <div class="signature-grid">
+          <div class="sig-box"><div class="sig-title">NGƯỜI NHẬN HÀNG</div><div class="sig-sub">(Ký, ghi rõ họ tên)</div><div class="sig-space"></div></div>
+          <div class="sig-box"><div class="sig-title">NHÂN VIÊN BÀN GIAO</div><div class="sig-sub">(Ký, ghi rõ họ tên)</div><div class="sig-space"></div></div>
+        </div>
+      </div>
+      <div class="receipt-actions">
+        <button type="button" class="btn-print" data-in="modalPhieuXuatKho">📄 In phiếu</button>
+        <button type="button" class="btn-close-modal" data-dong="modalPhieuXuatKho">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================== -->
+  <!-- MODAL: GHI KẾT QUẢ LIÊN HỆ             -->
+  <!-- ========================================================== -->
+  <div id="modalLienHe" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal-box modal-box--wide">
+      <h3 class="modal-heading">Liên hệ đơn <span id="lhMaVanDon"></span></h3>
+      <div id="lhGoiY" class="goi-y-box"></div>
+      <div class="lien-he-danh-ba" id="lhDanhBa"></div>
+
+      <form id="formLienHe">
+        <div class="form-label required">Kết quả liên hệ</div>
+        <div class="radio-list" id="lhLuaChon"></div>
+        <div class="form-group">
+          <label class="form-label" for="lhGhiChu">Ghi chú / hướng xử lý đã thỏa thuận</label>
+          <textarea id="lhGhiChu" class="form-input" rows="2" maxlength="1000" placeholder="VD: Người nhận hẹn thứ Bảy tới lấy; người gửi nhờ em trai lấy hộ..."></textarea>
+        </div>
+        <div class="receipt-actions">
+          <button type="button" class="btn-close-modal" data-dong="modalLienHe">Đóng</button>
+          <button type="submit" class="btn-print" id="btnLuuLienHe">💾 Lưu kết quả</button>
+        </div>
+      </form>
+
+      <div class="lich-su-lien-he">
+        <div class="section-subtitle">🕘 Lịch sử liên hệ</div>
+        <ul id="lhLichSu" class="timeline"><li class="timeline__empty">Đang tải...</li></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================== -->
+  <!-- MODAL: SỬA THÔNG TIN LIÊN HỆ CỦA ĐƠN                        -->
+  <!-- ========================================================== -->
+  <div id="modalSuaLienHe" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal-box modal-box--wide">
+      <h3 class="modal-heading">Sửa thông tin liên hệ đơn <span id="slMaVanDon"></span></h3>
+      <p class="card-desc">Chỉ sửa được tên và SĐT khi đơn chưa giao. Muốn đổi tuyến, điểm nhận, loại hàng hoặc cước thì hủy đơn và tạo lại. Mọi lần sửa đều được ghi nhật ký.</p>
+
+      <form id="formSuaLienHe" novalidate>
+        <div class="form-grid-2">
+          <div class="form-section">
+            <div class="section-subtitle">👤 Người gửi</div>
+            <div class="form-group">
+              <label class="form-label required" for="slTenGui">Họ và tên</label>
+              <input type="text" id="slTenGui" class="form-input" maxlength="100" autocomplete="off">
+            </div>
+            <div class="form-group">
+              <label class="form-label required" for="slSdtGui">Số điện thoại</label>
+              <input type="tel" id="slSdtGui" class="form-input" inputmode="numeric" autocomplete="off">
+            </div>
+          </div>
+          <div class="form-section">
+            <div class="section-subtitle">📦 Người nhận</div>
+            <div class="form-group">
+              <label class="form-label required" for="slTenNhan">Họ và tên</label>
+              <input type="text" id="slTenNhan" class="form-input" maxlength="100" autocomplete="off">
+            </div>
+            <div class="form-group">
+              <label class="form-label required" for="slSdtNhan">Số điện thoại</label>
+              <input type="tel" id="slSdtNhan" class="form-input" inputmode="numeric" autocomplete="off">
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="slLyDo">Lý do sửa <span class="section-hint">(tùy chọn)</span></label>
+          <input type="text" id="slLyDo" class="form-input" maxlength="200" placeholder="VD: Khách đọc nhầm số điện thoại" autocomplete="off">
+        </div>
+        <div class="receipt-actions">
+          <button type="button" class="btn-close-modal" data-dong="modalSuaLienHe">Đóng</button>
+          <button type="submit" class="btn-print" id="btnLuuSuaLienHe">💾 Lưu thay đổi</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
-  <!-- Scripts -->
   <script src="auth-check.js"></script>
   <script src="api-client.js"></script>
   <script src="nav.js"></script>
-  <script src="app.js"></script>
+  <script src="vendor/JsBarcode.code128.min.js"></script>
+  <script src="ma-vach.js"></script>
+  <script src="core.js"></script>
+  <script src="tao-don.js"></script>
+  <script src="in-an.js"></script>
+  <script src="hang-den.js"></script>
+  <script src="don-gui.js"></script>
+  <script src="thong-ke.js"></script>
+  <script src="phim-tat.js"></script>
+  <script src="sua-don.js"></script>
+  <script src="khoi-tao.js"></script>
 </body>
 </html>

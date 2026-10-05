@@ -55,7 +55,9 @@ Cả 3 vai trò chỉ cần thêm đúng 1 thông tin giống nhau: văn phòng 
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `nguoi_dung_id` | UUID PK, FK → `nguoi_dung(id)` ON DELETE CASCADE | |
-| `van_phong_id` | UUID NOT NULL, FK → `diem_don_tra(id)` | Bắt buộc `loai = 'van_phong'` (kiểm tra ở Service) — phạm vi thao tác của cán bộ này (mục 2) |
+| `van_phong_id` | UUID NOT NULL, FK → `diem_don_tra(id)` | Bắt buộc `loai = 'van_phong'` — phạm vi thao tác được xác thực ở BE |
+
+Migration triển khai: `20261002_0900_ho_so_va_thanh_toan_gui_hang.sql`. Quản lý gán/cập nhật qua `PUT /quan-ly/ho-so-can-bo-diem/{nguoi_dung_id}`.
 
 `phu_xe`, `ke_toan`, `quan_ly_nhan_su`, và `quan_ly` **không có bảng con** — phụ xe gắn với xe qua `xe_nhan_su` (mục 1.5), không gắn 1 văn phòng; `ke_toan`/`quan_ly_nhan_su`/`quan_ly` phạm vi toàn hệ thống, không cần cột phạm vi nào thêm.
 
@@ -115,6 +117,8 @@ Tầng chi tiết, nằm trong 1 `khu_vuc` — mọi điểm ở đây đều l�
 | `loai` | TEXT NOT NULL, CHECK IN (`van_phong`, `diem_dung`) | `van_phong`: có quầy vé/nhân viên, hợp lệ làm điểm đón lẫn điểm trả, trung bình 1 điểm/`khu_vuc`. `diem_dung`: điểm dừng dọc đường không có nhân viên, **chỉ hợp lệ làm điểm trả** (kiểm tra ở Service, mục 3.1) |
 
 Không có bảng `ben_xe` riêng — `loai = 'van_phong'` chính là "văn phòng/bến xe" (mục 3.1, tránh trùng lặp dữ liệu).
+
+> **Cột bổ sung** `sdt_lien_he` (TEXT NULLABLE, migration `20261004_0900`): SĐT liên hệ văn phòng, in lên biên nhận gửi hàng cho người gửi (`NGHIEP_VU.md` mục 10.3.1 điểm 1 — "thông tin liên hệ điểm nhận"). Quản lý nhập qua màn quản lý điểm đón/trả (UC-30) — cần bổ sung ô nhập ở màn đó.
 
 ### 2.3. `tuyen`
 
@@ -335,6 +339,9 @@ UNIQUE: (`ve_id`) — 1 vé chỉ hoàn tiền đúng 1 lần (không có cơ ch
 | `ten_nguoi_gui`, `sdt_nguoi_gui` | TEXT NOT NULL | Không cần tài khoản, không thu email (mục 10.1) |
 | `ten_nguoi_nhan`, `sdt_nguoi_nhan` | TEXT NOT NULL | |
 | `phuong_thuc_thanh_toan` | TEXT NOT NULL, CHECK IN (`nguoi_gui_tra_truoc`, `cod_nguoi_nhan_tra`) | |
+| `da_thu_tien` | BOOLEAN NOT NULL DEFAULT false | Chỉ cập nhật sau xác nhận thu tại quầy; COD chỉ được đánh dấu khi giao |
+| `thoi_gian_thu` | TIMESTAMPTZ NULLABLE | Thời điểm xác nhận thu cước |
+| `nhan_vien_thu_id` | UUID NULLABLE, FK → `nguoi_dung(id)` | Nhân viên xác nhận khoản thu |
 | `ma_van_don` | TEXT NOT NULL UNIQUE | In trên biên nhận đưa người gửi — không gửi SMS/email tự động (mục 10.3.1) |
 | `trang_thai` | TEXT NOT NULL DEFAULT `'cho_van_chuyen'`, CHECK IN (`cho_van_chuyen`, `da_len_xe`, `cho_lay`, `da_giao`, `qua_han_luu_kho`) | Vòng đời ở mục 10.3. `qua_han_luu_kho` ("hàng tồn") không phải trạng thái tự hủy — chỉ đánh dấu cần xử lý thủ công (UC-25/46) |
 | `nhan_vien_gui_id` | UUID NOT NULL, FK → `nguoi_dung(id)` | Người tạo đơn (mục 10.4.1) |
@@ -345,7 +352,63 @@ UNIQUE: (`ve_id`) — 1 vé chỉ hoàn tiền đúng 1 lần (không có cơ ch
 | `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
 | `ngay_giao` | TIMESTAMPTZ NULLABLE | |
 
+CHECK bổ sung (migration `20261004_0900`): `diem_gui_id <> diem_nhan_id`, `gia_cuoc > 0`.
+
+Cột bổ sung `khoa_chong_trung` (TEXT NULLABLE, migration `20261005_0900`): khóa chống tạo trùng đơn do FE sinh cho mỗi lần xác nhận tạo đơn (header `Idempotency-Key`). UNIQUE `(nhan_vien_gui_id, khoa_chong_trung) WHERE khoa_chong_trung IS NOT NULL` — gửi lại cùng khóa (bấm 2 lần, mạng chậm) trả lại đơn đã tạo.
+
+`da_thong_bao_nguoi_nhan` là cờ **một chiều** (chỉ bật `true`, không bao giờ hạ về `false`): 1 lần gọi lại thất bại không được xóa dấu "đã từng báo được", vì UC-25 rẽ nhánh theo đúng cờ này (đã từng báo được → gọi lại người nhận; chưa từng → gọi người gửi).
+
 **Index nên đánh thêm**: `(tuyen_id) WHERE chuyen_id IS NULL` — dùng cho danh sách "đơn hàng đang chờ chất lên chuyến" của phụ xe tại 1 điểm (UC-26), sắp theo `ngay_tao` (thứ tự thời gian, mục 10.2). `(chuyen_id)` — dùng khi tra cứu đơn hàng theo chuyến cụ thể (VD danh sách cần dỡ ở UC-27). `(trang_thai, thoi_gian_den_diem_nhan) WHERE trang_thai = 'cho_lay'` — dùng cho job quét mốc 7/14 ngày (UC-46).
+
+Index bổ sung cho màn hình tại quầy (migration `20261004_0900`): `(diem_gui_id, ngay_tao DESC)` — danh sách "Đơn gửi đi"; `(diem_nhan_id, trang_thai) WHERE trang_thai IN ('da_len_xe','cho_lay','qua_han_luu_kho')` — màn "Hàng đến"; `(sdt_nguoi_nhan)`, `(sdt_nguoi_gui)` — tra cứu khi người nhận quên mã vận đơn (mục 10.3.1 điểm 5).
+
+### 5.2a. `lich_su_lien_he_don_hang` *(bảng bổ sung — migration `20261002_0900`)*
+
+Mỗi lần nhân viên gửi hàng gọi người nhận/người gửi hoặc báo quản lý cho 1 đơn ở văn phòng nhận (mục 10.3.1, UC-25). `NGHIEP_VU.md` 10.3.1 chỉ bắt buộc 1 cờ `da_thong_bao_nguoi_nhan`; bảng này lưu thêm **hướng xử lý đã thỏa thuận** (UC-25: chờ thêm / nhờ lấy hộ / gửi lại...) và ai đã liên hệ — cần khi quản lý thanh lý hàng tồn. *(Cần nhóm thống nhất cập nhật lại câu "không đếm số cuộc gọi" trong NGHIEP_VU 10.3.1.)*
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `id` | UUID PK | |
+| `don_hang_id` | UUID NOT NULL, FK → `don_hang(id)` ON DELETE CASCADE | |
+| `nhan_vien_id` | UUID NOT NULL, FK → `nguoi_dung(id)` | Nhân viên gửi hàng tại văn phòng nhận |
+| `doi_tuong` | TEXT NOT NULL, CHECK IN (`nguoi_nhan`, `nguoi_gui`, `quan_ly`) | |
+| `ket_qua` | TEXT NOT NULL, CHECK IN (`da_lien_he`, `khong_lien_he_duoc`, `da_bao_quan_ly`) | CHECK thêm: `(doi_tuong = 'quan_ly') = (ket_qua = 'da_bao_quan_ly')` |
+| `ghi_chu` | TEXT NULLABLE | Hướng xử lý đã thỏa thuận |
+| `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+
+Index: `(don_hang_id, ngay_tao DESC)`. "Báo quản lý" chỉ hợp lệ khi đơn đã có cảnh báo 7 ngày hoặc là hàng tồn; ghi lịch sử + bật cờ + tạo `thong_bao` cho quản lý trong cùng 1 transaction.
+
+### 5.2b. `lich_su_trang_thai_don` *(bảng bổ sung — migration `20261005_0900`)*
+
+Mỗi lần `don_hang.trang_thai` đổi (và lúc tạo đơn). **Ghi bằng trigger** `trg_lich_su_trang_thai_don` trên `don_hang` nên mọi đường đổi trạng thái (giao hàng, phụ xe chất/dỡ, job quét 7/14 ngày) đều được ghi mà service không cần nhớ. Người thực hiện lấy từ `set_config('app.nguoi_dung_id', ..., true)` do repository gọi trước khi UPDATE; không có = hệ thống tự chuyển (job UC-46).
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `id` | UUID PK | |
+| `don_hang_id` | UUID NOT NULL, FK → `don_hang(id)` ON DELETE CASCADE | |
+| `tu_trang_thai` | TEXT NULLABLE | NULL = dòng tạo đơn |
+| `den_trang_thai` | TEXT NOT NULL | |
+| `nguoi_thuc_hien_id` | UUID NULLABLE, FK → `nguoi_dung(id)` ON DELETE SET NULL | NULL = hệ thống |
+| `thoi_gian` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+
+Index: `(don_hang_id, thoi_gian)`. Đơn có từ trước migration chỉ được dựng lại 2 mốc biết chắc (tạo đơn, giao hàng).
+
+### 5.2c. `lich_su_chinh_sua_don` *(bảng bổ sung — migration `20261006_0900`)*
+
+Nhật ký mỗi lần nhân viên sửa **tên / SĐT người gửi, người nhận** của đơn chưa giao (gõ nhầm số là lỗi thường gặp nhất, ảnh hưởng việc gọi báo người nhận — mục 10.3.1). Không sửa tuyến, điểm nhận, loại hàng, cước: các thứ đó ảnh hưởng chuyến xe và đối soát tiền nên phải hủy đơn rồi tạo lại. Bảng **chỉ INSERT** (repository không có hàm sửa/xóa nhật ký). Mỗi trường đổi = 1 dòng; gõ lại đúng giá trị cũ không tạo dòng. `thoi_gian` dùng `clock_timestamp()` (không phải `now()`) để thứ tự khớp thứ tự sửa thật khi nhiều lần sửa xếp hàng chờ khóa dòng đơn.
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `id` | UUID PK | |
+| `don_hang_id` | UUID NOT NULL, FK → `don_hang(id)` ON DELETE CASCADE | |
+| `truong` | TEXT NOT NULL, CHECK IN (`ten_nguoi_gui`, `sdt_nguoi_gui`, `ten_nguoi_nhan`, `sdt_nguoi_nhan`) | |
+| `gia_tri_cu` | TEXT NULLABLE | |
+| `gia_tri_moi` | TEXT NOT NULL | |
+| `nguoi_thuc_hien_id` | UUID NOT NULL, FK → `nguoi_dung(id)` | Nhân viên gửi hàng tại văn phòng gửi hoặc văn phòng nhận |
+| `ly_do` | TEXT NULLABLE | Tối đa 200 ký tự |
+| `thoi_gian` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+
+Index: `(don_hang_id, thoi_gian)`. Chặn sửa khi `trang_thai = 'da_giao'` (kiểm tra sau khi khóa dòng `FOR UPDATE`).
 
 ### 5.3. `bao_cao_su_co_hang` *(bảng bổ sung — không có tên tường minh trong `NGHIEP_VU.md`, giống tiền lệ `thong_bao` mục 6.1)*
 
@@ -375,6 +438,7 @@ Không đổi `don_hang.trang_thai` — chỉ ghi nhận, không chặn UC-26/UC
 | `nguoi_nhan_id` | UUID NOT NULL, FK → `nguoi_dung(id)` | |
 | `noi_dung` | TEXT NOT NULL | |
 | `ve_id` | UUID NULLABLE, FK → `ve(id)` | Liên kết ngữ cảnh nếu gắn với 1 vé cụ thể (đổi xe, sự cố, sắp tới giờ) |
+| `don_hang_id` | UUID NULLABLE, FK → `don_hang(id)` | Liên kết cảnh báo hàng chờ lâu |
 | `da_doc` | BOOLEAN NOT NULL DEFAULT false | |
 | `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
 
