@@ -25,7 +25,7 @@ body.dncb-page {
   height: 100dvh;
   overflow: hidden;
   box-sizing: border-box;
-  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-body);
   background: var(--color-bg-canvas);
   background-image: url("/shared/assets/dang-nhap-nen-desktop.jpg");
   background-size: cover;

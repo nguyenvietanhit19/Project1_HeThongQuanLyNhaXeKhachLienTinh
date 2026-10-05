@@ -193,6 +193,16 @@ def cap_nhat_mat_khau(nguoi_dung_id: str, mat_khau_hash: str) -> None:
         release_connection(conn)
 
 
+def cap_nhat_so_dien_thoai(nguoi_dung_id: str, so_dien_thoai: str) -> None:
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE nguoi_dung SET so_dien_thoai = %s WHERE id = %s", (so_dien_thoai, nguoi_dung_id))
+        conn.commit()
+    finally:
+        release_connection(conn)
+
+
 def cap_nhat_ho_ten(nguoi_dung_id: str, ho_ten: str) -> None:
     conn = get_connection()
     try:

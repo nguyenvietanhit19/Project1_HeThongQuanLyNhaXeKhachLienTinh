@@ -33,3 +33,9 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Báo cáo cá nhân (không đưa lên git)
+*.docx
+
+# Báo cáo + ảnh sơ đồ xuất ra (sinh lại được từ UML_DIAGRAMS.md)
+bao-cao/

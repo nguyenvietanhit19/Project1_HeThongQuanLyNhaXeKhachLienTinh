@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from app.config import CORS_ORIGINS
 from app.jobs import quet_hang_ton, quet_no_show
 from app.routes.auth import router as auth_router
+from app.routes.chuyen import router as chuyen_router
 from app.routes.phu_xe import router as phu_xe_router
 from app.routes.gui_hang import router as gui_hang_router
 from app.routes.quan_ly import router as quan_ly_router
@@ -99,3 +100,4 @@ app.include_router(quan_ly_router)
 app.include_router(phu_xe_router)
 app.include_router(gui_hang_router)
 app.include_router(thong_bao_router)
+app.include_router(chuyen_router)

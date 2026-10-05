@@ -19,13 +19,13 @@ Nhóm đã cân nhắc 2 cách:
 
 | # | Người | Vai trò | UC | Ghi chú |
 |---|---|---|---|---|
-| **1** | **Trưởng nhóm** | Đăng ký/Đăng nhập + toàn bộ **Quản lý** | 01,02,03,18,29,30,31,32,33,34,35,36,37,38,39,47,48 (17 UC) | Người tạo khu vực/điểm/tuyến/lịch chạy định kỳ/loại xe/giá vé/xe/biên chế/tài khoản — đúng người hiểu sâu nhất cấu trúc dữ liệu nền |
-| **2** | | **Khách hàng + Nhân viên quầy vé** | 04,05,08,09,10,11,14,41,42 (9 UC) | Ôm luôn thuật toán chống trùng ghế (phần khó/nhạy cảm nhất hệ thống — xem mục 5.1) |
-| **3** | | **Phụ xe** | 12,13,15,16,17,26,27,28,39 (9 UC) | Chỉ gọi hàm có sẵn từ người 1, 4, 5 — không tự viết logic |
-| **4** | | **Điều độ viên** | 19,20,40,44,45,39 (6 UC) | |
-| **5** | | **Nhân viên gửi hàng + Kế toán** | 21,22,23,24,25,43,46 (7 UC) | |
+| **1** | **Trưởng nhóm** | Đăng ký/Đăng nhập + toàn bộ **Quản lý** | 01,02,03,18,29,30,31,32,33,34,35,36,37,39,47,48 (16 UC) | Người tạo khu vực/điểm/tuyến/lịch chạy định kỳ/loại xe/giá vé/xe/biên chế/tài khoản — đúng người hiểu sâu nhất cấu trúc dữ liệu nền |
+| **2** | | **Khách hàng + Nhân viên quầy vé** | 04,05,08,09,11,41,53 (7 UC) | Ôm luôn thuật toán chống trùng ghế (phần khó/nhạy cảm nhất hệ thống — xem mục 5.1) |
+| **3** | | **Phụ xe** | 12,13,15,17,26,27,28,39 (8 UC) | Chỉ gọi hàm có sẵn từ người 1, 4, 5 — không tự viết logic |
+| **4** | | **Điều độ viên** | 19,20,44,39 (4 UC) | |
+| **5** | | **Nhân viên gửi hàng + Kế toán** | 22,23,24,25 (4 UC) | |
 
-Tổng 46 UC (đúng số UC còn hiệu lực, UC-06/07 đã retire — xem `NGHIEP_VU.md` mục 11). UC-39 (thống kê) xuất hiện ở nhiều người vì mỗi vai trò chỉ xem đúng phạm vi của mình (`NGHIEP_VU.md` UC-39) — phần này nhẹ, không tính là điểm nóng.
+Bảng trên đã cập nhật theo việc **gộp use case** (xem `NGHIEP_VU.md` mục 11, bảng "Các UC đã gộp"): UC-10→09, 16→15, 38→37, 40→20, 42→41 (gộp cùng mục tiêu); UC-14→12, 45→44, 46→25, 21 và 43→19 (cơ chế chạy nền, không phải use case riêng); UC-50→49. Hiện còn **40 use case**. UC-49, 51, 52 (hồ sơ nhân sự vận hành, cho nghỉ việc, nhật ký — vai trò `quan_ly_nhan_su`) **chưa phân công người**. Code/job của các cơ chế đã gộp (`quet_no_show` thuộc người 2, `quet_chua_gan_xe` người 4, `quet_hang_ton` và `quet_hoan_tien_tu_dong` người 5...) vẫn giữ nguyên người phụ trách, chỉ đổi cách tính use case.
 
 ### Chi tiết backend/frontend từng người
 
@@ -35,7 +35,7 @@ Tổng 46 UC (đúng số UC còn hiệu lực, UC-06/07 đã retire — xem `NG
 - Cũng là người dựng **khung dự án ngày đầu tiên** — xem mục 5.4.
 
 **2 — Khách hàng + Nhân viên quầy vé**
-- Backend: `tim_kiem_chuyen_service` (UC-04), `ve_lock_repository` (thuật toán khóa ghế — mục 5.1), `ve_repository`, `dat_ve_service`, `thanh_toan_service`, `thanh_toan_callback.py`, `jobs/quet_ve_het_han.py` (UC-14), routes: `chuyen.py`, `ve.py`, `quay_ve.py`.
+- Backend: `tim_kiem_chuyen_service` (UC-04), `ve_lock_repository` (thuật toán khóa ghế — mục 5.1), `ve_repository`, `dat_ve_service`, `thanh_toan_service`, `thanh_toan_callback.py`, `jobs/quet_ve_het_han.py` (UC-12), routes: `chuyen.py`, `ve.py`, `quay_ve.py`.
 - Frontend: `frontend/khach-hang/` (tra cứu, chọn ghế, thanh toán, lịch sử vé), `frontend/nhan-vien/quay-ve/`.
 
 **3 — Phụ xe**
@@ -43,11 +43,11 @@ Tổng 46 UC (đúng số UC còn hiệu lực, UC-06/07 đã retire — xem `NG
 - Frontend: `frontend/nhan-vien/phu-xe/` (giao diện di động).
 
 **4 — Điều độ viên**
-- Backend: `chuyen_xe_repository`, `chuyen_xe_service` (vòng đời chuyến, vị trí xe, gán xe, đổi xe, sự cố), `jobs/quet_chua_gan_xe.py` (UC-45), route `dieu_do.py`.
+- Backend: `chuyen_xe_repository`, `chuyen_xe_service` (vòng đời chuyến, vị trí xe, gán xe, đổi xe, sự cố), `jobs/quet_chua_gan_xe.py` (UC-44), route `dieu_do.py`.
 - Frontend: `frontend/nhan-vien/dieu-do/` (gán xe, xử lý sự cố, đổi xe).
 
 **5 — Nhân viên gửi hàng + Kế toán**
-- Backend: `don_hang_repository`, `gui_hang_service`, `lich_su_hoan_tien_repository`, `hoan_tien_service`, `jobs/quet_hang_ton.py` (UC-46), `jobs/quet_hoan_tien_tu_dong.py` (UC-43), routes: `gui_hang.py`, `ke_toan.py`.
+- Backend: `don_hang_repository`, `gui_hang_service`, `lich_su_hoan_tien_repository`, `hoan_tien_service`, `jobs/quet_hang_ton.py` (UC-25), `jobs/quet_hoan_tien_tu_dong.py` (UC-19), routes: `gui_hang.py`, `ke_toan.py`.
 - Frontend: `frontend/nhan-vien/gui-hang/`, `frontend/nhan-vien/ke-toan/`.
 
 ---
@@ -66,35 +66,35 @@ Tổng 46 UC (đúng số UC còn hiệu lực, UC-06/07 đã retire — xem `NG
 2 (ve_lock, ve_repository) ──── bị 3 và 4 gọi vào
    │
    ├──> 3 GỌI 2: xác nhận lên/xuống xe (UC-12/13) — đổi ve.trang_thai
-   └──> 4 GỌI 2: khi 1 chuyến bị hủy do sự cố khách quan (UC-19/21), cần tìm các vé
+   └──> 4 GỌI 2: khi 1 chuyến bị hủy do sự cố khách quan (UC-19), cần tìm các vé
                đã trả tiền bị ảnh hưởng để chuyển hoàn tiền — 4 ĐỌC dữ liệu vé qua
                hàm của 2, không tự truy vấn bảng ve
 
 4 (chuyen_xe_service) ──── bị 3 gọi vào, và tự gọi ngược lại 2 + 5
    │
-   ├──> 3 GỌI 4: xác nhận xuất phát/tới điểm/báo sự cố (UC-15,16,17) —
+   ├──> 3 GỌI 4: xác nhận xuất phát/tới điểm/báo sự cố (UC-15, UC-17) —
    │           đổi chuyen_xe.trang_thai, 3 không tự viết SQL cho việc này
-   └──> 4 GỌI 5: khi chuyến bị hủy do sự cố khách quan (UC-19/21), gọi
+   └──> 4 GỌI 5: khi chuyến bị hủy do sự cố khách quan (UC-19), gọi
                hoan_tien_service.tao_hoan_tien() của 5 cho từng vé bị ảnh hưởng
                (5 chỉ tạo bản ghi hoàn tiền, không biết gì về xử lý sự cố)
 
 2 (ve_repository) ──── bị 5 gọi vào khi khách hủy vé nhận hoàn
    │
-   └──> 5 GỌI 2: khi khách hủy vé nhận hoàn (UC-41/42, do 2 tự xử lý là chính —
+   └──> 5 GỌI 2: khi khách hủy vé nhận hoàn (UC-41, do 2 tự xử lý là chính —
                xem ghi chú dưới) cần đổi ve.trang_thai = 'da_huy'
 
 3 (phu_xe.py) ──── GỌI 5: xác nhận chất/dỡ hàng (UC-26/27) — nút bấm nằm trên
                màn hình 3 sở hữu (chuyen-dang-chay.html) nhưng gọi API của 5
 ```
 
-**Ghi chú UC-41/42**: đây là 2 UC do Khách hàng/Quầy vé (người 2) chủ động thực hiện (mục 11 `NGHIEP_VU.md`), nên phần lớn logic (đổi `ve.trang_thai`, gọi tạo hoàn tiền) nằm gọn trong code của người 2 — người 2 tự gọi `hoan_tien_service` của người 5, không cần người 5 chủ động làm gì. Chỉ UC-21 (tự động, do sự cố khách quan — người 4 xác nhận) mới thực sự là người 4 chủ động gọi sang người 2 và người 5.
+**Ghi chú UC-41**: đây là UC do Khách hàng/Quầy vé (người 2) chủ động thực hiện (mục 11 `NGHIEP_VU.md`), nên phần lớn logic (đổi `ve.trang_thai`, gọi tạo hoàn tiền) nằm gọn trong code của người 2 — người 2 tự gọi `hoan_tien_service` của người 5, không cần người 5 chủ động làm gì. Chỉ UC-19 (tự động, do sự cố khách quan — người 4 xác nhận) mới thực sự là người 4 chủ động gọi sang người 2 và người 5.
 
 ### Tóm tắt: ai phải xong trước, ai chỉ cần gọi hàm
 
 | Người | Người khác phụ thuộc vào mình | Mình gọi vào người nào |
 |---|---|---|
 | 1 | 2, 3, 4, 5 đều cần đăng nhập; 2 và 4 còn cần đọc dữ liệu tuyến/xe/giá | Không gọi ai |
-| 2 | 3 (đổi trạng thái vé), 4 (đọc vé bị ảnh hưởng), 5 (không — 5 không gọi 2) | Gọi 1 (auth, dữ liệu), gọi 5 (tạo hoàn tiền khi UC-41/42) |
+| 2 | 3 (đổi trạng thái vé), 4 (đọc vé bị ảnh hưởng), 5 (không — 5 không gọi 2) | Gọi 1 (auth, dữ liệu), gọi 5 (tạo hoàn tiền khi UC-41) |
 | 3 | Không ai phụ thuộc 3 | Gọi 1 (auth), gọi 2, gọi 4, gọi 5 |
 | 4 | 3 (đổi trạng thái chuyến) | Gọi 1 (auth, dữ liệu), gọi 2 (đọc vé), gọi 5 (tạo hoàn tiền) |
 | 5 | 3 (chất/dỡ hàng) | Gọi 1 (auth) |
@@ -105,7 +105,7 @@ Tổng 46 UC (đúng số UC còn hiệu lực, UC-06/07 đã retire — xem `NG
 
 ## 4. Trang HTML: chia theo màn hình thực tế dùng, không phải theo UC
 
-**Không phải 1 UC = 1 file** — nhiều UC chỉ là 1 nút bấm nằm chung trên 1 màn hình đang mở. VD người 3 (phụ xe) lúc xe đang chạy chỉ mở **1 màn hình `chuyen-dang-chay.html`**, trên đó có đủ nút cho UC-12 (lên xe), UC-13 (xuống xe), UC-16 (tới điểm), UC-17 (báo sự cố), UC-26/27 (chất/dỡ hàng, gọi API người 5) — gộp nhiều UC vào 1 file vì đó là đúng cách phụ xe thao tác thực tế.
+**Không phải 1 UC = 1 file** — nhiều UC chỉ là 1 nút bấm nằm chung trên 1 màn hình đang mở. VD người 3 (phụ xe) lúc xe đang chạy chỉ mở **1 màn hình `chuyen-dang-chay.html`**, trên đó có đủ nút cho UC-12 (lên xe), UC-13 (xuống xe), UC-15 (tới điểm), UC-17 (báo sự cố), UC-26/27 (chất/dỡ hàng, gọi API người 5) — gộp nhiều UC vào 1 file vì đó là đúng cách phụ xe thao tác thực tế.
 
 Nhờ chia theo vai trò, **mỗi người giờ chỉ cần dựng đúng 1-2 giao diện nhất quán** (không còn tình trạng 1 người phải làm 3 phong cách UI khác hẳn nhau như bản chia theo domain trước) — nhưng vẫn áp dụng nguyên tắc "chia theo màn hình thực tế dùng" ở trong phạm vi của từng người.
 
@@ -121,7 +121,7 @@ frontend/nhan-vien/
   quan-ly/             # người 1 — toàn bộ, kể cả nav.js/api-client.js/auth-check.js/style.css riêng của domain này
   quay-ve/             # người 2 — tự có nav.js/api-client.js/auth-check.js/css riêng, không import từ quan-ly/
   phu-xe/
-    chuyen-dang-chay.html   # người 3 — gộp UC-12,13,16,17,26,27
+    chuyen-dang-chay.html   # người 3 — gộp UC-12, UC-13, UC-15, UC-17, UC-26, UC-27
     bao-that-lac.html       # người 3 — UC-28
   dieu-do/             # người 4 — tự có file riêng
   gui-hang/  ke-toan/  # người 5 — tự có file riêng
@@ -145,10 +145,10 @@ frontend/nhan-vien/
 Bản kế hoạch kỹ thuật gốc (`ARCHITECTURE.md`) gộp hết tác vụ định kỳ vào 1 file — nếu giữ vậy, nhiều người cùng phải sửa chung 1 file → đúng kiểu rủi ro "merge sạch nhưng logic dẫm chân nhau" ở mục 1. **Đổi cách chia**: mỗi người viết 1 file job riêng, tự đăng ký lịch chạy độc lập trong `main.py`:
 
 ```
-jobs/quet_ve_het_han.py          # người 2 — UC-14 (no-show, hết hạn giữ chỗ)
-jobs/quet_chua_gan_xe.py         # người 4 — UC-45 (dang_hoan khi chưa gán xe)
-jobs/quet_hang_ton.py            # người 5 — UC-46
-jobs/quet_hoan_tien_tu_dong.py   # người 5 — UC-43 (chỉ ĐỌC chuyen_xe của người 4, tự ghi bảng của mình)
+jobs/quet_ve_het_han.py          # người 2 — UC-12 (no-show, hết hạn giữ chỗ)
+jobs/quet_chua_gan_xe.py         # người 4 — UC-44 (dang_hoan khi chưa gán xe)
+jobs/quet_hang_ton.py            # người 5 — UC-25
+jobs/quet_hoan_tien_tu_dong.py   # người 5 — UC-19 (chỉ ĐỌC chuyen_xe của người 4, tự ghi bảng của mình)
 ```
 
 ### 5.3. `websocket_manager.py` — hạ tầng dùng chung, xây 1 lần, không ai sửa lại
