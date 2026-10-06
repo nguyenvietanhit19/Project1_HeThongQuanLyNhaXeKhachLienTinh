@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Xử lý sự cố & Đổi xe — Điều độ viên</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/nhan-vien/dieu-do/style.css" />
+</head>
+<body class="nhan-vien-shell">
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
+
+    <div class="nv-main">
+      <header class="nv-topbar">
+        <h1>Xử lý sự cố & Điều động xe</h1>
+        <div class="nv-topbar__user">
+          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
+          <div class="nv-topbar__identity">
+            <span class="ho-ten" id="topbar-ho-ten"></span>
+            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
+          </div>
+          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
+        </div>
+      </header>
+
+      <main class="nv-content">
+        <!-- Banner giới thiệu -->
+        <div class="nv-page-intro">
+          <div class="nv-page-intro__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/>
+            </svg>
+          </div>
+          <div class="nv-page-intro__body">
+            <p class="nv-page-intro__title">Xử lý sự cố giữa đường (UC-19) & Đổi xe trước giờ (UC-20)</p>
+            <p class="nv-page-intro__desc">
+              Ứng phó khẩn cấp sự cố kỹ thuật xe hoặc thiên tai, tắc đường. Điều phối xe thay thế, đảm bảo an toàn hành khách và hoàn tất hành trình.
+            </p>
+          </div>
+          <div class="nv-page-intro__stat">
+            <span class="nv-page-intro__stat-num" id="stat-su-co">—</span>
+            <span class="nv-page-intro__stat-label">vụ sự cố</span>
+          </div>
+        </div>
+
+        <!-- Thanh Tabs chuyển chế độ chuẩn form quản lý -->
+        <div class="dd-tabs">
+          <button class="dd-tab-btn active" id="tab-uc19" type="button">⚠ Sự cố giữa đường (UC-19)</button>
+          <button class="dd-tab-btn" id="tab-uc20" type="button">🔄 Đổi xe trước giờ chạy (UC-20)</button>
+        </div>
+
+        <!-- TAB 1: SỰ CỐ GIỮA ĐƯỜNG (UC-19) -->
+        <div id="panel-uc19">
+          <div class="nv-card">
+            <div class="nv-card__header">
+              <h2>
+                Danh sách chuyến đang gặp sự cố
+                <span class="nv-card__count" id="so-su-co">đang tải...</span>
+              </h2>
+              <button class="btn-primary" id="btn-lam-moi-su-co" type="button" style="padding:8px 18px; font-size:13px;">↻ Làm mới</button>
+            </div>
+            
+            <div id="ds-su-co-container">
+              <div class="nv-table__dang-tai" style="padding:40px; text-align:center;">⏳ Đang tải dữ liệu từ database...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: ĐỔI XE TRƯỚC GIỜ (UC-20) -->
+        <div id="panel-uc20" hidden>
+          <div class="nv-card">
+            <div class="nv-card__header">
+              <h2>
+                Chuyến chưa khởi hành cần đổi xe thực tế
+                <span class="nv-card__count" id="so-chuyen-doi">đang tải...</span>
+              </h2>
+              <button class="btn-primary" id="btn-lam-moi-doi-xe" type="button" style="padding:8px 18px; font-size:13px;">↻ Làm mới</button>
+            </div>
+            <p class="nv-hint">Áp dụng khi xe gốc gặp trục trặc hoặc bị xung đột vị trí trước giờ xuất phát. Xe thay thế <strong>bắt buộc cùng loại xe</strong>. Giữ nguyên xe_id gốc để quản lý nhân sự.</p>
+
+            <div id="ds-doi-xe-container">
+              <div class="nv-table__dang-tai" style="padding:40px; text-align:center;">⏳ Đang tải dữ liệu từ database...</div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal Điều xe cứu trợ / thay thế (Dùng chung cho cả UC-19 và UC-20) -->
+  <div class="nv-modal-overlay" id="modal-dieu-xe" hidden>
+    <div class="nv-modal" style="max-width:680px;">
+      <div class="nv-modal__header">
+        <div class="nv-modal__header-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="7" width="18" height="9" rx="3"/><path d="M7 16v2M17 16v2"/><path d="M3 12h18"/>
+          </svg>
+        </div>
+        <h2 id="modal-dieu-xe-tieu-de">Chọn xe thay thế</h2>
+      </div>
+      <div class="nv-modal__body">
+        <div id="info-chuyen-su-co" class="dd-chuyen-info"></div>
+
+        <p style="font-size:13px; font-weight:600; margin:14px 0 6px; color:var(--color-text-primary);">
+          Danh sách xe sẵn sàng thay thế:
+        </p>
+        <p class="nv-hint" id="hint-dieu-xe">Hệ thống lọc xe đang hoạt động, không trùng lịch. Ưu tiên xe trong đội xe.</p>
+
+        <div id="ds-xe-cuu-ho">
+          <div style="padding:20px; text-align:center; color:var(--color-text-muted);">⏳ Đang tải danh sách xe...</div>
+        </div>
+
+        <div id="loi-dieu-xe" class="text-error" hidden style="margin-top:10px;"></div>
+
+        <div class="nv-modal__actions" style="margin-top:16px;">
+          <button type="button" class="nv-btn-secondary" id="btn-dong-modal-dieu-xe">Đóng</button>
+          <button type="button" class="btn-primary" id="btn-xac-nhan-dieu-xe" disabled>Xác nhận điều xe này</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/nhan-vien/dieu-do/api-client.js"></script>
+  <script src="/nhan-vien/dieu-do/auth-check.js"></script>
+  <script src="/nhan-vien/dieu-do/nav.js"></script>
+  <script src="/nhan-vien/dieu-do/data-table.js"></script>
+  <script>
+    // ── Khởi tạo Layout ──────────────────────────────────────────────
+    const nguoiDung = yeuCauVaiTro("dieu_do_vien");
+    if (nguoiDung) {
+      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/dieu-do/xu-ly-su-co.html");
+      renderTopbarUser();
+    }
+    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+
+    // ── Tabs ─────────────────────────────────────────────────────────
+    const tabUc19 = document.getElementById("tab-uc19");
+    const tabUc20 = document.getElementById("tab-uc20");
+    const panelUc19 = document.getElementById("panel-uc19");
+    const panelUc20 = document.getElementById("panel-uc20");
+
+    tabUc19.addEventListener("click", () => {
+      tabUc19.classList.add("active");
+      tabUc20.classList.remove("active");
+      panelUc19.hidden = false;
+      panelUc20.hidden = true;
+      taiDanhSachSuCo();
+    });
+
+    tabUc20.addEventListener("click", () => {
+      tabUc20.classList.add("active");
+      tabUc19.classList.remove("active");
+      panelUc19.hidden = true;
+      panelUc20.hidden = false;
+      taiDanhSachDoiXe();
+    });
+
+    // ── State ────────────────────────────────────────────────────────
+    let dsSuCo = [];
+    let dsDoiXe = [];
+    let chuyenDangChon = null;
+    let cheDoDangChon = "uc19"; // 'uc19' hoặc 'uc20'
+    let xeCuuHoDangChon = null;
+
+    // ── Render UC-19: Sự cố giữa đường ──────────────────────────────
+    async function taiDanhSachSuCo() {
+      const container = document.getElementById("ds-su-co-container");
+      container.innerHTML = `<div class="nv-table__dang-tai" style="padding:40px; text-align:center;">⏳ Đang tải danh sách sự cố từ database...</div>`;
+      try {
+        const data = await apiGet("/dieu-do/chuyen-su-co");
+        dsSuCo = data.chuyen_su_co || [];
+        document.getElementById("stat-su-co").textContent = dsSuCo.length;
+        document.getElementById("so-su-co").textContent = `${dsSuCo.length} chuyến`;
+
+        if (!dsSuCo.length) {
+          container.innerHTML = `
+            <div class="nv-table__empty">
+              <p>🎉 Hiện tại không có chuyến nào đang báo sự cố trong hệ thống!</p>
+            </div>`;
+          return;
+        }
+
+        container.innerHTML = dsSuCo.map(sc => `
+          <div class="dd-su-co-card" style="margin-bottom:16px;">
+            <div style="flex:1;">
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                <h3 class="dd-su-co-card__title" style="margin:0;">${sc.ten_tuyen || "—"} (${sc.chieu === "xuoi" ? "Xuôi" : "Ngược"})</h3>
+                ${sc.loai_su_co === "loi_nha_xe" 
+                  ? '<span class="dd-pill dd-pill--danger">🔧 Lỗi nhà xe</span>' 
+                  : '<span class="dd-pill dd-pill--warn">🌧 Lỗi khách quan (Thiên tai)</span>'}
+              </div>
+              <div class="dd-su-co-card__meta">
+                <p style="margin:4px 0;"><strong>Xe gặp nạn:</strong> <code style="font-weight:700; color:var(--color-secondary-dark);">${sc.bien_so_xe || "Chưa rõ"}</code> (${sc.ten_loai_xe || ""})</p>
+                <p style="margin:4px 0;"><strong>Giờ xuất phát:</strong> ${sc.gio_khoi_hanh ? new Date(sc.gio_khoi_hanh).toLocaleString("vi-VN") : "—"}</p>
+                <p style="margin:4px 0; color:var(--color-danger); font-weight:600;"><strong>Chi tiết sự cố:</strong> ${sc.ly_do_su_co || "Không có mô tả"}</p>
+              </div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px; min-width:180px;">
+              <button class="btn-primary btn-dieu-xe" data-id="${sc.id}" type="button" style="font-size:13px; padding:8px 14px;">
+                🚑 Điều xe thay thế
+              </button>
+              <button class="nv-btn-sua btn-tiep-tuc" data-id="${sc.id}" type="button" style="font-size:13px; text-align:center;">
+                ✓ Tiếp tục lộ trình
+              </button>
+              ${sc.loai_su_co === "loi_khach_quan" ? `
+                <button class="nv-btn-danger btn-huy-chuyen" data-id="${sc.id}" type="button" style="font-size:13px; text-align:center;">
+                  ✕ Hủy chuyến & Hoàn 100%
+                </button>
+              ` : ""}
+            </div>
+          </div>
+        `).join("");
+
+        // Gắn sự kiện các nút
+        container.querySelectorAll(".btn-dieu-xe").forEach(b => {
+          b.addEventListener("click", () => moModalDieuXe(b.dataset.id, "uc19"));
+        });
+        container.querySelectorAll(".btn-tiep-tuc").forEach(b => {
+          b.addEventListener("click", () => xuLyTiepTuc(b.dataset.id));
+        });
+        container.querySelectorAll(".btn-huy-chuyen").forEach(b => {
+          b.addEventListener("click", () => xuLyHuyKhachQuan(b.dataset.id));
+        });
+
+      } catch (err) {
+        container.innerHTML = `<div class="text-error" style="padding:24px; text-align:center;">Lỗi tải dữ liệu: ${err.message}</div>`;
+      }
+    }
+
+    document.getElementById("btn-lam-moi-su-co").addEventListener("click", taiDanhSachSuCo);
+
+    // ── Xử lý UC-19 Actions ──────────────────────────────────────────
+    async function xuLyTiepTuc(chuyenId) {
+      if (!confirm("Xác nhận sự cố đã được khắc phục tại chỗ (hoặc đường đã thông), chuyến sẽ quay lại trạng thái ĐANG CHẠY?")) return;
+      try {
+        const res = await apiPut(`/dieu-do/chuyen/${chuyenId}/tiep-tuc-su-co`, {});
+        alert(res.thong_bao || "Thành công!");
+        await taiDanhSachSuCo();
+      } catch (err) {
+        alert("Lỗi: " + err.message);
+      }
+    }
+
+    async function xuLyHuyKhachQuan(chuyenId) {
+      if (!confirm("CẢNH BÁO: Xác nhận hủy chuyến do sự cố khách quan bất khả kháng? Hệ thống sẽ kích hoạt hoàn trả 100% tiền vé cho hành khách.")) return;
+      try {
+        const res = await apiPut(`/dieu-do/chuyen/${chuyenId}/huy-do-su-co`, {});
+        alert(res.thong_bao || "Đã hủy chuyến và thông báo hoàn tiền!");
+        await taiDanhSachSuCo();
+      } catch (err) {
+        alert("Lỗi: " + err.message);
+      }
+    }
+
+    // ── Render UC-20: Đổi xe trước giờ chạy ──────────────────────────
+    async function taiDanhSachDoiXe() {
+      const container = document.getElementById("ds-doi-xe-container");
+      container.innerHTML = `<div class="nv-table__dang-tai" style="padding:40px; text-align:center;">⏳ Đang tải dữ liệu từ database...</div>`;
+      try {
+        const data = await apiGet("/dieu-do/chuyen-can-doi-xe");
+        dsDoiXe = data.chuyen || [];
+        document.getElementById("so-chuyen-doi").textContent = `${dsDoiXe.length} chuyến`;
+
+        if (!dsDoiXe.length) {
+          container.innerHTML = `<div class="nv-table__empty"><p>Không có chuyến nào cần đổi xe.</p></div>`;
+          return;
+        }
+
+        renderDataTable(
+          container,
+          [
+            { key: "ten_tuyen", label: "Tuyến / Chiều", render: (r) => `<strong>${r.ten_tuyen || "—"}</strong><br><small style="color:var(--color-text-muted);">${r.chieu === "xuoi" ? "↗ Xuôi" : "↙ Ngược"}</small>` },
+            { key: "gio_khoi_hanh", label: "Giờ khởi hành", render: (r) => r.gio_khoi_hanh ? new Date(r.gio_khoi_hanh).toLocaleString("vi-VN") : "—" },
+            { key: "ten_loai_xe", label: "Loại xe", render: (r) => r.ten_loai_xe || "—" },
+            { key: "bien_so_goc", label: "Xe gốc", render: (r) => `<code style="font-weight:700; color:var(--color-secondary-dark);">${r.bien_so_goc || "—"}</code>` },
+            { key: "trang_thai", label: "Cảnh báo / Tình trạng", render: (r) => {
+                if (r.dang_hoan) return `<span class="dd-pill dd-pill--dark">⏱ ĐANG HOÃN</span>`;
+                if (r.co_canh_bao_xung_dot_vi_tri) return `<span class="dd-pill dd-pill--danger">⚠ Xung đột vị trí xe</span>`;
+                if (r.xe_thuc_te_id) return `<span class="dd-pill dd-pill--warn">Đang chạy thay</span>`;
+                return `<span class="dd-pill dd-pill--success">Bình thường</span>`;
+              }
+            },
+          ],
+          dsDoiXe,
+          {
+            onEdit: (r) => moModalDieuXe(r.id, "uc20"),
+            editLabel: "Đổi xe thay thế"
+          }
+        );
+
+      } catch (err) {
+        container.innerHTML = `<div class="text-error" style="padding:24px; text-align:center;">Lỗi tải dữ liệu: ${err.message}</div>`;
+      }
+    }
+
+    document.getElementById("btn-lam-moi-doi-xe").addEventListener("click", taiDanhSachDoiXe);
+
+    // ── Modal Điều xe / Đổi xe ───────────────────────────────────────
+    async function moModalDieuXe(chuyenId, cheDo) {
+      cheDoDangChon = cheDo;
+      chuyenDangChon = cheDo === "uc19" 
+        ? dsSuCo.find(c => c.id === chuyenId) 
+        : dsDoiXe.find(c => c.id === chuyenId);
+
+      xeCuuHoDangChon = null;
+      document.getElementById("modal-dieu-xe-tieu-de").textContent = cheDo === "uc19" 
+        ? "Điều xe thay thế cứu trợ (UC-19)" 
+        : "Chọn xe thay thế trước giờ chạy (UC-20)";
+
+      document.getElementById("info-chuyen-su-co").innerHTML = `
+        <div class="dd-chuyen-info__row">
+          <span class="dd-chuyen-info__label">Tuyến</span>
+          <span>${chuyenDangChon.ten_tuyen || "—"} (${chuyenDangChon.chieu === "xuoi" ? "Xuôi" : "Ngược"})</span>
+        </div>
+        <div class="dd-chuyen-info__row">
+          <span class="dd-chuyen-info__label">Loại xe cam kết</span>
+          <span>${chuyenDangChon.ten_loai_xe || "—"}</span>
+        </div>
+        <div class="dd-chuyen-info__row">
+          <span class="dd-chuyen-info__label">Xe gặp trục trặc</span>
+          <span><code style="font-weight:700;">${chuyenDangChon.bien_so_xe || chuyenDangChon.bien_so_goc || "—"}</code></span>
+        </div>
+      `;
+
+      document.getElementById("loi-dieu-xe").hidden = true;
+      document.getElementById("btn-xac-nhan-dieu-xe").disabled = true;
+      document.getElementById("modal-dieu-xe").hidden = false;
+
+      // Tải danh sách xe từ database
+      const containerXe = document.getElementById("ds-xe-cuu-ho");
+      containerXe.innerHTML = `<div style="padding:20px; text-align:center; color:var(--color-text-muted);">⏳ Đang tìm xe đủ điều kiện trong database...</div>`;
+      try {
+        const data = await apiGet(`/dieu-do/chuyen/${chuyenId}/xe-du-dieu-kien`);
+        const dsXe = data.xe || [];
+        if (!dsXe.length) {
+          containerXe.innerHTML = `
+            <div class="nv-table__empty" style="padding:24px;">
+              <p>Không tìm thấy xe dự phòng khả dụng trong database vào thời điểm này.</p>
+            </div>`;
+          return;
+        }
+
+        containerXe.innerHTML = `
+          <div class="nv-table-wrap">
+            <table class="nv-table">
+              <thead>
+                <tr>
+                  <th style="width:36px;"></th>
+                  <th>Biển số</th>
+                  <th>Loại xe</th>
+                  <th>Phân loại</th>
+                  <th>Vị trí bãi gốc</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${dsXe.map(x => `
+                  <tr style="cursor:pointer;" class="hang-xe" data-id="${x.id}" data-bienso="${x.bien_so}">
+                    <td><input type="radio" name="xe_cuu_ho" value="${x.id}"></td>
+                    <td><code style="font-size:13px; font-weight:700;">${x.bien_so}</code></td>
+                    <td>${x.ten_loai_xe || "—"}</td>
+                    <td>${x.tuyen_id ? '<span class="dd-pill dd-pill--primary">Tuyến cố định</span>' : '<span class="dd-pill dd-pill--success">Xe dự phòng</span>'}</td>
+                    <td>${x.ten_diem_goc || "—"}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
+
+        containerXe.querySelectorAll(".hang-xe").forEach(row => {
+          row.addEventListener("click", () => {
+            const radio = row.querySelector("input[type=radio]");
+            radio.checked = true;
+            xeCuuHoDangChon = { id: row.dataset.id, bien_so: row.dataset.bienso };
+            document.getElementById("btn-xac-nhan-dieu-xe").disabled = false;
+          });
+        });
+
+      } catch (err) {
+        containerXe.innerHTML = `<div class="text-error">${err.message}</div>`;
+      }
+    }
+
+    document.getElementById("btn-dong-modal-dieu-xe").addEventListener("click", () => {
+      document.getElementById("modal-dieu-xe").hidden = true;
+    });
+
+    document.getElementById("btn-xac-nhan-dieu-xe").addEventListener("click", async () => {
+      if (!chuyenDangChon || !xeCuuHoDangChon) return;
+      const btn = document.getElementById("btn-xac-nhan-dieu-xe");
+      btn.classList.add("is-loading");
+      btn.disabled = true;
+
+      try {
+        if (cheDoDangChon === "uc19") {
+          const res = await apiPut(`/dieu-do/chuyen/${chuyenDangChon.id}/dieu-xe-su-co`, {
+            xe_thay_the_id: xeCuuHoDangChon.id
+          });
+          alert(res.thong_bao || "Điều xe cứu trợ thành công!");
+          document.getElementById("modal-dieu-xe").hidden = true;
+          await taiDanhSachSuCo();
+        } else {
+          const res = await apiPut(`/dieu-do/chuyen/${chuyenDangChon.id}/gan-xe-thay-the`, {
+            xe_thay_the_id: xeCuuHoDangChon.id
+          });
+          alert(res.thong_bao || "Gán xe thay thế thành công!");
+          document.getElementById("modal-dieu-xe").hidden = true;
+          await taiDanhSachDoiXe();
+        }
+      } catch (err) {
+        const loiEl = document.getElementById("loi-dieu-xe");
+        loiEl.textContent = err.message;
+        loiEl.hidden = false;
+      } finally {
+        btn.classList.remove("is-loading");
+        btn.disabled = false;
+      }
+    });
+
+    // Tải dữ liệu ban đầu
+    taiDanhSachSuCo();
+  </script>
+</body>
+</html>

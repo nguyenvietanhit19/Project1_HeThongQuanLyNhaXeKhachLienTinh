@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Gán lại xe gốc — Điều độ viên</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/nhan-vien/dieu-do/style.css" />
+</head>
+<body class="nhan-vien-shell">
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
+
+    <div class="nv-main">
+      <header class="nv-topbar">
+        <h1>Gán lại xe gốc cho chuỗi chuyến</h1>
+        <div class="nv-topbar__user">
+          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
+          <div class="nv-topbar__identity">
+            <span class="ho-ten" id="topbar-ho-ten"></span>
+            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
+          </div>
+          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
+        </div>
+      </header>
+
+      <main class="nv-content">
+        <!-- Banner giới thiệu -->
+        <div class="nv-page-intro">
+          <div class="nv-page-intro__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.27"/>
+            </svg>
+          </div>
+          <div class="nv-page-intro__body">
+            <p class="nv-page-intro__title">Gán lại xe gốc sau sửa chữa (UC-40)</p>
+            <p class="nv-page-intro__desc">
+              Khi xe biên chế gốc đã hoàn thành bảo dưỡng hoặc sửa xong và chuyển sang trạng thái <strong>hoạt động</strong>, điều độ viên thực hiện hủy gán xe chạy thay để đưa xe gốc trở lại lộ trình ban đầu.
+            </p>
+          </div>
+          <div class="nv-page-intro__stat">
+            <span class="nv-page-intro__stat-num" id="stat-dang-chay-thay">—</span>
+            <span class="nv-page-intro__stat-label">chuyến đang chạy thay</span>
+          </div>
+        </div>
+
+        <div class="nv-card">
+          <div class="nv-card__header">
+            <h2>
+              Danh sách chuyến đang chạy bằng xe thay thế
+              <span class="nv-card__count" id="so-chuyen-chay-thay">đang tải...</span>
+            </h2>
+            <button class="btn-primary" id="btn-lam-moi" type="button" style="padding:8px 18px; font-size:13px;">↻ Làm mới</button>
+          </div>
+
+          <p class="nv-hint">
+            Thao tác "Gán lại xe gốc" sẽ đặt <code>xe_thuc_te_id = NULL</code> cho toàn bộ các chuyến chưa khởi hành cùng xe gốc từ mốc này trở đi. Xe chạy thay sẽ tự động được giải phóng.
+          </p>
+
+          <div id="bang-chay-thay-container">
+            <div class="nv-table__dang-tai" style="padding:40px; text-align:center;">⏳ Đang tải dữ liệu từ database...</div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/nhan-vien/dieu-do/api-client.js"></script>
+  <script src="/nhan-vien/dieu-do/auth-check.js"></script>
+  <script src="/nhan-vien/dieu-do/nav.js"></script>
+  <script src="/nhan-vien/dieu-do/data-table.js"></script>
+  <script>
+    // ── Khởi tạo Layout ──────────────────────────────────────────────
+    const nguoiDung = yeuCauVaiTro("dieu_do_vien");
+    if (nguoiDung) {
+      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/dieu-do/gan-lai-xe-goc.html");
+      renderTopbarUser();
+    }
+    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+
+    // ── Tải danh sách chuyến chạy thay từ Database ───────────────────
+    let dsChayThay = [];
+
+    async function taiDanhSachChayThay() {
+      const container = document.getElementById("bang-chay-thay-container");
+      container.innerHTML = `<div class="nv-table__dang-tai" style="padding:40px; text-align:center;">⏳ Đang tải dữ liệu từ database...</div>`;
+
+      try {
+        const data = await apiGet("/dieu-do/chuyen-dang-chay-thay");
+        dsChayThay = data.chuyen_chay_thay || [];
+        document.getElementById("stat-dang-chay-thay").textContent = dsChayThay.length;
+        document.getElementById("so-chuyen-chay-thay").textContent = `${dsChayThay.length} chuyến`;
+
+        if (!dsChayThay.length) {
+          container.innerHTML = `
+            <div class="nv-table__empty">
+              <p>Hiện không có chuyến xe nào đang phải dùng xe chạy thay thế.</p>
+            </div>`;
+          return;
+        }
+
+        renderDataTable(
+          container,
+          [
+            { key: "ten_tuyen", label: "Tuyến / Chiều", render: (r) => `<strong>${r.ten_tuyen || "—"}</strong><br><small style="color:var(--color-text-muted);">${r.chieu === "xuoi" ? "↗ Xuôi" : "↙ Ngược"}</small>` },
+            { key: "gio_khoi_hanh", label: "Giờ khởi hành", render: (r) => r.gio_khoi_hanh ? new Date(r.gio_khoi_hanh).toLocaleString("vi-VN") : "—" },
+            { key: "ten_loai_xe", label: "Loại xe", render: (r) => r.ten_loai_xe || "—" },
+            { key: "bien_so_thay_the", label: "Xe đang chạy thay", render: (r) => `<code style="font-weight:700; color:var(--color-primary-dark); font-size:13px;">${r.bien_so_thay_the || "—"}</code>` },
+            { key: "bien_so_goc", label: "Xe gốc & Tình trạng", render: (r) => {
+                const badge = r.trang_thai_xe_goc === "hoat_dong"
+                  ? '<span class="dd-pill dd-pill--success" style="font-size:11px;">✓ Đã sẵn sàng</span>'
+                  : '<span class="dd-pill dd-pill--warn" style="font-size:11px;">🔧 Đang bảo trì</span>';
+                return `<code>${r.bien_so_goc || "—"}</code> ${badge}`;
+              } 
+            },
+          ],
+          dsChayThay,
+          {
+            onEdit: (r) => xuLyGanLaiXeGoc(r),
+            editLabel: "↺ Gán lại xe gốc"
+          }
+        );
+
+      } catch (err) {
+        container.innerHTML = `<div class="text-error" style="padding:24px; text-align:center;">Lỗi tải dữ liệu: ${err.message}</div>`;
+      }
+    }
+
+    // ── Xử lý UC-40 Action ───────────────────────────────────────────
+    async function xuLyGanLaiXeGoc(chuyen) {
+      const xacNhan = confirm(
+        `Xác nhận xe gốc (${chuyen.bien_so_goc}) đã sửa xong và đưa trở lại phục vụ?\n\n` +
+        `Thao tác này sẽ áp dụng cho chuyến này và các chuyến tương lai của xe ${chuyen.bien_so_goc}. ` +
+        `Xe thay thế (${chuyen.bien_so_thay_the}) sẽ được giải phóng.`
+      );
+      if (!xacNhan) return;
+
+      try {
+        const res = await apiPut(`/dieu-do/chuyen/${chuyen.id}/gan-lai-xe-goc`, {});
+        alert(res.thong_bao || "Gán lại xe gốc thành công!");
+        await taiDanhSachChayThay();
+      } catch (err) {
+        alert("Lỗi khi gán lại xe gốc: " + err.message);
+      }
+    }
+
+    document.getElementById("btn-lam-moi").addEventListener("click", taiDanhSachChayThay);
+
+    // Tải dữ liệu ban đầu
+    taiDanhSachChayThay();
+  </script>
+</body>
+</html>

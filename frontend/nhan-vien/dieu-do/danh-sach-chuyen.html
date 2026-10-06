@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Gán xe cho chuyến — Điều độ viên</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/nhan-vien/dieu-do/style.css" />
+</head>
+<body class="nhan-vien-shell">
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
+
+    <div class="nv-main">
+      <header class="nv-topbar">
+        <h1>Gán xe cho chuyến</h1>
+        <div class="nv-topbar__user">
+          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
+          <div class="nv-topbar__identity">
+            <span class="ho-ten" id="topbar-ho-ten"></span>
+            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
+          </div>
+          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
+        </div>
+      </header>
+
+      <main class="nv-content">
+        <!-- Banner giới thiệu -->
+        <div class="nv-page-intro">
+          <div class="nv-page-intro__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="7" width="18" height="9" rx="3"/><path d="M7 16v2M17 16v2"/><path d="M3 12h18"/>
+            </svg>
+          </div>
+          <div class="nv-page-intro__body">
+            <p class="nv-page-intro__title">Gán xe cho chuyến (UC-44)</p>
+            <p class="nv-page-intro__desc">Danh sách chuyến xuất phát từ văn phòng bạn phụ trách, cần được gán xe trước giờ khởi hành. Chuyến đỏ = ≤ 48h chưa có xe.</p>
+          </div>
+          <div class="nv-page-intro__stat">
+            <span class="nv-page-intro__stat-num" id="stat-chua-gan">—</span>
+            <span class="nv-page-intro__stat-label">chuyến chưa gán xe</span>
+          </div>
+        </div>
+
+        <!-- Bộ lọc nhanh -->
+        <div class="nv-card" style="padding:14px 20px; margin-bottom:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <label style="font-size:13px; font-weight:600; color:var(--color-text-primary);">Lọc:</label>
+          <button class="dd-filter-btn dd-filter-btn--active" data-filter="all" type="button">Tất cả</button>
+          <button class="dd-filter-btn" data-filter="chua_gan" type="button">⚠ Chưa gán xe</button>
+          <button class="dd-filter-btn" data-filter="da_gan" type="button">✅ Đã gán xe</button>
+          <button class="dd-filter-btn" data-filter="dang_hoan" type="button">⏱ Đang hoãn</button>
+          <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+            <button class="nv-btn-sua" id="btn-job-uc45" type="button" style="border-color:var(--color-primary); background:rgba(245,166,35,0.1); color:var(--color-primary-dark); font-weight:700;" title="Kích hoạt job UC-45: tự động chuyển các chuyến quá giờ chưa có xe sang 'đang hoãn'">
+              ⏱ Quét tự động hoãn (UC-45)
+            </button>
+            <button class="btn-primary" id="btn-lam-moi" type="button" style="padding:8px 18px; font-size:13px;">↻ Làm mới</button>
+          </div>
+        </div>
+
+        <!-- Danh sách chuyến -->
+        <div class="nv-card">
+          <div class="nv-card__header">
+            <h2>
+              Danh sách chuyến
+              <span class="nv-card__count" id="so-chuyen">đang tải...</span>
+            </h2>
+          </div>
+          <div id="bang-chuyen">
+            <div class="nv-table__dang-tai" style="padding:40px; text-align:center;">⏳ Đang tải dữ liệu...</div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal gán xe -->
+  <div class="nv-modal-overlay" id="modal-gan-xe" hidden>
+    <div class="nv-modal" style="max-width:640px;">
+      <div class="nv-modal__header">
+        <div class="nv-modal__header-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="7" width="18" height="9" rx="3"/><path d="M7 16v2M17 16v2"/><path d="M3 12h18"/>
+          </svg>
+        </div>
+        <h2>Chọn xe cho chuyến</h2>
+      </div>
+      <div class="nv-modal__body">
+        <!-- Thông tin chuyến được chọn -->
+        <div id="info-chuyen-chon" class="dd-chuyen-info"></div>
+
+        <p style="font-size:13px; font-weight:600; margin:14px 0 8px; color:var(--color-text-primary);">
+          Danh sách xe đủ điều kiện:
+        </p>
+        <p class="nv-hint">Xe cố định tuyến xếp trước, xe dự phòng xếp sau. Điều kiện: đúng loại xe, không trùng lịch, vị trí hợp lệ.</p>
+
+        <div id="ds-xe-du-dk">
+          <div style="padding:20px; text-align:center; color:var(--color-text-muted);">⏳ Đang tải danh sách xe...</div>
+        </div>
+
+        <div id="loi-gan-xe" class="text-error" hidden style="margin-top:10px;"></div>
+
+        <div class="nv-modal__actions" style="margin-top:16px;">
+          <button type="button" class="nv-btn-secondary" id="btn-huy-modal">Đóng</button>
+          <button type="button" class="btn-primary" id="btn-xac-nhan-gan-xe" disabled>Gán xe đã chọn</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/nhan-vien/dieu-do/api-client.js"></script>
+  <script src="/nhan-vien/dieu-do/auth-check.js"></script>
+  <script src="/nhan-vien/dieu-do/nav.js"></script>
+  <script>
+    // ── Khởi tạo layout ──────────────────────────────────────────────
+    const nguoiDung = yeuCauVaiTro("dieu_do_vien");
+    if (nguoiDung) {
+      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/dieu-do/danh-sach-chuyen.html");
+      renderTopbarUser();
+    }
+    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+
+    // ── State ────────────────────────────────────────────────────────
+    let dsChuyen = [];        // toàn bộ từ API
+    let dsHienThi = [];       // sau khi lọc
+    let filterHienTai = "all";
+    let chuyenDangChon = null;  // {id, ten_tuyen, chieu, gio_khoi_hanh, ten_loai_xe}
+    let xeDangChon = null;      // {id, bien_so}
+
+    // ── Helpers ──────────────────────────────────────────────────────
+    function formatGio(isoStr) {
+      if (!isoStr) return "—";
+      const d = new Date(isoStr);
+      return d.toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" });
+    }
+
+    function tinhConLaiGio(isoStr) {
+      if (!isoStr) return null;
+      const diff = new Date(isoStr) - Date.now();
+      if (diff < 0) return null;
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      return `${h}h ${m}p`;
+    }
+
+    function chieuLabel(chieu) {
+      return chieu === "xuoi" ? "↗ Xuôi" : "↙ Ngược";
+    }
+
+    function trangThaiPill(cx) {
+      if (cx.dang_hoan) return `<span class="dd-pill dd-pill--dark">⏱ ĐANG HOÃN</span>`;
+      if (!cx.xe_id) {
+        const conLai = tinhConLaiGio(cx.gio_khoi_hanh);
+        const khan = conLai && parseInt(conLai) < 48;
+        return `<span class="dd-pill ${khan ? "dd-pill--danger" : "dd-pill--warn"}">Chưa gán xe${conLai ? " · " + conLai : ""}</span>`;
+      }
+      return `<span class="dd-pill dd-pill--success">✓ Đã gán xe</span>`;
+    }
+
+    // ── Render bảng chuyến ───────────────────────────────────────────
+    function renderBangChuyen() {
+      const container = document.getElementById("bang-chuyen");
+
+      // Đếm
+      const chuaGan = dsChuyen.filter(c => !c.xe_id && !c.dang_hoan).length;
+      document.getElementById("stat-chua-gan").textContent = chuaGan;
+      document.getElementById("so-chuyen").textContent = `${dsHienThi.length} chuyến`;
+
+      if (!dsHienThi.length) {
+        container.innerHTML = `
+          <div class="nv-table__empty">
+            <p>Không có chuyến nào${filterHienTai !== "all" ? " phù hợp bộ lọc" : ""}.</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="nv-table-wrap">
+          <table class="nv-table">
+            <thead>
+              <tr>
+                <th>Tuyến / Chiều</th>
+                <th>Giờ khởi hành</th>
+                <th>Loại xe cam kết</th>
+                <th>Xe được gán</th>
+                <th>Trạng thái</th>
+                <th style="width:120px;"></th>
+              </tr>
+            </thead>
+            <tbody id="tbody-chuyen"></tbody>
+          </table>
+        </div>`;
+
+      const tbody = document.getElementById("tbody-chuyen");
+      dsHienThi.forEach(cx => {
+        const tr = document.createElement("tr");
+        if (cx.dang_hoan) tr.classList.add("nv-table__row--hoan");
+        if (!cx.xe_id && !cx.dang_hoan) {
+          const conLai = tinhConLaiGio(cx.gio_khoi_hanh);
+          if (conLai && parseInt(conLai) < 48) tr.classList.add("nv-table__row--khan");
+        }
+        tr.innerHTML = `
+          <td>
+            <strong>${cx.ten_tuyen || "—"}</strong><br>
+            <small style="color:var(--color-text-muted);">${chieuLabel(cx.chieu)}</small>
+          </td>
+          <td>${formatGio(cx.gio_khoi_hanh)}</td>
+          <td>${cx.ten_loai_xe || "—"}</td>
+          <td>${cx.bien_so_xe ? `<code style="font-size:13px; font-weight:700; color:var(--color-secondary-dark);">${cx.bien_so_xe}</code>` : '<span style="color:var(--color-text-muted);">Chưa có</span>'}</td>
+          <td>${trangThaiPill(cx)}</td>
+          <td>
+            <button class="btn-gan-xe nv-btn-sua" data-id="${cx.id}" type="button"
+              ${cx.trang_thai !== "chua_khoi_hanh" ? "disabled title='Chỉ gán được khi chưa khởi hành'" : ""}>
+              Gán xe
+            </button>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+
+      // Gắn sự kiện nút gán xe
+      document.querySelectorAll(".btn-gan-xe").forEach(btn => {
+        if (!btn.disabled) {
+          btn.addEventListener("click", () => moModalGanXe(btn.dataset.id));
+        }
+      });
+    }
+
+    // ── Lọc ────────────────────────────────────────────────────────
+    function apDungFilter(filter) {
+      filterHienTai = filter;
+      if (filter === "chua_gan") dsHienThi = dsChuyen.filter(c => !c.xe_id && !c.dang_hoan);
+      else if (filter === "da_gan") dsHienThi = dsChuyen.filter(c => c.xe_id);
+      else if (filter === "dang_hoan") dsHienThi = dsChuyen.filter(c => c.dang_hoan);
+      else dsHienThi = [...dsChuyen];
+
+      document.querySelectorAll(".dd-filter-btn").forEach(b => {
+        b.classList.toggle("dd-filter-btn--active", b.dataset.filter === filter);
+      });
+      renderBangChuyen();
+    }
+
+    document.querySelectorAll(".dd-filter-btn").forEach(btn => {
+      btn.addEventListener("click", () => apDungFilter(btn.dataset.filter));
+    });
+
+    // ── Tải dữ liệu từ database ──────────────────────────────────────
+    async function taiDanhSachChuyen() {
+      const container = document.getElementById("bang-chuyen");
+      container.innerHTML = `<div class="nv-table__dang-tai" style="padding:40px; text-align:center;">⏳ Đang tải dữ liệu từ database...</div>`;
+      try {
+        const data = await apiGet("/dieu-do/chuyen");
+        dsChuyen = data.chuyen || [];
+        apDungFilter(filterHienTai);
+      } catch (err) {
+        container.innerHTML = `<div class="text-error" style="padding:24px; text-align:center;">Lỗi tải dữ liệu từ server: ${err.message}</div>`;
+      }
+    }
+
+    document.getElementById("btn-lam-moi").addEventListener("click", taiDanhSachChuyen);
+
+    document.getElementById("btn-job-uc45").addEventListener("click", async () => {
+      const btn = document.getElementById("btn-job-uc45");
+      btn.classList.add("is-loading");
+      btn.disabled = true;
+      try {
+        const res = await apiPost("/dieu-do/job-uc45", {});
+        alert(res.thong_bao || "Đã kích hoạt job quét chuyến chưa gán xe (UC-45)!");
+        await taiDanhSachChuyen();
+      } catch (err) {
+        alert("Lỗi khi chạy job UC-45: " + err.message);
+      } finally {
+        btn.classList.remove("is-loading");
+        btn.disabled = false;
+      }
+    });
+
+    // ── Modal gán xe ─────────────────────────────────────────────────
+    async function moModalGanXe(chuyenId) {
+      chuyenDangChon = dsChuyen.find(c => c.id === chuyenId);
+      xeDangChon = null;
+
+      // Hiển thị thông tin chuyến
+      document.getElementById("info-chuyen-chon").innerHTML = `
+        <div class="dd-chuyen-info__row">
+          <span class="dd-chuyen-info__label">Tuyến</span>
+          <span>${chuyenDangChon.ten_tuyen || "—"} · ${chieuLabel(chuyenDangChon.chieu)}</span>
+        </div>
+        <div class="dd-chuyen-info__row">
+          <span class="dd-chuyen-info__label">Giờ khởi hành</span>
+          <span><strong>${formatGio(chuyenDangChon.gio_khoi_hanh)}</strong></span>
+        </div>
+        <div class="dd-chuyen-info__row">
+          <span class="dd-chuyen-info__label">Loại xe cam kết</span>
+          <span>${chuyenDangChon.ten_loai_xe || "—"}</span>
+        </div>
+        ${chuyenDangChon.dang_hoan ? '<div class="dd-chuyen-info__row"><span class="dd-chuyen-info__label">Lưu ý</span><span class="dd-pill dd-pill--dark" style="font-size:12px;">⏱ Đang hoãn — gán xe sẽ tắt cờ hoãn</span></div>' : ""}
+      `;
+
+      document.getElementById("loi-gan-xe").hidden = true;
+      document.getElementById("btn-xac-nhan-gan-xe").disabled = true;
+      document.getElementById("modal-gan-xe").hidden = false;
+
+      // Tải danh sách xe đủ điều kiện từ database
+      const container = document.getElementById("ds-xe-du-dk");
+      container.innerHTML = `<div style="padding:20px; text-align:center; color:var(--color-text-muted);">⏳ Đang tải danh sách xe từ database...</div>`;
+      try {
+        const data = await apiGet(`/dieu-do/chuyen/${chuyenId}/xe-du-dieu-kien`);
+        renderDanhSachXe(data.xe || []);
+      } catch (err) {
+        container.innerHTML = `<div class="text-error">${err.message}</div>`;
+      }
+    }
+
+    function renderDanhSachXe(dsXe) {
+      const container = document.getElementById("ds-xe-du-dk");
+      if (!dsXe.length) {
+        container.innerHTML = `
+          <div class="nv-table__empty" style="padding:24px;">
+            <p>Không tìm được xe đủ điều kiện trong database.<br><small>Kiểm tra lại loại xe, lịch xe, và vị trí xe hiện tại.</small></p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="nv-table-wrap">
+          <table class="nv-table">
+            <thead>
+              <tr>
+                <th style="width:32px;"></th>
+                <th>Biển số</th>
+                <th>Loại xe</th>
+                <th>Điểm gốc</th>
+                <th>Loại</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-xe"></tbody>
+          </table>
+        </div>`;
+
+      const tbody = document.getElementById("tbody-xe");
+      dsXe.forEach(xe => {
+        const tr = document.createElement("tr");
+        tr.style.cursor = "pointer";
+        tr.innerHTML = `
+          <td><input type="radio" name="chon-xe" value="${xe.id}" /></td>
+          <td><strong style="font-size:14px; color:var(--color-secondary-dark);">${xe.bien_so}</strong></td>
+          <td>${xe.ten_loai_xe || "—"}</td>
+          <td>${xe.ten_diem_goc || "—"}</td>
+          <td>${xe.tuyen_id ? '<span class="dd-pill dd-pill--primary" style="font-size:11px;">Cố định</span>' : '<span class="dd-pill dd-pill--muted" style="font-size:11px;">Dự phòng</span>'}</td>`;
+        tbody.appendChild(tr);
+
+        // Click cả hàng để chọn
+        tr.addEventListener("click", () => {
+          const radio = tr.querySelector("input[type=radio]");
+          radio.checked = true;
+          xeDangChon = { id: xe.id, bien_so: xe.bien_so };
+          document.getElementById("btn-xac-nhan-gan-xe").disabled = false;
+          // Highlight hàng đang chọn
+          document.querySelectorAll("#tbody-xe tr").forEach(r => r.style.background = "");
+          tr.style.background = "rgba(91, 62, 150, 0.08)";
+        });
+      });
+    }
+
+    // Gán xe khi bấm xác nhận
+    document.getElementById("btn-xac-nhan-gan-xe").addEventListener("click", async () => {
+      if (!chuyenDangChon || !xeDangChon) return;
+      const btn = document.getElementById("btn-xac-nhan-gan-xe");
+      const loiEl = document.getElementById("loi-gan-xe");
+      loiEl.hidden = true;
+      btn.classList.add("is-loading");
+      btn.disabled = true;
+
+      try {
+        await apiPut(`/dieu-do/chuyen/${chuyenDangChon.id}/gan-xe`, { xe_id: xeDangChon.id });
+        document.getElementById("modal-gan-xe").hidden = true;
+        alert(`Đã gán xe ${xeDangChon.bien_so} cho chuyến ${chuyenDangChon.ten_tuyen} thành công!`);
+        await taiDanhSachChuyen();
+      } catch (err) {
+        loiEl.textContent = err.message;
+        loiEl.hidden = false;
+        btn.disabled = false;
+      } finally {
+        btn.classList.remove("is-loading");
+      }
+    });
+
+    document.getElementById("btn-huy-modal").addEventListener("click", () => {
+      document.getElementById("modal-gan-xe").hidden = true;
+    });
+
+    // ── Khởi động ────────────────────────────────────────────────────
+    taiDanhSachChuyen();
+  </script>
+</body>
+</html>

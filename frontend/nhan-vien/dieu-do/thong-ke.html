@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Thống kê vận hành — Điều độ viên</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/nhan-vien/dieu-do/style.css" />
+</head>
+<body class="nhan-vien-shell">
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
+
+    <div class="nv-main">
+      <header class="nv-topbar">
+        <h1>Thống kê điều độ vận hành</h1>
+        <div class="nv-topbar__user">
+          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
+          <div class="nv-topbar__identity">
+            <span class="ho-ten" id="topbar-ho-ten"></span>
+            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
+          </div>
+          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
+        </div>
+      </header>
+
+      <main class="nv-content">
+        <!-- Banner giới thiệu -->
+        <div class="nv-page-intro">
+          <div class="nv-page-intro__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+          </div>
+          <div class="nv-page-intro__body">
+            <p class="nv-page-intro__title">Báo cáo & Thống kê vận hành (UC-39)</p>
+            <p class="nv-page-intro__desc">
+              Phạm vi thống kê các chuyến xuất phát hoặc đi qua khu vực/tuyến bạn phụ trách. Theo dõi tỷ lệ lấp đầy, số chuyến sự cố và tiến độ gán xe từ database.
+            </p>
+          </div>
+          <div class="nv-page-intro__stat">
+            <span class="nv-page-intro__stat-num" id="stat-ty-le">—</span>
+            <span class="nv-page-intro__stat-label">tỷ lệ lấp đầy TB</span>
+          </div>
+        </div>
+
+        <!-- Bộ lọc thời gian chuẩn form quản lý -->
+        <div class="nv-card" style="padding:16px 24px; margin-bottom:20px;">
+          <form id="form-loc" style="display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap;">
+            <div style="min-width:180px;">
+              <label class="nv-label" for="tu_ngay" style="margin-top:0;">Từ ngày</label>
+              <input class="input-field" type="date" id="tu_ngay" required />
+            </div>
+            <div style="min-width:180px;">
+              <label class="nv-label" for="den_ngay" style="margin-top:0;">Đến ngày</label>
+              <input class="input-field" type="date" id="den_ngay" required />
+            </div>
+            <button class="btn-primary" type="submit" style="padding:10px 22px;">Tra cứu</button>
+            <button class="nv-btn-secondary" id="btn-hom-nay" type="button">Hôm nay</button>
+            <button class="nv-btn-secondary" id="btn-thang-nay" type="button">Tháng này</button>
+            <button class="nv-btn-secondary" id="btn-nam-nay" type="button">Năm nay</button>
+          </form>
+        </div>
+
+        <!-- Grid 6 chỉ số KPI theo Soft Card UI -->
+        <div class="dd-kpi-grid">
+          <div class="dd-kpi-card dd-kpi-card--primary">
+            <p class="dd-kpi-card__title">Tổng số chuyến</p>
+            <div class="dd-kpi-card__num" id="kpi-tong-chuyen">—</div>
+            <div class="dd-kpi-card__desc">Toàn bộ chuyến trong kỳ</div>
+          </div>
+          <div class="dd-kpi-card dd-kpi-card--success">
+            <p class="dd-kpi-card__title">Hoàn thành tốt</p>
+            <div class="dd-kpi-card__num" id="kpi-hoan-thanh" style="color:var(--color-success);">—</div>
+            <div class="dd-kpi-card__desc" id="kpi-ty-le-thanh-cong">Đúng lịch trình</div>
+          </div>
+          <div class="dd-kpi-card dd-kpi-card--danger">
+            <p class="dd-kpi-card__title">Sự cố kỹ thuật & đường</p>
+            <div class="dd-kpi-card__num" id="kpi-su-co" style="color:var(--color-danger);">—</div>
+            <div class="dd-kpi-card__desc">Có ghi nhận sự cố</div>
+          </div>
+          <div class="dd-kpi-card dd-kpi-card--warning">
+            <p class="dd-kpi-card__title">Đang hoãn</p>
+            <div class="dd-kpi-card__num" id="kpi-hoan" style="color:var(--color-primary-dark);">—</div>
+            <div class="dd-kpi-card__desc">Chờ điều phối xe</div>
+          </div>
+          <div class="dd-kpi-card dd-kpi-card--primary">
+            <p class="dd-kpi-card__title">Chưa gán xe</p>
+            <div class="dd-kpi-card__num" id="kpi-chua-gan">—</div>
+            <div class="dd-kpi-card__desc">Cần gán xe trước 48h</div>
+          </div>
+          <div class="dd-kpi-card dd-kpi-card--success">
+            <p class="dd-kpi-card__title">Tỷ lệ lấp đầy</p>
+            <div class="dd-kpi-card__num" id="kpi-lap-day" style="color:var(--color-secondary-dark);">—</div>
+            <div class="dd-kpi-card__desc">Trung bình các tuyến</div>
+          </div>
+        </div>
+
+        <!-- Bảng chi tiết theo từng tuyến -->
+        <div class="nv-card">
+          <div class="nv-card__header">
+            <h2>Hiệu suất vận hành theo từng tuyến</h2>
+          </div>
+          <div id="bang-thong-ke-tuyen-container">
+            <div class="nv-table__dang-tai" style="padding:40px; text-align:center;">⏳ Đang tải số liệu từ database...</div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/nhan-vien/dieu-do/api-client.js"></script>
+  <script src="/nhan-vien/dieu-do/auth-check.js"></script>
+  <script src="/nhan-vien/dieu-do/nav.js"></script>
+  <script src="/nhan-vien/dieu-do/data-table.js"></script>
+  <script>
+    // ── Khởi tạo Layout ──────────────────────────────────────────────
+    const nguoiDung = yeuCauVaiTro("dieu_do_vien");
+    if (nguoiDung) {
+      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/dieu-do/thong-ke.html");
+      renderTopbarUser();
+    }
+    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+
+    // ── Khởi tạo ngày mặc định (tháng này) ──────────────────────────
+    const d = new Date();
+    const dauThang = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split("T")[0];
+    const cuoiThang = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split("T")[0];
+    
+    document.getElementById("tu_ngay").value = dauThang;
+    document.getElementById("den_ngay").value = cuoiThang;
+
+    // Nút nhanh
+    document.getElementById("btn-hom-nay").addEventListener("click", () => {
+      const today = new Date().toISOString().split("T")[0];
+      document.getElementById("tu_ngay").value = today;
+      document.getElementById("den_ngay").value = today;
+      taiThongKe();
+    });
+
+    document.getElementById("btn-thang-nay").addEventListener("click", () => {
+      document.getElementById("tu_ngay").value = dauThang;
+      document.getElementById("den_ngay").value = cuoiThang;
+      taiThongKe();
+    });
+
+    document.getElementById("btn-nam-nay").addEventListener("click", () => {
+      const dauNam = `${d.getFullYear()}-01-01`;
+      const cuoiNam = `${d.getFullYear()}-12-31`;
+      document.getElementById("tu_ngay").value = dauNam;
+      document.getElementById("den_ngay").value = cuoiNam;
+      taiThongKe();
+    });
+
+    // ── Tải số liệu thống kê từ Database ────────────────────────────
+    async function taiThongKe() {
+      const tuNgay = document.getElementById("tu_ngay").value;
+      const denNgay = document.getElementById("den_ngay").value;
+      const containerTable = document.getElementById("bang-thong-ke-tuyen-container");
+
+      try {
+        const data = await apiGet(`/dieu-do/thong-ke?tu_ngay=${tuNgay}&den_ngay=${denNgay}`);
+        if (data) {
+          const tong = data.tong_chuyen || 0;
+          const hoanThanh = data.chuyen_hoan_thanh || 0;
+          const tyLeThanhCong = tong > 0 ? ((hoanThanh / tong) * 100).toFixed(1) : 0;
+
+          document.getElementById("kpi-tong-chuyen").textContent = tong;
+          document.getElementById("kpi-hoan-thanh").textContent = hoanThanh;
+          document.getElementById("kpi-ty-le-thanh-cong").textContent = `Đạt ${tyLeThanhCong}% tổng chuyến`;
+          document.getElementById("kpi-su-co").textContent = data.chuyen_gap_su_co || 0;
+          document.getElementById("kpi-hoan").textContent = data.chuyen_dang_hoan || 0;
+          document.getElementById("kpi-chua-gan").textContent = data.chuyen_chua_gan_xe || 0;
+          document.getElementById("kpi-lap-day").textContent = (data.ty_le_lap_day_trung_binh || 0) + "%";
+          document.getElementById("stat-ty-le").textContent = (data.ty_le_lap_day_trung_binh || 0) + "%";
+
+          const dsTuyen = data.chi_tiet_tuyen || [];
+          if (!dsTuyen.length) {
+            containerTable.innerHTML = `<div class="nv-table__empty"><p>Không có dữ liệu chuyến xe nào trong khoảng thời gian đã chọn.</p></div>`;
+            return;
+          }
+
+          renderDataTable(
+            containerTable,
+            [
+              { key: "ten_tuyen", label: "Tên tuyến", render: (r) => `<strong>${r.ten_tuyen}</strong>` },
+              { key: "tong_chuyen", label: "Tổng chuyến", render: (r) => `<strong>${r.tong_chuyen}</strong>` },
+              { key: "hoan_thanh", label: "Hoàn thành", render: (r) => `<span class="dd-pill dd-pill--success">${r.hoan_thanh} chuyến</span>` },
+              { key: "su_co", label: "Sự cố", render: (r) => r.su_co > 0 ? `<span class="dd-pill dd-pill--danger">${r.su_co} vụ</span>` : '0' },
+              { key: "dang_hoan", label: "Đang hoãn", render: (r) => r.dang_hoan > 0 ? `<span class="dd-pill dd-pill--dark">${r.dang_hoan} chuyến</span>` : '0' },
+            ],
+            dsTuyen
+          );
+        }
+      } catch (e) {
+        containerTable.innerHTML = `<div class="text-error" style="padding:24px; text-align:center;">Lỗi tải dữ liệu: ${e.message}</div>`;
+      }
+    }
+
+    document.getElementById("form-loc").addEventListener("submit", (e) => {
+      e.preventDefault();
+      taiThongKe();
+    });
+
+    // Tải dữ liệu ban đầu
+    taiThongKe();
+  </script>
+</body>
+</html>
