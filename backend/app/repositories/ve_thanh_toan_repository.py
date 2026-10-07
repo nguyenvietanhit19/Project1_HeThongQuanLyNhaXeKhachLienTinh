@@ -132,3 +132,40 @@ def huy_thanh_toan_ngay(ma_dat_cho: str) -> int:
         return so_ve
     finally:
         release_connection(conn)
+
+
+def luu_ma_tham_chieu_vnpay(ma_dat_cho: str, ma_giao_dich: str) -> None:
+    """Ghi lại mã giao dịch của lần tạo đường dẫn thanh toán gần nhất, để sau này hỏi VNPay (querydr) kết quả."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE ve SET ma_tham_chieu_vnpay = %s
+                WHERE ma_dat_cho = %s AND trang_thai = 'giu_cho' AND loai_hinh_thanh_toan = 'thanh_toan_ngay'
+                """,
+                (ma_giao_dich, ma_dat_cho),
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
+def lay_ma_giao_dich_dang_cho() -> list[str]:
+    """Mã giao dịch VNPay của các lượt đang chờ thanh toán còn trong hạn — job hỏi VNPay kết quả cho từng lượt."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT DISTINCT ma_tham_chieu_vnpay FROM ve
+                WHERE trang_thai = 'giu_cho' AND loai_hinh_thanh_toan = 'thanh_toan_ngay'
+                  AND ma_tham_chieu_vnpay IS NOT NULL AND han_giu_cho_den > now()
+                """
+            )
+            return [r[0] for r in cur.fetchall()]
+    finally:
+        release_connection(conn)

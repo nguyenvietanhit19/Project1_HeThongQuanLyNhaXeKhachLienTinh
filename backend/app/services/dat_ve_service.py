@@ -309,9 +309,12 @@ def tao_duong_dan_thanh_toan(nguoi_dung_id: str, ma_dat_cho: str, frontend_origi
     han_thanh_toan = han_thanh_toan_tu_han_giu(min(v["han_giu_cho_den"] for v in ve_online))
     if han_thanh_toan <= bay_gio:
         raise GiaTriLoi("Đã hết thời gian thanh toán, vui lòng đặt lại")
-    return vnpay_service.tao_url_thanh_toan(
-        ma_dat_cho, sum(int(v["gia"]) for v in ve_online), han_thanh_toan, frontend_origin, ip_khach, bay_gio
+    ma_giao_dich = vnpay_service.tao_ma_giao_dich(ma_dat_cho, bay_gio)
+    url = vnpay_service.tao_url_thanh_toan(
+        ma_dat_cho, sum(int(v["gia"]) for v in ve_online), han_thanh_toan, frontend_origin, ip_khach, bay_gio, ma_giao_dich
     )
+    thanh_toan_repo.luu_ma_tham_chieu_vnpay(ma_dat_cho, ma_giao_dich)
+    return url
 
 
 def huy_dat_cho(nguoi_dung_id: str, ma_dat_cho: str) -> dict:
