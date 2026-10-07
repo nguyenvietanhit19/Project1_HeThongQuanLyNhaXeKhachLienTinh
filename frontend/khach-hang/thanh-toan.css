@@ -1,0 +1,172 @@
+/*
+ * Hai trang của luồng thanh toán VNPay (UC-05 nhánh "thanh toán ngay"):
+ *   - cong-thanh-toan-gia.html : cổng thanh toán GIẢ LẬP dùng để demo (đóng vai trang của VNPay)
+ *   - ket-qua-thanh-toan.html  : trang kết quả khách được đưa về sau khi thanh toán
+ * Dùng chung các class .tc-btn / .tc-tom-tat / .tc-xong / .tc-dat-loi của trang-chu.css.
+ */
+
+body.tt-trang {
+  margin: 0;
+  background: var(--color-bg-canvas);
+  font-family: var(--font-body);
+  color: var(--color-text-primary);
+}
+
+.tt-giua {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px 16px;
+  box-sizing: border-box;
+}
+
+.tt-khung {
+  width: 100%;
+  max-width: 480px;
+  padding: 28px 26px 24px;
+  border-radius: var(--radius-card);
+  background: var(--color-bg-surface);
+  box-shadow: 0 24px 60px rgba(20, 20, 30, 0.12);
+}
+
+.tt-giua-ket-qua {
+  display: flex;
+  justify-content: center;
+  padding: 40px 16px 72px;
+}
+
+.tt-giua-ket-qua .tt-khung {
+  max-width: 560px;
+}
+
+.tt-bang {
+  margin: -28px -26px 20px;
+  padding: 10px 16px;
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  background: var(--color-secondary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.tt-tieu-de {
+  margin: 0 0 4px;
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.tt-mo-ta {
+  margin: 0 0 18px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.tt-so-tien {
+  margin: 14px 0;
+  padding: 16px;
+  border-radius: var(--radius-button);
+  background: #F7F6FA;
+  text-align: center;
+}
+
+.tt-so-tien span {
+  display: block;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.tt-so-tien b {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-heading);
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--color-secondary);
+}
+
+.tt-dem {
+  margin: 12px 0 18px;
+  font-size: 14px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.tt-dem b {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+.tt-dem--het b {
+  color: var(--color-danger);
+}
+
+.tt-nut {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tt-lien-ket {
+  display: flex;
+  justify-content: center;
+  margin-top: 18px;
+}
+
+.tt-lien-ket a {
+  text-decoration: none;
+}
+
+.tt-that-bai {
+  text-align: center;
+}
+
+.tt-that-bai__dau {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 68px;
+  height: 68px;
+  margin: 8px auto 12px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--color-danger);
+}
+
+.tt-that-bai__dau svg {
+  width: 34px;
+  height: 34px;
+}
+
+.tt-that-bai h1 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.tt-that-bai p {
+  margin: 8px 0 0;
+  color: var(--color-text-muted);
+}
+
+.tt-trang-thai-ve {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tt-trang-thai-ve--da-tra {
+  background: rgba(34, 197, 94, 0.14);
+  color: #15803D;
+}
+
+.tt-trang-thai-ve--tai-quay {
+  background: rgba(245, 166, 35, 0.18);
+  color: #9A5B00;
+}

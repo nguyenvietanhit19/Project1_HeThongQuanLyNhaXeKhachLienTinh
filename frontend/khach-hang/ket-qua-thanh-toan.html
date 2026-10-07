@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Kết quả thanh toán — GoBus</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/khach-hang/trang-chu.css" />
+<link rel="stylesheet" href="/khach-hang/thanh-toan.css" />
+</head>
+<body class="tt-trang">
+  <header class="tc-nav" id="tc-nav-goc"></header>
+
+  <main class="tt-giua-ket-qua">
+    <div class="tt-khung" id="tt-noi-dung"><div class="tc-khung-xuong" style="height:260px"></div></div>
+  </main>
+
+  <footer class="tc-chan" id="tc-chan-goc"></footer>
+
+  <!-- Cửa sổ "Tài khoản của tôi" (mở từ thanh trên) cần đúng khung này -->
+  <script src="/shared/api-client.js"></script>
+  <script src="/shared/so-dien-thoai.js"></script>
+  <script src="/khach-hang/khung-trang.js"></script>
+  <script src="/khach-hang/ho-so.js"></script>
+  <script>
+    /*
+     * Trang khách được cổng thanh toán đưa về (?vnp_...&vnp_SecureHash=...). Chỉ HIỂN THỊ kết quả: backend kiểm tra chữ ký
+     * rồi mới cho biết thành công hay không. Trạng thái vé không đổi ở đây mà do IPN đã đổi (thanh_toan_service).
+     */
+    const tien = (so) => `${Number(so).toLocaleString("vi-VN")}đ`;
+    const MUI_GIO = "Asia/Ho_Chi_Minh";
+    const gioVN = (iso) => new Intl.DateTimeFormat("vi-VN", { timeZone: MUI_GIO, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
+    const ngayVN = (iso) => new Intl.DateTimeFormat("vi-VN", { timeZone: MUI_GIO, weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(iso));
+    const noiDung = document.getElementById("tt-noi-dung");
+
+    const LY_DO = {
+      "24": "Bạn đã hủy giao dịch thanh toán.",
+      "11": "Đã quá thời gian thanh toán.",
+      "51": "Tài khoản không đủ số dư.",
+    };
+
+    function veThatBai(tieuDe, lyDo) {
+      noiDung.innerHTML = `
+        <div class="tt-that-bai">
+          <div class="tt-that-bai__dau">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </div>
+          <h1>${esc(tieuDe)}</h1>
+          <p>${esc(lyDo)}</p>
+        </div>
+        <div class="tt-lien-ket"><a class="tc-btn tc-btn--chinh" href="/">Về trang chủ để đặt lại</a></div>`;
+    }
+
+    function veThanhCong(d) {
+      const traOnline = d.ve.filter((v) => v.trang_thai === "da_thanh_toan");
+      const taiQuay = d.ve.filter((v) => v.trang_thai !== "da_thanh_toan");
+      const tongOnline = traOnline.reduce((t, v) => t + v.gia, 0);
+      const tongQuay = taiQuay.reduce((t, v) => t + v.gia, 0);
+      noiDung.innerHTML = `
+        <div class="tc-xong">
+          <div class="tc-xong__dau">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>
+          </div>
+          <h2>Thanh toán thành công</h2>
+          <p>Mã đặt chỗ <b class="tc-xong__ma">${esc(d.ma_dat_cho)}</b></p>
+        </div>
+        <div class="tc-tom-tat">
+          <div><span>Chuyến</span><b>${esc(d.chuyen.ten_diem_don)} → ${esc(d.chuyen.ten_diem_tra)}</b></div>
+          <div><span>Giờ đón</span><b>${ngayVN(d.chuyen.gio_don_du_kien)} · ${gioVN(d.chuyen.gio_don_du_kien)}</b></div>
+          ${d.ve
+            .map(
+              (v) => `<div><span>Ghế ${esc(v.so_ghe)}</span><b>${tien(v.gia)} <span class="tt-trang-thai-ve ${v.trang_thai === "da_thanh_toan" ? "tt-trang-thai-ve--da-tra" : "tt-trang-thai-ve--tai-quay"}">${v.trang_thai === "da_thanh_toan" ? "Đã thanh toán" : "Trả tại quầy"}</span></b></div>`
+            )
+            .join("")}
+          <div class="tc-tom-tat__tong"><span>Đã thanh toán</span><b>${tien(tongOnline)}</b></div>
+          ${taiQuay.length ? `<div><span>Còn lại thanh toán tại quầy</span><b>${tien(tongQuay)}</b></div>` : ""}
+        </div>
+        <p class="tc-xong__nhac">Vui lòng ra văn phòng <b>${esc(d.chuyen.ten_diem_don)}</b> trước giờ khởi hành để nhận vé${taiQuay.length ? " và thanh toán phần còn lại" : ""}.</p>
+        <div class="tt-lien-ket"><a class="tc-btn tc-btn--chinh" href="/">Về trang chủ</a></div>`;
+    }
+
+    (async () => {
+      let kq;
+      try {
+        kq = await apiGet(`/thanh-toan/vnpay/ket-qua${location.search}`);
+      } catch (err) {
+        return veThatBai("Chưa kiểm tra được kết quả", err.message);
+      }
+      if (!kq.hop_le) return veThatBai("Kết quả không hợp lệ", "Không xác thực được thông tin trả về từ cổng thanh toán.");
+      if (!kq.thanh_cong) return veThatBai("Thanh toán không thành công", `${LY_DO[kq.ma_phan_hoi] || "Giao dịch không hoàn tất."} Ghế đã được nhả, bạn có thể đặt lại.`);
+      try {
+        veThanhCong(await apiGet(`/ve/dat-cho/${encodeURIComponent(kq.ma_dat_cho)}`));
+      } catch {
+        // Chưa đăng nhập trên trình duyệt này: vẫn báo thành công, không có chi tiết vé
+        noiDung.innerHTML = `
+          <div class="tc-xong">
+            <div class="tc-xong__dau"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></div>
+            <h2>Thanh toán thành công</h2>
+            <p>Mã đặt chỗ <b class="tc-xong__ma">${esc(kq.ma_dat_cho)}</b></p>
+          </div>
+          <div class="tt-lien-ket"><a class="tc-btn tc-btn--chinh" href="/khach-hang/dang-nhap.html">Đăng nhập để xem vé</a></div>`;
+      }
+    })();
+  </script>
+</body>
+</html>
