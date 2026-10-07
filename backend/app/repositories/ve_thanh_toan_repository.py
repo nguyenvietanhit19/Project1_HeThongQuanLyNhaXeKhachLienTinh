@@ -162,10 +162,93 @@ def lay_ma_giao_dich_dang_cho() -> list[str]:
             cur.execute(
                 """
                 SELECT DISTINCT ma_tham_chieu_vnpay FROM ve
-                WHERE trang_thai = 'giu_cho' AND loai_hinh_thanh_toan = 'thanh_toan_ngay'
-                  AND ma_tham_chieu_vnpay IS NOT NULL AND han_giu_cho_den > now()
+                WHERE trang_thai = 'giu_cho' AND ma_tham_chieu_vnpay IS NOT NULL
+                  AND ((loai_hinh_thanh_toan = 'thanh_toan_ngay' AND han_giu_cho_den > now())
+                       OR (loai_hinh_thanh_toan = 'thanh_toan_tai_quay' AND han_giu_cho_den IS NULL))
                 """
             )
             return [r[0] for r in cur.fetchall()]
+    finally:
+        release_connection(conn)
+
+
+# ---------------------------------------------------------
+# Từng vé riêng lẻ (trang Booking): hủy 1 vé, thanh toán riêng 1 vé "thanh toán tại quầy"
+# ---------------------------------------------------------
+def huy_ve_dang_giu(ve_id: str, khach_hang_id: str) -> bool:
+    """Khách tự hủy 1 vé còn đang giữ chỗ (chưa trả tiền): `da_huy`, ghế mở lại ngay. False nếu vé không còn giữ chỗ."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                UPDATE ve v SET trang_thai = 'da_huy', gio_huy = now()
+                WHERE v.id = %s AND v.khach_hang_id = %s AND {_DANG_GIU_CHO}
+                """,
+                (ve_id, khach_hang_id),
+            )
+            da_huy = cur.rowcount == 1
+        conn.commit()
+        return da_huy
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
+def lay_ve_theo_ma_ve(ma_ve: str) -> dict | None:
+    """Vé theo mã vé, KHÔNG lọc theo khách — chỉ dành cho xử lý kết quả của cổng thanh toán (không có đăng nhập)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, ma_ve, ma_dat_cho, gia, trang_thai, loai_hinh_thanh_toan, han_giu_cho_den
+                FROM ve WHERE ma_ve = %s
+                """,
+                (ma_ve,),
+            )
+            ket_qua = _thanh_list(cur, cur.fetchall())
+            return ket_qua[0] if ket_qua else None
+    finally:
+        release_connection(conn)
+
+
+def luu_ma_tham_chieu_vnpay_ve(ve_id: str, ma_giao_dich: str) -> None:
+    """Ghi lại mã giao dịch của lần thanh toán riêng 1 vé gần nhất, để sau này hỏi VNPay (querydr) kết quả."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE ve SET ma_tham_chieu_vnpay = %s WHERE id = %s", (ma_giao_dich, ve_id))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
+def ghi_nhan_thanh_toan_ve_le(ma_ve: str, ma_giao_dich_cong_thanh_toan: str) -> int:
+    """Cổng báo thanh toán thành công cho 1 vé "trả tại quầy" đã chốt (không hạn): → `da_thanh_toan` (`chuyen_khoan`).
+    Trả 1 nếu ghi nhận được, 0 nếu vé không còn ở trạng thái đó (đã hủy/hết hạn/đã trả)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE ve SET trang_thai = 'da_thanh_toan', phuong_thuc_thanh_toan = 'chuyen_khoan',
+                       ma_giao_dich_cong_thanh_toan = %s, gio_thanh_toan = now()
+                WHERE ma_ve = %s AND trang_thai = 'giu_cho' AND loai_hinh_thanh_toan = 'thanh_toan_tai_quay'
+                  AND han_giu_cho_den IS NULL
+                """,
+                (ma_giao_dich_cong_thanh_toan, ma_ve),
+            )
+            so_ve = cur.rowcount
+        conn.commit()
+        return so_ve
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         release_connection(conn)

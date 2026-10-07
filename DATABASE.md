@@ -12,7 +12,7 @@ Tài liệu này mô tả đầy đủ cấu trúc bảng của cơ sở dữ li
 - **Mật khẩu**: cột `mat_khau` luôn lưu giá trị đã băm (bcrypt, giữ nguyên thư viện từ bản v1), không bao giờ lưu plaintext.
 - **Xóa dữ liệu**: hệ thống không xóa cứng (`DELETE`) tài khoản/vé/đơn hàng — khóa/vô hiệu hóa bằng cờ boolean hoặc chuyển trạng thái, giữ lại lịch sử (`NGHIEP_VU.md` mục 8.7 điểm 5: "không xóa vĩnh viễn, giữ lịch sử").
 - **Class Table Inheritance cho `nguoi_dung`**: bảng `nguoi_dung` là bảng cha chung cho mọi vai trò **có tài khoản đăng nhập**; mỗi vai trò có bảng con riêng chứa cột chỉ áp dụng cho vai trò đó — tránh một bảng khổng lồ với hàng loạt cột `NULL` tùy vai trò. **Tài xế không có bảng con trong `nguoi_dung`** vì không có tài khoản (`NGHIEP_VU.md` mục 3.2/8.3) — xem mục 1.3.
-- **Mã hiển thị `ma` (mục 10)**: `khu_vuc`, `diem_don_tra`, `tuyen`, `loai_xe`, `chuyen_xe` có thêm cột `ma` (TEXT NOT NULL UNIQUE) do **trigger BEFORE INSERT tự sinh** — chỉ để người đọc/tra cứu (`NGHIEP_VU.md` mục 3.6), **không thay `id`**: mọi khóa ngoại vẫn trỏ về `id` UUID. Mã không sửa được (trigger BEFORE UPDATE giữ nguyên) và số thứ tự không tái sử dụng.
+- **Mã hiển thị `ma` (mục 10)**: `khu_vuc`, `diem_don_tra`, `tuyen`, `loai_xe`, `chuyen_xe` (và `ve.ma_ve`) có thêm cột mã (TEXT NOT NULL UNIQUE) do **hàm Python tự sinh lúc `INSERT`** (`app/utils/ma_tu_sinh.py`, số thứ tự lấy từ sequence) — chỉ để người đọc/tra cứu (`NGHIEP_VU.md` mục 3.6), **không thay `id`**: mọi khóa ngoại vẫn trỏ về `id` UUID. Mã không sửa được (trigger BEFORE UPDATE giữ nguyên, trừ mã chuyến) và số thứ tự không tái sử dụng.
 - **Không có bảng gán nhân sự theo từng chuyến** (`phan_cong_chuyen`) — quyết định có chủ đích của `NGHIEP_VU.md` mục 3.2: tài xế/phụ xe của 1 chuyến luôn suy ra từ `xe_nhan_su` tại thời điểm truy vấn, không lưu tĩnh.
 - **Không có ràng buộc `UNIQUE(chuyen_id, so_ghe)` trên bảng `ve`** — cố ý: 1 ghế hợp lệ có nhiều vé cùng lúc nếu chặng không giao nhau (`NGHIEP_VU.md` mục 6). Chống trùng ghế thực hiện bằng khóa dòng (`SELECT ... FOR UPDATE`) + kiểm tra overlap ở tầng Service, không phải constraint của DB.
 
@@ -298,6 +298,7 @@ Bảng trung tâm của toàn hệ thống — chịu trách nhiệm cho cơ ch�
 | `ten_khach_vang_lai` | TEXT NULLABLE | Bắt buộc nếu `khach_hang_id IS NULL` (kiểm tra Service) |
 | `sdt_khach_vang_lai` | TEXT NULLABLE | |
 | `gia` | NUMERIC(12,0) NOT NULL | Lấy từ `gia_ve` tại thời điểm đặt (không tính lại nếu `gia_ve` đổi sau đó) |
+| `ma_ve` | TEXT NOT NULL, UNIQUE | Mã riêng của từng vé (1 ghế trên 1 chặng) để khách đọc/tra cứu, dạng `VE000001` — hàm Python sinh từ sequence `ve_ma_seq` (không tái dùng, trigger giữ không sửa được), khác `ma_dat_cho` là mã chung của cả lượt đặt. Cũng là tiền tố mã giao dịch VNPay khi khách trả riêng 1 vé tại quầy |
 | `ma_dat_cho` | TEXT NOT NULL | Nhóm các vé cùng 1 lần đặt (mục 3.4) |
 | `la_ve_dat_coc` | BOOLEAN NOT NULL DEFAULT false | `true` với các vé bị bắt buộc "thanh toán ngay" trong lô >600.000đ (mục 3.4) |
 | `loai_hinh_thanh_toan` | TEXT NOT NULL, CHECK IN (`thanh_toan_ngay`, `thanh_toan_tai_quay`) | Mô tả **kênh/thời điểm trả tiền**, chọn ngay lúc đặt vé — tách biệt khỏi `phuong_thuc_thanh_toan` bên dưới (trả bằng gì). `thanh_toan_tai_quay` dùng chung cho **cả 3 trường hợp**: khách đặt online chọn trả sau, nhân viên quầy vé bán trực tiếp (UC-09), và bán qua hotline (UC-09) — cả 3 đều không áp dụng hạn giữ chỗ nào (mục 3.4/6 `NGHIEP_VU.md`) |
@@ -600,19 +601,24 @@ nguoi_dung(quan_ly_nhan_su) 1──N nhat_ky_quan_ly_nhan_su
 
 ## 10. Mã hiển thị tự sinh (`ma`)
 
-Áp dụng cho 5 bảng: `khu_vuc`, `diem_don_tra`, `tuyen`, `loai_xe`, `chuyen_xe` — quy tắc nghiệp vụ ở `NGHIEP_VU.md` mục 3.6. Cài đặt bằng **trigger** (migration `20260930_1000_them_ma_tu_sinh.sql`) để mọi đường `INSERT` — kể cả code của các thành viên khác — đều tự có mã mà không phải sửa từng repository:
+Áp dụng cho 6 mã: `khu_vuc.ma`, `diem_don_tra.ma`, `tuyen.ma`, `loai_xe.ma`, `chuyen_xe.ma` và `ve.ma_ve` — quy tắc nghiệp vụ ở `NGHIEP_VU.md` mục 3.6. Mã được **hàm Python dựng lúc `INSERT`** (migration `20261008_1100_ma_tu_sinh_bang_ham_python.sql` đã gỡ các trigger sinh mã trước đây):
 
-| Bảng | Cách sinh | Chi tiết |
+- `app/utils/ma_tu_sinh.py`: các hàm thuần `ma_khu_vuc`, `ma_tuyen`, `ma_loai_xe`, `ma_diem_don_tra`, `ma_chuyen`, `ma_ve` — unit test được (`tests/unit/test_ma_tu_sinh.py`). Số đệm 0 bằng định dạng Python nên **không cắt** khi số dài hơn độ rộng (`KV1000`, `VE1000000`).
+- `app/repositories/ma_repository.py`: lấy số thứ tự **trong giao dịch của lệnh INSERT** — sequence của Postgres cho khu vực/tuyến/loại xe/vé (không trùng, không tái dùng kể cả khi nhiều người thêm cùng lúc), `UPDATE khu_vuc SET so_diem_da_cap = so_diem_da_cap + 1 ... RETURNING` cho điểm đón/trả.
+- Mỗi repository tạo bản ghi (`dia_diem_repository`, `xe_repository`, `chuyen_xe_repository`, `ve_lock_repository`) tự điền cột mã. **Cột mã là `NOT NULL UNIQUE` nên INSERT nào quên điền sẽ báo lỗi ngay**, không sinh mã sai.
+
+| Bảng | Dạng mã | Nguồn số / thành phần |
 |---|---|---|
-| `khu_vuc` | `'KV' + lpad(nextval('seq_ma_khu_vuc'), 3, '0')` | sequence toàn cục |
-| `tuyen` | `'T' + lpad(nextval('seq_ma_tuyen'), 3, '0')` | sequence toàn cục |
-| `loai_xe` | `'LX' + lpad(nextval('seq_ma_loai_xe'), 3, '0')` | sequence toàn cục |
-| `diem_don_tra` | `khu_vuc.ma + '-DT' + lpad(so_diem_da_cap, 3, '0')` | `UPDATE khu_vuc SET so_diem_da_cap = so_diem_da_cap + 1 ... RETURNING` **khóa dòng khu vực**, nên 2 người cùng thêm điểm vào 1 khu vực được xếp hàng, không trùng số. Khu vực không tồn tại → lỗi FK (23503) |
-| `chuyen_xe` | `tuyen.ma + '-' + loai_xe.ma + '-' + to_char(gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYMMDD-HH24MI') + '-' + (DI nếu xuoi, VE nếu nguoc)` | gồm cả loại xe vì cùng tuyến/chiều/giờ vẫn có thể có 2 chuyến khác loại xe |
+| `khu_vuc` | `KV001` | sequence `seq_ma_khu_vuc` (toàn cục) |
+| `tuyen` | `T001` | sequence `seq_ma_tuyen` |
+| `loai_xe` | `LX001` | sequence `seq_ma_loai_xe` |
+| `diem_don_tra` | `KV001-DT001` | bộ đếm `khu_vuc.so_diem_da_cap`; `UPDATE ... RETURNING` **khóa dòng khu vực** nên 2 người cùng thêm điểm vào 1 khu vực được xếp hàng, không trùng số. Khu vực không tồn tại → lỗi FK (23503) |
+| `chuyen_xe` | `T001-LX001-261008-0800-DI` | `tuyen.ma` + `loai_xe.ma` + `YYMMDD-HHMM` theo giờ Việt Nam của `gio_khoi_hanh` + `DI` (xuoi) / `VE` (nguoc); gồm cả loại xe vì cùng tuyến/chiều/giờ vẫn có thể có 2 chuyến khác loại xe |
+| `ve` | `VE000001` | sequence `ve_ma_seq` |
 
-- Trigger `BEFORE UPDATE` (`giu_nguyen_ma`) đặt lại `NEW.ma := OLD.ma` — **mã không sửa được** dù truyền vào (áp dụng cho `khu_vuc`, `diem_don_tra`, `tuyen`, `loai_xe`).
-- **Riêng `chuyen_xe`** dùng trigger `cap_nhat_ma_chuyen_xe` (migration `20260930_1100`): mặc định giữ mã cũ, **chỉ tính lại mã** (hàm `tao_ma_chuyen`, cũng là công thức lúc `INSERT`) khi giao dịch có cờ `app.doi_ma_theo_gio = 'on'`. Repository `sua_gio_chuyen` (UC-48) chạy `SET LOCAL app.doi_ma_theo_gio = 'on'` ngay trước `UPDATE`; cờ `SET LOCAL` tự hết hiệu lực khi giao dịch kết thúc. Đường điều độ viên dời giờ lúc `dang_hoan` không bật cờ nên mã không đổi (chuyến khi đó đã có khách).
+- Trigger `BEFORE UPDATE` (`giu_nguyen_ma`, `giu_ma_ve`) đặt lại mã cũ — **mã không sửa được** dù truyền vào (áp dụng cho `khu_vuc`, `diem_don_tra`, `tuyen`, `loai_xe`, `ve`). Đây là ràng buộc dữ liệu, giữ ở DB làm lưới an toàn.
+- **Riêng `chuyen_xe`** không có trigger giữ mã: khi quản lý sửa giờ (UC-48), `chuyen_xe_repository.sua_gio_chuyen` tự dựng lại mã theo giờ mới và `UPDATE` giờ cùng mã trong một lệnh. Đường điều độ viên dời giờ lúc `dang_hoan` không động tới cột `ma` nên mã giữ nguyên (chuyến khi đó đã có khách).
 - Trigger `BEFORE UPDATE` (`chan_doi_khu_vuc_diem`) chặn đổi `diem_don_tra.khu_vuc_id` (lỗi 23514).
 - Số thứ tự sequence/`so_diem_da_cap` **không lùi** khi xóa bản ghi → mã đã cấp không tái sử dụng.
-- Migration điền mã cho dữ liệu có sẵn trước (khu vực theo tỉnh + tên; điểm theo tên trong từng khu vực; tuyến theo `ngay_tao`; loại xe theo tên), đặt lại sequence/bộ đếm, rồi mới `SET NOT NULL` + `UNIQUE`.
+- Migration `20260930_1000` đã điền mã cho dữ liệu có sẵn trước (khu vực theo tỉnh + tên; điểm theo tên trong từng khu vực; tuyến theo `ngay_tao`; loại xe theo tên), đặt lại sequence/bộ đếm, rồi mới `SET NOT NULL` + `UNIQUE`; migration `20261008_1000` đánh số bù `ma_ve` cho vé cũ.
 - Mã chuyến có `UNIQUE`: sau khi sửa giờ, mã mới không thể trùng chuyến khác vì Service đã chặn trùng (loại xe, ngày, giờ) trước khi ghi; `UNIQUE` chỉ còn là lưới an toàn cuối.

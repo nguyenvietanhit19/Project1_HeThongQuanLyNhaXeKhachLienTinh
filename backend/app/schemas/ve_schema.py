@@ -80,6 +80,55 @@ class DatChoResponse(BaseModel):
     cho_phep_huy: bool  # còn trước mốc chốt lên xe tại điểm đón (mục 7)
 
 
+class VeTrongLichSu(BaseModel):
+    """1 vé (1 ghế trên 1 chặng) trong trang Booking."""
+
+    id: UUID
+    ma_ve: str
+    so_ghe: str
+    gia: int
+    trang_thai: str
+    loai_hinh_thanh_toan: str
+    da_thanh_toan: int
+    con_lai: int
+    co_the_huy: bool  # còn giữ chỗ (chưa trả tiền) và trước mốc chốt
+    co_the_thanh_toan: bool  # vé đã chốt "thanh toán tại quầy" — trả online riêng được
+    ten_diem_don: str
+    ten_diem_tra: str
+    gio_don_du_kien: datetime
+    gio_den_du_kien: datetime
+
+
+class ChuyenTrongLichSu(ChuyenTrongDatCho):
+    ten_tuyen: str
+    bien_so: str | None = None  # None: chuyến chưa gán xe
+
+
+class LichSuDatChoResponse(BaseModel):
+    """1 lượt đặt trong trang Booking (lịch sử vé của khách)."""
+
+    ma_dat_cho: str
+    nhom: Literal["sap_di", "da_di", "da_huy"]
+    # sap_di: dang_giu · cho_thanh_toan · dat_thanh_cong_tai_quay · da_thanh_toan · da_len_xe
+    # da_di: da_di · khong_den   |   da_huy: da_huy · het_han · chuyen_bi_huy
+    trang_thai: str
+    chuyen: ChuyenTrongLichSu
+    ve: list[VeTrongLichSu]
+    so_ve: int
+    tong_tien: int
+    da_thanh_toan: int
+    con_lai: int
+    ngay_dat: datetime
+    han_giu_cho_den: datetime | None = None
+    han_thanh_toan: datetime | None = None
+    co_the_tiep_tuc: bool  # còn nằm trong giỏ hàng (đang giữ ghế / chờ trả VNPay) — bấm "Tiếp tục" để hoàn tất
+
+
 class HuyDatChoResponse(BaseModel):
     ma_dat_cho: str
     so_ve_da_huy: int
+
+
+class HuyVeResponse(BaseModel):
+    ma_ve: str
+    trang_thai: str

@@ -23,6 +23,7 @@ from app.config import (
 )
 from app.repositories import ho_so_khach_hang_repository as ho_so_repo
 from app.repositories import ve_lock_repository as lock_repo
+from app.repositories import ve_lich_su_repository as lich_su_repo
 from app.repositories import ve_thanh_toan_repository as thanh_toan_repo
 from app.services import tim_kiem_chuyen_service as tim_kiem
 from app.services import vnpay_service
@@ -235,6 +236,163 @@ def gio_hang(nguoi_dung_id: str) -> list[dict]:
         if dat_cho["trang_thai"] in ("dang_giu", "cho_thanh_toan"):
             ket_qua.append(dat_cho)
     return ket_qua
+
+
+def phan_loai_lich_su(cac_ve: list[dict], bay_gio: datetime.datetime) -> tuple[str, str]:
+    """Trang Booking: xếp 1 lượt đặt vào nhóm `sap_di` / `da_di` / `da_huy` và cho biết nhãn trạng thái hiển thị.
+
+    Nhãn: sap_di → dang_giu · cho_thanh_toan · dat_thanh_cong_tai_quay · da_thanh_toan · da_len_xe;
+          da_di → da_di · khong_den; da_huy → da_huy · het_han · chuyen_bi_huy.
+    Ghế khách đã bỏ (✕) là vé `da_huy` — không tính vào lượt đặt, trừ khi cả lượt đã hủy."""
+    huu_hieu = [v for v in cac_ve if v["trang_thai"] != "da_huy"] or cac_ve
+
+    def trang_thai_ve(v: dict) -> str:
+        het_han = v["trang_thai"] == "giu_cho" and v["han_giu_cho_den"] is not None and v["han_giu_cho_den"] <= bay_gio
+        return "het_han" if het_han else v["trang_thai"]
+
+    cac = {trang_thai_ve(v) for v in huu_hieu}
+    trang_thai_chuyen = huu_hieu[0]["trang_thai_chuyen"]
+    if cac <= {"da_huy", "het_han"}:
+        return "da_huy", "het_han" if "het_han" in cac else "da_huy"
+    if trang_thai_chuyen == "da_huy":
+        return "da_huy", "chuyen_bi_huy"
+    if cac & {"da_xuong_xe", "khong_den"} or trang_thai_chuyen == "hoan_thanh":
+        khong_den = "khong_den" in cac and not cac & {"da_xuong_xe", "da_thanh_toan", "da_len_xe"}
+        return "da_di", "khong_den" if khong_den else "da_di"
+    if "da_len_xe" in cac:
+        return "sap_di", "da_len_xe"
+    return "sap_di", trang_thai_dat_cho(huu_hieu, bay_gio)
+
+
+TRANG_THAI_DA_TRA = ("da_thanh_toan", "da_len_xe", "da_xuong_xe")
+
+
+def _ve_con_giu_cho(v: dict, bay_gio: datetime.datetime) -> bool:
+    return v["trang_thai"] == "giu_cho" and (v["han_giu_cho_den"] is None or v["han_giu_cho_den"] > bay_gio)
+
+
+def tien_da_tra_con_lai(v: dict, bay_gio: datetime.datetime) -> tuple[int, int]:
+    """(đã thanh toán, còn lại) của 1 vé: đã trả thì hết nợ; đang giữ chỗ thì còn nguyên giá; hủy/hết hạn/không đến thì 0/0."""
+    gia = int(v["gia"])
+    if v["trang_thai"] in TRANG_THAI_DA_TRA:
+        return gia, 0
+    if _ve_con_giu_cho(v, bay_gio):
+        return 0, gia
+    return 0, 0
+
+
+def _con_truoc_moc_chot_cua_ve(v: dict, bay_gio: datetime.datetime) -> bool:
+    return v["trang_thai_chuyen"] == "chua_khoi_hanh" and con_truoc_moc_chot(v["gio_don_du_kien"], bay_gio)
+
+
+def ve_huy_duoc(v: dict, nhan_luot: str, bay_gio: datetime.datetime) -> bool:
+    """Khách tự hủy riêng 1 vé khi vé còn giữ chỗ (chưa trả tiền) và còn trước mốc chốt (UC-08). Vé đã trả tiền không tự hủy
+    được (hoàn tiền chỉ theo mục 7). Vé trả VNPay của lượt đang chờ thanh toán thì không hủy lẻ — tổng tiền cổng đã tính."""
+    if not _ve_con_giu_cho(v, bay_gio) or not _con_truoc_moc_chot_cua_ve(v, bay_gio):
+        return False
+    return not (v["loai_hinh_thanh_toan"] == "thanh_toan_ngay" and nhan_luot == "cho_thanh_toan")
+
+
+def ve_thanh_toan_duoc(v: dict, bay_gio: datetime.datetime) -> bool:
+    """Khách trả online riêng 1 vé đã chốt "thanh toán tại quầy" (không hạn giữ chỗ), khi còn trước mốc chốt."""
+    return (
+        v["trang_thai"] == "giu_cho"
+        and v["loai_hinh_thanh_toan"] == "thanh_toan_tai_quay"
+        and v["han_giu_cho_den"] is None
+        and _con_truoc_moc_chot_cua_ve(v, bay_gio)
+    )
+
+
+def lich_su(nguoi_dung_id: str) -> list[dict]:
+    """Trang Booking: mọi lượt đặt gần đây của khách (mới đặt trước), mỗi lượt kèm nhóm + nhãn trạng thái, tiền đã trả/còn
+    lại và danh sách từng vé (mã vé, ghế, giá, đã trả/còn lại, hủy/thanh toán riêng được hay không)."""
+    bay_gio = _bay_gio()
+    theo_luot: dict[str, list[dict]] = {}
+    for v in lich_su_repo.lay_ve_cua_khach(nguoi_dung_id):
+        theo_luot.setdefault(v["ma_dat_cho"], []).append(v)
+    ket_qua = []
+    for ma, cac_ve in theo_luot.items():
+        nhom, nhan = phan_loai_lich_su(cac_ve, bay_gio)
+        huu_hieu = [v for v in cac_ve if v["trang_thai"] != "da_huy"] or cac_ve
+        dau = huu_hieu[0]
+        han = [v["han_giu_cho_den"] for v in huu_hieu if v["trang_thai"] == "giu_cho" and v["han_giu_cho_den"] is not None]
+        han_giu = min(han) if han else None
+        ve_ra = []
+        for v in huu_hieu:
+            da_tra, con_lai = tien_da_tra_con_lai(v, bay_gio)
+            ve_ra.append({
+                "id": v["id"], "ma_ve": v["ma_ve"], "so_ghe": v["so_ghe"], "gia": int(v["gia"]), "trang_thai": v["trang_thai"],
+                "loai_hinh_thanh_toan": v["loai_hinh_thanh_toan"], "da_thanh_toan": da_tra, "con_lai": con_lai,
+                "co_the_huy": ve_huy_duoc(v, nhan, bay_gio), "co_the_thanh_toan": ve_thanh_toan_duoc(v, bay_gio),
+                "ten_diem_don": v["ten_diem_don"], "ten_diem_tra": v["ten_diem_tra"],
+                "gio_don_du_kien": v["gio_don_du_kien"], "gio_den_du_kien": v["gio_den_du_kien"],
+            })
+        ket_qua.append({
+            "ma_dat_cho": ma,
+            "nhom": nhom,
+            "trang_thai": nhan,
+            "chuyen": {
+                "id": dau["chuyen_id"], "ma": dau["ma_chuyen"], "gio_khoi_hanh": dau["gio_khoi_hanh"],
+                "gio_don_du_kien": dau["gio_don_du_kien"], "gio_den_du_kien": dau["gio_den_du_kien"],
+                "ten_loai_xe": dau["ten_loai_xe"], "ten_diem_don": dau["ten_diem_don"], "ten_diem_tra": dau["ten_diem_tra"],
+                "ten_tuyen": dau["ten_tuyen"], "bien_so": dau["bien_so"],
+            },
+            "ve": ve_ra,
+            "so_ve": len(huu_hieu),
+            "tong_tien": sum(int(v["gia"]) for v in huu_hieu),
+            "da_thanh_toan": sum(v["da_thanh_toan"] for v in ve_ra),
+            "con_lai": sum(v["con_lai"] for v in ve_ra),
+            "ngay_dat": min(v["ngay_tao"] for v in cac_ve),
+            "han_giu_cho_den": han_giu,
+            "han_thanh_toan": han_thanh_toan_tu_han_giu(han_giu) if nhan == "cho_thanh_toan" and han_giu else None,
+            "co_the_tiep_tuc": nhan in ("dang_giu", "cho_thanh_toan"),
+        })
+    return ket_qua
+
+
+def _lay_ve_cua_khach(nguoi_dung_id: str, ve_id: str) -> dict:
+    ve = lich_su_repo.lay_ve_theo_id(ve_id, nguoi_dung_id)
+    if not ve:
+        raise GiaTriLoi("Không tìm thấy vé này")
+    return ve
+
+
+def huy_ve(nguoi_dung_id: str, ve_id: str) -> dict:
+    """UC-08 theo từng vé: tự hủy riêng 1 vé còn giữ chỗ (chưa trả tiền) trước mốc chốt; các vé khác của lượt giữ nguyên."""
+    ve = _lay_ve_cua_khach(nguoi_dung_id, ve_id)
+    bay_gio = _bay_gio()
+    if ve["trang_thai"] in TRANG_THAI_DA_TRA:
+        raise GiaTriLoi("Vé đã thanh toán không tự hủy được — vui lòng liên hệ nhà xe")
+    if not _ve_con_giu_cho(ve, bay_gio):
+        raise GiaTriLoi("Vé này không còn ở trạng thái giữ chỗ")
+    if not _con_truoc_moc_chot_cua_ve(ve, bay_gio):
+        raise GiaTriLoi("Đã qua mốc chốt trước giờ lên xe, không thể tự hủy vé nữa")
+    if ve["loai_hinh_thanh_toan"] == "thanh_toan_ngay":
+        cac_ve = lock_repo.lay_dat_cho(ve["ma_dat_cho"], nguoi_dung_id)
+        if trang_thai_dat_cho(cac_ve, bay_gio) == "cho_thanh_toan":
+            raise GiaTriLoi("Lượt đặt đang chờ thanh toán VNPay — hãy hoàn tất thanh toán hoặc hủy cả lượt trong giỏ hàng")
+    if not thanh_toan_repo.huy_ve_dang_giu(str(ve["id"]), nguoi_dung_id):
+        raise GiaTriLoi("Vé này không còn ở trạng thái giữ chỗ")
+    return {"ma_ve": ve["ma_ve"], "trang_thai": "da_huy"}
+
+
+def tao_duong_dan_thanh_toan_ve(nguoi_dung_id: str, ve_id: str, frontend_origin: str, ip_khach: str = "127.0.0.1") -> str:
+    """Đường dẫn sang cổng VNPay để trả riêng 1 vé đã chốt "thanh toán tại quầy". Trả không xong thì vé vẫn là vé trả tại quầy
+    như cũ (không bị hết hạn). Mỗi lần gọi là 1 mã giao dịch mới, gọi lại được."""
+    ve = _lay_ve_cua_khach(nguoi_dung_id, ve_id)
+    bay_gio = _bay_gio()
+    if ve["trang_thai"] in TRANG_THAI_DA_TRA:
+        raise GiaTriLoi("Vé này đã được thanh toán")
+    if not ve_thanh_toan_duoc(ve, bay_gio):
+        raise GiaTriLoi("Vé này không thanh toán online được (không phải vé trả tại quầy đang giữ chỗ, hoặc đã qua mốc chốt)")
+    ma_giao_dich = vnpay_service.tao_ma_giao_dich(ve["ma_ve"], bay_gio)
+    han_thanh_toan = bay_gio + datetime.timedelta(minutes=HAN_THANH_TOAN_NGAY_PHUT)
+    url = vnpay_service.tao_url_thanh_toan(
+        ve["ma_ve"], int(ve["gia"]), han_thanh_toan, frontend_origin, ip_khach, bay_gio, ma_giao_dich,
+        noi_dung=f"Thanh toan ve xe ma ve {ve['ma_ve']}",
+    )
+    thanh_toan_repo.luu_ma_tham_chieu_vnpay_ve(str(ve["id"]), ma_giao_dich)
+    return url
 
 
 def bo_ghe(nguoi_dung_id: str, ma_dat_cho: str, so_ghe: str) -> dict:

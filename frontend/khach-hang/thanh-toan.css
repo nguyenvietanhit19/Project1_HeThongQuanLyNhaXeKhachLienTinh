@@ -7,9 +7,26 @@
 
 body.tt-trang {
   margin: 0;
-  background: var(--color-bg-canvas);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
   font-family: var(--font-body);
   color: var(--color-text-primary);
+}
+
+/* Trang nền sáng có thanh trên + footer (kết quả thanh toán, Booking, Thông báo): thanh trên là dải tím nằm trong luồng
+   trang (không đè lên nội dung như ở trang chủ), phần nội dung giãn ra để footer luôn dính đáy */
+body.tt-trang .tc-nav {
+  position: static;
+  max-width: none;
+  margin: 0;
+  padding: 14px max(20px, calc((100% - 1120px) / 2 + 20px));
+  background: linear-gradient(135deg, var(--color-secondary-dark) 0%, var(--color-secondary) 100%);
+}
+
+body.tt-trang .tc-chan {
+  margin-top: 0;
 }
 
 .tt-giua {
@@ -26,13 +43,16 @@ body.tt-trang {
   max-width: 480px;
   padding: 28px 26px 24px;
   border-radius: var(--radius-card);
+  border: 1px solid #E6E3EF;
   background: var(--color-bg-surface);
-  box-shadow: 0 24px 60px rgba(20, 20, 30, 0.12);
+  box-shadow: 0 12px 36px rgba(63, 43, 107, 0.1);
 }
 
 .tt-giua-ket-qua {
+  flex: 1;
   display: flex;
   justify-content: center;
+  align-items: flex-start;
   padding: 40px 16px 72px;
 }
 

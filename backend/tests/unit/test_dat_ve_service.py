@@ -23,6 +23,7 @@ def _ve(so_ghe="1", gia=100000, trang_thai="giu_cho", han=None, loai="thanh_toan
         "khu_vuc_di_id": "kvA", "khu_vuc_den_id": "kvC", "ten_loai_xe": "Xe thường", "gio_bat_dau_dem_han": None,
         "gio_don_du_kien": gio_don or BAY_GIO + datetime.timedelta(hours=24),
         "gio_den_du_kien": BAY_GIO + datetime.timedelta(hours=30),
+        "ma_ve": f"VE0000{so_ghe}", "ten_tuyen": "Hà Nội - Vinh", "bien_so": "29B-123.45", "gio_thanh_toan": None,
     }
     v.update(kw)
     return v

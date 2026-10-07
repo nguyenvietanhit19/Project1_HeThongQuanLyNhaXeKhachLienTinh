@@ -7,6 +7,8 @@ từ góc nhìn quản lý (UC-18, cuối file — gọi từ lich_chay_service.
 """
 
 from app.db import get_connection, release_connection
+from app.repositories import ma_repository
+from app.utils import ma_tu_sinh
 
 
 def _thanh_dict(cur, row):
@@ -238,12 +240,14 @@ def tao_chuyen_tu_lich_dinh_ky(tuyen_id: str, chieu: str, loai_xe_id: str, lich_
     conn = get_connection()
     try:
         with conn.cursor() as cur:
+            ma_tuyen, ma_loai_xe = ma_repository.lay_ma_tuyen_va_loai_xe(cur, tuyen_id, loai_xe_id)
             cur.execute(
                 """
-                INSERT INTO chuyen_xe (tuyen_id, chieu, loai_xe_id, lich_chay_dinh_ky_id, gio_khoi_hanh)
-                VALUES (%s, %s, %s, %s, %s) RETURNING id
+                INSERT INTO chuyen_xe (ma, tuyen_id, chieu, loai_xe_id, lich_chay_dinh_ky_id, gio_khoi_hanh)
+                VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
                 """,
-                (tuyen_id, chieu, loai_xe_id, lich_chay_dinh_ky_id, gio_khoi_hanh),
+                (ma_tu_sinh.ma_chuyen(ma_tuyen, ma_loai_xe, gio_khoi_hanh, chieu), tuyen_id, chieu, loai_xe_id,
+                 lich_chay_dinh_ky_id, gio_khoi_hanh),
             )
             chuyen_id = cur.fetchone()[0]
         conn.commit()
@@ -348,14 +352,21 @@ def tim_trung_loai_xe_va_gio(loai_xe_id: str, gio_khoi_hanh, tru_id: str) -> boo
 
 
 def sua_gio_chuyen(chuyen_id: str, gio_khoi_hanh) -> None:
-    """Quản lý sửa giờ (UC-48): đổi cả mã chuyến theo giờ mới. Cờ SET LOCAL chỉ sống trong giao dịch
-    này — mọi đường khác đổi gio_khoi_hanh (VD điều độ viên dời giờ khi đang hoãn) không bật cờ nên
-    mã chuyến giữ nguyên (trigger cap_nhat_ma_chuyen_xe, migration 20260930_1100)."""
+    """Quản lý sửa giờ (UC-48): đổi cả mã chuyến theo giờ mới (dựng lại bằng ma_tu_sinh.ma_chuyen). Chỉ đường này
+    đổi mã — mọi đường khác đổi gio_khoi_hanh (VD điều độ viên dời giờ khi đang hoãn) không động tới cột ma
+    nên mã chuyến giữ nguyên."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SET LOCAL app.doi_ma_theo_gio = 'on'")
-            cur.execute("UPDATE chuyen_xe SET gio_khoi_hanh = %s WHERE id = %s", (gio_khoi_hanh, chuyen_id))
+            cur.execute("SELECT tuyen_id, loai_xe_id, chieu FROM chuyen_xe WHERE id = %s FOR UPDATE", (chuyen_id,))
+            dong = cur.fetchone()
+            if dong is None:
+                return
+            ma_tuyen, ma_loai_xe = ma_repository.lay_ma_tuyen_va_loai_xe(cur, dong[0], dong[1])
+            cur.execute(
+                "UPDATE chuyen_xe SET gio_khoi_hanh = %s, ma = %s WHERE id = %s",
+                (gio_khoi_hanh, ma_tu_sinh.ma_chuyen(ma_tuyen, ma_loai_xe, gio_khoi_hanh, dong[2]), chuyen_id),
+            )
         conn.commit()
     except Exception:
         conn.rollback()

@@ -70,6 +70,11 @@ def tao_ma_giao_dich(ma_dat_cho: str, bay_gio: datetime.datetime) -> str:
     return f"{ma_dat_cho}-{dinh_dang_gio_vn(bay_gio)}"
 
 
+def la_giao_dich_cua_ve(ma_giao_dich: str) -> bool:
+    """Giao dịch thanh toán riêng 1 vé (tiền tố là mã vé `VE…`) — khác giao dịch của cả lượt đặt (tiền tố mã đặt chỗ `DC…`)."""
+    return str(ma_giao_dich).startswith("VE")
+
+
 def ma_dat_cho_tu_ma_giao_dich(ma_giao_dich: str) -> str:
     return str(ma_giao_dich).split("-", 1)[0]
 
@@ -82,6 +87,7 @@ def tao_url_thanh_toan(
     ip_khach: str,
     bay_gio: datetime.datetime | None = None,
     ma_giao_dich: str | None = None,
+    noi_dung: str | None = None,
 ) -> str:
     bay_gio = bay_gio or datetime.datetime.now(datetime.timezone.utc)
     origin = kiem_tra_origin_frontend(origin_frontend)
@@ -94,7 +100,7 @@ def tao_url_thanh_toan(
         "vnp_CurrCode": "VND",
         "vnp_IpAddr": ip_khach,
         "vnp_Locale": "vn",
-        "vnp_OrderInfo": f"Thanh toan ve xe ma dat cho {ma_dat_cho}",
+        "vnp_OrderInfo": noi_dung or f"Thanh toan ve xe ma dat cho {ma_dat_cho}",
         "vnp_OrderType": "other",
         "vnp_ReturnUrl": origin + TRANG_KET_QUA,
         "vnp_TxnRef": ma_giao_dich or tao_ma_giao_dich(ma_dat_cho, bay_gio),

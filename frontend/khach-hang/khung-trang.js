@@ -132,7 +132,7 @@ function veNav() {
     <div class="tc-popup-goc">
       <button type="button" class="tc-nut-nav tc-nut-nav--hotline" id="btn-hotline" aria-haspopup="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z"/></svg>
-        Hotline 24/7
+        <span class="tc-nut-nav__chu">Hotline 24/7</span>
       </button>
       <div class="tc-popup tc-popup--hotline" id="popup-hotline" hidden>
         <a class="tc-popup__so" href="tel:${SO_HOTLINE}">${SO_HOTLINE}</a>
@@ -140,15 +140,22 @@ function veNav() {
       </div>
     </div>`;
 
+  // Các mục chính trên màn hình lớn (điện thoại dùng thanh dưới thay thế, CSS ẩn nhóm này ở ≤700px)
+  const duongHienTai = location.pathname.replace(/index\.html$/, "");
+  const lienKet = (href, nhan) => `<a class="tc-lk${duongHienTai === href ? " is-active" : ""}" href="${href}"${duongHienTai === href ? ' aria-current="page"' : ""}>${nhan}</a>`;
+  const cacMuc = `<div class="tc-nav__lien-ket">${lienKet("/", "Trang chủ")}${lienKet("/khach-hang/ve-cua-toi.html", "Booking")}${lienKet("/khach-hang/thong-bao.html", "Thông báo")}</div>`;
+
   const dangNhap = localStorage.getItem("token") && localStorage.getItem("vai_tro") === "khach_hang";
   if (!dangNhap) {
-    navPhai.innerHTML = `${hotline}<a class="tc-nut-nav tc-nut-nav--chinh" href="/khach-hang/dang-nhap.html">Đăng nhập</a>`;
+    navPhai.innerHTML = `${cacMuc}${hotline}<a class="tc-nut-nav tc-nut-nav--chinh tc-nav__nguoi-dung" href="/khach-hang/dang-nhap.html">Đăng nhập</a>`;
     ganPopup("btn-hotline", "popup-hotline");
+    veDayNav();
     return;
   }
 
   const ten = (localStorage.getItem("ho_ten") || "bạn").trim().split(/\s+/).slice(-1)[0];
   navPhai.innerHTML = `
+    ${cacMuc}
     ${hotline}
     <div class="tc-popup-goc">
       <button type="button" class="tc-nut-nav tc-nut-nav--gio" id="btn-gio-hang" aria-haspopup="true" aria-label="Giỏ hàng">
@@ -158,7 +165,7 @@ function veNav() {
       </button>
       <div class="tc-popup tc-popup--gio" id="popup-gio-hang" hidden></div>
     </div>
-    <div class="tc-popup-goc">
+    <div class="tc-popup-goc tc-nav__nguoi-dung">
       <button type="button" class="tc-nut-nav" id="btn-menu-nguoi-dung" aria-haspopup="true">Xin chào, ${esc(ten)}</button>
       <div class="tc-popup tc-popup--menu" id="menu-nguoi-dung" hidden>
         <button type="button" id="btn-ho-so">Tài khoản của tôi</button>
@@ -174,12 +181,62 @@ function veNav() {
     dongMoiPopup();
     moHoSo();
   });
-  document.getElementById("btn-dang-xuat").addEventListener("click", () => {
-    ["token", "vai_tro", "ho_ten"].forEach((k) => localStorage.removeItem(k));
-    clearInterval(ghDongHo);
-    ghDanhSach = [];
-    veNav();
-  });
+  document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+  veDayNav();
+}
+
+function dangXuat() {
+  ["token", "vai_tro", "ho_ten"].forEach((k) => localStorage.removeItem(k));
+  clearInterval(ghDongHo);
+  ghDanhSach = [];
+  veNav();
+}
+
+// ---------- Thanh điều hướng dưới (chỉ hiện trên điện thoại, CSS .tc-day-nav ở trang-chu.css) ----------
+const BIEU_TUONG_DAY_NAV = {
+  trangChu: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/><path d="M10 20v-5.5h4V20"/>',
+  booking: '<path d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2.2a2 2 0 0 0 0 3.6V16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2.2a2 2 0 0 0 0-3.6Z"/><path d="M14 6v12" stroke-dasharray="2 2.5"/>',
+  thongBao: '<path d="M6 17V11a6 6 0 1 1 12 0v6l1.5 2h-15Z"/><path d="M10 21a2 2 0 0 0 4 0"/>',
+  taiKhoan: '<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c.8-3.6 3.7-5.5 7.5-5.5s6.7 1.9 7.5 5.5"/>',
+};
+const bieuTuongDayNav = (ten) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${BIEU_TUONG_DAY_NAV[ten]}</svg>`;
+
+function veDayNav() {
+  let nav = document.getElementById("tc-day-nav");
+  if (!nav) {
+    nav = document.createElement("nav");
+    nav.id = "tc-day-nav";
+    nav.className = "tc-day-nav";
+    nav.setAttribute("aria-label", "Điều hướng chính");
+    document.body.appendChild(nav);
+    document.body.classList.add("co-day-nav");
+  }
+  const duong = location.pathname.replace(/index\.html$/, "");
+  const muc = (href, ten, nhan, bieuTuong) =>
+    `<a class="tc-day-nav__muc${duong === href ? " is-active" : ""}" href="${href}"${duong === href ? ' aria-current="page"' : ""}>${bieuTuongDayNav(bieuTuong)}<span>${nhan}</span></a>`;
+  const dangNhap = localStorage.getItem("token") && localStorage.getItem("vai_tro") === "khach_hang";
+  const taiKhoan = dangNhap
+    ? `<div class="tc-popup-goc">
+         <button type="button" class="tc-day-nav__muc" id="btn-day-nav-tai-khoan" aria-haspopup="true">${bieuTuongDayNav("taiKhoan")}<span>Tài khoản</span></button>
+         <div class="tc-popup tc-popup--menu" id="menu-day-nav" hidden>
+           <button type="button" id="btn-ho-so-day-nav">Tài khoản của tôi</button>
+           <button type="button" id="btn-dang-xuat-day-nav">Đăng xuất</button>
+         </div>
+       </div>`
+    : `<a class="tc-day-nav__muc" href="/khach-hang/dang-nhap.html">${bieuTuongDayNav("taiKhoan")}<span>Tài khoản</span></a>`;
+  nav.innerHTML =
+    muc("/", "Trang chủ", "Trang chủ", "trangChu") +
+    muc("/khach-hang/ve-cua-toi.html", "Booking", "Booking", "booking") +
+    muc("/khach-hang/thong-bao.html", "Thông báo", "Thông báo", "thongBao") +
+    taiKhoan;
+  if (dangNhap) {
+    ganPopup("btn-day-nav-tai-khoan", "menu-day-nav");
+    document.getElementById("btn-ho-so-day-nav").addEventListener("click", () => {
+      dongMoiPopup();
+      if (typeof moHoSo === "function") moHoSo();
+    });
+    document.getElementById("btn-dang-xuat-day-nav").addEventListener("click", dangXuat);
+  }
 }
 document.addEventListener("click", dongMoiPopup);
 document.addEventListener("keydown", (e) => {
