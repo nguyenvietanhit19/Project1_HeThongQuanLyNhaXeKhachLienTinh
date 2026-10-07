@@ -10,7 +10,7 @@ body.tt-trang {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--color-bg-canvas);
+  background: #fff;
   font-family: var(--font-body);
   color: var(--color-text-primary);
 }
@@ -43,8 +43,9 @@ body.tt-trang .tc-chan {
   max-width: 480px;
   padding: 28px 26px 24px;
   border-radius: var(--radius-card);
+  border: 1px solid #E6E3EF;
   background: var(--color-bg-surface);
-  box-shadow: 0 24px 60px rgba(20, 20, 30, 0.12);
+  box-shadow: 0 12px 36px rgba(63, 43, 107, 0.1);
 }
 
 .tt-giua-ket-qua {
