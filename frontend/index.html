@@ -43,10 +43,13 @@
         </div>
 
         <div class="tc-truong tc-truong--ngay">
-          <label class="tc-truong__nhan" for="o-ngay">Ngày đi</label>
-          <div class="tc-truong__o">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="2.5"/><path d="M3.5 9h17M8 3v3M16 3v3"/></svg>
-            <input type="date" id="o-ngay" />
+          <label class="tc-truong__nhan" for="o-ngay-hien">Ngày đi</label>
+          <div class="tc-truong__o tc-truong__o--ngay">
+            <button type="button" class="tc-ngay-lich" id="btn-lich" aria-label="Chọn ngày từ lịch">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="2.5"/><path d="M3.5 9h17M8 3v3M16 3v3"/></svg>
+            </button>
+            <input type="text" id="o-ngay-hien" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" autocomplete="off" />
+            <input type="date" id="o-ngay" class="tc-ngay-goc" tabindex="-1" aria-hidden="true" />
           </div>
         </div>
 

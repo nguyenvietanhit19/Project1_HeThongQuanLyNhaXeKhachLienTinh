@@ -270,6 +270,33 @@ body.tc-trang {
   color: var(--color-text-primary);
 }
 
+/* Ô ngày: hiển thị dd/mm/yyyy bằng ô chữ riêng (ô date gốc theo ngôn ngữ trình duyệt nên ra mm/dd/yyyy);
+   ô date gốc chỉ giữ giá trị và mở lịch chọn ngày */
+.tc-truong__o--ngay {
+  position: relative;
+}
+
+.tc-ngay-lich {
+  flex: none;
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.tc-truong__o input.tc-ngay-goc {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  flex: none;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .tc-truong__o input::placeholder {
   font-weight: 500;
   color: #A1A1AA;
@@ -2095,5 +2122,287 @@ body.tc-trang {
     right: 16px;
     left: 16px;
     width: auto;
+  }
+}
+
+/* =====================================================================
+   Responsive — điện thoại / máy tính bảng (đợt 1)
+   Điện thoại ≤700px: thanh điều hướng dưới (.tc-day-nav), thanh trên chỉ còn logo + hotline + giỏ hàng.
+   Máy tính bảng 701–1024px: giữ thanh trên, thu gọn khoảng cách.
+   ===================================================================== */
+.tc-day-nav {
+  display: none;
+}
+
+/* Các mục chính trên thanh trên (màn hình lớn) */
+.tc-nav__lien-ket {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 8px;
+}
+
+.tc-lk {
+  position: relative;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tc-lk:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.tc-lk.is-active {
+  color: #fff;
+}
+
+.tc-lk.is-active::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 2px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--color-primary);
+}
+
+.tc-lk,
+.tc-nut-nav {
+  white-space: nowrap;
+}
+
+@media (max-width: 1024px) {
+  /* Máy tính bảng: nút Hotline và Giỏ hàng chỉ còn biểu tượng cho vừa 1 hàng */
+  .tc-nut-nav--hotline,
+  .tc-nut-nav--gio {
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .tc-nut-nav--hotline svg,
+  .tc-nut-nav--gio svg {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+  }
+
+  .tc-nut-nav--hotline .tc-nut-nav__chu,
+  .tc-nut-nav--gio .tc-nut-nav__chu {
+    display: none;
+  }
+
+  .tc-noi-dung {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .tc-modal__hop {
+    max-width: min(760px, 100%);
+  }
+}
+
+@media (max-width: 700px) {
+  /* Chống tràn ngang: ô lưới/flex không được rộng hơn màn hình vì nội dung dài */
+  .tc-chuyen {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tc-gio {
+    grid-template-columns: minmax(0, 1fr) 56px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .tc-gio__moc:last-child {
+    text-align: right;
+  }
+
+  .tc-gio__moc small {
+    max-width: none;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .tc-chuyen__phai {
+    min-width: 0;
+  }
+
+  .tc-kq__sap-xep {
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .tc-kq__sap-xep::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tc-kq__sap-xep > * {
+    flex: 1 0 auto;
+    padding-left: 9px;
+    padding-right: 9px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .tc-so-do__diem {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tc-so-do__diem li span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* Các bước ①②③: chỉ bước đang làm hiện tên, các bước khác chỉ còn số — vừa 1 hàng trên màn hình hẹp */
+  .tc-buoc {
+    gap: 6px;
+  }
+
+  .tc-buoc li {
+    padding-right: 8px;
+  }
+
+  .tc-buoc li:not(.is-active) span {
+    display: none;
+  }
+
+  .tc-buoc li.is-active {
+    padding-right: 12px;
+  }
+
+  .tc-dat-thanh {
+    margin-left: -16px;
+    margin-right: -16px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  /* Thanh trên: logo + hotline (chỉ biểu tượng) + giỏ hàng (chỉ biểu tượng); phần còn lại nằm ở thanh dưới */
+  .tc-nut-nav--hotline,
+  .tc-nut-nav--gio {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .tc-nut-nav--hotline svg,
+  .tc-nut-nav--gio svg {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+  }
+
+  .tc-nut-nav--hotline .tc-nut-nav__chu,
+  .tc-nut-nav--gio .tc-nut-nav__chu {
+    display: none;
+  }
+
+  .tc-nav__nguoi-dung {
+    display: none;
+  }
+
+  .tc-nav__lien-ket {
+    display: none;
+  }
+
+  /* Thanh điều hướng dưới */
+  body.co-day-nav {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+
+  .tc-day-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+    background: var(--color-bg-surface);
+    border-top: 1px solid #ECECF0;
+    box-shadow: 0 -6px 20px rgba(20, 20, 30, 0.08);
+  }
+
+  .tc-day-nav__muc {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 50px;
+    padding: 4px 2px;
+    border: 0;
+    border-radius: 14px;
+    background: transparent;
+    color: var(--color-text-muted);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .tc-day-nav__muc svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .tc-day-nav__muc.is-active {
+    color: var(--color-secondary);
+  }
+
+  .tc-day-nav__muc.is-active::before {
+    content: "";
+    position: absolute;
+    top: -7px;
+    width: 28px;
+    height: 3px;
+    border-radius: 0 0 3px 3px;
+    background: var(--color-primary);
+  }
+
+  /* Menu tài khoản mở từ tab "Tài khoản" bật lên phía trên thanh dưới */
+  .tc-day-nav .tc-popup-goc {
+    display: flex;
+  }
+
+  .tc-day-nav .tc-popup-goc > .tc-day-nav__muc {
+    flex: 1;
+  }
+
+  .tc-day-nav .tc-popup {
+    top: auto;
+    bottom: calc(100% + 10px);
+    right: 8px;
+  }
+
+  .tc-day-nav .tc-popup::before {
+    display: none;
+  }
+
+  .tc-popup--gio {
+    position: fixed;
+    top: 64px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+  }
+
+  .tc-popup--hotline {
+    right: 0;
   }
 }

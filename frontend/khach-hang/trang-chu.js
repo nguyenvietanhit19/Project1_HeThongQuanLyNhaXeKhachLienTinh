@@ -191,7 +191,8 @@ function taoCombo(goc, { loaiTru = () => null } = {}) {
 }
 
 // ---------- Trạng thái trang ----------
-const oNgay = document.getElementById("o-ngay");
+const oNgay = document.getElementById("o-ngay"); // giá trị thật (yyyy-mm-dd), ẩn
+const oNgayHien = document.getElementById("o-ngay-hien"); // ô khách thấy và gõ: dd/mm/yyyy
 const vungKetQua = document.getElementById("tc-ket-qua");
 const oLoiTim = document.getElementById("tc-loi-tim");
 const btnTim = document.getElementById("btn-tim");
@@ -211,7 +212,30 @@ function baoLoiTim(noiDung) {
 }
 
 // ---------- Chip chọn nhanh ngày ----------
+const ngayHien = (iso) => (iso ? iso.split("-").reverse().join("/") : "");
+
+// Gõ dd/mm/yyyy (tự thêm dấu /); đủ 8 chữ số và là ngày thật, không ở quá khứ thì mới nhận vào ô giá trị
+function docNgayGo() {
+  const so = oNgayHien.value.replace(/\D/g, "").slice(0, 8);
+  oNgayHien.value = [so.slice(0, 2), so.slice(2, 4), so.slice(4, 8)].filter(Boolean).join("/");
+  if (so.length < 8) return;
+  const [d, m, y] = [+so.slice(0, 2), +so.slice(2, 4), +so.slice(4, 8)];
+  const thu = new Date(y, m - 1, d);
+  if (thu.getFullYear() !== y || thu.getMonth() !== m - 1 || thu.getDate() !== d) return;
+  const iso = `${y}-${pad2(m)}-${pad2(d)}`;
+  if (iso < homNayVN()) return;
+  oNgay.value = iso;
+  veChipNgay();
+}
+oNgayHien.addEventListener("input", docNgayGo);
+oNgayHien.addEventListener("blur", () => (oNgayHien.value = ngayHien(oNgay.value))); // gõ dở hoặc sai thì quay về ngày đang chọn
+document.getElementById("btn-lich").addEventListener("click", () => {
+  if (oNgay.showPicker) oNgay.showPicker();
+  else oNgay.focus();
+});
+
 function veChipNgay() {
+  if (document.activeElement !== oNgayHien) oNgayHien.value = ngayHien(oNgay.value);
   const hom = homNayVN();
   const nhanh = [
     { ngay: hom, nhan: "Hôm nay" },
@@ -527,7 +551,7 @@ const dauDatCho = (d) => `
 
 const buocDat = (dang) => {
   const ten = ["Chọn ghế", "Điểm đón, điểm trả", "Thanh toán"];
-  return `<ol class="tc-buoc">${ten.map((t, i) => `<li class="${i + 1 === dang ? "is-active" : i + 1 < dang ? "is-xong" : ""}"><b>${i + 1}</b>${t}</li>`).join("")}</ol>`;
+  return `<ol class="tc-buoc">${ten.map((t, i) => `<li class="${i + 1 === dang ? "is-active" : i + 1 < dang ? "is-xong" : ""}"><b>${i + 1}</b><span>${t}</span></li>`).join("")}</ol>`;
 };
 
 // ----- Bước 1: chọn ghế (chưa khóa gì) -----
