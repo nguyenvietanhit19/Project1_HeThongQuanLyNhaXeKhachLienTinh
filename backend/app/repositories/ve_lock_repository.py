@@ -11,6 +11,8 @@ services/dat_ve_service.py.
 """
 
 from app.db import get_connection, release_connection
+from app.repositories import ma_repository
+from app.utils import ma_tu_sinh
 from app.utils.loi import GiaTriLoi
 
 # Vé đang chiếm ghế: đã trả tiền, hoặc đang giữ chỗ mà chưa hết hạn (hạn NULL = "thanh toán tại quầy", không hạn).
@@ -106,13 +108,14 @@ def giu_ghe(
             for so_ghe in danh_sach_ghe:
                 cur.execute(
                     """
-                    INSERT INTO ve (chuyen_id, so_ghe, diem_don_id, diem_tra_id, khach_hang_id, gia, ma_dat_cho,
+                    INSERT INTO ve (ma_ve, chuyen_id, so_ghe, diem_don_id, diem_tra_id, khach_hang_id, gia, ma_dat_cho,
                                     loai_hinh_thanh_toan, trang_thai, han_giu_cho_den)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, 'thanh_toan_ngay', 'giu_cho',
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'thanh_toan_ngay', 'giu_cho',
                             now() + make_interval(mins => %s))
                     RETURNING id, so_ghe, gia, han_giu_cho_den
                     """,
-                    (chuyen_id, so_ghe, diem_don_id, diem_tra_id, khach_hang_id, gia, ma_dat_cho, han_giu_tam_phut),
+                    (ma_tu_sinh.ma_ve(ma_repository.so_tiep_theo(cur, "ve")), chuyen_id, so_ghe, diem_don_id, diem_tra_id,
+                     khach_hang_id, gia, ma_dat_cho, han_giu_tam_phut),
                 )
                 ve_tao.append(_thanh_list(cur, [cur.fetchone()])[0])
         conn.commit()

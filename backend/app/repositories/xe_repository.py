@@ -6,6 +6,8 @@ Không chứa quy tắc nghiệp vụ — việc đó thuộc services/xe_servic
 import json
 
 from app.db import get_connection, release_connection
+from app.repositories import ma_repository
+from app.utils import ma_tu_sinh
 
 
 def _thanh_dict(cur, row):
@@ -27,13 +29,14 @@ def tao_loai_xe(ten: str, he_so_gia, so_do_ghe: list[dict]) -> dict:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
+            ma = ma_tu_sinh.ma_loai_xe(ma_repository.so_tiep_theo(cur, "loai_xe"))
             cur.execute(
                 """
-                INSERT INTO loai_xe (ten, he_so_gia, so_do_ghe)
-                VALUES (%s, %s, %s)
+                INSERT INTO loai_xe (ma, ten, he_so_gia, so_do_ghe)
+                VALUES (%s, %s, %s, %s)
                 RETURNING id, ma, ten, he_so_gia, so_do_ghe
                 """,
-                (ten, he_so_gia, json.dumps(so_do_ghe)),
+                (ma, ten, he_so_gia, json.dumps(so_do_ghe)),
             )
             ket_qua = _thanh_dict(cur, cur.fetchone())
         conn.commit()
