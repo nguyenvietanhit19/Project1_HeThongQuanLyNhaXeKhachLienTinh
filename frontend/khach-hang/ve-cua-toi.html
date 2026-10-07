@@ -8,25 +8,32 @@
 <link rel="stylesheet" href="/shared/design-tokens.css" />
 <link rel="stylesheet" href="/khach-hang/trang-chu.css" />
 <link rel="stylesheet" href="/khach-hang/thanh-toan.css" />
+<link rel="stylesheet" href="/khach-hang/booking.css" />
 </head>
-<body class="tt-trang">
+<body class="tt-trang bk-trang">
   <header class="tc-nav" id="tc-nav-goc"></header>
 
-  <main class="tt-giua-ket-qua">
-    <div class="tt-khung">
-      <div class="tc-xong">
-        <h2>Booking</h2>
-        <p>Vé của tôi và lịch sử vé sẽ có ở đây.</p>
-      </div>
-      <div class="tt-lien-ket"><a class="tc-btn tc-btn--chinh" href="/">Về trang chủ</a></div>
-    </div>
+  <main class="bk-main">
+    <div class="bk-khung" id="bk-noi-dung"><div class="tc-khung-xuong" style="height:260px"></div></div>
   </main>
 
   <footer class="tc-chan" id="tc-chan-goc"></footer>
 
+  <!-- Chi tiết 1 lượt đặt (bấm vào thẻ vé để mở) -->
+  <div class="tc-modal" id="bk-modal" hidden>
+    <div class="tc-modal__hop bk-modal__hop" role="dialog" aria-modal="true" aria-labelledby="bk-ct-tieu-de">
+      <button type="button" class="tc-modal__dong" id="bk-dong" aria-label="Đóng">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+      <div id="bk-chi-tiet"></div>
+    </div>
+  </div>
+
+  <!-- Cửa sổ "Tài khoản của tôi" (mở từ thanh trên/thanh dưới) cần đúng khung này -->
   <script src="/shared/api-client.js"></script>
   <script src="/shared/so-dien-thoai.js"></script>
   <script src="/khach-hang/khung-trang.js"></script>
   <script src="/khach-hang/ho-so.js"></script>
+  <script src="/khach-hang/booking.js"></script>
 </body>
 </html>

@@ -298,6 +298,7 @@ Bảng trung tâm của toàn hệ thống — chịu trách nhiệm cho cơ ch�
 | `ten_khach_vang_lai` | TEXT NULLABLE | Bắt buộc nếu `khach_hang_id IS NULL` (kiểm tra Service) |
 | `sdt_khach_vang_lai` | TEXT NULLABLE | |
 | `gia` | NUMERIC(12,0) NOT NULL | Lấy từ `gia_ve` tại thời điểm đặt (không tính lại nếu `gia_ve` đổi sau đó) |
+| `ma_ve` | TEXT NOT NULL, UNIQUE | Mã riêng của từng vé (1 ghế trên 1 chặng) để khách đọc/tra cứu, dạng `VE000001` — trigger tự sinh từ sequence `ve_ma_seq` (không tái dùng, không sửa được), khác `ma_dat_cho` là mã chung của cả lượt đặt. Cũng là tiền tố mã giao dịch VNPay khi khách trả riêng 1 vé tại quầy |
 | `ma_dat_cho` | TEXT NOT NULL | Nhóm các vé cùng 1 lần đặt (mục 3.4) |
 | `la_ve_dat_coc` | BOOLEAN NOT NULL DEFAULT false | `true` với các vé bị bắt buộc "thanh toán ngay" trong lô >600.000đ (mục 3.4) |
 | `loai_hinh_thanh_toan` | TEXT NOT NULL, CHECK IN (`thanh_toan_ngay`, `thanh_toan_tai_quay`) | Mô tả **kênh/thời điểm trả tiền**, chọn ngay lúc đặt vé — tách biệt khỏi `phuong_thuc_thanh_toan` bên dưới (trả bằng gì). `thanh_toan_tai_quay` dùng chung cho **cả 3 trường hợp**: khách đặt online chọn trả sau, nhân viên quầy vé bán trực tiếp (UC-09), và bán qua hotline (UC-09) — cả 3 đều không áp dụng hạn giữ chỗ nào (mục 3.4/6 `NGHIEP_VU.md`) |
