@@ -53,13 +53,17 @@
     // của họ, VD frontend/nhan-vien/quan-ly/), nên tự gọi API trực tiếp ở
     // đây thay vì import apiPost() từ chỗ khác.
     // Tự nhận diện môi trường qua hostname — không cần build step/bundler.
-    const API_BASE_URL = ["localhost", "127.0.0.1"].includes(location.hostname)
-      ? "http://localhost:8000"
+    // Nhánh IP LAN phải khớp các trang sau đăng nhập (VD gui-hang/api-client.js),
+    // nếu không token cấp ở server này sẽ bị server kia từ chối.
+    const API_BASE_URL = (["localhost", "127.0.0.1"].includes(location.hostname) || /^\d+\.\d+\.\d+\.\d+$/.test(location.hostname))
+      ? `http://${location.hostname}:8000`
       : "https://nha-xe-khach-backend.onrender.com";
 
     const VE_TRANG_SAU_DANG_NHAP = {
       quan_ly: "/nhan-vien/quan-ly/khu-vuc.html",
       quan_ly_nhan_su: "/nhan-vien/quan-ly/khu-vuc.html",
+      nhan_vien_gui_hang: "/nhan-vien/gui-hang/index.html",
+      phu_xe: "/nhan-vien/phu-xe/chuyen-cua-toi.html",
     };
 
     const btnSubmit = document.querySelector("#form-dang-nhap button[type=submit]");

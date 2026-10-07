@@ -70,8 +70,8 @@
     // frontend/khach-hang/quen-mat-khau.html) — tự gọi API trực tiếp,
     // đúng pattern của dang-nhap.html (CONTRIBUTING.md mục 5.5: mỗi vai
     // trò/khu vực tự viết JS riêng, không import chéo domain).
-    const API_BASE_URL = ["localhost", "127.0.0.1"].includes(location.hostname)
-      ? "http://localhost:8000"
+    const API_BASE_URL = (["localhost", "127.0.0.1"].includes(location.hostname) || /^\d+\.\d+\.\d+\.\d+$/.test(location.hostname))
+      ? `http://${location.hostname}:8000`
       : "https://nha-xe-khach-backend.onrender.com";
 
     async function goiApi(duong_dan, body) {

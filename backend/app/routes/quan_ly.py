@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends
 
 from app.middleware.auth_middleware import yeu_cau_vai_tro
 from app.schemas.chuyen_quan_ly_schema import ChuyenQuanLyResponse, SuaGioChuyenRequest
+from app.schemas.don_hang_schema import GanVanPhongCanBoRequest
 from app.schemas.dia_diem_schema import (
     DiemDonTraRequest,
     DiemDonTraResponse,
@@ -43,10 +44,18 @@ from app.services import bien_che_service
 from app.services import chuyen_service
 from app.services import dia_diem_service as service
 from app.services import gia_ve_service
+from app.services import gui_hang_service
 from app.services import lich_chay_service
 from app.services import xe_service
 
 router = APIRouter(prefix="/quan-ly", tags=["quan-ly"], dependencies=[Depends(yeu_cau_vai_tro("quan_ly"))])
+
+
+@router.put("/ho-so-can-bo-diem/{nguoi_dung_id}")
+def gan_van_phong_can_bo(nguoi_dung_id: UUID, du_lieu: GanVanPhongCanBoRequest):
+    """Gán/cập nhật văn phòng cho nhân viên quầy vé, gửi hàng hoặc điều độ."""
+    gui_hang_service.gan_van_phong_can_bo(str(nguoi_dung_id), str(du_lieu.van_phong_id))
+    return {"thong_bao": "Đã gán văn phòng phụ trách"}
 
 
 # ---------------------------------------------------------
