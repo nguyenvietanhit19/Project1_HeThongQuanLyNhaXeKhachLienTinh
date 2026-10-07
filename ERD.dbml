@@ -1,0 +1,498 @@
+// ERD — Hệ thống Quản lý Nhà xe Khách liên tỉnh (PostgreSQL)
+// Dán toàn bộ file này vào https://dbdiagram.io/d (hoặc dbdocs.io) để vẽ sơ đồ.
+// Nguồn: DATABASE.md (thiết kế chốt) đối chiếu với backend/migrations.
+//
+// Lưu ý: 2 bảng đã thiết kế trong DATABASE.md nhưng CHƯA có migration trong backend/migrations
+// (đã gắn note [chưa migrate]): ho_so_can_bo_diem, nhat_ky_admin. Các bảng còn lại đều đã có migration.
+
+// ---------------------------------------------------------------- ENUM
+Enum vai_tro {
+  khach_hang
+  phu_xe
+  nhan_vien_quay_ve
+  nhan_vien_gui_hang
+  dieu_do_vien
+  ke_toan
+  quan_ly_nhan_su
+  quan_ly
+}
+
+Enum chuc_danh {
+  tai_xe
+  phu_xe
+}
+
+Enum trang_thai_nhan_su {
+  dang_lam
+  da_nghi_viec
+}
+
+Enum loai_giay_to {
+  bang_lai
+  giay_kham_suc_khoe
+}
+
+Enum loai_diem {
+  van_phong
+  diem_dung
+}
+
+Enum chieu_chay {
+  xuoi
+  nguoc
+}
+
+Enum trang_thai_xe {
+  hoat_dong
+  bao_tri
+  ngung_su_dung
+}
+
+Enum loai_bien_che {
+  co_dinh
+  tam_thoi
+}
+
+Enum trang_thai_bien_che {
+  dang_hoat_dong
+  tam_nghi
+}
+
+Enum trang_thai_chuyen {
+  chua_khoi_hanh
+  dang_chay
+  gap_su_co
+  hoan_thanh
+  da_huy
+}
+
+Enum loai_su_co {
+  loi_nha_xe
+  loi_khach_quan
+}
+
+Enum loai_hinh_thanh_toan {
+  thanh_toan_ngay
+  thanh_toan_tai_quay
+}
+
+Enum phuong_thuc_thanh_toan_ve {
+  tien_mat
+  chuyen_khoan
+}
+
+Enum trang_thai_ve {
+  giu_cho
+  het_han
+  da_thanh_toan
+  da_len_xe
+  da_xuong_xe
+  khong_den
+  da_huy
+}
+
+Enum ly_do_hoan_tien {
+  bat_kha_khang_khong_hoan_thanh
+  loi_nha_xe_giua_duong
+  hoan_truoc_gio_chay
+  tu_dong_hoan_qua_3_tieng
+}
+
+Enum trang_thai_hoan_tien {
+  cho_xu_ly
+  da_hoan_tu_dong
+  da_hoan_chuyen_khoan_thu_cong
+}
+
+Enum phuong_thuc_thanh_toan_hang {
+  nguoi_gui_tra_truoc
+  cod_nguoi_nhan_tra
+}
+
+Enum trang_thai_don_hang {
+  cho_van_chuyen
+  da_len_xe
+  cho_lay
+  da_giao
+  qua_han_luu_kho
+}
+
+Enum hanh_dong_nhan_su {
+  tao_tai_khoan
+  khoa_tai_khoan
+  mo_khoa_tai_khoan
+  tao_ho_so_nhan_su
+  sua_ho_so_nhan_su
+  cho_nghi_viec
+}
+
+Enum doi_tuong_nhat_ky {
+  nguoi_dung
+  nhan_su_van_hanh
+}
+
+// ---------------------------------------------------------------- TÀI KHOẢN & NHÂN SỰ
+Table nguoi_dung [headercolor: #5B3E96] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  email text [not null, unique, note: 'Định danh đăng nhập']
+  mat_khau text [note: 'Hash bcrypt; NULL = cán bộ mới được mời, chưa đặt mật khẩu']
+  ho_ten text [not null]
+  so_dien_thoai text [not null, note: 'Lưu dạng chuẩn hóa bắt đầu bằng 0']
+  vai_tro vai_tro [not null]
+  dang_hoat_dong boolean [not null, default: true, note: 'false = tài khoản bị khóa']
+  la_tai_khoan_goc boolean [not null, default: false, note: 'Tối đa 1 dòng true (quản lý gốc)']
+  da_xac_nhan boolean [not null, default: false]
+  ma_xac_nhan text [note: 'OTP 6 số']
+  ma_het_han timestamptz
+  ngay_tao timestamptz [not null, default: `now()`]
+
+  Note: 'Bảng cha của mọi vai trò có tài khoản (Class Table Inheritance)'
+}
+
+Table ho_so_khach_hang [headercolor: #5B3E96] {
+  nguoi_dung_id uuid [pk, ref: - nguoi_dung.id, note: 'vai_tro = khach_hang']
+  khoa_thanh_toan_tai_quay boolean [not null, default: false]
+  bi_khoa boolean [not null, default: false]
+  ly_do_khoa text
+}
+
+Table ho_so_can_bo_diem [headercolor: #5B3E96] {
+  nguoi_dung_id uuid [pk, ref: - nguoi_dung.id, note: 'quầy vé / gửi hàng / điều độ viên']
+  van_phong_id uuid [not null, ref: > diem_don_tra.id, note: 'Phải là điểm loại van_phong']
+
+  Note: '[chưa migrate] Có trong DATABASE.md mục 1.3, chưa có file migration'
+}
+
+Table nhan_su_van_hanh [headercolor: #5B3E96] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  ho_ten text [not null]
+  so_dien_thoai text [not null]
+  chuc_danh chuc_danh [not null]
+  nguoi_dung_id uuid [unique, ref: > nguoi_dung.id, note: 'Chỉ phụ xe mới có tài khoản; tài xế = NULL']
+  so_cccd text [unique, note: 'Nhạy cảm; unique khi khác NULL']
+  ngay_sinh date
+  anh_ho_so text [note: 'public_id Cloudinary']
+  ngay_vao_lam date [not null, default: `current_date`]
+  trang_thai trang_thai_nhan_su [not null, default: 'dang_lam']
+  ngay_nghi_viec date
+  ly_do_nghi_viec text
+
+  Note: 'Hồ sơ tài xế + phụ xe (tài xế không có tài khoản)'
+}
+
+Table giay_to_nhan_su [headercolor: #5B3E96] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  nhan_su_van_hanh_id uuid [not null, ref: > nhan_su_van_hanh.id]
+  loai loai_giay_to [not null]
+  so_giay_to text
+  hang text [note: 'Hạng bằng lái']
+  ngay_cap date
+  ngay_het_han date [not null]
+  anh_giay_to text [note: 'public_id Cloudinary']
+  da_canh_bao_sap_het_han boolean [not null, default: false]
+  da_canh_bao_het_han boolean [not null, default: false]
+
+  indexes {
+    (nhan_su_van_hanh_id, loai) [unique]
+    ngay_het_han
+  }
+}
+
+Table xe_nhan_su [headercolor: #5B3E96] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  xe_id uuid [not null, ref: > xe.id]
+  nhan_su_van_hanh_id uuid [not null, ref: > nhan_su_van_hanh.id]
+  loai loai_bien_che [not null]
+  trang_thai trang_thai_bien_che [not null, default: 'dang_hoat_dong']
+  ngay_bat_dau timestamptz [not null, default: `now()`]
+  ngay_ket_thuc timestamptz
+
+  Note: 'Biên chế: gắn tài xế/phụ xe với xe'
+}
+
+// ---------------------------------------------------------------- ĐỊA ĐIỂM & TUYẾN
+Table khu_vuc [headercolor: #F5A623] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  ma text [not null, unique, note: 'Tự sinh KV001...']
+  so_diem_da_cap integer [not null, default: 0, note: 'Bộ đếm sinh mã điểm']
+  ten text [not null]
+  tinh_thanh text [not null]
+}
+
+Table diem_don_tra [headercolor: #F5A623] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  ma text [not null, unique, note: 'Tự sinh KV001-DT001...']
+  khu_vuc_id uuid [not null, ref: > khu_vuc.id]
+  ten text [not null]
+  dia_chi text [not null]
+  loai loai_diem [not null, note: 'van_phong: đón + trả; diem_dung: chỉ trả']
+}
+
+Table tuyen [headercolor: #F5A623] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  ma text [not null, unique, note: 'Tự sinh T001...']
+  ten text [not null]
+  ngay_tao timestamptz [not null, default: `now()`]
+
+  Note: 'Một tuyến chạy được cả 2 chiều (không còn nhom_tuyen)'
+}
+
+Table tuyen_diem_don_tra [headercolor: #F5A623] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  tuyen_id uuid [not null, ref: > tuyen.id]
+  diem_don_tra_id uuid [not null, ref: > diem_don_tra.id]
+  thu_tu integer [not null, note: 'Thứ tự theo chiều xuôi']
+  thoi_gian_du_kien_phut integer [not null, note: 'Phút lệch so với giờ khởi hành (chiều xuôi)']
+
+  indexes {
+    (tuyen_id, thu_tu) [unique]
+    (tuyen_id, diem_don_tra_id) [unique]
+  }
+}
+
+Table gia_ve [headercolor: #F5A623] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  tuyen_id uuid [not null, ref: > tuyen.id]
+  diem_di_id uuid [not null, ref: > khu_vuc.id]
+  diem_den_id uuid [not null, ref: > khu_vuc.id]
+  gia_goc numeric(12,0) [not null, note: 'Giá ứng với he_so_gia = 1']
+  ap_dung_tu date [note: 'Giá theo mùa; NULL = vô thời hạn']
+  ap_dung_den date
+
+  indexes {
+    (tuyen_id, diem_di_id, diem_den_id, ap_dung_tu) [unique]
+  }
+}
+
+// ---------------------------------------------------------------- XE & CHUYẾN
+Table loai_xe [headercolor: #1A1A1E] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  ma text [not null, unique, note: 'Tự sinh LX001...']
+  ten text [not null, unique]
+  he_so_gia numeric(4,2) [not null, default: 1.0]
+  so_do_ghe jsonb [not null, note: 'Sơ đồ ghế dùng chung cho mọi xe cùng loại']
+}
+
+Table xe [headercolor: #1A1A1E] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  bien_so text [not null, unique]
+  loai_xe_id uuid [not null, ref: > loai_xe.id]
+  trang_thai trang_thai_xe [not null, default: 'hoat_dong']
+  diem_goc_id uuid [not null, ref: > diem_don_tra.id, note: 'Văn phòng khởi điểm']
+  tuyen_id uuid [ref: > tuyen.id, note: 'NULL = xe dự phòng']
+}
+
+Table lich_chay_dinh_ky [headercolor: #1A1A1E] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  tuyen_id uuid [not null, ref: > tuyen.id]
+  chieu chieu_chay [not null]
+  gio_khoi_hanh time [not null, note: 'Giờ trong ngày, không phải ngày cụ thể']
+  loai_xe_id uuid [not null, ref: > loai_xe.id]
+  dang_ap_dung boolean [not null, default: true]
+  ngay_tao timestamptz [not null, default: `now()`]
+}
+
+Table chuyen_xe [headercolor: #1A1A1E] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  ma text [not null, unique, note: 'Tự sinh T001-LX001-260930-0630-DI']
+  tuyen_id uuid [not null, ref: > tuyen.id]
+  chieu chieu_chay [not null]
+  xe_id uuid [ref: > xe.id, note: 'Xe gốc; NULL = chưa gán xe']
+  loai_xe_id uuid [not null, ref: > loai_xe.id, note: 'Loại xe cam kết']
+  lich_chay_dinh_ky_id uuid [ref: > lich_chay_dinh_ky.id]
+  xe_thuc_te_id uuid [ref: > xe.id, note: 'Xe chạy thay nếu khác xe gốc']
+  gio_khoi_hanh timestamptz [not null]
+  trang_thai trang_thai_chuyen [not null, default: 'chua_khoi_hanh']
+  dang_hoan boolean [not null, default: false]
+  gio_xac_nhan_xuat_phat timestamptz
+  gio_hoan_thanh timestamptz
+  loai_su_co loai_su_co
+  ly_do_su_co text
+  co_canh_bao_xung_dot_vi_tri boolean [not null, default: false]
+  ngay_tao timestamptz [not null, default: `now()`]
+
+  indexes {
+    (xe_id, gio_khoi_hanh)
+  }
+}
+
+Table lich_su_diem_dung_chuyen [headercolor: #1A1A1E] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  chuyen_id uuid [not null, ref: > chuyen_xe.id]
+  diem_don_tra_id uuid [not null, ref: > diem_don_tra.id]
+  gio_thuc_te timestamptz [not null, default: `now()`]
+
+  indexes {
+    (chuyen_id, diem_don_tra_id) [unique]
+  }
+}
+
+// ---------------------------------------------------------------- VÉ & HOÀN TIỀN
+Table ve [headercolor: #2E7D32] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  chuyen_id uuid [not null, ref: > chuyen_xe.id]
+  so_ghe text [not null, note: 'Không unique theo chuyến: 1 ghế có thể có nhiều vé nếu các chặng không giao nhau']
+  diem_don_id uuid [not null, ref: > diem_don_tra.id]
+  diem_tra_id uuid [not null, ref: > diem_don_tra.id]
+  khach_hang_id uuid [ref: > nguoi_dung.id, note: 'NULL = khách vãng lai']
+  ten_khach_vang_lai text
+  sdt_khach_vang_lai text
+  gia numeric(12,0) [not null]
+  ma_dat_cho text [not null, note: 'Nhóm các vé cùng 1 lần đặt']
+  la_ve_dat_coc boolean [not null, default: false]
+  loai_hinh_thanh_toan loai_hinh_thanh_toan [not null]
+  phuong_thuc_thanh_toan phuong_thuc_thanh_toan_ve
+  ma_giao_dich_cong_thanh_toan text
+  trang_thai trang_thai_ve [not null, default: 'giu_cho']
+  gio_bat_dau_dem_han timestamptz
+  han_giu_cho_den timestamptz
+  gio_thanh_toan timestamptz
+  gio_len_xe timestamptz
+  gio_xuong_xe timestamptz
+  gio_huy timestamptz
+  ngay_tao timestamptz [not null, default: `now()`]
+
+  indexes {
+    (chuyen_id, so_ghe)
+  }
+}
+
+Table lich_su_hoan_tien [headercolor: #2E7D32] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  ve_id uuid [not null, unique, ref: - ve.id, note: '1 vé hoàn tối đa 1 lần']
+  ly_do ly_do_hoan_tien [not null]
+  so_tien numeric(12,0) [not null]
+  trang_thai trang_thai_hoan_tien [not null, default: 'cho_xu_ly']
+  ma_giao_dich_hoan_tien text
+  nhan_vien_xu_ly_id uuid [ref: > nguoi_dung.id, note: 'Kế toán chuyển khoản thủ công']
+  so_tai_khoan_nhan text
+  ten_ngan_hang_nhan text
+  ten_chu_tai_khoan_nhan text
+  thoi_gian_xac_dinh timestamptz [not null, default: `now()`]
+  thoi_gian_hoan_xong timestamptz
+}
+
+// ---------------------------------------------------------------- GỬI HÀNG
+Table loai_hang [headercolor: #C2185B] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  ten text [not null, unique]
+  la_hang_cam boolean [not null, default: false]
+}
+
+Table don_hang [headercolor: #C2185B] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  ma_van_don text [not null, unique]
+  tuyen_id uuid [not null, ref: > tuyen.id, note: 'Chọn tuyến lúc nhận hàng, không chọn chuyến']
+  chuyen_id uuid [ref: > chuyen_xe.id, note: 'NULL = chưa xếp lên chuyến nào']
+  diem_gui_id uuid [not null, ref: > diem_don_tra.id]
+  diem_nhan_id uuid [not null, ref: > diem_don_tra.id]
+  can_nang_kg numeric(8,2) [not null]
+  dai_cm numeric(8,2)
+  rong_cm numeric(8,2)
+  cao_cm numeric(8,2)
+  loai_hang_id uuid [not null, ref: > loai_hang.id]
+  gia_cuoc numeric(12,0) [not null]
+  ten_nguoi_gui text [not null]
+  sdt_nguoi_gui text [not null]
+  ten_nguoi_nhan text [not null]
+  sdt_nguoi_nhan text [not null]
+  phuong_thuc_thanh_toan phuong_thuc_thanh_toan_hang [not null]
+  trang_thai trang_thai_don_hang [not null, default: 'cho_van_chuyen']
+  nhan_vien_gui_id uuid [not null, ref: > nguoi_dung.id]
+  nhan_vien_nhan_id uuid [ref: > nguoi_dung.id]
+  thoi_gian_den_diem_nhan timestamptz
+  da_thong_bao_nguoi_nhan boolean [not null, default: false]
+  co_canh_bao_cho_lau boolean [not null, default: false]
+  ngay_tao timestamptz [not null, default: `now()`]
+  ngay_giao timestamptz
+}
+
+Table bao_cao_su_co_hang [headercolor: #C2185B] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  don_hang_id uuid [not null, ref: > don_hang.id]
+  nguoi_bao_cao_id uuid [not null, ref: > nguoi_dung.id, note: 'Phụ xe']
+  mo_ta text [not null]
+  ngay_tao timestamptz [not null, default: `now()`]
+}
+
+// ---------------------------------------------------------------- THÔNG BÁO & NHẬT KÝ
+Table thong_bao [headercolor: #607D8B] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  nguoi_nhan_id uuid [not null, ref: > nguoi_dung.id]
+  noi_dung text [not null]
+  ve_id uuid [ref: > ve.id]
+  da_doc boolean [not null, default: false]
+  ngay_tao timestamptz [not null, default: `now()`]
+}
+
+Table nhat_ky_admin [headercolor: #607D8B] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  admin_id uuid [not null, ref: > nguoi_dung.id, note: 'Chỉ vai trò quan_ly']
+  hanh_dong text [not null]
+  doi_tuong_loai text [not null]
+  doi_tuong_id uuid [not null, note: 'Không có FK cứng (trỏ nhiều bảng)']
+  ghi_chu text
+  thoi_gian timestamptz [not null, default: `now()`]
+
+  Note: '[chưa migrate] Có trong DATABASE.md mục 6.2, chưa có file migration'
+}
+
+Table nhat_ky_quan_ly_nhan_su [headercolor: #607D8B] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  quan_ly_nhan_su_id uuid [not null, ref: > nguoi_dung.id]
+  hanh_dong hanh_dong_nhan_su [not null]
+  doi_tuong_loai doi_tuong_nhat_ky [not null]
+  doi_tuong_id uuid [not null, note: 'Trỏ nguoi_dung hoặc nhan_su_van_hanh tùy doi_tuong_loai; không có FK cứng']
+  ghi_chu text
+  thoi_gian timestamptz [not null, default: `now()`]
+
+  indexes {
+    (quan_ly_nhan_su_id, thoi_gian)
+    (doi_tuong_loai, doi_tuong_id, thoi_gian)
+  }
+
+  Note: 'Chỉ INSERT, không UPDATE/DELETE'
+}
+
+// ---------------------------------------------------------------- NHÓM MÀU
+TableGroup tai_khoan_nhan_su {
+  nguoi_dung
+  ho_so_khach_hang
+  ho_so_can_bo_diem
+  nhan_su_van_hanh
+  giay_to_nhan_su
+  xe_nhan_su
+}
+
+TableGroup dia_diem_tuyen {
+  khu_vuc
+  diem_don_tra
+  tuyen
+  tuyen_diem_don_tra
+  gia_ve
+}
+
+TableGroup xe_chuyen {
+  loai_xe
+  xe
+  lich_chay_dinh_ky
+  chuyen_xe
+  lich_su_diem_dung_chuyen
+}
+
+TableGroup ve_hoan_tien {
+  ve
+  lich_su_hoan_tien
+}
+
+TableGroup gui_hang {
+  loai_hang
+  don_hang
+  bao_cao_su_co_hang
+}
+
+TableGroup thong_bao_nhat_ky {
+  thong_bao
+  nhat_ky_admin
+  nhat_ky_quan_ly_nhan_su
+}

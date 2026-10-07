@@ -82,7 +82,9 @@ project-root/
 │   │   │   ├── email_service.py               # gửi mail OTP qua Brevo API (HTTPS) — hạ tầng
 │   │   │   ├── tim_kiem_chuyen_service.py     # tìm theo điểm đi/đến (mục 3.4 bước 1-2)
 │   │   │   ├── dat_ve_service.py              # giữ ghế, chống trùng ghế, đặt cọc (mục 3.4, 6)
-│   │   │   ├── thanh_toan_service.py          # thanh toán ngay / tại quầy
+│   │   │   ├── thanh_toan_service.py          # xử lý IPN + trang kết quả của cổng thanh toán (chữ ký, số tiền, chống xử lý lặp)
+│   │   │   ├── vnpay_service.py               # ký/kiểm tra chữ ký HMAC-SHA512, tạo đường dẫn thanh toán — dùng chung giả lập và VNPay thật
+│   │   │   ├── cong_thanh_toan_gia_service.py # cổng thanh toán GIẢ LẬP để demo (VNPAY_CHE_DO=gia_lap), đóng vai VNPay
 │   │   │   ├── hoan_tien_service.py            # tạo/quản lý hàng đợi lich_su_hoan_tien; gọi API hoàn tiền VNPay khi có mã giao dịch (mục 7 NGHIEP_VU.md)
 │   │   │   ├── lich_chay_service.py            # CRUD lich_chay_dinh_ky (UC-18, khóa sửa khi đã sinh chuyến) + sinh chuyen_xe thủ công theo khoảng ngày do quan_ly chọn (UC-47, mục 3.5 NGHIEP_VU.md) — chỉ route quan_ly.py gọi, không còn job
 │   │   │   ├── chuyen_service.py               # quan_ly xem/lọc/sửa giờ/xóa chuyến còn "sạch" (UC-48) — khác chuyen_xe_service.py (vòng đời/gán xe của điều độ viên)
@@ -95,7 +97,7 @@ project-root/
 │   │   │   ├── auth.py                        # đăng ký/đăng nhập/quên mật khẩu (khách hàng)
 │   │   │   ├── chuyen.py                      # tìm kiếm chuyến công khai
 │   │   │   ├── ve.py                          # giữ ghế, chọn điểm đón/trả, thanh toán, lịch sử vé
-│   │   │   ├── thanh_toan_callback.py         # webhook nhận kết quả từ cổng thanh toán (mục 5) — không phải action của người dùng, không cần JWT thường mà xác thực bằng chữ ký/secret riêng của cổng
+│   │   │   ├── thanh_toan.py                # webhook nhận kết quả từ cổng thanh toán (mục 5) — không phải action của người dùng, không cần JWT thường mà xác thực bằng chữ ký/secret riêng của cổng
 │   │   │   ├── quay_ve.py                     # nhân viên quầy vé: bán vé, in vé cứng (không xử lý hoàn tiền)
 │   │   │   ├── gui_hang.py                    # nhân viên gửi hàng: tạo đơn, giao hàng
 │   │   │   ├── phu_xe.py                      # giao diện di động: soát vé, xác nhận trạng thái chuyến

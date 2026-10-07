@@ -135,7 +135,7 @@ frontend/nhan-vien/
 
 ### 5.1. Bảng `ve` bị nhiều người cùng chạm — tách file rõ ràng để không ai sửa nhầm phần người khác
 
-- `ve_lock_repository.py` (**người 2 sở hữu duy nhất**) — đúng 1 hàm: `khoa_va_kiem_tra_trung_ghe(chuyen_id, so_ghe, diem_don_id, diem_tra_id)` — phần `SELECT ... FOR UPDATE` + kiểm tra overlap (`NGHIEP_VU.md` mục 6). Đây là phần khó/nhạy cảm nhất hệ thống — bug ở đây có thể gây bán trùng ghế thật. Tách file riêng dù chỉ 1 người dùng, để dễ viết `tests/integration` riêng cho đúng phần này.
+- `ve_lock_repository.py` (**người 2 sở hữu duy nhất**) — hàm trọng tâm `giu_ghe(...)` (thay cho tên dự kiến `khoa_va_kiem_tra_trung_ghe`) — khóa dòng `chuyen_xe` + `SELECT ... FOR UPDATE` các vé cùng ghế + kiểm tra overlap + tạo vé `giu_cho` trong 1 transaction (`NGHIEP_VU.md` mục 6); cùng file có các hàm cập nhật cả lượt đặt chỗ đã khóa (thu hẹp đoạn, chốt thanh toán tại quầy, hủy giữ chỗ, quét hết hạn) vì chúng chia sẻ cùng điều kiện "vé còn đang giữ chỗ". Đây là phần khó/nhạy cảm nhất hệ thống — bug ở đây có thể gây bán trùng ghế thật. Tách file riêng dù chỉ 1 người dùng, để dễ viết `tests/integration` riêng cho đúng phần này.
 - `ve_repository.py` (**người 2 sở hữu**) — mọi thứ còn lại của vé: đọc/tra cứu, đổi trạng thái (`da_thanh_toan`, `da_len_xe`, `khong_den`, `da_huy`...).
 
 **Quy tắc**: người 3, 4, 5 chỉ gọi hàm người 2 cung cấp (`xac_nhan_len_xe()`, `xac_nhan_xuong_xe()`, `huy_ve_nhan_hoan()`, `tim_ve_da_thanh_toan_theo_chuyen()`), **không ai khác được tự viết SQL cho bảng `ve`**.
@@ -168,7 +168,7 @@ Khác quyết định ban đầu: **không có `shared/nav-*.js` dùng chung gi�
 Vì 3/4/5 sẽ gọi hàm của 1/2/4 — **thống nhất tên hàm + tham số + kiểu trả về ngay từ đầu tuần 1** (viết ra giấy/Discord/Notion, chưa cần code thật). Tối thiểu cần chốt trước:
 
 - `chuyen_xe_service.xac_nhan_xuat_phat(chuyen_id)`, `.xac_nhan_toi_diem(chuyen_id, diem_id)`, `.bao_su_co(chuyen_id, loai_su_co, ly_do)` (người 4 cung cấp cho người 3).
-- `ve_lock_repository.khoa_va_kiem_tra_trung_ghe(...)` (nội bộ người 2 dùng, không ai khác gọi).
+- `ve_lock_repository.giu_ghe(...)` và các hàm cùng file (nội bộ người 2 dùng, không ai khác gọi).
 - `ve_repository.xac_nhan_len_xe(ve_id)`, `.xac_nhan_xuong_xe(ve_id)`, `.huy_ve_nhan_hoan(ve_id, ly_do)`, `.tim_ve_da_thanh_toan_theo_chuyen(chuyen_id)` (người 2 cung cấp cho người 3 và người 4).
 - `hoan_tien_service.tao_hoan_tien(ve_id, ly_do)` (người 5 cung cấp cho người 2 và người 4).
 - `gui_hang_service.xac_nhan_chat_hang(don_hang_id, chuyen_id)` (người 5 cung cấp cho người 3).
