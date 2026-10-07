@@ -392,7 +392,12 @@ function dongSoDo() {
   dongHan();
 }
 
+function xoaHopXacNhanThoat() {
+  modalSoDo.querySelector(".tc-xn")?.remove();
+}
+
 function dongHan() {
+  xoaHopXacNhanThoat(); // không để sót hộp hỏi: lần mở sau sẽ hiện sẵn
   dungDemNguoc();
   datCho = null;
   chuyenXem = null;
@@ -408,11 +413,11 @@ function hienXacNhanThoat() {
   lop.setAttribute("role", "alertdialog");
   lop.innerHTML = `
     <div class="tc-xn__hop">
-      <h3>Vé của bạn chưa hoàn thành</h3>
-      <p>Bạn có đồng ý quay lại? Nếu muốn tiếp tục hoàn thành, hãy kiểm tra giỏ hàng.</p>
+      <h3>Bạn có muốn thoát?</h3>
+      <p>Nếu muốn tiếp tục hoàn thành vé, hãy kiểm tra giỏ hàng.</p>
       <div class="tc-xn__nut">
-        <button type="button" class="tc-btn tc-btn--phu" id="btn-xn-thoat">Thoát</button>
-        <button type="button" class="tc-btn tc-btn--chinh" id="btn-xn-quay-lai">Quay lại</button>
+        <button type="button" class="tc-btn tc-btn--phu" id="btn-xn-thoat">Đồng ý</button>
+        <button type="button" class="tc-btn tc-btn--chinh" id="btn-xn-quay-lai">Hủy</button>
       </div>
     </div>`;
   modalSoDo.appendChild(lop);
@@ -433,6 +438,7 @@ document.addEventListener("keydown", (e) => {
 });
 
 async function moSoDo(chuyenId, gheChonSan = []) {
+  xoaHopXacNhanThoat();
   modalSoDo.hidden = false;
   document.body.style.overflow = "hidden";
   dungDemNguoc();
@@ -451,6 +457,7 @@ async function moSoDo(chuyenId, gheChonSan = []) {
 
 // Mở lại 1 lượt đặt đã giữ ghế (từ giỏ hàng) — vào thẳng bước thanh toán hoặc bước chờ thanh toán
 async function moTiepDatCho(maDatCho) {
+  xoaHopXacNhanThoat();
   modalSoDo.hidden = false;
   document.body.style.overflow = "hidden";
   dungDemNguoc();

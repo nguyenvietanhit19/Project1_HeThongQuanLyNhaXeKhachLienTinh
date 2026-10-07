@@ -81,6 +81,11 @@
     }
 
     (async () => {
+      // Chưa chắc IPN đã tới: nhờ backend hỏi thẳng VNPay kết quả thật (không làm gì ở chế độ giả lập)
+      const maGiaoDich = new URLSearchParams(location.search).get("vnp_TxnRef");
+      if (maGiaoDich) {
+        try { await apiPost("/thanh-toan/vnpay/xac-nhan", { ma_giao_dich: maGiaoDich }); } catch { /* vẫn hiển thị kết quả bên dưới */ }
+      }
       let kq;
       try {
         kq = await apiGet(`/thanh-toan/vnpay/ket-qua${location.search}`);

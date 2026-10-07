@@ -5,6 +5,7 @@ có chữ ký hợp lệ (HMAC-SHA512, vnpay_service). Route mỏng, chỉ gọi
 
 - GET /thanh-toan/vnpay/ipn      : VNPay gọi về (nguồn sự thật để đổi trạng thái vé)
 - GET /thanh-toan/vnpay/ket-qua  : trang kết quả hỏi lại để HIỂN THỊ (không đổi trạng thái)
+- POST /thanh-toan/vnpay/xac-nhan: backend hỏi VNPay (querydr) kết quả thật rồi đổi trạng thái vé — thay IPN khi IPN không tới
 - /cong-thanh-toan-gia/*         : cổng giả lập cho demo (chỉ chạy khi VNPAY_CHE_DO = gia_lap)
 """
 
@@ -31,6 +32,15 @@ def ipn_vnpay(request: Request):
 @router.get("/thanh-toan/vnpay/ket-qua")
 def ket_qua_vnpay(request: Request):
     return thanh_toan_service.doc_ket_qua_tra_ve(_tham_so_vnp(request))
+
+
+class XacNhanRequest(BaseModel):
+    ma_giao_dich: str  # vnp_TxnRef trên đường dẫn trả về; backend tự hỏi VNPay kết quả thật nên không cần tin dữ liệu này
+
+
+@router.post("/thanh-toan/vnpay/xac-nhan")
+def xac_nhan_vnpay(body: XacNhanRequest):
+    return thanh_toan_service.xac_nhan_qua_truy_van(body.ma_giao_dich)
 
 
 class XuLyGiaLapRequest(BaseModel):

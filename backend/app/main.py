@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import CORS_ORIGINS
+from app.jobs import quet_giao_dich_vnpay, quet_no_show, quet_ve_het_han
 from app.jobs import quet_no_show, quet_ve_het_han
 from app.jobs import quet_hang_ton, quet_no_show
 from app.routes.auth import router as auth_router
@@ -29,6 +30,8 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(quet_no_show.chay, "interval", minutes=1, id="quet_no_show")
     # Vé giữ chỗ có hạn quá hạn → het_han (mục 6) — chu kỳ 1 phút
     scheduler.add_job(quet_ve_het_han.chay, "interval", minutes=1, id="quet_ve_het_han")
+    # Hỏi VNPay kết quả các lượt đang chờ thanh toán (chỉ làm gì ở chế độ sandbox) — chu kỳ 1 phút, chỉ hỏi giao dịch đã đủ cũ
+    scheduler.add_job(quet_giao_dich_vnpay.chay, "interval", seconds=60, id="quet_giao_dich_vnpay")
     # UC-46 (⏱, mục 10.3 & mục 12) — quét cảnh báo (7 ngày) & chuyển tồn kho (14 ngày)
     scheduler.add_job(quet_hang_ton.chay_job_quet_hang_ton, "interval", hours=1, id="quet_hang_ton")
     scheduler.start()

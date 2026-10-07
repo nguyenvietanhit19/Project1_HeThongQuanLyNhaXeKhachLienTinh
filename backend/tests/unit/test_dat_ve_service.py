@@ -341,8 +341,12 @@ def test_tao_duong_dan_thanh_toan_dung_so_tien_va_han(monkeypatch, gia_lap):
     ve = [_ve("1", 200000, han=han, gio_bat_dau_dem_han=BAY_GIO), _ve("2", 200000, han=han, gio_bat_dau_dem_han=BAY_GIO),
           _ve("3", 200000, han=han, loai="thanh_toan_tai_quay", gio_bat_dau_dem_han=None)]  # phần trả tại quầy: không tính
     _cho_thanh_toan(monkeypatch, ve)
+    da_luu = []
+    monkeypatch.setattr(svc.thanh_toan_repo, "luu_ma_tham_chieu_vnpay", lambda ma, gd: da_luu.append((ma, gd)))
     url = svc.tao_duong_dan_thanh_toan("kh1", "DCAB12", "http://localhost:5500", "1.2.3.4")
     assert "vnp_Amount=40000000" in url
+    assert da_luu == [("DCAB12", "DCAB12-20261010150000")]  # mã giao dịch lưu lại để sau này hỏi VNPay (querydr)
+    assert "vnp_TxnRef=DCAB12-20261010150000" in url
     assert "vnp_ExpireDate=20261010150500" in url  # 08:00 UTC + 5 phút = 15:05 giờ Việt Nam
 
 

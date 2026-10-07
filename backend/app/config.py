@@ -48,5 +48,7 @@ HAN_DE_DUNG_TRE_IPN_PHUT = 2  # giữ vé thêm ngần này phút sau hạn củ
 VNPAY_CHE_DO = os.getenv("VNPAY_CHE_DO") or "gia_lap"
 VNPAY_TMN_CODE = os.getenv("VNPAY_TMN_CODE") or "DEMOTMN1"
 VNPAY_URL = os.getenv("VNPAY_URL") or "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
+# API truy vấn giao dịch (querydr): backend tự hỏi VNPay kết quả, dùng khi IPN không tới được (VD sandbox chưa khai báo được IPN)
+VNPAY_API_URL = os.getenv("VNPAY_API_URL") or "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction"
 # Chế độ giả lập không có khóa thật: sinh khóa từ JWT_SECRET để không phải đặt thêm biến và không có khóa cố định trong code.
 VNPAY_HASH_SECRET = os.getenv("VNPAY_HASH_SECRET") or hashlib.sha256(((JWT_SECRET or "") + "|vnpay-gia-lap").encode()).hexdigest()
