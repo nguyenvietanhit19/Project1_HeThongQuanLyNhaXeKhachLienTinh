@@ -130,15 +130,20 @@ def tim_chuyen(khu_vuc_di_id: str, khu_vuc_den_id: str, ngay: datetime.date) -> 
     return the
 
 
-def so_do_ghe_chuyen(chuyen_id: str, khu_vuc_di_id: str, khu_vuc_den_id: str) -> dict:
-    """UC-04 bước 4: sơ đồ ghế của 1 chuyến theo đoạn rộng nhất khách có thể đi (mục 3.4 bước 3)."""
+def lay_chuyen_mo_ban(chuyen_id: str, khu_vuc_di_id: str, khu_vuc_den_id: str) -> tuple[dict, dict, set[str]]:
+    """1 chuyến còn mở bán cho đúng cặp khu vực: (dòng chuyến, {"gia"}, các ghế đang bị giữ trên đoạn rộng nhất).
+    Dùng chung cho xem sơ đồ ghế (UC-04) và giữ chỗ/đặt vé (UC-05) để 2 nơi luôn thấy cùng một sự thật."""
     _kiem_tra_cap_khu_vuc(khu_vuc_di_id, khu_vuc_den_id)
     ket_qua = repo.tim_chuyen(str(khu_vuc_di_id), str(khu_vuc_den_id), chuyen_id=str(chuyen_id))
     cac_the = _lap_the_chuyen(ket_qua, str(khu_vuc_di_id), str(khu_vuc_den_id))
     if not cac_the:
         raise GiaTriLoi("Chuyến không còn mở bán hoặc không đi qua cặp điểm này")
+    return cac_the[0]
 
-    r, gia_info, ghe_bi_giu = cac_the[0]
+
+def so_do_ghe_chuyen(chuyen_id: str, khu_vuc_di_id: str, khu_vuc_den_id: str) -> dict:
+    """UC-04 bước 4: sơ đồ ghế của 1 chuyến theo đoạn rộng nhất khách có thể đi (mục 3.4 bước 3)."""
+    r, gia_info, ghe_bi_giu = lay_chuyen_mo_ban(chuyen_id, khu_vuc_di_id, khu_vuc_den_id)
     so_do_ghe = [
         {**g, "trang_thai": "da_co_nguoi" if g["ma_ghe"] in ghe_bi_giu else "trong"}
         for g in r["so_do_ghe"]

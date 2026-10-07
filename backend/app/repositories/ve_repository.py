@@ -98,7 +98,8 @@ def tim_ve_qua_gio_len_xe(x_phut: int) -> list[dict]:
                 JOIN chuyen_xe cx ON cx.id = v.chuyen_id
                 JOIN tuyen_diem_don_tra tdt
                     ON tdt.tuyen_id = cx.tuyen_id AND tdt.diem_don_tra_id = v.diem_don_id
-                WHERE v.trang_thai IN ('da_thanh_toan', 'giu_cho')
+                WHERE (v.trang_thai = 'da_thanh_toan'
+                       OR (v.trang_thai = 'giu_cho' AND (v.han_giu_cho_den IS NULL OR v.han_giu_cho_den > now())))
                   AND cx.trang_thai != 'da_huy'
                   AND cx.gio_khoi_hanh + (tdt.thoi_gian_du_kien_phut || ' minutes')::interval
                         - (%s || ' minutes')::interval <= now()

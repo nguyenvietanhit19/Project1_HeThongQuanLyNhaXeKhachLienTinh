@@ -1,9 +1,10 @@
 # Sơ đồ Use Case theo Tác nhân & Sơ đồ hoạt động (PlantUML)
 
-> File này gồm 2 phần, đều dùng cú pháp **PlantUML** (dán vào [plantuml.com/plantuml](http://www.plantuml.com/plantuml) hoặc extension PlantUML trong VSCode để xem trước):
+> File này gồm 3 phần, đều dùng cú pháp **PlantUML** (dán vào [plantuml.com/plantuml](http://www.plantuml.com/plantuml) hoặc extension PlantUML trong VSCode để xem trước):
 >
 > 1. **Sơ đồ use case tách riêng theo từng tác nhân** — thay vì 1 sơ đồ toàn hệ thống to khó nhìn (bản gộp ở `USE_CASE.puml`).
 > 2. **Sơ đồ hoạt động (activity diagram) cho từng use case** — chuyển thể từ đặc tả ở `NGHIEP_VU.md` mục 12.
+> 3. **Sơ đồ lớp (class diagram) mức phân tích** — mục 3 cuối file, 4 sơ đồ theo nhóm nghiệp vụ (khác ERD ở `ERD.dbml`: có kế thừa và phương thức).
 >
 > **Toàn bộ sơ đồ dùng lời nói thường** — không dùng tên bảng/cột trong cơ sở dữ liệu, không dùng hàm hay ký hiệu kỹ thuật — để người đọc không cần biết code vẫn hiểu được. Chi tiết kỹ thuật (tên trạng thái, tên bảng, công thức) xem `NGHIEP_VU.md` và `DATABASE.md`.
 >
@@ -418,29 +419,41 @@ stop
 ```plantuml
 @startuml AD_UC05_DatVeOnline
 start
-:Khách chọn một hoặc nhiều ghế trên sơ đồ;
-:Khách bấm nút cập nhật điểm đón trả;
-if (Ghế vừa chọn đã có người khác giữ chưa?) then (đã có người giữ)
-  :Báo ghế đã có người chọn, mời chọn ghế khác;
+:Khách chọn một hoặc nhiều ghế trên sơ đồ — chưa khóa gì,\nnhiều khách có thể cùng chọn một ghế;
+:Khách bấm cập nhật điểm đón trả,\nchọn điểm đón (là văn phòng của nhà xe) và điểm trả;
+:Khách bấm "Tiếp tục";
+if (Khách đã đăng nhập chưa?) then (chưa)
+  :Chuyển sang trang đăng nhập, xong quay lại đúng bước này\nvới ghế và điểm đón trả đã chọn;
+endif
+if (Ghế đã có người khác bấm "Tiếp tục" trước chưa?) then (đã có người giữ)
+  :Báo ghế đã có người chọn, quay về sơ đồ ghế đã làm mới;
   stop
 endif
-:Khóa ghế lại cho khách này, người khác không chọn được nữa;
-:Khách chọn điểm đón (là văn phòng của nhà xe) và điểm trả;
-:Thu hẹp lại đoạn đường giữ ghế đúng bằng đoạn khách sẽ đi;
+:Khóa ghế cho khách này trên đúng đoạn đã chọn, giữ 10 phút\n— ai nhanh hơn thì giữ được;
+:Lượt đặt vào giỏ hàng, khách sang màn thanh toán;
+note right
+  Nếu khách thoát giữa chừng: hiện hộp hỏi
+  "Vé của bạn chưa hoàn thành, bạn có đồng ý quay lại?".
+  Chọn "Thoát" thì ghế vẫn được giữ trong giỏ hàng,
+  khách bấm "Tiếp tục" trong giỏ để quay lại đúng bước đã dở;
+  hết 10 phút mà chưa xong thì ghế tự nhả.
+end note
+:Hiện từng ghế đã giữ; khách tích ghế muốn thanh toán\n(hoặc chọn tất cả), có thể bấm dấu X để bỏ hẳn một ghế (ghế mở lại ngay);
+:Khách chọn loại hình thanh toán (tại quầy hoặc VNPay QR)\nrồi bấm nút Thanh toán — chỉ áp dụng cho các ghế được tích,\nghế không tích coi như không đặt và được nhả;
 if (Khách có đang bị cấm chọn trả tiền tại quầy\nvì trước đó bỏ vé nhiều lần không?) then (có, bắt buộc trả ngay)
   :Chỉ cho chọn cách trả tiền ngay;
 else (không, được chọn tự do)
   if (Khách chọn trả tiền kiểu nào?) then (Trả tiền ngay)
     :Khách chọn trả tiền ngay;
   else (Trả tiền tại quầy khi lấy vé)
-    if (Đặt từ 2 vé trở lên và tổng tiền trên 600 nghìn?) then (có)
-      :Bắt buộc trả trước một nửa số vé, làm tròn xuống,\ntheo đúng cách trả tiền ngay;
+    if (Các ghế được tích: từ 2 vé trở lên và tổng tiền trên 600 nghìn?) then (có)
+      :Bắt buộc trả trước một nửa số vé được tích, làm tròn xuống,\ntheo đúng cách trả tiền ngay; nửa còn lại trả tại quầy;
       if (Trả xong phần bắt buộc trong 5 phút không?) then (không)
         :Hủy toàn bộ vé của lần đặt này, mở lại ghế cho người khác;
         stop
       endif
     endif
-    :Coi như khách đã đặt vé thành công,\ngiữ vé cho khách tới tận giờ xe chạy;
+    :Báo đặt vé thành công,\ngiữ vé cho khách tới tận giờ xe chạy;
     if (Khách có ra quầy trả tiền trước giờ lên xe không?) then (có ra quầy)
       :Khách trả tiền và lấy vé giấy tại quầy;
       stop
@@ -450,7 +463,8 @@ else (không, được chọn tự do)
     endif
   endif
 endif
-:Bắt đầu tính 5 phút để khách trả tiền;
+:Báo "Đặt vé thành công — vui lòng thanh toán trong 5 phút"\n(lượt đặt ở trạng thái chờ thanh toán, nằm trong giỏ hàng);
+:Khách bấm Thanh toán VNPay (có thể thoát ra rồi quay lại từ giỏ hàng,\nmiễn còn trong 5 phút);
 :Chuyển khách sang trang thanh toán của ngân hàng trung gian\n(khách quét mã QR bằng app ngân hàng, hoặc nhập thẻ trực tiếp);
 if (Kết quả trả tiền thế nào?) then (thành công)
   :Vé được xác nhận là đã thanh toán;
@@ -1348,3 +1362,526 @@ endif
 @enduml
 ```
 
+---
+
+## 3. Sơ đồ lớp (Class Diagram) — mức phân tích
+
+> Sơ đồ lớp **mức phân tích**: mỗi lớp ứng với một khái niệm nghiệp vụ (phần lớn trùng một bảng trong `DATABASE.md`), thuộc tính là dữ liệu cần lưu, **phương thức là các việc nghiệp vụ lấy từ use case** (mục 12 `NGHIEP_VU.md`) — không phải hàm trong code. Khác ERD (`ERD.dbml`): ERD chỉ có bảng/cột/khóa, sơ đồ lớp thêm **kế thừa** và **phương thức**. Tên dùng dạng `camelCase` tiếng Việt cho dễ đọc; khóa chính/khóa ngoại không vẽ ra (thay bằng đường quan hệ có bội số).
+>
+> Chia 4 sơ đồ theo nhóm nghiệp vụ; lớp xuất hiện ở nhiều sơ đồ chỉ vẽ các thành phần cần thiết cho nhóm đó.
+
+### 3.1. Người dùng và nhân sự vận hành
+
+*Kế thừa: mọi vai trò có tài khoản đều là một **Người dùng** (đúng kiểu bảng cha – bảng con). Tài xế không có tài khoản nên chỉ nằm trong **Nhân sự vận hành**; chỉ phụ xe mới gắn với tài khoản.*
+
+```plantuml
+@startuml LOP_NguoiDung_NhanSu
+skinparam classAttributeIconSize 0
+hide empty members
+
+abstract class NguoiDung {
+  - email : String
+  - matKhau : String
+  - hoTen : String
+  - soDienThoai : String
+  - dangHoatDong : Boolean
+  - ngayTao : DateTime
+  + dangNhap()
+  + quenMatKhau()
+  + doiMatKhau()
+}
+
+class KhachHang {
+  - khoaThanhToanTaiQuay : Boolean
+  - biKhoa : Boolean
+  - lyDoKhoa : String
+  + dangKy()
+  + suaThongTinCaNhan()
+  + traCuuChuyen()
+  + datVeOnline()
+  + huyGiuCho()
+  + huyVeNhanHoan()
+}
+
+class NhanVienQuayVe {
+  + banVeTrucTiep()
+  + inVeCung()
+}
+
+class NhanVienGuiHang {
+  + nhanHangGui()
+  + giaoHangChoNguoiNhan()
+  + xuLyHangQuaHan()
+}
+
+class DieuDoVien {
+  + ganXeChoChuyen()
+  + doiXeChayThay()
+  + xuLySuCoGiuaDuong()
+}
+
+class PhuXe {
+  + xacNhanKhachLenXuongXe()
+  + capNhatHanhTrinhChuyen()
+  + baoSuCo()
+  + chatDoHang()
+  + baoHangThatLacHuHong()
+}
+
+class KeToan {
+  + chuyenKhoanHoanTien()
+}
+
+class QuanLyNhanSu {
+  + taoTaiKhoanVanHanh()
+  + khoaMoKhoaTaiKhoan()
+  + quanLyHoSoNhanSu()
+  + choNghiViec()
+  + xemNhatKyCuaMinh()
+}
+
+class QuanLy {
+  - laTaiKhoanGoc : Boolean
+  + quanLyDanhMuc()
+  + sinhVaQuanLyChuyen()
+  + quanLyBienChe()
+  + taoKhoaMoKhoaTaiKhoan()
+  + xemThongKe()
+}
+
+class DiemDonTra {
+  - ten : String
+  - diaChi : String
+}
+
+class NhanSuVanHanh {
+  - hoTen : String
+  - soDienThoai : String
+  - chucDanh : ChucDanh
+  - soCCCD : String
+  - ngaySinh : Date
+  - ngayVaoLam : Date
+  - trangThai : TrangThaiNhanSu
+  + choNghiViec()
+}
+
+class GiayToNhanSu {
+  - loai : LoaiGiayTo
+  - soGiayTo : String
+  - hang : String
+  - ngayCap : Date
+  - ngayHetHan : Date
+  + giaHan()
+  + sapHetHan() : Boolean
+}
+
+class BienChe {
+  - loai : LoaiBienChe
+  - trangThai : TrangThaiBienChe
+  - ngayBatDau : DateTime
+  - ngayKetThuc : DateTime
+}
+
+class Xe {
+  - bienSo : String
+  - trangThai : TrangThaiXe
+}
+
+class NhatKyThaoTac {
+  - hanhDong : String
+  - doiTuongBiTacDong : String
+  - ghiChu : String
+  - thoiGian : DateTime
+}
+
+enum ChucDanh {
+  taiXe
+  phuXe
+}
+enum TrangThaiNhanSu {
+  dangLam
+  daNghiViec
+}
+enum LoaiGiayTo {
+  bangLai
+  giayKhamSucKhoe
+}
+enum LoaiBienChe {
+  coDinh
+  tamThoi
+}
+enum TrangThaiBienChe {
+  dangHoatDong
+  tamNghi
+}
+
+NguoiDung <|-- KhachHang
+NguoiDung <|-- NhanVienQuayVe
+NguoiDung <|-- NhanVienGuiHang
+NguoiDung <|-- DieuDoVien
+NguoiDung <|-- PhuXe
+NguoiDung <|-- KeToan
+NguoiDung <|-- QuanLyNhanSu
+NguoiDung <|-- QuanLy
+
+NhanVienQuayVe "*" --> "1" DiemDonTra : phụ trách văn phòng
+NhanVienGuiHang "*" --> "1" DiemDonTra : phụ trách văn phòng
+DieuDoVien "*" --> "1" DiemDonTra : phụ trách văn phòng
+
+PhuXe "0..1" -- "1" NhanSuVanHanh : có hồ sơ
+NhanSuVanHanh "1" *-- "0..2" GiayToNhanSu : có giấy tờ
+NhanSuVanHanh "1" -- "*" BienChe
+Xe "1" -- "*" BienChe
+NhanSuVanHanh --> ChucDanh
+NhanSuVanHanh --> TrangThaiNhanSu
+GiayToNhanSu --> LoaiGiayTo
+BienChe --> LoaiBienChe
+BienChe --> TrangThaiBienChe
+
+QuanLyNhanSu "1" ..> "*" NhatKyThaoTac : ghi
+QuanLy "1" ..> "*" NhatKyThaoTac : ghi
+@enduml
+```
+
+### 3.2. Địa điểm, tuyến, xe và chuyến
+
+*Một **Tuyến** là một hành trình vật lý chạy được cả 2 chiều; mỗi lần chạy là một **Chuyến xe** có chiều xuôi hoặc ngược. Chuyến chỉ cam kết loại xe, xe cụ thể (có thể chưa có) được điều độ viên gán sau.*
+
+```plantuml
+@startuml LOP_Tuyen_Xe_Chuyen
+skinparam classAttributeIconSize 0
+hide empty members
+
+class KhuVuc {
+  - ma : String
+  - ten : String
+  - tinhThanh : String
+}
+
+class DiemDonTra {
+  - ma : String
+  - ten : String
+  - diaChi : String
+  - loai : LoaiDiem
+}
+
+class Tuyen {
+  - ma : String
+  - ten : String
+  + themDiemDung(diem, thuTu, thoiGianDuKien)
+  + chayDuocHaiChieu()
+}
+
+class DiemTrenTuyen {
+  - thuTu : Integer
+  - thoiGianDuKienPhut : Integer
+}
+
+class GiaVe {
+  - giaGoc : Money
+  - apDungTu : Date
+  - apDungDen : Date
+  + tinhGiaThucTe(loaiXe) : Money
+}
+
+class LoaiXe {
+  - ma : String
+  - ten : String
+  - heSoGia : Decimal
+  - soDoGhe : SoDoGhe
+  + tongSoGhe() : Integer
+}
+
+class Xe {
+  - bienSo : String
+  - trangThai : TrangThaiXe
+  + dangRanh(thoiDiem) : Boolean
+  + viTriDuKien(thoiDiem) : DiemDonTra
+}
+
+class LichChayDinhKy {
+  - chieu : Chieu
+  - gioKhoiHanh : Time
+  - dangApDung : Boolean
+  + sinhChuyen(tuNgay, denNgay)
+  + ngungApDung()
+}
+
+class ChuyenXe {
+  - ma : String
+  - chieu : Chieu
+  - gioKhoiHanh : DateTime
+  - trangThai : TrangThaiChuyen
+  - dangHoan : Boolean
+  - loaiSuCo : LoaiSuCo
+  - lyDoSuCo : String
+  - coCanhBaoXungDotViTri : Boolean
+  + ganXe(xe)
+  + doiXeChayThay(xeThayThe)
+  + xacNhanXuatPhat()
+  + xacNhanToiDiem(diem)
+  + baoSuCo(loai, lyDo)
+  + huy()
+  + suaGio(gioMoi)
+  + soGheTrong(diemDon, diemTra) : Integer
+}
+
+class LichSuDiemDung {
+  - gioThucTe : DateTime
+}
+
+enum LoaiDiem {
+  vanPhong
+  diemDung
+}
+enum Chieu {
+  xuoi
+  nguoc
+}
+enum TrangThaiXe {
+  hoatDong
+  baoTri
+  ngungSuDung
+}
+enum TrangThaiChuyen {
+  chuaKhoiHanh
+  dangChay
+  gapSuCo
+  hoanThanh
+  daHuy
+}
+enum LoaiSuCo {
+  loiNhaXe
+  loiKhachQuan
+}
+
+KhuVuc "1" *-- "*" DiemDonTra : gồm
+Tuyen "1" *-- "*" DiemTrenTuyen : đi qua
+DiemTrenTuyen "*" --> "1" DiemDonTra
+Tuyen "1" -- "*" GiaVe : định giá
+GiaVe "*" --> "1" KhuVuc : điểm đi
+GiaVe "*" --> "1" KhuVuc : điểm đến
+
+LoaiXe "1" -- "*" Xe : thuộc loại
+Xe "*" --> "1" DiemDonTra : vị trí gốc (văn phòng)
+Xe "*" --> "0..1" Tuyen : cố định tuyến
+
+Tuyen "1" -- "*" LichChayDinhKy
+LoaiXe "1" -- "*" LichChayDinhKy : loại xe dự kiến
+LichChayDinhKy "0..1" -- "*" ChuyenXe : sinh ra
+
+Tuyen "1" -- "*" ChuyenXe
+LoaiXe "1" -- "*" ChuyenXe : loại xe cam kết
+Xe "0..1" -- "*" ChuyenXe : xe gốc
+Xe "0..1" -- "*" ChuyenXe : xe chạy thay
+ChuyenXe "1" *-- "*" LichSuDiemDung : ghi nhận
+LichSuDiemDung "*" --> "1" DiemDonTra
+
+DiemDonTra --> LoaiDiem
+ChuyenXe --> TrangThaiChuyen
+ChuyenXe --> LoaiSuCo
+ChuyenXe --> Chieu
+LichChayDinhKy --> Chieu
+Xe --> TrangThaiXe
+@enduml
+```
+
+### 3.3. Vé, thanh toán và hoàn tiền
+
+*Một ghế trên một chuyến có thể có nhiều vé nếu các chặng không giao nhau, vì vậy **Vé** gắn với điểm đón và điểm trả. Các vé cùng một lần đặt dùng chung một mã đặt chỗ. Mỗi vé hoàn tiền tối đa một lần.*
+
+```plantuml
+@startuml LOP_Ve_HoanTien
+skinparam classAttributeIconSize 0
+hide empty members
+
+class KhachHang {
+  - hoTen : String
+  - soDienThoai : String
+}
+
+class ChuyenXe {
+  - ma : String
+  - gioKhoiHanh : DateTime
+  - trangThai : TrangThaiChuyen
+}
+
+class DiemDonTra {
+  - ten : String
+}
+
+class Ve {
+  - soGhe : String
+  - gia : Money
+  - maDatCho : String
+  - laVeDatCoc : Boolean
+  - loaiHinhThanhToan : LoaiHinhThanhToan
+  - phuongThucThanhToan : PhuongThucThanhToan
+  - tenKhachVangLai : String
+  - sdtKhachVangLai : String
+  - trangThai : TrangThaiVe
+  - hanGiuChoDen : DateTime
+  - gioThanhToan : DateTime
+  + giuCho()
+  + chonDiemDonTra(diemDon, diemTra)
+  + thanhToan()
+  + huyGiuCho()
+  + huyNhanHoan()
+  + lenXe()
+  + xuongXe()
+  + danhDauKhongDen()
+  + conTuHuyDuoc() : Boolean
+}
+
+class HoanTien {
+  - lyDo : LyDoHoanTien
+  - soTien : Money
+  - trangThai : TrangThaiHoanTien
+  - maGiaoDichHoanTien : String
+  - soTaiKhoanNhan : String
+  - tenNganHangNhan : String
+  - tenChuTaiKhoanNhan : String
+  - thoiGianXacDinh : DateTime
+  - thoiGianHoanXong : DateTime
+  + hoanQuaCong()
+  + xacNhanChuyenKhoanThuCong()
+}
+
+class KeToan {
+}
+
+class ThongBao {
+  - noiDung : String
+  - daDoc : Boolean
+  - ngayTao : DateTime
+}
+
+enum TrangThaiVe {
+  giuCho
+  hetHan
+  daThanhToan
+  daLenXe
+  daXuongXe
+  khongDen
+  daHuy
+}
+enum LoaiHinhThanhToan {
+  thanhToanNgay
+  thanhToanTaiQuay
+}
+enum PhuongThucThanhToan {
+  tienMat
+  chuyenKhoan
+}
+enum LyDoHoanTien {
+  batKhaKhangKhongHoanThanh
+  loiNhaXeGiuaDuong
+  hoanTruocGioChay
+  tuDongHoanQuaBaTieng
+}
+enum TrangThaiHoanTien {
+  choXuLy
+  daHoanTuDong
+  daHoanChuyenKhoanThuCong
+}
+
+KhachHang "0..1" -- "*" Ve : đặt (trống nếu khách vãng lai)
+ChuyenXe "1" -- "*" Ve
+Ve "*" --> "1" DiemDonTra : điểm đón
+Ve "*" --> "1" DiemDonTra : điểm trả
+Ve "1" -- "0..1" HoanTien : được hoàn
+KeToan "0..1" -- "*" HoanTien : xử lý thủ công
+ThongBao "*" --> "0..1" Ve : liên quan
+KhachHang "1" -- "*" ThongBao : nhận
+
+Ve --> TrangThaiVe
+Ve --> LoaiHinhThanhToan
+Ve --> PhuongThucThanhToan
+HoanTien --> LyDoHoanTien
+HoanTien --> TrangThaiHoanTien
+@enduml
+```
+
+### 3.4. Gửi hàng
+
+*Đơn hàng chọn **tuyến** lúc nhận hàng, chưa gắn với chuyến nào; chỉ khi phụ xe xếp hàng lên xe thì đơn mới gắn với một chuyến cụ thể.*
+
+```plantuml
+@startuml LOP_GuiHang
+skinparam classAttributeIconSize 0
+hide empty members
+
+class NhanVienGuiHang {
+}
+
+class PhuXe {
+}
+
+class Tuyen {
+  - ten : String
+}
+
+class ChuyenXe {
+  - ma : String
+}
+
+class DiemDonTra {
+  - ten : String
+}
+
+class LoaiHang {
+  - ten : String
+  - laHangCam : Boolean
+}
+
+class DonHang {
+  - maVanDon : String
+  - canNangKg : Decimal
+  - giaCuoc : Money
+  - tenNguoiGui : String
+  - sdtNguoiGui : String
+  - tenNguoiNhan : String
+  - sdtNguoiNhan : String
+  - phuongThucThanhToan : PhuongThucThanhToanHang
+  - trangThai : TrangThaiDonHang
+  - thoiGianDenDiemNhan : DateTime
+  - daThongBaoNguoiNhan : Boolean
+  - coCanhBaoChoLau : Boolean
+  + taoDon()
+  + xepLenChuyen(chuyen)
+  + xacNhanDoHang()
+  + giaoChoNguoiNhan()
+  + danhDauHangTon()
+}
+
+class BaoCaoSuCoHang {
+  - moTa : String
+  - ngayTao : DateTime
+}
+
+enum TrangThaiDonHang {
+  choVanChuyen
+  daLenXe
+  choLay
+  daGiao
+  quaHanLuuKho
+}
+enum PhuongThucThanhToanHang {
+  nguoiGuiTraTruoc
+  codNguoiNhanTra
+}
+
+NhanVienGuiHang "1" -- "*" DonHang : tạo
+NhanVienGuiHang "0..1" -- "*" DonHang : giao cho người nhận
+Tuyen "1" -- "*" DonHang : chọn tuyến
+ChuyenXe "0..1" -- "*" DonHang : xếp lên chuyến
+DiemDonTra "1" -- "*" DonHang : điểm gửi
+DiemDonTra "1" -- "*" DonHang : điểm nhận
+LoaiHang "1" -- "*" DonHang
+DonHang "1" -- "*" BaoCaoSuCoHang
+PhuXe "1" -- "*" BaoCaoSuCoHang : báo cáo
+
+DonHang --> TrangThaiDonHang
+DonHang --> PhuongThucThanhToanHang
+@enduml
+```

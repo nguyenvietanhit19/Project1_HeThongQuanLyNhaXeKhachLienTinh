@@ -74,8 +74,10 @@
         thanhCongEl.textContent = `Xin chào ${ketQua.ho_ten}! Đăng nhập thành công.`;
         thanhCongEl.hidden = false;
 
-        // Về trang chủ (tìm chuyến) — tài khoản/hồ sơ mở bằng cửa sổ nhỏ ngay tại trang chủ
-        const diDen = "/";
+        // Về trang chủ (tìm chuyến) — hoặc về đúng chỗ đang đặt vé dở (?next=/?di=..&den=..&ngay=..).
+        // Chỉ nhận đường dẫn trong chính trang web này (bắt đầu bằng "/" và không phải "//"), tránh bị chuyển hướng ra ngoài.
+        const next = new URLSearchParams(location.search).get("next");
+        const diDen = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
         setTimeout(() => { window.location.href = diDen; }, 800);
       } catch (err) {
         loiEl.textContent = err.message;

@@ -6,12 +6,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import CORS_ORIGINS
+from app.jobs import quet_no_show, quet_ve_het_han
 from app.jobs import quet_hang_ton, quet_no_show
 from app.routes.auth import router as auth_router
 from app.routes.chuyen import router as chuyen_router
 from app.routes.phu_xe import router as phu_xe_router
 from app.routes.gui_hang import router as gui_hang_router
 from app.routes.quan_ly import router as quan_ly_router
+from app.routes.thanh_toan import router as thanh_toan_router
+from app.routes.ve import router as ve_router
 from app.routes.websocket import router as websocket_router
 from app.routes.thong_bao import router as thong_bao_router
 from app.utils.loi import CamTruyCap, GiaTriLoi, KhongDuQuyen, KhongTimThay, LoiHeThong
@@ -24,6 +27,8 @@ async def lifespan(app: FastAPI):
     # UC-14 (⏱, mục 8.2 điểm 6/mục 9) — chu kỳ 1 phút đủ chính xác cho mốc
     # X phút (mặc định 5), theo đúng ARCHITECTURE.md mục 5.
     scheduler.add_job(quet_no_show.chay, "interval", minutes=1, id="quet_no_show")
+    # Vé giữ chỗ có hạn quá hạn → het_han (mục 6) — chu kỳ 1 phút
+    scheduler.add_job(quet_ve_het_han.chay, "interval", minutes=1, id="quet_ve_het_han")
     # UC-46 (⏱, mục 10.3 & mục 12) — quét cảnh báo (7 ngày) & chuyển tồn kho (14 ngày)
     scheduler.add_job(quet_hang_ton.chay_job_quet_hang_ton, "interval", hours=1, id="quet_hang_ton")
     scheduler.start()
@@ -101,3 +106,5 @@ app.include_router(phu_xe_router)
 app.include_router(gui_hang_router)
 app.include_router(thong_bao_router)
 app.include_router(chuyen_router)
+app.include_router(ve_router)
+app.include_router(thanh_toan_router)
