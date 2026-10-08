@@ -125,6 +125,69 @@ function ghGanSuKien() {
   document.getElementById("btn-gio-hang").addEventListener("click", () => capNhatGioHang());
 }
 
+// ---------- Thông báo: số chưa đọc + nhận thông báo mới theo thời gian thực (WebSocket /ws) ----------
+let tbSoChuaDoc = 0;
+let tbWs = null;
+let tbTimerNoiLai = null;
+
+function veHuyHieuThongBao() {
+  document.querySelectorAll("[data-tb-so]").forEach((el) => {
+    el.textContent = tbSoChuaDoc > 99 ? "99+" : tbSoChuaDoc;
+    el.hidden = tbSoChuaDoc === 0;
+  });
+}
+
+async function capNhatSoThongBao() {
+  if (!ghDangNhapKhach()) {
+    tbSoChuaDoc = 0;
+    return veHuyHieuThongBao();
+  }
+  try {
+    tbSoChuaDoc = (await apiGet("/thong-bao/cua-toi?limit=1")).so_chua_doc;
+  } catch {
+    /* giữ số cũ */
+  }
+  veHuyHieuThongBao();
+}
+
+// Có thông báo mới: tăng huy hiệu ngay; trang nào quan tâm (Thông báo, Booking, giỏ hàng) nghe sự kiện "co-thong-bao-moi"
+function noiThongBaoRealtime() {
+  if (tbWs || !ghDangNhapKhach()) return;
+  clearTimeout(tbTimerNoiLai);
+  let ws;
+  try {
+    ws = new WebSocket(`${API_BASE_URL.replace(/^http/, "ws")}/ws?token=${encodeURIComponent(localStorage.getItem("token"))}`);
+  } catch {
+    return;
+  }
+  tbWs = ws;
+  ws.onmessage = (e) => {
+    tbSoChuaDoc += 1;
+    veHuyHieuThongBao();
+    capNhatGioHang();
+    let chiTiet = {};
+    try {
+      chiTiet = JSON.parse(e.data);
+    } catch {
+      /* nội dung không phải JSON thì bỏ qua */
+    }
+    document.dispatchEvent(new CustomEvent("co-thong-bao-moi", { detail: chiTiet }));
+  };
+  ws.onclose = (e) => {
+    tbWs = null;
+    // 1008: token sai/hết hạn — không nối lại; còn lại (mất mạng, server khởi động lại) thì thử lại sau 5 giây
+    if (e.code !== 1008 && ghDangNhapKhach()) tbTimerNoiLai = setTimeout(noiThongBaoRealtime, 5000);
+  };
+}
+
+function ngatThongBaoRealtime() {
+  clearTimeout(tbTimerNoiLai);
+  const ws = tbWs;
+  tbWs = null;
+  tbSoChuaDoc = 0;
+  if (ws) ws.close(1000);
+}
+
 function veNav() {
   const navPhai = document.getElementById("tc-nav-phai");
   if (!navPhai) return;
@@ -143,7 +206,7 @@ function veNav() {
   // Các mục chính trên màn hình lớn (điện thoại dùng thanh dưới thay thế, CSS ẩn nhóm này ở ≤700px)
   const duongHienTai = location.pathname.replace(/index\.html$/, "");
   const lienKet = (href, nhan) => `<a class="tc-lk${duongHienTai === href ? " is-active" : ""}" href="${href}"${duongHienTai === href ? ' aria-current="page"' : ""}>${nhan}</a>`;
-  const cacMuc = `<div class="tc-nav__lien-ket">${lienKet("/", "Trang chủ")}${lienKet("/khach-hang/ve-cua-toi.html", "Booking")}${lienKet("/khach-hang/thong-bao.html", "Thông báo")}</div>`;
+  const cacMuc = `<div class="tc-nav__lien-ket">${lienKet("/", "Trang chủ")}${lienKet("/khach-hang/ve-cua-toi.html", "Booking")}${lienKet("/khach-hang/thong-bao.html", 'Thông báo<span class="tc-so" data-tb-so hidden>0</span>')}</div>`;
 
   const dangNhap = localStorage.getItem("token") && localStorage.getItem("vai_tro") === "khach_hang";
   if (!dangNhap) {
@@ -187,6 +250,7 @@ function veNav() {
 
 function dangXuat() {
   ["token", "vai_tro", "ho_ten"].forEach((k) => localStorage.removeItem(k));
+  ngatThongBaoRealtime();
   clearInterval(ghDongHo);
   ghDanhSach = [];
   veNav();
@@ -227,7 +291,7 @@ function veDayNav() {
   nav.innerHTML =
     muc("/", "Trang chủ", "Trang chủ", "trangChu") +
     muc("/khach-hang/ve-cua-toi.html", "Booking", "Booking", "booking") +
-    muc("/khach-hang/thong-bao.html", "Thông báo", "Thông báo", "thongBao") +
+    muc("/khach-hang/thong-bao.html", "Thông báo", 'Thông báo<span class="tc-so" data-tb-so hidden>0</span>', "thongBao") +
     taiKhoan;
   if (dangNhap) {
     ganPopup("btn-day-nav-tai-khoan", "menu-day-nav");
@@ -236,6 +300,11 @@ function veDayNav() {
       if (typeof moHoSo === "function") moHoSo();
     });
     document.getElementById("btn-dang-xuat-day-nav").addEventListener("click", dangXuat);
+  }
+  veHuyHieuThongBao();
+  if (dangNhap) {
+    capNhatSoThongBao();
+    noiThongBaoRealtime();
   }
 }
 document.addEventListener("click", dongMoiPopup);
