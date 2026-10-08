@@ -25,6 +25,7 @@ from app.repositories import ho_so_khach_hang_repository as ho_so_repo
 from app.repositories import ve_lock_repository as lock_repo
 from app.repositories import ve_lich_su_repository as lich_su_repo
 from app.repositories import ve_thanh_toan_repository as thanh_toan_repo
+from app.services import thong_bao_khach_service as thong_bao
 from app.services import tim_kiem_chuyen_service as tim_kiem
 from app.services import vnpay_service
 from app.utils.loi import GiaTriLoi
@@ -448,7 +449,14 @@ def thanh_toan(nguoi_dung_id: str, ma_dat_cho: str, danh_sach_ghe: list[str], lo
         )
     if not lock_repo.chot_thanh_toan_tai_quay(ma_dat_cho, nguoi_dung_id, chon, len(cac_ve)):
         raise GiaTriLoi("Lượt đặt chỗ đã hết hạn — vui lòng chọn ghế lại")
-    return xem_dat_cho(nguoi_dung_id, ma_dat_cho)
+    dat_cho = xem_dat_cho(nguoi_dung_id, ma_dat_cho)
+    chuyen = dat_cho["chuyen"]
+    thong_bao.gui(
+        nguoi_dung_id,
+        thong_bao.nd_dat_ve_tai_quay(ma_dat_cho, chon, chuyen["ten_diem_don"], chuyen["gio_don_du_kien"], tong_tien),
+        ve_id=next((v["id"] for v in dat_cho["ve"] if v["so_ghe"] in chon), None),
+    )
+    return dat_cho
 
 
 def tao_duong_dan_thanh_toan(nguoi_dung_id: str, ma_dat_cho: str, frontend_origin: str, ip_khach: str = "127.0.0.1") -> str:

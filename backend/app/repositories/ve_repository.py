@@ -93,7 +93,7 @@ def tim_ve_qua_gio_len_xe(x_phut: int) -> list[dict]:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT v.id, v.khach_hang_id
+                SELECT v.id, v.khach_hang_id, v.ma_ve, v.so_ghe
                 FROM ve v
                 JOIN chuyen_xe cx ON cx.id = v.chuyen_id
                 JOIN tuyen_diem_don_tra tdt

@@ -282,9 +282,9 @@ def huy_dat_cho(ma_dat_cho: str, khach_hang_id: str) -> int:
         release_connection(conn)
 
 
-def danh_dau_het_han_qua_han() -> int:
+def danh_dau_het_han_qua_han() -> list[dict]:
     """Job quét: vé giữ chỗ có hạn mà đã quá hạn → `het_han` (ghế đã mở lại từ lúc quá hạn nhờ kiểm tra hạn lúc truy
-    vấn; job chỉ dọn trạng thái để không bị tính nhầm là no-show). Trả số vé đã chuyển."""
+    vấn; job chỉ dọn trạng thái để không bị tính nhầm là no-show). Trả các vé vừa chuyển (để báo khách)."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -292,10 +292,11 @@ def danh_dau_het_han_qua_han() -> int:
                 """
                 UPDATE ve SET trang_thai = 'het_han'
                 WHERE trang_thai = 'giu_cho' AND han_giu_cho_den IS NOT NULL AND han_giu_cho_den <= now()
+                RETURNING id, ma_dat_cho, so_ghe, khach_hang_id
                 """
             )
-            so_ve = cur.rowcount
+            ve_het_han = _thanh_list(cur, cur.fetchall())
         conn.commit()
-        return so_ve
+        return ve_het_han
     finally:
         release_connection(conn)

@@ -75,7 +75,7 @@ def lay_ve_cua_dat_cho(ma_dat_cho: str) -> list[dict]:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, so_ghe, gia, trang_thai, loai_hinh_thanh_toan, han_giu_cho_den
+                SELECT id, ma_ve, so_ghe, gia, trang_thai, loai_hinh_thanh_toan, han_giu_cho_den, khach_hang_id
                 FROM ve WHERE ma_dat_cho = %s ORDER BY so_ghe
                 """,
                 (ma_dat_cho,),
@@ -204,7 +204,7 @@ def lay_ve_theo_ma_ve(ma_ve: str) -> dict | None:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, ma_ve, ma_dat_cho, gia, trang_thai, loai_hinh_thanh_toan, han_giu_cho_den
+                SELECT id, ma_ve, so_ghe, ma_dat_cho, gia, trang_thai, loai_hinh_thanh_toan, han_giu_cho_den, khach_hang_id
                 FROM ve WHERE ma_ve = %s
                 """,
                 (ma_ve,),
