@@ -9,7 +9,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from zoneinfo import ZoneInfo
 
 from app.repositories import tim_kiem_chuyen_repository as repo
-from app.utils.loi import GiaTriLoi
+from app.utils.loi import GiaTriLoi, KhongTimThay
 
 MUI_GIO_VN = ZoneInfo("Asia/Ho_Chi_Minh")
 
@@ -139,6 +139,27 @@ def lay_chuyen_mo_ban(chuyen_id: str, khu_vuc_di_id: str, khu_vuc_den_id: str) -
     if not cac_the:
         raise GiaTriLoi("Chuyến không còn mở bán hoặc không đi qua cặp điểm này")
     return cac_the[0]
+
+
+def lo_trinh_chuyen(chuyen_id: str) -> dict:
+    """Lộ trình 1 chuyến: mọi điểm đón/trả theo thứ tự chạy thật + giờ dự kiến xe tới từng điểm (công khai, không cần đăng nhập)."""
+    diem = repo.lo_trinh_cua_chuyen(str(chuyen_id))
+    if not diem:
+        raise KhongTimThay("Không tìm thấy chuyến")
+    gio_khoi_hanh = diem[0]["gio_khoi_hanh"]
+    return {
+        "chuyen_id": chuyen_id,
+        "ten_tuyen": diem[0]["ten_tuyen"],
+        "gio_khoi_hanh": gio_khoi_hanh,
+        "tong_thoi_gian_phut": diem[-1]["phut"] - diem[0]["phut"],
+        "diem": [
+            {
+                "diem_id": d["diem_id"], "khu_vuc_id": d["khu_vuc_id"], "ten_khu_vuc": d["ten_khu_vuc"], "ten": d["ten"],
+                "dia_chi": d["dia_chi"], "loai": d["loai"], "gio_du_kien": gio_tai_diem(gio_khoi_hanh, d["phut"]),
+            }
+            for d in diem
+        ],
+    }
 
 
 def so_do_ghe_chuyen(chuyen_id: str, khu_vuc_di_id: str, khu_vuc_den_id: str) -> dict:

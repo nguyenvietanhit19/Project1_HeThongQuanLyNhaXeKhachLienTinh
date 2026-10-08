@@ -8,7 +8,7 @@ from uuid import UUID
 
 from fastapi import APIRouter
 
-from app.schemas.tim_kiem_chuyen_schema import ChuyenChiTiet, ChuyenTimThay, KhuVucCongKhai
+from app.schemas.tim_kiem_chuyen_schema import ChuyenChiTiet, ChuyenTimThay, KhuVucCongKhai, LoTrinhChuyen
 from app.services import tim_kiem_chuyen_service as service
 
 router = APIRouter(prefix="/chuyen", tags=["chuyen"])
@@ -22,6 +22,11 @@ def danh_sach_khu_vuc():
 @router.get("/tim-kiem", response_model=list[ChuyenTimThay])
 def tim_chuyen(diem_di_id: UUID, diem_den_id: UUID, ngay: date):
     return service.tim_chuyen(str(diem_di_id), str(diem_den_id), ngay)
+
+
+@router.get("/{chuyen_id}/lo-trinh", response_model=LoTrinhChuyen)
+def lo_trinh(chuyen_id: UUID):
+    return service.lo_trinh_chuyen(str(chuyen_id))
 
 
 @router.get("/{chuyen_id}/so-do-ghe", response_model=ChuyenChiTiet)
