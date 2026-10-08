@@ -253,7 +253,7 @@ function dangXuat() {
   ngatThongBaoRealtime();
   clearInterval(ghDongHo);
   ghDanhSach = [];
-  veNav();
+  location.href = "/"; // đăng xuất xong về trang chủ (kể cả đang ở Booking/Thông báo, những trang cần đăng nhập)
 }
 
 // ---------- Thanh điều hướng dưới (chỉ hiện trên điện thoại, CSS .tc-day-nav ở trang-chu.css) ----------

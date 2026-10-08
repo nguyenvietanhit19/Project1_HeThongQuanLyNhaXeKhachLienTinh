@@ -131,7 +131,7 @@ project-root/
 │   └── .dockerignore
 │
 ├── frontend/                              # HTML/CSS/JS tĩnh — 2 giao diện tách biệt
-│   ├── index.html                         # TRANG CHỦ công khai (link production gốc `/`) — tìm chuyến + xem sơ đồ ghế, không cần đăng nhập (UC-04); CSS/JS ở khach-hang/trang-chu.*
+│   ├── index.html                         # TRANG CHỦ công khai (link production gốc `/`) — ô tìm chuyến, bấm Tìm chuyến sang khach-hang/tim-chuyen.html (kết quả + sơ đồ ghế, UC-04), không cần đăng nhập; CSS/JS ở khach-hang/trang-chu.*
 │   ├── khach-hang/                        # tìm chuyến, đặt vé, thanh toán, lịch sử vé
 │   └── nhan-vien/                         # phụ xe (di động) + quầy vé + gửi hàng + điều độ + quản lý
 │

@@ -590,12 +590,12 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
 ### UC-04. Tra cứu chuyến công khai
 
 - **Actor**: Khách hàng (kể cả chưa đăng nhập).
-- **Tiền điều kiện**: Không cần đăng nhập. Đây là **trang chủ** của hệ thống (đường dẫn gốc `/`).
+- **Tiền điều kiện**: Không cần đăng nhập. Ô tìm nằm ở **trang chủ** (đường dẫn gốc `/`); kết quả hiển thị ở **trang riêng** `tim-chuyen.html` (đường dẫn mang đủ điểm đi/đến/ngày nên chia sẻ, tải lại được).
 - **Luồng chính** (mục 3.4 bước 1–3, mục 8.1 điểm 1):
   1. Chọn điểm đi + điểm đến (chọn **tỉnh trước, rồi khu vực** trong tỉnh đó, mục 3.1) + ngày.
   2. Hệ thống tìm mọi `chuyen_xe` còn `chua_khoi_hanh`, chưa quá giờ khởi hành, chạy đúng ngày đó, có tuyến đi qua đúng cặp khu_vực theo đúng thứ tự **của chiều chuyến đang chạy** (điểm đón hợp lệ = văn phòng thuộc khu_vực đi, đứng trước ≥1 điểm thuộc khu_vực đến; chuyến `nguoc` đọc danh sách điểm theo chiều giảm dần).
-  3. Hiển thị danh sách chuyến: loại xe, giá vé (giá `gia_ve` của cặp khu_vực — ưu tiên bản đang trong mùa áp dụng — nhân `he_so_gia` của loại xe, làm tròn), số ghế trống, giờ đón và giờ đến dự kiến tại khu_vực đi/đến (tính từ `gio_khoi_hanh` + thời gian dự kiến của điểm, chiều ngược tính đảo). Có thể sắp xếp theo giờ hoặc giá.
-  4. Chọn 1 chuyến → xem sơ đồ ghế (đoạn rộng nhất có thể, mục 3.4 bước 3).
+  3. Chuyển sang trang kết quả và hiển thị danh sách chuyến (có thể lọc theo khung giờ đón, loại xe, chỉ chuyến còn ghế; sắp xếp theo giờ/giá/số ghế trống; đổi ngày ngay trên thanh chọn ngày): loại xe, giá vé (giá `gia_ve` của cặp khu_vực — ưu tiên bản đang trong mùa áp dụng — nhân `he_so_gia` của loại xe, làm tròn), số ghế trống, giờ đón và giờ đến dự kiến tại khu_vực đi/đến (tính từ `gio_khoi_hanh` + thời gian dự kiến của điểm, chiều ngược tính đảo). Có thể sắp xếp theo giờ hoặc giá.
+  4. Bấm thẳng vào 1 chuyến (không cần nút riêng) → xem sơ đồ ghế (đoạn rộng nhất có thể, mục 3.4 bước 3). Ở bước chọn ghế có nút **Xem lộ trình**: hiện mọi điểm đón/trả của chuyến theo thứ tự chạy thật cùng giờ dự kiến xe tới từng điểm, đánh dấu các điểm nằm trong chặng khách tìm (có thể lên/xuống xe); quay lại vẫn giữ nguyên ghế đã chọn.
 - **Luồng rẽ nhánh**:
   - Tại bước 2: không có chuyến nào khớp → hiển thị "không tìm thấy chuyến phù hợp" → kết thúc.
   - Tại bước 3: chuyến khớp nhưng **chưa có giá** cho cặp khu_vực này (`quan_ly` chưa đặt, UC-33) → chuyến **không hiển thị** (không bán được khi chưa có giá).

@@ -53,7 +53,7 @@ function veYeuCauDangNhap() {
   noiDung.innerHTML = `
     <div class="bk-trong">
       <h2>Đăng nhập để xem vé của bạn</h2>
-      <a class="tc-btn tc-btn--chinh" href="/khach-hang/dang-nhap.html?next=${encodeURIComponent("/khach-hang/ve-cua-toi.html")}">Đăng nhập</a>
+      <a class="tc-btn tc-btn--chinh" href="/khach-hang/dang-nhap.html">Đăng nhập</a>
     </div>`;
 }
 
