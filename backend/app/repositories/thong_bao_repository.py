@@ -37,9 +37,10 @@ def danh_sach_cua_toi(nguoi_nhan_id: str, chi_chua_doc: bool = False, limit: int
             cur.execute(
                 f"""
                 SELECT tb.id, tb.noi_dung, tb.da_doc, tb.ngay_tao, tb.ve_id, tb.don_hang_id,
-                       dh.ma_van_don
+                       dh.ma_van_don, v.ma_dat_cho
                 FROM thong_bao tb
                 LEFT JOIN don_hang dh ON dh.id = tb.don_hang_id
+                LEFT JOIN ve v ON v.id = tb.ve_id
                 WHERE tb.nguoi_nhan_id = %s {"AND tb.da_doc = false" if chi_chua_doc else ""}
                 ORDER BY tb.ngay_tao DESC
                 LIMIT %s

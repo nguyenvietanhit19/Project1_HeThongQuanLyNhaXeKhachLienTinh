@@ -1,5 +1,7 @@
 Giao diện khách hàng: tra cứu chuyến, đặt vé online, xem lịch sử vé (`NGHIEP_VU.md` mục 8.1). HTML/CSS/JS tĩnh, chưa cần framework — xem `ARCHITECTURE.md` mục 3.
 
-- **Trang chủ công khai** nằm ở `frontend/index.html` (đường dẫn gốc `/` khi deploy) — tra cứu chuyến + xem sơ đồ ghế, không cần đăng nhập (UC-04). CSS/JS riêng: `trang-chu.css`, `trang-chu.js` (tiền tố class `.tc-*`).
+- **Trang chủ công khai** nằm ở `frontend/index.html` (đường dẫn gốc `/` khi deploy) — ô tìm chuyến (điểm đi, điểm đến, ngày); bấm "Tìm chuyến" chuyển sang trang kết quả. CSS/JS riêng: `trang-chu.css`, `trang-chu.js` (tiền tố class `.tc-*`). Đường dẫn cũ `/?di=…&den=…&ngay=…` tự chuyển sang trang kết quả.
+- **Trang kết quả tìm chuyến** `tim-chuyen.html?di=KV001&den=KV005&ngay=2026-10-08` (UC-04, không cần đăng nhập): ô tìm sửa hành trình tại chỗ, thanh chọn ngày, bộ lọc (khung giờ, loại xe, còn ghế), sắp xếp, thẻ chuyến; chọn chuyến → cửa sổ sơ đồ ghế + đặt vé. CSS/JS: `tim-chuyen.css` (tiền tố `.tk-*`), `tim-chuyen.js`.
+- Mã dùng chung giữa trang chủ và trang kết quả: `tien-ich-ngay.js` (ngày giờ giờ Việt Nam, định dạng tiền), `o-tim-kiem.js` (ô chọn điểm đi/đến, ngày dd/mm/yyyy, đổi chiều; mỗi trang tự định nghĩa `thucHienTim`), `dat-ve.js` (cửa sổ sơ đồ ghế + các bước đặt vé + thanh toán; trang chủ chỉ dùng để mở lại lượt đặt từ giỏ hàng `?tiep-tuc=MÃ`).
 - `dang-nhap.html`, `dang-ky.html`, `quen-mat-khau.html` + `auth.css` (tiền tố `.kh-*`): UC-01/02/03.
 - `khung-trang.js` (thanh trên + footer + tiện ích dùng chung), `ho-so.js` (cửa sổ "Tài khoản của tôi": xem/sửa họ tên, số điện thoại, đổi mật khẩu, đăng xuất — mở ngay tại trang, không có trang riêng).

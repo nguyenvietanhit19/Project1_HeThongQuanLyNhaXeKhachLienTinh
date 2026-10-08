@@ -6,7 +6,16 @@ khác từ lúc quá hạn nhờ kiểm tra hạn ngay trong truy vấn; job ch�
 """
 
 from app.repositories import ve_lock_repository as lock_repo
+from app.services import thong_bao_khach_service as thong_bao
 
 
 def chay() -> int:
-    return lock_repo.danh_dau_het_han_qua_han()
+    """Trả số vé vừa hết hạn. Mỗi lượt đặt (của 1 khách) được báo 1 thông báo, kể cả khi chỉ 1 phần vé hết hạn."""
+    ve_het_han = lock_repo.danh_dau_het_han_qua_han()
+    theo_luot: dict[tuple[str, str], list[dict]] = {}
+    for ve in ve_het_han:
+        if ve["khach_hang_id"]:
+            theo_luot.setdefault((str(ve["khach_hang_id"]), ve["ma_dat_cho"]), []).append(ve)
+    for (khach_hang_id, ma_dat_cho), cac_ve in theo_luot.items():
+        thong_bao.gui(khach_hang_id, thong_bao.nd_het_han(ma_dat_cho, sorted(v["so_ghe"] for v in cac_ve)), ve_id=cac_ve[0]["id"])
+    return len(ve_het_han)

@@ -53,7 +53,7 @@ function veYeuCauDangNhap() {
   noiDung.innerHTML = `
     <div class="bk-trong">
       <h2>Đăng nhập để xem vé của bạn</h2>
-      <a class="tc-btn tc-btn--chinh" href="/khach-hang/dang-nhap.html?next=${encodeURIComponent("/khach-hang/ve-cua-toi.html")}">Đăng nhập</a>
+      <a class="tc-btn tc-btn--chinh" href="/khach-hang/dang-nhap.html">Đăng nhập</a>
     </div>`;
 }
 
@@ -333,6 +333,19 @@ async function tai() {
   // Mở ngay nhóm có vé: không có vé sắp đi mà có vé ở nhóm khác thì mở nhóm đầu tiên có vé
   if (!danhSach.some((d) => d.nhom === nhomDangXem)) nhomDangXem = NHOM.find((n) => danhSach.some((d) => d.nhom === n.ma))?.ma || "sap_di";
   veTrang();
+  moTuDuongDan();
+}
+
+// Tới từ 1 thông báo (?ma=MÃ_ĐẶT_CHỖ): chọn đúng nhóm và mở chi tiết lượt đó, rồi bỏ tham số khỏi đường dẫn
+function moTuDuongDan() {
+  const ma = new URLSearchParams(location.search).get("ma");
+  if (!ma) return;
+  history.replaceState(null, "", location.pathname);
+  const d = danhSach.find((x) => x.ma_dat_cho === ma);
+  if (!d) return;
+  nhomDangXem = d.nhom;
+  veTrang();
+  moChiTiet(ma);
 }
 
 // Sau khi hủy 1 vé: tải lại danh sách, giữ cửa sổ chi tiết nếu lượt đó còn (có thể đã chuyển nhóm), không thì đóng

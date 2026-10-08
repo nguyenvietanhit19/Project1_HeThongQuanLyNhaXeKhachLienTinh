@@ -37,6 +37,7 @@ TY_LE_DAT_COC = 0.5
 X_PHUT_CHOT_LEN_XE = 5  # mục 7/8.2 điểm 6 — mốc chốt hủy giữ chỗ = giờ tại điểm đón − X phút (cùng giá trị job no-show)
 SO_GHE_TOI_DA_MOI_LAN_DAT = 10
 HAN_DE_DUNG_TRE_IPN_PHUT = 2  # giữ vé thêm ngần này phút sau hạn của cổng thanh toán để IPN (đi qua mạng) tới kịp
+NHAC_TRUOC_GIO_DON_PHUT = 120  # nhắc khách "sắp đến giờ đi" khi còn chừng này phút tới giờ đón (NGHIEP_VU.md mục 8.1 điểm 4)
 
 # Cổng thanh toán VNPay (UC-05 nhánh "thanh toán ngay", NGHIEP_VU.md mục 6).
 #   VNPAY_CHE_DO = "gia_lap" (mặc định): cổng giả lập tự làm để demo — vẫn ký/kiểm tra chữ ký HMAC-SHA512 và gọi IPN

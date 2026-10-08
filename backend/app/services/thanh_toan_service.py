@@ -13,6 +13,7 @@ import datetime
 
 from app.config import VNPAY_CHE_DO
 from app.repositories import ve_thanh_toan_repository as repo
+from app.services import thong_bao_khach_service as thong_bao
 from app.services import vnpay_service
 
 TUOI_TOI_THIEU_DE_QUET_GIAY = 240  # job chỉ hỏi VNPay các giao dịch đã tạo từ 4 phút trước (hạn thanh toán 5 phút + 2 phút đệm)
@@ -40,12 +41,21 @@ def _ap_dung_ket_qua(ma_dat_cho: str, so_tien_cong: str, thanh_cong: bool, ma_gi
     if so_tien != sum(int(v["gia"]) for v in ve_online) * 100:
         return _rsp("04", "Invalid amount")
 
+    khach_hang_id = ve_online[0].get("khach_hang_id")
     if thanh_cong:
+        vua_tra = [v for v in ve_online if v["trang_thai"] == "giu_cho"]
         if not repo.ghi_nhan_thanh_toan_ngay(ma_dat_cho, ma_giao_dich_cong):
             # Tiền đã trừ nhưng vé đã quá hạn/không còn giữ chỗ (trả đúng sát giờ): dừng cổng gọi lại, cần hoàn tiền thủ công (UC-22)
             return _rsp("02", "Order expired")
+        thong_bao.gui(
+            khach_hang_id,
+            thong_bao.nd_thanh_toan_thanh_cong(ma_dat_cho, [v["so_ghe"] for v in vua_tra], sum(int(v["gia"]) for v in vua_tra)),
+            ve_id=vua_tra[0].get("id") if vua_tra else None,
+        )
     else:
-        repo.huy_thanh_toan_ngay(ma_dat_cho)
+        dang_giu = [v for v in cac_ve if v["trang_thai"] == "giu_cho"]
+        if repo.huy_thanh_toan_ngay(ma_dat_cho) and dang_giu:
+            thong_bao.gui(khach_hang_id, thong_bao.nd_thanh_toan_that_bai(ma_dat_cho, [v["so_ghe"] for v in dang_giu]), ve_id=dang_giu[0].get("id"))
     return _rsp("00", "Confirm Success")
 
 
@@ -65,9 +75,13 @@ def _ap_dung_ket_qua_ve(ma_ve: str, so_tien_cong: str, thanh_cong: bool, ma_giao
         return _rsp("04", "Invalid amount")
     if so_tien != int(ve["gia"]) * 100:
         return _rsp("04", "Invalid amount")
-    if thanh_cong and not repo.ghi_nhan_thanh_toan_ve_le(ma_ve, ma_giao_dich_cong):
-        # Tiền đã trừ nhưng vé đã bị hủy/hết hạn trong lúc thanh toán: dừng cổng gọi lại, cần hoàn tiền thủ công (UC-22)
-        return _rsp("02", "Order expired")
+    if thanh_cong:
+        if not repo.ghi_nhan_thanh_toan_ve_le(ma_ve, ma_giao_dich_cong):
+            # Tiền đã trừ nhưng vé đã bị hủy/hết hạn trong lúc thanh toán: dừng cổng gọi lại, cần hoàn tiền thủ công (UC-22)
+            return _rsp("02", "Order expired")
+        thong_bao.gui(
+            ve.get("khach_hang_id"), thong_bao.nd_thanh_toan_ve_thanh_cong(ma_ve, ve.get("so_ghe", ""), int(ve["gia"])), ve_id=ve["id"]
+        )
     return _rsp("00", "Confirm Success")
 
 

@@ -59,3 +59,21 @@ class ChuyenChiTiet(ChuyenTimThay):
     so_do_ghe: list[GheTrongSoDo]
     diem_don_co_the_chon: list[DiemTrenChuyen]
     diem_tra_co_the_chon: list[DiemTrenChuyen]
+
+
+class DiemLoTrinh(BaseModel):
+    diem_id: UUID
+    khu_vuc_id: UUID
+    ten_khu_vuc: str
+    ten: str
+    dia_chi: str
+    loai: Literal["van_phong", "diem_dung"]
+    gio_du_kien: datetime
+
+
+class LoTrinhChuyen(BaseModel):
+    chuyen_id: UUID
+    ten_tuyen: str
+    gio_khoi_hanh: datetime
+    tong_thoi_gian_phut: int
+    diem: list[DiemLoTrinh]

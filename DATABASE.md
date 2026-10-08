@@ -305,6 +305,7 @@ Bảng trung tâm của toàn hệ thống — chịu trách nhiệm cho cơ ch�
 | `phuong_thuc_thanh_toan` | TEXT NULLABLE, CHECK IN (`tien_mat`, `chuyen_khoan`) | Mô tả **trả bằng gì** — chỉ có giá trị khi vé đã thực sự thu tiền (`gio_thanh_toan` được set). Với `loai_hinh_thanh_toan = 'thanh_toan_ngay'` luôn tự động `= 'chuyen_khoan'` (bản chất qua VNPay); với `'thanh_toan_tai_quay'` do nhân viên quầy chọn lúc thu tiền (tiền mặt hoặc đưa QR VNPay cho khách quét) |
 | `ma_giao_dich_cong_thanh_toan` | TEXT NULLABLE | Mã giao dịch phía VNPay, set ngay khi `phuong_thuc_thanh_toan = 'chuyen_khoan'` và thanh toán thành công (webhook trả về) — dùng để gọi API hoàn tiền của VNPay sau này (mục 7), kết hợp với `gio_thanh_toan` làm ngày giao dịch gốc. `NULL` nếu trả tiền mặt |
 | `ma_tham_chieu_vnpay` | TEXT NULLABLE | Mã giao dịch (`vnp_TxnRef`) của lần tạo đường dẫn thanh toán VNPay gần nhất cho vé trả ngay — để hệ thống tự hỏi VNPay (truy vấn giao dịch) kết quả của lượt đang chờ khi thông báo IPN không tới. Khác `ma_giao_dich_cong_thanh_toan` (mã do VNPay cấp sau khi trả tiền xong) |
+| `da_nhac_sap_di` | BOOLEAN NOT NULL DEFAULT false | Vé đã được nhắc "sắp đến giờ đi" (thông báo cho khách, job `quet_nhac_sap_di`) — để mỗi vé chỉ nhắc đúng 1 lần |
 | `trang_thai` | TEXT NOT NULL DEFAULT `'giu_cho'`, CHECK IN (`giu_cho`, `het_han`, `da_thanh_toan`, `da_len_xe`, `da_xuong_xe`, `khong_den`, `da_huy`) | Đúng vòng đời ở mục 5 |
 | `gio_bat_dau_dem_han` | TIMESTAMPTZ NULLABLE | Set khi khách **tới màn thanh toán** (mục 3.4 bước 6) — `NULL` nghĩa là ghế đã khóa nhưng chưa bắt đầu tính giờ |
 | `han_giu_cho_den` | TIMESTAMPTZ NULLABLE | Hạn giữ ghế, có 2 giai đoạn: (1) **giữ trước khi chọn cách thanh toán**: từ lúc khách bấm "Tiếp tục" (khóa ghế, mục 3.4 bước 5) — mặc định 10 phút (`HAN_GIU_TAM_PHUT`), lượt đặt nằm trong giỏ hàng và đếm ngược tiếp dù khách đã thoát; (2) với `loai_hinh_thanh_toan = 'thanh_toan_ngay'` đã bấm "Thanh toán" (`gio_bat_dau_dem_han` có giá trị): hạn thanh toán của cổng 5 phút + 2 phút đệm cho IPN (`HAN_DE_DUNG_TRE_IPN_PHUT`), hạn chót an toàn — thực tế thường được webhook xử lý sớm hơn (`ARCHITECTURE.md` mục 5). **`NULL` với `thanh_toan_tai_quay`** đã chốt — không có hạn nào, giữ tới giờ khởi hành (mục 3.4/6 `NGHIEP_VU.md`) |
@@ -473,6 +474,8 @@ Không đổi `don_hang.trang_thai` — chỉ ghi nhận, không chặn UC-26/UC
 | `don_hang_id` | UUID NULLABLE, FK → `don_hang(id)` | Liên kết cảnh báo hàng chờ lâu |
 | `da_doc` | BOOLEAN NOT NULL DEFAULT false | |
 | `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+
+**Thông báo gửi cho khách hàng** (`services/thong_bao_khach_service.py`, hiển thị ở trang Thông báo, kèm đẩy real-time qua WebSocket `/ws` và huy hiệu số chưa đọc): đặt vé thành công (chốt trả tại quầy), thanh toán thành công (cả lượt hoặc riêng 1 vé), thanh toán không thành công, hết hạn giữ chỗ (`jobs/quet_ve_het_han`), không đến (`jobs/quet_no_show`, kèm số lần vi phạm), sắp đến giờ đi (`jobs/quet_nhac_sap_di`, nhắc 1 lần khi còn `NHAC_TRUOC_GIO_DON_PHUT` phút tới giờ đón tại đúng điểm đón). Thông báo về xe đến điểm/sự cố do phụ xe gửi ở `chuyen_xe_service`. Ghi DB trước rồi mới đẩy; lỗi gửi thông báo không làm hỏng nghiệp vụ chính.
 
 ### 6.2. `nhat_ky_admin`
 
