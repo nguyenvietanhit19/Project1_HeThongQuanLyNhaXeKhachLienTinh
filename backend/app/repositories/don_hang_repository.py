@@ -502,7 +502,7 @@ def lay_bao_cao_su_co(don_hang_id: str) -> list[dict]:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT bc.id, bc.mo_ta, bc.ngay_tao, nd.ho_ten AS ten_nguoi_bao_cao
+                SELECT bc.id, bc.mo_ta, bc.loai, bc.ngay_tao, nd.ho_ten AS ten_nguoi_bao_cao
                 FROM bao_cao_su_co_hang bc
                 LEFT JOIN nguoi_dung nd ON nd.id = bc.nguoi_bao_cao_id
                 WHERE bc.don_hang_id = %s
@@ -688,18 +688,135 @@ def tim_don_can_do_tai_diem(chuyen_id: str, diem_nhan_id: str) -> list[dict]:
         release_connection(conn)
 
 
-def luu_bao_cao_su_co_hang(don_hang_id: str, nguoi_bao_cao_id: str, mo_ta: str) -> dict:
+def tim_don_co_the_hoan_tac(chuyen_id: str, diem_id: str) -> list[dict]:
+    """Phụ xe bấm nhầm chất/dỡ: đơn của chuyến này vừa được xử lý ngay tại điểm xe đang đứng —
+    đã chất (da_len_xe, gửi tại điểm này) hoặc đã dỡ (cho_lay, nhận tại điểm này)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, ma_van_don, ten_nguoi_nhan, can_nang_kg,
+                       CASE WHEN trang_thai = 'da_len_xe' THEN 'chat' ELSE 'do' END AS loai
+                FROM don_hang
+                WHERE chuyen_id = %s
+                  AND ((trang_thai = 'da_len_xe' AND diem_gui_id = %s)
+                    OR (trang_thai = 'cho_lay' AND diem_nhan_id = %s AND NOT da_thong_bao_nguoi_nhan))
+                ORDER BY ngay_tao ASC
+                """,
+                (chuyen_id, diem_id, diem_id),
+            )
+            return _thanh_danh_sach_dict(cur, cur.fetchall())
+    finally:
+        release_connection(conn)
+
+
+def hoan_tac_chat_hang(don_hang_id: str, chuyen_id: str, nguoi_dung_id: str | None = None) -> bool:
+    """da_len_xe -> cho_van_chuyen, gỡ khỏi chuyến. Điều kiện nằm trong UPDATE (chống bấm đúp/đua)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            _ghi_nguoi_thuc_hien(cur, nguoi_dung_id)
+            cur.execute(
+                """
+                UPDATE don_hang SET trang_thai = 'cho_van_chuyen', chuyen_id = NULL
+                WHERE id = %s AND trang_thai = 'da_len_xe' AND chuyen_id = %s
+                RETURNING id
+                """,
+                (don_hang_id, chuyen_id),
+            )
+            da_sua = cur.fetchone() is not None
+        conn.commit()
+        return da_sua
+    finally:
+        release_connection(conn)
+
+
+def hoan_tac_do_hang(don_hang_id: str, chuyen_id: str, nguoi_dung_id: str | None = None) -> bool:
+    """cho_lay -> da_len_xe, xóa mốc bắt đầu tính hạn lưu kho. Không làm nếu văn phòng đã gọi báo người nhận."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            _ghi_nguoi_thuc_hien(cur, nguoi_dung_id)
+            cur.execute(
+                """
+                UPDATE don_hang SET trang_thai = 'da_len_xe', thoi_gian_den_diem_nhan = NULL
+                WHERE id = %s AND trang_thai = 'cho_lay' AND chuyen_id = %s AND NOT da_thong_bao_nguoi_nhan
+                RETURNING id
+                """,
+                (don_hang_id, chuyen_id),
+            )
+            da_sua = cur.fetchone() is not None
+        conn.commit()
+        return da_sua
+    finally:
+        release_connection(conn)
+
+
+def tim_hang_hoa_cua_chuyen(chuyen_id: str) -> list[dict]:
+    """Mọi đơn hàng đã được xếp lên chuyến này (đang trên xe, đã dỡ, đã giao, hàng tồn) —
+    màn "tổng quan chuyến" của phụ xe. Kèm số báo cáo thất lạc/hư hỏng của từng đơn."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT d.id, d.ma_van_don, d.trang_thai, d.can_nang_kg,
+                       d.ten_nguoi_gui, d.sdt_nguoi_gui, d.ten_nguoi_nhan, d.sdt_nguoi_nhan,
+                       dg.ten AS ten_diem_gui, dn.ten AS ten_diem_nhan, lh.ten AS ten_loai_hang,
+                       (SELECT count(*) FROM bao_cao_su_co_hang bc WHERE bc.don_hang_id = d.id)::int AS so_bao_cao_su_co,
+                       (SELECT count(*) FROM bao_cao_su_co_hang bc WHERE bc.don_hang_id = d.id AND bc.loai = 'hu_hong')::int AS so_bao_hu_hong,
+                       (SELECT count(*) FROM bao_cao_su_co_hang bc WHERE bc.don_hang_id = d.id AND bc.loai = 'that_lac')::int AS so_bao_that_lac
+                FROM don_hang d
+                JOIN diem_don_tra dg ON dg.id = d.diem_gui_id
+                JOIN diem_don_tra dn ON dn.id = d.diem_nhan_id
+                LEFT JOIN loai_hang lh ON lh.id = d.loai_hang_id
+                WHERE d.chuyen_id = %s
+                ORDER BY d.ngay_tao
+                """,
+                (chuyen_id,),
+            )
+            return _thanh_danh_sach_dict(cur, cur.fetchall())
+    finally:
+        release_connection(conn)
+
+
+def dem_bao_cao_theo_loai(don_hang_ids: list[str]) -> dict[str, dict]:
+    """{don_hang_id: {"hu_hong": n, "that_lac": m}} — gắn nhãn cảnh báo lên các danh sách hàng của phụ xe."""
+    if not don_hang_ids:
+        return {}
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT don_hang_id::text, loai, count(*)
+                FROM bao_cao_su_co_hang
+                WHERE don_hang_id = ANY(%s::uuid[])
+                GROUP BY don_hang_id, loai
+                """,
+                (don_hang_ids,),
+            )
+            ket_qua: dict[str, dict] = {}
+            for don_id, loai, so in cur.fetchall():
+                ket_qua.setdefault(don_id, {"hu_hong": 0, "that_lac": 0})[loai] = so
+            return ket_qua
+    finally:
+        release_connection(conn)
+
+
+def luu_bao_cao_su_co_hang(don_hang_id: str, nguoi_bao_cao_id: str, mo_ta: str, loai: str = "hu_hong") -> dict:
     """UC-28 (Phụ xe): Ghi nhận biên bản sự cố thất lạc / hư hỏng hàng hóa."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO bao_cao_su_co_hang (don_hang_id, nguoi_bao_cao_id, mo_ta)
-                VALUES (%s, %s, %s)
-                RETURNING id, don_hang_id, nguoi_bao_cao_id, mo_ta, ngay_tao
+                INSERT INTO bao_cao_su_co_hang (don_hang_id, nguoi_bao_cao_id, mo_ta, loai)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id, don_hang_id, nguoi_bao_cao_id, mo_ta, loai, ngay_tao
                 """,
-                (don_hang_id, nguoi_bao_cao_id, mo_ta),
+                (don_hang_id, nguoi_bao_cao_id, mo_ta, loai),
             )
             res = _thanh_dict(cur, cur.fetchone())
         conn.commit()

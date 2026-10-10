@@ -18,6 +18,7 @@ from app.repositories import don_hang_repository as don_hang_repo
 from app.repositories import nguoi_dung_repository as nguoi_dung_repo
 from app.repositories import thong_bao_repository as thong_bao_repo
 from app.schemas.don_hang_schema import TRUONG_LIEN_HE, SuaThongTinLienHeRequest, TaoDonHangRequest
+from app.services import chuyen_xe_service
 from app.services.chuyen_xe_service import diem_hien_tai, lay_chuyen_cua_phu_xe
 from app.services.websocket_manager import broadcast_sync
 from app.utils.loi import CamTruyCap, GiaTriLoi, KhongTimThay, LoiHeThong
@@ -324,6 +325,16 @@ def _chuyen_cua_phu_xe_dang_hoat_dong(chuyen_id: str, nguoi_dung_id: str, trang_
     return chuyen
 
 
+def _gan_so_bao_cao(danh_sach: list[dict]) -> list[dict]:
+    """Gắn so_bao_hu_hong / so_bao_that_lac vào từng đơn để giao diện hiện nhãn cảnh báo."""
+    dem = don_hang_repo.dem_bao_cao_theo_loai([d["id"] for d in danh_sach])
+    for d in danh_sach:
+        so = dem.get(d["id"], {})
+        d["so_bao_hu_hong"] = so.get("hu_hong", 0)
+        d["so_bao_that_lac"] = so.get("that_lac", 0)
+    return danh_sach
+
+
 def danh_sach_cho_chat(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
     """UC-26: Đơn đang chờ CÙNG TUYẾN, CÙNG CHIỀU với chuyến, và đang chờ
     đúng tại điểm xe đang đứng (mục 10.2) — đơn cũ hiện trước."""
@@ -331,7 +342,7 @@ def danh_sach_cho_chat(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
     diem = diem_hien_tai(chuyen)
 
     don_hang_list = don_hang_repo.lay_danh_sach_cho_xep_xe(str(chuyen["tuyen_id"]), chuyen_id)
-    return [
+    return _gan_so_bao_cao([
         {
             "id": str(d["id"]),
             "ma_van_don": d["ma_van_don"],
@@ -342,7 +353,7 @@ def danh_sach_cho_chat(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
         }
         for d in don_hang_list
         if str(d["diem_gui_id"]) == str(diem["diem_don_tra_id"])
-    ]
+    ])
 
 
 def danh_sach_cho_do(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
@@ -351,7 +362,7 @@ def danh_sach_cho_do(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
     diem = diem_hien_tai(chuyen)
 
     don_hang_list = don_hang_repo.tim_don_can_do_tai_diem(chuyen_id, str(diem["diem_don_tra_id"]))
-    return [
+    return _gan_so_bao_cao([
         {
             "id": str(d["id"]),
             "ma_van_don": d["ma_van_don"],
@@ -359,7 +370,7 @@ def danh_sach_cho_do(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
             "can_nang_kg": float(d["can_nang_kg"]),
         }
         for d in don_hang_list
-    ]
+    ])
 
 
 def xac_nhan_chat_hang(don_hang_id: str, chuyen_id: str, nguoi_dung_id: str) -> dict:
@@ -432,10 +443,91 @@ def xac_nhan_do_hang(don_hang_id: str, nguoi_dung_id: str) -> dict:
     return don_cap_nhat
 
 
-def bao_that_lac(don_hang_id: str, mo_ta: str, nguoi_dung_id: str) -> dict:
+def chat_tat_ca(chuyen_id: str, nguoi_dung_id: str) -> dict:
+    """Chất hết đơn đang chờ tại điểm xe đứng. Từng đơn vẫn qua đủ kiểm tra như chất lẻ;
+    đơn không chất được (sai chiều, vừa bị người khác xử lý...) được liệt kê lại thay vì làm hỏng cả lô."""
+    ok, loi = 0, []
+    for d in danh_sach_cho_chat(chuyen_id, nguoi_dung_id):
+        if d.get("so_bao_that_lac"):
+            loi.append(f"{d['ma_van_don']}: đã báo thất lạc, hãy kiểm tra rồi chất riêng từng đơn")
+            continue
+        try:
+            xac_nhan_chat_hang(d["id"], chuyen_id, nguoi_dung_id)
+            ok += 1
+        except GiaTriLoi as e:
+            loi.append(f"{d['ma_van_don']}: {e}")
+    return {"so_luong": ok, "loi": loi}
+
+
+def do_tat_ca(chuyen_id: str, nguoi_dung_id: str) -> dict:
+    ok, loi = 0, []
+    for d in danh_sach_cho_do(chuyen_id, nguoi_dung_id):
+        if d.get("so_bao_that_lac"):
+            loi.append(f"{d['ma_van_don']}: đã báo thất lạc, hãy kiểm tra rồi dỡ riêng từng đơn")
+            continue
+        try:
+            xac_nhan_do_hang(d["id"], nguoi_dung_id)
+            ok += 1
+        except GiaTriLoi as e:
+            loi.append(f"{d['ma_van_don']}: {e}")
+    return {"so_luong": ok, "loi": loi}
+
+
+def danh_sach_hoan_tac(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
+    """Đơn vừa chất/dỡ tại ĐÚNG điểm xe đang đứng — phụ xe có thể hoàn tác nếu bấm nhầm."""
+    chuyen = _chuyen_cua_phu_xe_dang_hoat_dong(chuyen_id, nguoi_dung_id, TRANG_THAI_CHUYEN_DUOC_DO)
+    diem = diem_hien_tai(chuyen)
+    return _gan_so_bao_cao([
+        {
+            "id": str(d["id"]),
+            "ma_van_don": d["ma_van_don"],
+            "ten_nguoi_nhan": d["ten_nguoi_nhan"],
+            "can_nang_kg": float(d["can_nang_kg"]),
+            "loai": d["loai"],
+        }
+        for d in don_hang_repo.tim_don_co_the_hoan_tac(chuyen_id, str(diem["diem_don_tra_id"]))
+    ])
+
+
+def hoan_tac_chat_hang(don_hang_id: str, chuyen_id: str, nguoi_dung_id: str) -> None:
+    """Bấm nhầm "đã chất": trả đơn về hàng chờ chất. Chỉ khi xe còn đứng ở điểm gửi của đơn."""
+    chuyen = _chuyen_cua_phu_xe_dang_hoat_dong(chuyen_id, nguoi_dung_id, TRANG_THAI_CHUYEN_DUOC_CHAT)
+    don = don_hang_repo.tim_theo_id(don_hang_id)
+    if not don or str(don.get("chuyen_id")) != str(chuyen_id) or don["trang_thai"] != "da_len_xe":
+        raise GiaTriLoi("Đơn hàng không ở trạng thái đã chất trên chuyến này, không có gì để hoàn tác")
+    if str(don["diem_gui_id"]) != str(diem_hien_tai(chuyen)["diem_don_tra_id"]):
+        raise GiaTriLoi("Xe đã rời điểm gửi của đơn này, không thể hoàn tác — hãy báo điều độ viên")
+    if not don_hang_repo.hoan_tac_chat_hang(don_hang_id, chuyen_id, nguoi_dung_id):
+        raise GiaTriLoi("Đơn hàng vừa được xử lý bởi người khác, vui lòng tải lại danh sách")
+
+
+def hoan_tac_do_hang(don_hang_id: str, chuyen_id: str, nguoi_dung_id: str) -> None:
+    """Bấm nhầm "đã dỡ": đưa đơn về trên xe, nhắn lại nhân viên văn phòng nhận đừng báo người nhận.
+    Không làm được nếu văn phòng đã gọi báo người nhận (khách có thể đang đến lấy)."""
+    chuyen = _chuyen_cua_phu_xe_dang_hoat_dong(chuyen_id, nguoi_dung_id, TRANG_THAI_CHUYEN_DUOC_DO)
+    don = don_hang_repo.tim_theo_id(don_hang_id)
+    if not don or str(don.get("chuyen_id")) != str(chuyen_id) or don["trang_thai"] != "cho_lay":
+        raise GiaTriLoi("Đơn hàng không ở trạng thái đã dỡ trên chuyến này, không có gì để hoàn tác")
+    if str(don["diem_nhan_id"]) != str(diem_hien_tai(chuyen)["diem_don_tra_id"]):
+        raise GiaTriLoi("Xe đã rời điểm nhận của đơn này, không thể hoàn tác — hãy báo điều độ viên")
+    if don.get("da_thong_bao_nguoi_nhan"):
+        raise GiaTriLoi("Văn phòng đã gọi báo người nhận, không thể hoàn tác — hãy báo điều độ viên")
+    if not don_hang_repo.hoan_tac_do_hang(don_hang_id, chuyen_id, nguoi_dung_id):
+        raise GiaTriLoi("Đơn hàng vừa được xử lý bởi người khác (hoặc đã báo người nhận), vui lòng tải lại")
+
+    _gui_thong_bao_an_toan(
+        don_hang_repo.danh_sach_nhan_vien_gui_hang_tai_diem(str(don["diem_nhan_id"])),
+        f"Đơn {don['ma_van_don']}: phụ xe vừa hoàn tác — hàng CHƯA dỡ xuống văn phòng, đừng gọi báo người nhận.",
+        str(don["id"]),
+    )
+
+
+def bao_that_lac(don_hang_id: str, mo_ta: str, nguoi_dung_id: str, loai: str = "hu_hong") -> dict:
     """UC-28: Phụ xe báo thất lạc/hư hỏng. Ghi nhận rồi chuyển tin tới nhân
     viên gửi hàng (điểm gửi nếu chưa lên xe, điểm nhận nếu đã lên xe) và
     quản lý (UC-28 bước 2) — không đổi trạng thái đơn, không chặn UC-26/27."""
+    if loai not in ("hu_hong", "that_lac"):
+        raise GiaTriLoi("Loại sự cố hàng không hợp lệ")
     don = don_hang_repo.tim_theo_id(don_hang_id)
     if not don:
         raise GiaTriLoi("Đơn hàng không tồn tại")
@@ -443,18 +535,27 @@ def bao_that_lac(don_hang_id: str, mo_ta: str, nguoi_dung_id: str) -> dict:
     if not mo_ta or not mo_ta.strip():
         raise GiaTriLoi("Mô tả sự cố hàng hóa không được để trống")
 
-    # Đơn đã lên xe thì chỉ phụ xe của chuyến đó được báo (UC-28 phát sinh trong UC-26/27)
+    # UC-28 chỉ phát sinh trong lúc chất (UC-26) hoặc dỡ (UC-27) hàng:
+    # - đã lên xe: chỉ phụ xe của đúng chuyến đó được báo;
+    # - còn chờ chất: phụ xe phải có chuyến của xe mình cùng tuyến với đơn;
+    # - trạng thái khác (đã dỡ/giao/hàng tồn): ngoài giai đoạn chất/dỡ.
     if don.get("chuyen_id"):
         lay_chuyen_cua_phu_xe(str(don["chuyen_id"]), nguoi_dung_id)
+    elif don["trang_thai"] == "cho_van_chuyen":
+        chuyen_cua_toi = chuyen_xe_service.danh_sach_chuyen_cua_toi(nguoi_dung_id)
+        if not any(str(c["tuyen_id"]) == str(don["tuyen_id"]) for c in chuyen_cua_toi):
+            raise CamTruyCap("Đơn hàng này không thuộc tuyến xe của bạn")
+    else:
+        raise GiaTriLoi("Đơn hàng không ở giai đoạn chất/dỡ hàng")
 
-    bao_cao = don_hang_repo.luu_bao_cao_su_co_hang(don_hang_id, nguoi_dung_id, mo_ta.strip())
+    bao_cao = don_hang_repo.luu_bao_cao_su_co_hang(don_hang_id, nguoi_dung_id, mo_ta.strip(), loai)
 
     diem_lien_quan = str(don["diem_nhan_id"] if don.get("chuyen_id") else don["diem_gui_id"])
     nguoi_nhan_tin = don_hang_repo.danh_sach_nhan_vien_gui_hang_tai_diem(diem_lien_quan) + \
         nguoi_dung_repo.danh_sach_id_theo_vai_tro("quan_ly", chi_dang_hoat_dong=True)
     _gui_thong_bao_an_toan(
         nguoi_nhan_tin,
-        f"Phụ xe báo sự cố hàng đơn {don['ma_van_don']}: {mo_ta.strip()}",
+        f"Phụ xe báo {'THẤT LẠC' if loai == 'that_lac' else 'hư hỏng'} hàng đơn {don['ma_van_don']}: {mo_ta.strip()}",
         str(don["id"]),
     )
     return bao_cao
