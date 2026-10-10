@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Báo thất lạc/hư hỏng — Phụ xe</title>
 <link rel="stylesheet" href="/shared/design-tokens.css?v=2" />
-<link rel="stylesheet" href="phu-xe.css?v=3" />
+<link rel="stylesheet" href="phu-xe.css?v=10" />
 </head>
 <body class="phu-xe-page">
   <div class="app-shell">
@@ -21,6 +21,15 @@
       <p><strong>Mã vận đơn:</strong> <span id="ma-van-don"></span></p>
 
       <form id="form-bao-cao">
+        <fieldset class="loai-su-co" style="border:0;padding:0;margin:0 0 12px;">
+          <legend style="font-weight:600;margin-bottom:6px;">Tình trạng hàng</legend>
+          <label style="display:flex;align-items:center;gap:8px;min-height:44px;">
+            <input type="radio" name="loai" value="hu_hong" checked /> Hư hỏng — hàng vẫn còn trên xe
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;min-height:44px;">
+            <input type="radio" name="loai" value="that_lac" /> Thất lạc / mất — không còn hàng
+          </label>
+        </fieldset>
         <textarea class="input-field" id="mo_ta" placeholder="Mô tả tình trạng thất lạc/hư hỏng phát hiện được" required></textarea>
         <div id="loi" class="text-error" hidden></div>
         <div id="thanh-cong" class="text-success" hidden></div>
@@ -32,6 +41,7 @@
 
   <script src="/shared/api-client.js"></script>
   <script src="../shared/auth-check.js"></script>
+  <script src="tai-khoan-menu.js?v=1"></script>
   <script>
     requireRole("phu_xe");
 
@@ -61,6 +71,7 @@
       try {
         await apiPost(`/phu-xe/don-hang/${donHangId}/bao-that-lac`, {
           mo_ta: document.getElementById("mo_ta").value.trim(),
+          loai: document.querySelector('input[name="loai"]:checked').value,
         });
         thanhCongEl.textContent = "Đã gửi báo cáo cho nhân viên gửi hàng và quản lý.";
         thanhCongEl.hidden = false;

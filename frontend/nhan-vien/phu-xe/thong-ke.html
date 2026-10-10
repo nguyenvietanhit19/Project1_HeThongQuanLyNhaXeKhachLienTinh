@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Thống kê — Phụ xe</title>
 <link rel="stylesheet" href="/shared/design-tokens.css?v=2" />
-<link rel="stylesheet" href="phu-xe.css?v=3" />
+<link rel="stylesheet" href="phu-xe.css?v=10" />
 <style>
   /* Lưới thẻ số liệu/ô ngày đã chuyển sang phu-xe.css (2 cột điện thoại, 4 cột tablet) */
 </style>
@@ -17,7 +17,6 @@
       <a class="back-link" href="chuyen-cua-toi.html">← Chuyến của tôi</a>
       <h1>Thống kê chuyến của tôi</h1>
     </div>
-    <button class="btn-icon-circle btn-icon-circle--dark" onclick="dangXuat()" title="Đăng xuất" aria-label="Đăng xuất">⏻</button>
   </div>
 
   <div class="container container--pull-up">
@@ -49,11 +48,18 @@
         </div>
       </div>
     </div>
+
+    <!-- Chi tiết từng chuyến trong khoảng ngày đã chọn — bấm 1 chuyến để xem khách, hàng, hành trình -->
+    <div class="card trip-history" id="khu-chuyen-da-chay" hidden>
+      <h2 class="trip-history__tieu-de">Chuyến đã chạy <span class="count-badge" id="dem-chuyen">0</span></h2>
+      <div id="ds-chuyen-da-chay"></div>
+    </div>
   </div>
   </div>
 
   <script src="/shared/api-client.js"></script>
   <script src="../shared/auth-check.js"></script>
+  <script src="tai-khoan-menu.js?v=1"></script>
   <script>
     requireRole("phu_xe");
 
@@ -86,11 +92,46 @@
         document.getElementById("ty-le-lap-day").textContent = Math.round(tk.ty_le_lap_day_trung_binh * 100) + "%";
         document.getElementById("su-co-huy").textContent = `${tk.so_chuyen_su_co} / ${tk.so_chuyen_huy}`;
         ketQuaEl.hidden = false;
+
+        const dsChuyen = await apiGet(`/phu-xe/chuyen-da-chay?tu_ngay=${tuNgay}&den_ngay=${denNgay}`);
+        veChuyenDaChay(dsChuyen);
       } catch (err) {
         loiEl.textContent = err.message;
         loiEl.hidden = false;
         ketQuaEl.hidden = true;
+        document.getElementById("khu-chuyen-da-chay").hidden = true;
       }
+    }
+
+    function esc(giaTri) {
+      return String(giaTri ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    const NHAN_CHUYEN = {
+      dang_chay: ["Đang chạy", "badge--tren"],
+      hoan_thanh: ["Hoàn thành", "badge--xong"],
+      gap_su_co: ["Gặp sự cố", "badge--loi"],
+      da_huy: ["Đã hủy", "badge--loi"],
+    };
+
+    // Mỗi chuyến 1 dòng gọn (tuyến, giờ, số vé, doanh thu); bấm vào mở trang tổng quan của chuyến đó.
+    function veChuyenDaChay(ds) {
+      document.getElementById("khu-chuyen-da-chay").hidden = false;
+      document.getElementById("dem-chuyen").textContent = ds.length;
+      document.getElementById("ds-chuyen-da-chay").innerHTML = ds.length
+        ? ds.map((c) => {
+            const [nhan, lop] = NHAN_CHUYEN[c.trang_thai] || [c.trang_thai, ""];
+            const gio = new Date(c.gio_khoi_hanh).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+            return `
+              <a class="row-btn" href="chi-tiet-chuyen.html?chuyen_id=${encodeURIComponent(c.id)}&ve=thong-ke" style="text-decoration:none;">
+                <span class="row-btn__chinh">
+                  <span class="name">${esc(c.tuyen_ten)} · ${c.chieu === "nguoc" ? "chiều ngược" : "chiều xuôi"}</span>
+                  <span class="sub">${esc(gio)} · ${c.so_ve_ban}${c.tong_ghe ? "/" + c.tong_ghe : ""} vé · ${Number(c.doanh_thu).toLocaleString("vi-VN")}đ · ${c.so_don_hang} đơn hàng</span>
+                </span>
+                <span class="badge ${lop}">${esc(nhan)}</span>
+              </a>`;
+          }).join("")
+        : '<p class="empty-state">Không có chuyến nào trong khoảng ngày này.</p>';
     }
 
     document.getElementById("form-loc").addEventListener("submit", (e) => {
