@@ -4,6 +4,8 @@ Tuyến d1 -> d2 -> d3 -> d4 (thu_tu 1..4 theo chiều xuôi). Chuyến `xuoi` �
 d1..d4; chuyến `nguoc` đi d4, d3, d2, d1 — điểm xuất phát là d4, điểm cuối là d1.
 """
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from app.services import chuyen_xe_service as svc
@@ -11,18 +13,26 @@ from app.services import gui_hang_service as hang
 from app.utils.loi import GiaTriLoi
 
 
+GIO_KH = datetime(2026, 10, 10, 8, 0, tzinfo=timezone.utc)
+
+
 def _diem_tuyen(tid=None):
     # Cố ý trả về theo thu_tu tăng dần (đúng như dia_diem_repository)
-    return [{"diem_don_tra_id": f"d{i}", "thu_tu": i, "ten": f"Diem {i}"} for i in (1, 2, 3, 4)]
+    return [{"diem_don_tra_id": f"d{i}", "thu_tu": i, "ten": f"Diem {i}", "thoi_gian_du_kien_phut": (i - 1) * 60} for i in (1, 2, 3, 4)]
 
 
 def _chuyen(chieu, trang_thai="dang_chay"):
-    return {"id": "c1", "tuyen_id": "t1", "xe_id": "xe-1", "trang_thai": trang_thai, "chieu": chieu}
+    return {"id": "c1", "tuyen_id": "t1", "xe_id": "xe-1", "trang_thai": trang_thai, "chieu": chieu, "gio_khoi_hanh": GIO_KH}
 
 
 @pytest.fixture(autouse=True)
 def _tuyen(monkeypatch):
     monkeypatch.setattr(svc.dia_diem_repo, "danh_sach_diem_theo_tuyen", _diem_tuyen)
+
+
+@pytest.fixture(autouse=True)
+def _khong_cham_db_khi_dem_bao_cao(monkeypatch):
+    monkeypatch.setattr(hang.don_hang_repo, "dem_bao_cao_theo_loai", lambda ids: {})
 
 
 def _da_toi(monkeypatch, *ids):
@@ -69,6 +79,19 @@ def test_hanh_trinh_chuyen_nguoc_hien_thi_theo_huong_di(monkeypatch):
     assert _ids(ht) == ["d4", "d3", "d2", "d1"]
     assert [d["thu_tu"] for d in ht] == [1, 2, 3, 4]  # số thứ tự hiển thị theo hướng đi
     assert [d["da_toi"] for d in ht] == [False, True, False, False]
+
+
+def test_hanh_trinh_gio_du_kien_theo_chieu(monkeypatch):
+    # Mốc d1..d4 = 0, 60, 120, 180 phút. Xuôi: d3 tới sau 120'. Ngược: d3 tới sau 180-120 = 60'.
+    _da_toi(monkeypatch)
+    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen("xuoi"))
+    xuoi = {d["diem_don_tra_id"]: d["gio_du_kien"] for d in svc.hanh_trinh("c1", "nd")}
+    assert xuoi["d3"] == GIO_KH + timedelta(minutes=120)
+    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen("nguoc"))
+    nguoc = {d["diem_don_tra_id"]: d["gio_du_kien"] for d in svc.hanh_trinh("c1", "nd")}
+    assert nguoc["d4"] == GIO_KH  # điểm xuất phát chiều ngược
+    assert nguoc["d3"] == GIO_KH + timedelta(minutes=60)
+    assert nguoc["d1"] == GIO_KH + timedelta(minutes=180)
 
 
 # ---------------------------------------------------------- xác nhận tới điểm
@@ -128,54 +151,64 @@ def test_toi_diem_hoi_khach_o_cac_diem_phia_sau_bang_thu_tu_goc_cua_diem_vua_toi
 # ---------------------------------------------------------- UC-26: hàng cùng chiều
 def _don(gui, nhan, **kw):
     d = {"id": f"{gui}-{nhan}", "tuyen_id": "t1", "chuyen_id": None, "trang_thai": "cho_van_chuyen",
-         "diem_gui_id": gui, "diem_nhan_id": nhan}
+         "diem_gui_id": gui, "diem_nhan_id": nhan, "ten_nguoi_nhan": "N", "can_nang_kg": 1, "ma_van_don": "M", "ngay_tao": None}
     d.update(kw)
     return d
 
 
-def test_don_cung_chieu_chuyen_xuoi_chi_nhan_don_d1_den_d3():
-    huong = svc.diem_theo_chieu(_chuyen("xuoi"))
-    assert hang._don_cung_chieu_chuyen(_don("d1", "d3"), huong) is True
-    assert hang._don_cung_chieu_chuyen(_don("d3", "d1"), huong) is False
+def _chieu_van_chuyen(gui, nhan):
+    """Giống don_hang_repository.kiem_tra_diem_thuoc_tuyen: so thu_tu GỐC (xuôi) của điểm gửi/nhận."""
+    return {"chieu_van_chuyen": "xuoi" if gui < nhan else "nguoc"}
 
 
-def test_don_cung_chieu_chuyen_nguoc_dao_lai():
-    huong = svc.diem_theo_chieu(_chuyen("nguoc"))
-    assert hang._don_cung_chieu_chuyen(_don("d3", "d1"), huong) is True
-    assert hang._don_cung_chieu_chuyen(_don("d1", "d3"), huong) is False
-
-
-def test_don_co_diem_khong_thuoc_tuyen_bi_loai():
-    huong = svc.diem_theo_chieu(_chuyen("xuoi"))
-    assert hang._don_cung_chieu_chuyen(_don("d1", "dx"), huong) is False
-
-
-def test_danh_sach_cho_chat_chuyen_nguoc_chi_thay_don_nguoc_chieu(monkeypatch):
-    monkeypatch.setattr(hang, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen("nguoc"))
-    _da_toi(monkeypatch)  # chưa tới điểm nào -> đang ở d4 (xuất phát của chuyến ngược)
+def _chuan_bi_chat(monkeypatch, chieu_chuyen, don):
+    monkeypatch.setattr(hang, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen(chieu_chuyen))
+    _da_toi(monkeypatch)  # chưa tới điểm nào -> đang ở điểm xuất phát của chuyến
+    monkeypatch.setattr(hang.don_hang_repo, "tim_theo_id", lambda did: don)
     monkeypatch.setattr(
-        hang.don_hang_repo,
-        "lay_danh_sach_cho_xep_xe",
-        lambda tid: [_don("d4", "d2", id="nguoc-ok"), _don("d4", "d1", id="nguoc-ok-2"), _don("d1", "d3", id="xuoi-sai"), _don("d3", "d1", id="khac-diem")],
+        hang.don_hang_repo, "kiem_tra_diem_thuoc_tuyen",
+        lambda tid, gui, nhan: _chieu_van_chuyen(gui, nhan),
+    )
+    monkeypatch.setattr(hang.don_hang_repo, "tim_chuyen_xe_theo_id", lambda cid: {"chieu": chieu_chuyen})
+    goi = []
+    monkeypatch.setattr(
+        hang.don_hang_repo, "cap_nhat_chat_hang_len_chuyen",
+        lambda did, cid, nd=None: goi.append(did) or {"id": did},
+    )
+    return goi
+
+
+def test_danh_sach_cho_chat_chuyen_nguoc_loc_theo_chieu_va_diem_dung(monkeypatch):
+    monkeypatch.setattr(hang, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen("nguoc"))
+    _da_toi(monkeypatch)  # đang ở d4 (xuất phát của chuyến ngược)
+    hoi = []
+    monkeypatch.setattr(
+        hang.don_hang_repo, "lay_danh_sach_cho_xep_xe",
+        lambda tid, cid=None: hoi.append((tid, cid)) or [_don("d4", "d2", id="a"), _don("d4", "d1", id="b"), _don("d3", "d1", id="khac-diem")],
     )
     ket_qua = hang.danh_sach_cho_chat("c1", "nd")
-    assert [d["id"] for d in ket_qua] == ["nguoc-ok", "nguoc-ok-2"]
+    assert hoi == [("t1", "c1")]  # repository lọc cùng chiều theo chuyen_id
+    assert [d["id"] for d in ket_qua] == ["a", "b"]  # service chỉ giữ đơn chờ đúng tại d4
 
 
 def test_xac_nhan_chat_don_nguoc_chieu_len_chuyen_xuoi_bi_chan(monkeypatch):
-    monkeypatch.setattr(hang, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen("xuoi"))
-    monkeypatch.setattr(hang.don_hang_repo, "tim_theo_id", lambda did: _don("d3", "d1"))
-    goi = []
-    monkeypatch.setattr(hang.don_hang_repo, "chat_len_chuyen_neu_dang_cho", lambda did, cid: goi.append(did) or True)
-    with pytest.raises(GiaTriLoi):
-        hang.xac_nhan_chat_hang_cua_phu_xe("don", "c1", "nd")
+    # Đơn chờ ở d1 (điểm xuất phát chuyến xuôi) nhưng đi theo chiều NGƯỢC -> không được chất lên chuyến xuôi
+    goi = _chuan_bi_chat(monkeypatch, "xuoi", _don("d1", "d1"))
+    monkeypatch.setattr(hang.don_hang_repo, "kiem_tra_diem_thuoc_tuyen", lambda tid, gui, nhan: {"chieu_van_chuyen": "nguoc"})
+    with pytest.raises(GiaTriLoi, match="chiều"):
+        hang.xac_nhan_chat_hang("don", "c1", "nd")
     assert goi == []
 
 
 def test_xac_nhan_chat_don_cung_chieu_chuyen_nguoc_thanh_cong(monkeypatch):
-    monkeypatch.setattr(hang, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen("nguoc"))
-    monkeypatch.setattr(hang.don_hang_repo, "tim_theo_id", lambda did: _don("d4", "d2"))
-    goi = []
-    monkeypatch.setattr(hang.don_hang_repo, "chat_len_chuyen_neu_dang_cho", lambda did, cid: goi.append(did) or True)
-    hang.xac_nhan_chat_hang_cua_phu_xe("don", "c1", "nd")
+    goi = _chuan_bi_chat(monkeypatch, "nguoc", _don("d4", "d2"))
+    hang.xac_nhan_chat_hang("don", "c1", "nd")
     assert goi == ["don"]
+
+
+def test_xac_nhan_chat_don_xuoi_len_chuyen_nguoc_bi_chan(monkeypatch):
+    # Đơn d1 -> d3 (xuôi), chuyến ngược đứng ở d4: đã bị chặn vì không chờ tại điểm xe đứng
+    goi = _chuan_bi_chat(monkeypatch, "nguoc", _don("d1", "d3"))
+    with pytest.raises(GiaTriLoi):
+        hang.xac_nhan_chat_hang("don", "c1", "nd")
+    assert goi == []

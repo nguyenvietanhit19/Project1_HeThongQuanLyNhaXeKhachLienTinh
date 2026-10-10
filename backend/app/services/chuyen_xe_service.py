@@ -11,15 +11,19 @@ chung 1 file vì cùng đang xây tuần tự).
 "quản lý danh mục" đã có sẵn.
 """
 
+import logging
 from datetime import datetime, timedelta, timezone
 
 from app.repositories import chuyen_xe_repository as chuyen_xe_repo
 from app.repositories import dia_diem_repository as dia_diem_repo
+from app.repositories import nguoi_dung_repository as nguoi_dung_repo
 from app.repositories import nhan_su_van_hanh_repository as nhan_su_repo
 from app.repositories import thong_bao_repository as thong_bao_repo
 from app.repositories import ve_repository as ve_repo
 from app.services.websocket_manager import broadcast_sync
 from app.utils.loi import GiaTriLoi, KhongDuQuyen
+
+logger = logging.getLogger(__name__)
 
 LOAI_SU_CO_HOP_LE = ("loi_nha_xe", "loi_khach_quan")
 GIO_VIET_NAM = timezone(timedelta(hours=7))
@@ -181,6 +185,9 @@ def xac_nhan_xuat_phat(chuyen_id: str, nguoi_dung_id: str) -> None:
     chuyen = lay_chuyen_cua_phu_xe(chuyen_id, nguoi_dung_id)
     if chuyen["trang_thai"] != "chua_khoi_hanh":
         raise GiaTriLoi("Chuyến không ở trạng thái chưa khởi hành")
+    # Mục 3.3 điểm 9: chuyến đang "hoãn" (chưa có xe thay thế) chưa được chạy — chờ điều độ viên tắt cờ hoãn.
+    if chuyen.get("dang_hoan"):
+        raise GiaTriLoi("Chuyến đang hoãn, chưa thể xác nhận xuất phát — chờ điều độ viên xử lý")
     # UC-15: chỉ được xác nhận đúng giờ hoặc muộn hơn, không xuất phát sớm.
     # (Repository kiểm lại ngay trong UPDATE bằng now() của DB.)
     if _bay_gio() < chuyen["gio_khoi_hanh"]:
@@ -198,6 +205,13 @@ def hanh_trinh(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
     chuyen = lay_chuyen_cua_phu_xe(chuyen_id, nguoi_dung_id)
     diem_list = diem_theo_chieu(chuyen)
     da_xac_nhan = {d["diem_don_tra_id"]: d["gio_thuc_te"] for d in chuyen_xe_repo.lay_diem_da_xac_nhan(chuyen_id)}
+    # Giờ dự kiến tới từng điểm — cùng công thức với job no-show (ve_repository.tim_ve_qua_gio_len_xe):
+    # chiều xuôi = mốc của điểm; chiều ngược = mốc cuối tuyến trừ mốc của điểm.
+    moc_cuoi = max((d["thoi_gian_du_kien_phut"] for d in diem_list), default=0)
+
+    def gio_du_kien(diem):
+        phut = diem["thoi_gian_du_kien_phut"]
+        return chuyen["gio_khoi_hanh"] + timedelta(minutes=phut if chuyen["chieu"] == "xuoi" else moc_cuoi - phut)
 
     return [
         {
@@ -206,6 +220,7 @@ def hanh_trinh(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
             "thu_tu": vi_tri,  # thứ tự THEO HƯỚNG ĐI (1 = điểm xuất phát), không phải thu_tu gốc của tuyến
             "da_toi": diem["diem_don_tra_id"] in da_xac_nhan,
             "gio_thuc_te": da_xac_nhan.get(diem["diem_don_tra_id"]),
+            "gio_du_kien": gio_du_kien(diem),
         }
         for vi_tri, diem in enumerate(diem_list, start=1)
     ]
@@ -267,10 +282,26 @@ def bao_su_co(chuyen_id: str, loai_su_co: str, ly_do: str, nguoi_dung_id: str) -
     chuyen_xe_repo.gan_co_xung_dot_vi_tri_cho_chuyen_tuong_lai(chuyen["xe_id"], chuyen_id)
 
     # mục 8.1 điểm 4 — báo khách đang có vé active trên chuyến này.
-    # Báo điều độ viên phụ trách điểm xuất phát (mục 8.2 điểm 7) CHƯA làm
-    # được ở đây vì hệ thống chưa có bảng phạm vi văn phòng của điều độ
-    # viên (ho_so_can_bo_diem) lẫn tài khoản điều độ viên nào — thuộc
-    # phần chưa xây (CONTRIBUTING.md, "người 4").
     noi_dung = "Chuyến bạn đang đi gặp sự cố dọc đường, nhà xe đang xử lý"
     for khach in ve_repo.tim_khach_hang_dang_hoat_dong_theo_chuyen(chuyen_id):
         _gui_thong_bao(khach["khach_hang_id"], noi_dung)
+
+    _bao_dieu_do_vien_su_co(chuyen, loai_su_co, ly_do)
+
+
+def _bao_dieu_do_vien_su_co(chuyen: dict, loai_su_co: str, ly_do: str) -> None:
+    """UC-17 bước 4 (mục 8.2 điểm 7): điều độ viên nhận cảnh báo ngay. Ưu tiên
+    người phụ trách văn phòng ở điểm xuất phát của chuyến; chưa ai phụ trách
+    điểm đó thì báo toàn bộ điều độ viên để cảnh báo không bị bỏ sót. Sự cố đã
+    được ghi (commit) nên lỗi gửi thông báo chỉ ghi log, không làm hỏng thao tác."""
+    try:
+        diem_xuat_phat = diem_theo_chieu(chuyen)[0]["diem_don_tra_id"]
+        nguoi_nhan = chuyen_xe_repo.danh_sach_dieu_do_vien_tai_diem(str(diem_xuat_phat))
+        if not nguoi_nhan:
+            nguoi_nhan = nguoi_dung_repo.danh_sach_id_theo_vai_tro("dieu_do_vien", chi_dang_hoat_dong=True)
+        nguyen_nhan = "lỗi nhà xe" if loai_su_co == "loi_nha_xe" else "lỗi khách quan"
+        noi_dung = f"Chuyến {chuyen.get('ma') or chuyen['id']} gặp sự cố ({nguyen_nhan}): {ly_do.strip()}"
+        for nguoi_id in nguoi_nhan:
+            _gui_thong_bao(nguoi_id, noi_dung)
+    except Exception:  # noqa: BLE001
+        logger.exception("Không báo được điều độ viên về sự cố chuyến %s", chuyen["id"])

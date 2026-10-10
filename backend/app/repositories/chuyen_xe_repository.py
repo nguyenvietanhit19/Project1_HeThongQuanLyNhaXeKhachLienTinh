@@ -27,7 +27,7 @@ def tim_theo_id(chuyen_id: str) -> dict | None:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, tuyen_id, chieu, xe_id, loai_xe_id, xe_thuc_te_id, gio_khoi_hanh,
+                SELECT id, ma, tuyen_id, chieu, xe_id, loai_xe_id, xe_thuc_te_id, gio_khoi_hanh,
                        trang_thai, dang_hoan, gio_xac_nhan_xuat_phat, gio_hoan_thanh,
                        loai_su_co, ly_do_su_co, co_canh_bao_xung_dot_vi_tri
                 FROM chuyen_xe WHERE id = %s
@@ -203,6 +203,7 @@ def thong_ke_theo_xe(xe_id: str, tu_ngay, den_ngay) -> list[dict]:
                 JOIN loai_xe lx ON lx.id = cx.loai_xe_id
                 LEFT JOIN ve v ON v.chuyen_id = cx.id
                 WHERE cx.xe_id = %s
+                  AND cx.trang_thai <> 'chua_khoi_hanh'
                   AND (cx.gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= %s
                   AND (cx.gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < %s
                 GROUP BY cx.id, cx.trang_thai, lx.so_do_ghe
@@ -210,6 +211,59 @@ def thong_ke_theo_xe(xe_id: str, tu_ngay, den_ngay) -> list[dict]:
                 (xe_id, tu_ngay, den_ngay),
             )
             return _thanh_list(cur, cur.fetchall())
+    finally:
+        release_connection(conn)
+
+
+def danh_sach_chuyen_da_chay(xe_id: str, tu_ngay, den_ngay) -> list[dict]:
+    """Các chuyến của xe trong khoảng ngày (giờ Việt Nam, `den_ngay` loại trừ), mới nhất
+    trước, kèm số vé bán/doanh thu/số đơn hàng — danh sách "chuyến đã chạy" ở trang thống kê.
+    Không lấy chuyến chưa khởi hành (chưa có gì để thống kê)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT cx.id, cx.ma, cx.chieu, cx.gio_khoi_hanh, cx.trang_thai,
+                       t.ten AS tuyen_ten,
+                       CASE WHEN jsonb_typeof(lx.so_do_ghe) = 'array' THEN jsonb_array_length(lx.so_do_ghe) END AS tong_ghe,
+                       (SELECT count(*) FROM ve v WHERE v.chuyen_id = cx.id
+                          AND v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe'))::int AS so_ve_ban,
+                       (SELECT COALESCE(SUM(v.gia), 0) FROM ve v WHERE v.chuyen_id = cx.id
+                          AND v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe')) AS doanh_thu,
+                       (SELECT count(*) FROM don_hang d WHERE d.chuyen_id = cx.id)::int AS so_don_hang
+                FROM chuyen_xe cx
+                JOIN tuyen t ON t.id = cx.tuyen_id
+                JOIN loai_xe lx ON lx.id = cx.loai_xe_id
+                WHERE cx.xe_id = %s
+                  AND cx.trang_thai <> 'chua_khoi_hanh'
+                  AND (cx.gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= %s
+                  AND (cx.gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < %s
+                ORDER BY cx.gio_khoi_hanh DESC
+                """,
+                (xe_id, tu_ngay, den_ngay),
+            )
+            return _thanh_list(cur, cur.fetchall())
+    finally:
+        release_connection(conn)
+
+
+def danh_sach_dieu_do_vien_tai_diem(diem_id: str) -> list[str]:
+    """Điều độ viên đang hoạt động, phụ trách văn phòng `diem_id` (ho_so_can_bo_diem).
+    Dùng để báo sự cố (UC-17, mục 8.2 điểm 7) cho đúng người phụ trách điểm xuất phát."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT h.nguoi_dung_id
+                FROM ho_so_can_bo_diem h
+                JOIN nguoi_dung nd ON nd.id = h.nguoi_dung_id
+                WHERE h.van_phong_id = %s AND nd.vai_tro = 'dieu_do_vien' AND nd.dang_hoat_dong = true
+                """,
+                (diem_id,),
+            )
+            return [str(row[0]) for row in cur.fetchall()]
     finally:
         release_connection(conn)
 

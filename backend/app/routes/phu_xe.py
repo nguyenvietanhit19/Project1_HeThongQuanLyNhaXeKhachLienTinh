@@ -12,10 +12,13 @@ from fastapi import APIRouter, Depends
 from app.middleware.auth_middleware import NguoiDungHienTai, yeu_cau_vai_tro
 from app.schemas.chuyen_xe_schema import (
     BaoSuCoRequest,
+    ChiTietDonHangResponse,
+    ChuyenDaChayResponse,
     ChuyenPhuXeResponse,
     DiemHienTaiResponse,
     HanhTrinhDiemResponse,
     ThongKePhuXeResponse,
+    TongQuanChuyenResponse,
     XacNhanToiDiemRequest,
     XacNhanToiDiemResponse,
 )
@@ -23,9 +26,10 @@ from app.schemas.don_hang_schema import (
     BaoThatLacRequest,
     DonHangChoChatResponse,
     DonHangChoDoResponse,
+    DonHangHoanTacResponse,
     XacNhanChatHangRequest,
 )
-from app.services import chuyen_xe_service, gui_hang_service, ve_service
+from app.services import chuyen_xe_service, gui_hang_service, phu_xe_chi_tiet_service, ve_service
 
 router = APIRouter(prefix="/phu-xe", tags=["phu_xe"])
 
@@ -42,6 +46,24 @@ def thong_ke(nguoi_dung: _phu_xe, tu_ngay: date, den_ngay: date):
     # den_ngay người dùng chọn là bao gồm cả ngày đó — cộng thêm 1 ngày để
     # thành mốc loại trừ (exclusive) khi so sánh với gio_khoi_hanh (TIMESTAMPTZ).
     return chuyen_xe_service.thong_ke_cua_toi(nguoi_dung.id, tu_ngay, den_ngay + timedelta(days=1))
+
+
+@router.get("/chuyen-da-chay", response_model=list[ChuyenDaChayResponse])
+def chuyen_da_chay(nguoi_dung: _phu_xe, tu_ngay: date, den_ngay: date):
+    # den_ngay người dùng chọn là bao gồm cả ngày đó — cộng 1 ngày thành mốc loại trừ (như /thong-ke)
+    return phu_xe_chi_tiet_service.chuyen_da_chay(nguoi_dung.id, tu_ngay, den_ngay + timedelta(days=1))
+
+
+@router.get("/chuyen/{chuyen_id}/tong-quan", response_model=TongQuanChuyenResponse)
+def tong_quan_chuyen(chuyen_id: str, nguoi_dung: _phu_xe):
+    """Xem lại 1 chuyến (kể cả đã hoàn thành): hành khách + trạng thái lên/xuống, hàng hóa, hành trình."""
+    return phu_xe_chi_tiet_service.tong_quan_chuyen(chuyen_id, nguoi_dung.id)
+
+
+@router.get("/don-hang/{don_hang_id}/chi-tiet", response_model=ChiTietDonHangResponse)
+def chi_tiet_don_hang(don_hang_id: str, nguoi_dung: _phu_xe):
+    """Thông tin đơn hàng + các mốc đổi trạng thái + báo cáo thất lạc/hư hỏng."""
+    return phu_xe_chi_tiet_service.chi_tiet_don_hang(don_hang_id, nguoi_dung.id)
 
 
 @router.get("/chuyen/{chuyen_id}", response_model=ChuyenPhuXeResponse)
@@ -91,6 +113,40 @@ def xac_nhan_xuong_xe(chuyen_id: str, ve_id: str, nguoi_dung: _phu_xe):
     return {"thong_bao": "Đã xác nhận khách xuống xe"}
 
 
+@router.post("/chuyen/{chuyen_id}/ve/{ve_id}/hoan-tac-len-xe")
+def hoan_tac_len_xe(chuyen_id: str, ve_id: str, nguoi_dung: _phu_xe):
+    ve_service.hoan_tac_len_xe(chuyen_id, ve_id, nguoi_dung.id)
+    return {"thong_bao": "Đã hoàn tác, khách quay về trạng thái chờ lên xe"}
+
+
+@router.post("/chuyen/{chuyen_id}/ve/{ve_id}/hoan-tac-xuong-xe")
+def hoan_tac_xuong_xe(chuyen_id: str, ve_id: str, nguoi_dung: _phu_xe):
+    ve_service.hoan_tac_xuong_xe(chuyen_id, ve_id, nguoi_dung.id)
+    return {"thong_bao": "Đã hoàn tác, khách quay về trạng thái đang trên xe"}
+
+
+@router.post("/chuyen/{chuyen_id}/diem/{diem_id}/len-xe-tat-ca")
+def len_xe_tat_ca(chuyen_id: str, diem_id: str, nguoi_dung: _phu_xe):
+    so_luong = ve_service.len_xe_tat_ca(chuyen_id, diem_id, nguoi_dung.id)
+    return {"so_luong": so_luong, "thong_bao": f"Đã cho {so_luong} khách lên xe"}
+
+
+@router.post("/chuyen/{chuyen_id}/diem/{diem_id}/xuong-xe-tat-ca")
+def xuong_xe_tat_ca(chuyen_id: str, diem_id: str, nguoi_dung: _phu_xe):
+    so_luong = ve_service.xuong_xe_tat_ca(chuyen_id, diem_id, nguoi_dung.id)
+    return {"so_luong": so_luong, "thong_bao": f"Đã cho {so_luong} khách xuống xe"}
+
+
+@router.post("/chuyen/{chuyen_id}/chat-hang-tat-ca")
+def chat_hang_tat_ca(chuyen_id: str, nguoi_dung: _phu_xe):
+    return gui_hang_service.chat_tat_ca(chuyen_id, nguoi_dung.id)
+
+
+@router.post("/chuyen/{chuyen_id}/do-hang-tat-ca")
+def do_hang_tat_ca(chuyen_id: str, nguoi_dung: _phu_xe):
+    return gui_hang_service.do_tat_ca(chuyen_id, nguoi_dung.id)
+
+
 @router.get("/chuyen/{chuyen_id}/hang-cho-chat", response_model=list[DonHangChoChatResponse])
 def hang_cho_chat(chuyen_id: str, nguoi_dung: _phu_xe):
     return gui_hang_service.danh_sach_cho_chat(chuyen_id, nguoi_dung.id)
@@ -113,7 +169,24 @@ def xac_nhan_do_hang(don_hang_id: str, nguoi_dung: _phu_xe):
     return {"thong_bao": "Đã xác nhận dỡ hàng khỏi xe"}
 
 
+@router.get("/chuyen/{chuyen_id}/hang-co-the-hoan-tac", response_model=list[DonHangHoanTacResponse])
+def hang_co_the_hoan_tac(chuyen_id: str, nguoi_dung: _phu_xe):
+    return gui_hang_service.danh_sach_hoan_tac(chuyen_id, nguoi_dung.id)
+
+
+@router.post("/don-hang/{don_hang_id}/hoan-tac-chat-len-xe")
+def hoan_tac_chat_hang(don_hang_id: str, du_lieu: XacNhanChatHangRequest, nguoi_dung: _phu_xe):
+    gui_hang_service.hoan_tac_chat_hang(don_hang_id, du_lieu.chuyen_id, nguoi_dung.id)
+    return {"thong_bao": "Đã hoàn tác, đơn quay về danh sách chờ chất"}
+
+
+@router.post("/don-hang/{don_hang_id}/hoan-tac-do-hang")
+def hoan_tac_do_hang(don_hang_id: str, du_lieu: XacNhanChatHangRequest, nguoi_dung: _phu_xe):
+    gui_hang_service.hoan_tac_do_hang(don_hang_id, du_lieu.chuyen_id, nguoi_dung.id)
+    return {"thong_bao": "Đã hoàn tác, đơn quay lại trên xe"}
+
+
 @router.post("/don-hang/{don_hang_id}/bao-that-lac")
 def bao_that_lac(don_hang_id: str, du_lieu: BaoThatLacRequest, nguoi_dung: _phu_xe):
-    gui_hang_service.bao_that_lac(don_hang_id, du_lieu.mo_ta, nguoi_dung.id)
+    gui_hang_service.bao_that_lac(don_hang_id, du_lieu.mo_ta, nguoi_dung.id, du_lieu.loai)
     return {"thong_bao": "Đã ghi nhận báo cáo"}
