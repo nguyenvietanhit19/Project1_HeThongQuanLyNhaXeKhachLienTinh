@@ -27,6 +27,12 @@ from app.services import mat_khau_service
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+@router.get("/me")
+def thong_tin_tai_khoan_hien_tai(nguoi_dung: NguoiDungHienTai = Depends(yeu_cau_dang_nhap)):
+    """Thông tin xác thực và phạm vi văn phòng lấy từ hồ sơ trong CSDL."""
+    return {"id": nguoi_dung.id, "vai_tro": nguoi_dung.vai_tro, "van_phong_id": nguoi_dung.van_phong_id}
+
+
 @router.post("/gui-ma-dang-ky")
 def gui_ma_dang_ky(du_lieu: DangKyRequest):
     mat_khau_service.gui_ma_dang_ky(du_lieu.email, du_lieu.mat_khau, du_lieu.ho_ten, du_lieu.so_dien_thoai)
@@ -63,7 +69,7 @@ def xem_thong_tin(nguoi_dung: Annotated[NguoiDungHienTai, Depends(yeu_cau_dang_n
 
 @router.put("/toi")
 def sua_ho_so(du_lieu: SuaHoSoRequest, nguoi_dung: Annotated[NguoiDungHienTai, Depends(yeu_cau_dang_nhap)]):
-    mat_khau_service.sua_ho_ten(nguoi_dung.id, du_lieu.ho_ten)
+    mat_khau_service.sua_ho_so(nguoi_dung.id, du_lieu.ho_ten, du_lieu.so_dien_thoai)
     return {"thong_bao": "Cập nhật thành công"}
 
 

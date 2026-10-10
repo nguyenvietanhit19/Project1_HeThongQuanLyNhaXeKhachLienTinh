@@ -1,6 +1,6 @@
 """Upload/xóa ảnh trên Cloudinary — phục vụ ảnh hồ sơ nhân sự vận hành
-(UC-47, NGHIEP_VU.md mục 8.9) và ảnh giấy tờ (bằng lái, giấy khám sức
-khỏe — UC-47/48). Xem quyết định dùng lại Cloudinary ở
+(UC-49, NGHIEP_VU.md mục 8.9) và ảnh giấy tờ (bằng lái, giấy khám sức
+khỏe — UC-49/50). Xem quyết định dùng lại Cloudinary ở
 NHAP_QUAN_LY_NHAN_SU.md mục 3.0 và cấu trúc bảng ở database_quanLyNhanSu.md
 mục 1/2.
 

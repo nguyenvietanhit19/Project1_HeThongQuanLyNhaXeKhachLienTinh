@@ -103,13 +103,13 @@ def hang_cho_do(chuyen_id: str, nguoi_dung: _phu_xe):
 
 @router.post("/don-hang/{don_hang_id}/chat-len-xe")
 def xac_nhan_chat_hang(don_hang_id: str, du_lieu: XacNhanChatHangRequest, nguoi_dung: _phu_xe):
-    gui_hang_service.xac_nhan_chat_hang_cua_phu_xe(don_hang_id, du_lieu.chuyen_id, nguoi_dung.id)
+    gui_hang_service.xac_nhan_chat_hang(don_hang_id, du_lieu.chuyen_id, nguoi_dung.id)
     return {"thong_bao": "Đã xác nhận chất hàng lên xe"}
 
 
 @router.post("/don-hang/{don_hang_id}/do-hang")
 def xac_nhan_do_hang(don_hang_id: str, nguoi_dung: _phu_xe):
-    gui_hang_service.xac_nhan_do_hang_cua_phu_xe(don_hang_id, nguoi_dung.id)
+    gui_hang_service.xac_nhan_do_hang(don_hang_id, nguoi_dung.id)
     return {"thong_bao": "Đã xác nhận dỡ hàng khỏi xe"}
 
 

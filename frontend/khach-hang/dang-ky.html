@@ -53,8 +53,9 @@
           <svg class="kh-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M6.5 3h3l1.5 4-2 1.5a12 12 0 0 0 6 6l1.5-2 4 1.5v3a2 2 0 0 1-2 2A16 16 0 0 1 4.5 5a2 2 0 0 1 2-2Z"/>
           </svg>
-          <input class="input-field" type="tel" id="so_dien_thoai" placeholder="Số điện thoại" required />
+          <input class="input-field" type="tel" id="so_dien_thoai" placeholder="Số điện thoại (VD 0912345678)" inputmode="tel" maxlength="16" autocomplete="tel" required />
         </div>
+        <div id="loi-sdt" class="text-error" hidden></div>
 
         <div id="loi-buoc-1" class="text-error" hidden></div>
         <button class="btn-primary" type="submit">Gửi mã xác nhận</button>
@@ -83,6 +84,7 @@
   </div>
 
   <script src="/shared/api-client.js"></script>
+  <script src="/shared/so-dien-thoai.js"></script>
   <script src="otp-input.js"></script>
   <script>
     let thongTinDangKy = null;
@@ -102,18 +104,40 @@
       }
     }
 
+    // Kiểm tra số điện thoại ngay khi rời ô / khi gõ lại, báo lỗi ngay dưới ô
+    const oSdt = document.getElementById("so_dien_thoai");
+    const loiSdt = document.getElementById("loi-sdt");
+    function kiemTraOSdt() {
+      const kq = kiemTraSoDienThoai(oSdt.value);
+      loiSdt.textContent = kq.loi;
+      loiSdt.hidden = kq.hopLe;
+      return kq;
+    }
+    oSdt.addEventListener("blur", () => {
+      if (oSdt.value.trim()) kiemTraOSdt();
+    });
+    oSdt.addEventListener("input", () => {
+      if (!loiSdt.hidden) kiemTraOSdt(); // đã báo lỗi thì cập nhật theo từng ký tự gõ
+    });
+
     document.getElementById("form-buoc-1").addEventListener("submit", async (e) => {
       e.preventDefault();
       const loiEl = document.getElementById("loi-buoc-1");
       const btn = e.target.querySelector("button[type=submit]");
       loiEl.hidden = true;
+
+      const kqSdt = kiemTraOSdt();
+      if (!kqSdt.hopLe) {
+        oSdt.focus();
+        return;
+      }
       btn.classList.add("is-loading");
 
       thongTinDangKy = {
         email: document.getElementById("email").value.trim(),
         mat_khau: document.getElementById("mat_khau").value,
         ho_ten: document.getElementById("ho_ten").value.trim(),
-        so_dien_thoai: document.getElementById("so_dien_thoai").value.trim(),
+        so_dien_thoai: kqSdt.soChuan,
       };
 
       try {

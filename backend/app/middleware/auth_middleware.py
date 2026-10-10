@@ -39,6 +39,7 @@ def tao_token(nguoi_dung_id: str, vai_tro: str) -> str:
 class NguoiDungHienTai:
     id: str
     vai_tro: str
+    van_phong_id: str | None = None
 
 
 def yeu_cau_dang_nhap(authorization: Annotated[str | None, Header()] = None) -> NguoiDungHienTai:
@@ -69,7 +70,11 @@ def yeu_cau_dang_nhap(authorization: Annotated[str | None, Header()] = None) -> 
     if not nguoi_dung["dang_hoat_dong"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tài khoản đã bị khóa")
 
-    return NguoiDungHienTai(id=nguoi_dung["id"], vai_tro=nguoi_dung["vai_tro"])
+    return NguoiDungHienTai(
+        id=nguoi_dung["id"],
+        vai_tro=nguoi_dung["vai_tro"],
+        van_phong_id=str(nguoi_dung["van_phong_id"]) if nguoi_dung.get("van_phong_id") else None,
+    )
 
 
 def yeu_cau_vai_tro(*vai_tro_cho_phep: str):

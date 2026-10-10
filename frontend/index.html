@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>GoBus — Đặt vé xe khách liên tỉnh</title>
+<meta name="description" content="Tìm chuyến xe khách liên tỉnh GoBus theo điểm đi, điểm đến và ngày — xem giờ chạy, giá vé và sơ đồ ghế, không cần đăng nhập." />
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/khach-hang/trang-chu.css" />
+</head>
+<body class="tc-trang">
+  <header class="tc-nav" id="tc-nav-goc"></header>
+
+  <section class="tc-hero">
+    <div class="tc-hero__noi-dung">
+      <h1>Xe khách liên tỉnh, <em>đặt vé dễ dàng</em></h1>
+      <p>Chọn điểm đi, điểm đến và ngày — xem ngay giờ chạy, giá vé và ghế còn trống.</p>
+    </div>
+
+    <form class="tc-tim" id="form-tim" autocomplete="off" novalidate>
+      <div class="tc-tim__hang">
+        <div class="tc-truong tc-combo" id="combo-di">
+          <label class="tc-truong__nhan" for="o-di">Điểm đi</label>
+          <div class="tc-truong__o">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
+            <input type="text" id="o-di" placeholder="Chọn điểm đi" role="combobox" aria-autocomplete="list" aria-expanded="false" />
+          </div>
+          <ul class="tc-combo__ds" role="listbox" hidden></ul>
+        </div>
+
+        <button type="button" class="tc-doi-cho" id="btn-doi-cho" aria-label="Đổi chiều đi và đến">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M7 4 3.5 7.5M7 4l3.5 3.5M17 20V4M17 20l-3.5-3.5M17 20l3.5-3.5"/></svg>
+        </button>
+
+        <div class="tc-truong tc-combo" id="combo-den">
+          <label class="tc-truong__nhan" for="o-den">Điểm đến</label>
+          <div class="tc-truong__o">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-7.16 7-12a7 7 0 1 0-14 0c0 4.84 7 12 7 12Z"/><circle cx="12" cy="9" r="2.3"/></svg>
+            <input type="text" id="o-den" placeholder="Chọn điểm đến" role="combobox" aria-autocomplete="list" aria-expanded="false" />
+          </div>
+          <ul class="tc-combo__ds" role="listbox" hidden></ul>
+        </div>
+
+        <div class="tc-truong tc-truong--ngay">
+          <label class="tc-truong__nhan" for="o-ngay">Ngày đi</label>
+          <div class="tc-truong__o">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="2.5"/><path d="M3.5 9h17M8 3v3M16 3v3"/></svg>
+            <input type="date" id="o-ngay" />
+          </div>
+        </div>
+
+        <button type="submit" class="tc-nut-tim" id="btn-tim">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          Tìm chuyến
+        </button>
+      </div>
+
+      <div class="tc-tim__chip" id="tc-chip-ngay"></div>
+      <div class="tc-tim__loi" id="tc-loi-tim" role="alert" hidden></div>
+    </form>
+  </section>
+
+  <main class="tc-noi-dung">
+    <div id="tc-ket-qua"></div>
+  </main>
+
+  <footer class="tc-chan" id="tc-chan-goc"></footer>
+
+  <!-- Sơ đồ ghế của 1 chuyến -->
+  <div class="tc-modal" id="modal-so-do" hidden>
+    <div class="tc-modal__hop" role="dialog" aria-modal="true" aria-labelledby="tc-so-do-tieu-de">
+      <button type="button" class="tc-modal__dong" id="btn-dong-so-do" aria-label="Đóng">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+      <div id="tc-so-do-noi-dung"></div>
+    </div>
+  </div>
+
+  <script src="/shared/api-client.js"></script>
+  <script src="/shared/so-dien-thoai.js"></script>
+  <script src="/khach-hang/khung-trang.js"></script>
+  <script src="/khach-hang/ho-so.js"></script>
+  <script src="/khach-hang/trang-chu.js"></script>
+</body>
+</html>
