@@ -83,6 +83,36 @@ def tim_ve_can_xuong_xe_tai_diem(chuyen_id: str, diem_don_tra_id: str) -> list[d
         release_connection(conn)
 
 
+def tim_hanh_khach_cua_chuyen(chuyen_id: str) -> list[dict]:
+    """Mọi hành khách của chuyến (kể cả đã xuống xe / không đến) kèm trạng thái và
+    điểm đón/trả — màn "tổng quan chuyến" của phụ xe (mục 8.2 điểm 1). Không lấy vé
+    hết hạn/đã hủy vì khách đó không còn đi chuyến này."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT v.id AS ve_id, v.so_ghe, v.ma_dat_cho, v.trang_thai, v.diem_don_id, v.diem_tra_id,
+                       COALESCE(nd.ho_ten, v.ten_khach_vang_lai) AS ho_ten,
+                       COALESCE(nd.so_dien_thoai, v.sdt_khach_vang_lai) AS so_dien_thoai,
+                       dd.ten AS ten_diem_don, dt.ten AS ten_diem_tra,
+                       v.gia, v.loai_hinh_thanh_toan, v.gio_len_xe, v.gio_xuong_xe,
+                       (v.gio_hoan_tac IS NOT NULL) AS da_hoan_tac
+                FROM ve v
+                LEFT JOIN nguoi_dung nd ON nd.id = v.khach_hang_id
+                JOIN diem_don_tra dd ON dd.id = v.diem_don_id
+                JOIN diem_don_tra dt ON dt.id = v.diem_tra_id
+                WHERE v.chuyen_id = %s
+                  AND v.trang_thai IN ('giu_cho', 'da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den')
+                ORDER BY length(v.so_ghe), v.so_ghe
+                """,
+                (chuyen_id,),
+            )
+            return _thanh_list(cur, cur.fetchall())
+    finally:
+        release_connection(conn)
+
+
 def tim_ve_qua_gio_len_xe(x_phut: int) -> list[dict]:
     """UC-14 (⏱) — vé chưa lên xe nhưng đã quá X phút trước giờ dự kiến
     tại đúng điểm đón của nó (NGHIEP_VU.md mục 8.2 điểm 6) — áp dụng như
@@ -100,6 +130,7 @@ def tim_ve_qua_gio_len_xe(x_phut: int) -> list[dict]:
                     ON tdt.tuyen_id = cx.tuyen_id AND tdt.diem_don_tra_id = v.diem_don_id
                 WHERE v.trang_thai IN ('da_thanh_toan', 'giu_cho')
                   AND cx.trang_thai != 'da_huy'
+                  AND v.gio_hoan_tac IS NULL
                   AND cx.gio_khoi_hanh + (
                         CASE WHEN cx.chieu = 'xuoi' THEN tdt.thoi_gian_du_kien_phut
                              ELSE (SELECT MAX(t2.thoi_gian_du_kien_phut) FROM tuyen_diem_don_tra t2 WHERE t2.tuyen_id = cx.tuyen_id)
@@ -200,6 +231,78 @@ def xac_nhan_len_xe(ve_id: str) -> None:
                 (ve_id,),
             )
         conn.commit()
+    finally:
+        release_connection(conn)
+
+
+def xac_nhan_len_xe_nhieu(ve_ids: list[str]) -> int:
+    """Lên xe hàng loạt — điều kiện trạng thái nằm trong WHERE, trả số vé thực sự đổi."""
+    if not ve_ids:
+        return 0
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """UPDATE ve SET trang_thai = 'da_len_xe', gio_len_xe = now()
+                   WHERE id = ANY(%s::uuid[]) AND trang_thai = 'da_thanh_toan'""",
+                (ve_ids,),
+            )
+            so_luong = cur.rowcount
+        conn.commit()
+        return so_luong
+    finally:
+        release_connection(conn)
+
+
+def xac_nhan_xuong_xe_nhieu(ve_ids: list[str]) -> int:
+    if not ve_ids:
+        return 0
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """UPDATE ve SET trang_thai = 'da_xuong_xe', gio_xuong_xe = now()
+                   WHERE id = ANY(%s::uuid[]) AND trang_thai = 'da_len_xe'""",
+                (ve_ids,),
+            )
+            so_luong = cur.rowcount
+        conn.commit()
+        return so_luong
+    finally:
+        release_connection(conn)
+
+
+def hoan_tac_len_xe(ve_id: str) -> bool:
+    """da_len_xe -> da_thanh_toan. Điều kiện nằm trong WHERE để 2 lần bấm
+    liên tiếp không làm hỏng trạng thái. Trả False nếu vé không còn da_len_xe."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """UPDATE ve SET trang_thai = 'da_thanh_toan', gio_len_xe = NULL, gio_hoan_tac = now()
+                   WHERE id = %s AND trang_thai = 'da_len_xe'""",
+                (ve_id,),
+            )
+            da_sua = cur.rowcount > 0
+        conn.commit()
+        return da_sua
+    finally:
+        release_connection(conn)
+
+
+def hoan_tac_xuong_xe(ve_id: str) -> bool:
+    """da_xuong_xe -> da_len_xe (khách vẫn đang trên xe)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """UPDATE ve SET trang_thai = 'da_len_xe', gio_xuong_xe = NULL, gio_hoan_tac = now()
+                   WHERE id = %s AND trang_thai = 'da_xuong_xe'""",
+                (ve_id,),
+            )
+            da_sua = cur.rowcount > 0
+        conn.commit()
+        return da_sua
     finally:
         release_connection(conn)
 
