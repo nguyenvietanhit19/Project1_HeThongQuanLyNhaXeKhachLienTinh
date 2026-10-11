@@ -9,6 +9,7 @@ Người 4 (Son — Điều độ viên) sở hữu file này.
 Chạy định kỳ 1 phút/lần bằng APScheduler (AsyncIOScheduler) trong tiến trình FastAPI.
 """
 
+import asyncio
 import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -32,6 +33,20 @@ async def quet_chuyen_chua_gan_xe():
         logger.error(f"[UC-45] Lỗi trong job quét chưa gán xe: {e}", exc_info=True)
 
 
+def chay() -> None:
+    """Entry point đồng bộ cho BackgroundScheduler trong main.py."""
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.create_task(quet_chuyen_chua_gan_xe())
+        else:
+            loop.run_until_complete(quet_chuyen_chua_gan_xe())
+    except RuntimeError:
+        asyncio.run(quet_chuyen_chua_gan_xe())
+    except Exception as e:
+        logger.error(f"[UC-45] Lỗi khi thực thi chay(): {e}", exc_info=True)
+
+
 def dang_ky_job(scheduler: AsyncIOScheduler) -> None:
     """Đăng ký job UC-45 vào scheduler chung của ứng dụng."""
     scheduler.add_job(
@@ -42,3 +57,4 @@ def dang_ky_job(scheduler: AsyncIOScheduler) -> None:
         replace_existing=True,
     )
     logger.info("[UC-45] Đã đăng ký job 'quet_chua_gan_xe' chu kỳ 1 phút.")
+
