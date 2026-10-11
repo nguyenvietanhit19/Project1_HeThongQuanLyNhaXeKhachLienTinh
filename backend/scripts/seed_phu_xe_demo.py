@@ -19,7 +19,10 @@ Tài khoản (đăng nhập tại /nhan-vien/dang-nhap.html hoặc POST /auth/da
 Tuyến demo: 4 điểm A → B → C → D (A, D là văn phòng; B, C là điểm dừng), mỗi chặng 100 phút (cả tuyến 5 tiếng).
 Xe 34 chỗ chạy luôn phiên xuôi/ngược, các chuyến cách nhau 8 tiếng (xe kịp nghỉ + quay đầu), mỗi chuyến 7–30 khách,
 khách có tên/SĐT/chặng đi khác nhau, vài khách chưa trả tiền (giữ chỗ trả tại quầy) hoặc không đến.
-Chuyến chưa khởi hành chỉ xác nhận xuất phát được khi ĐÚNG giờ (UC-15), không xuất phát sớm.
+Chuyến chưa khởi hành: bến mở (cho khách lên xe, chất hàng) từ 15 phút trước giờ chạy, và chỉ xuất phát được khi ĐÚNG giờ
+(UC-15) bằng nút "Xuất phát" ở điểm đầu — không còn bước "xác nhận xuất phát" riêng.
+Tại mỗi điểm xe ĐANG DỪNG (cho khách lên/xuống, chất/dỡ hàng); muốn tới điểm kế tiếp phải bấm "Bắt đầu di chuyển"
+(bị chặn nếu còn khách chưa xuống/hàng chưa dỡ, cảnh báo nếu còn khách chưa lên/hàng chưa chất), rồi "Xác nhận đã đến".
 
     Lịch (chuyến mốc 0 là chuyến xuôi: mặc định vừa xuất phát 10 phút trước, xe còn ở A; --dang-chay: xe đã tới B):
         -8h  NGƯỢC  đã hoàn thành (có lịch sử/thống kê)

@@ -286,11 +286,11 @@ da_thanh_toan   ← từ đây KHÔNG còn đường quay lại het_han/hủy do
 Phụ xe là **người duy nhất trong đội vận hành thao tác trực tiếp trên hệ thống** — gồm cả các xác nhận trạng thái chuyến trước đây gán cho tài xế (mục 8.3), vì tài xế không có tài khoản (mục 3.2).
 
 1. Xem danh sách chuyến mình được phân công; tại **mỗi điểm** của tuyến, xem danh sách khách cần **lên** tại điểm đó (`diem_don_id` = điểm hiện tại) và khách cần **xuống** tại điểm đó (`diem_tra_id` = điểm hiện tại), không chỉ danh sách chung cho cả chuyến.
-2. Xác nhận xuất phát đúng giờ tại điểm đầu tuyến → chuyến chuyển `dang_chay`.
+2. **Bến mở 15 phút trước giờ chạy**: từ lúc đó phụ xe mới cho khách lên xe và chất hàng tại điểm đầu tuyến. **Xuất phát chỉ được từ đúng giờ chạy** bằng nút "Xuất phát" (không còn bước "xác nhận xuất phát" riêng) → chuyến chuyển `dang_chay` và xe vào pha **đang di chuyển** tới điểm kế tiếp.
 3. **Khi khách lên xe**: khách xuất trình **vé cứng** (đã lấy tại văn phòng — mục 8.1 điểm 5) cho phụ xe → phụ xe xác nhận trên hệ thống → đánh dấu `da_len_xe`.
 4. **Khi khách xuống xe**: phụ xe **chủ động xác nhận trên hệ thống** khi khách xuống đúng điểm trả (không chỉ nhắc miệng) → đánh dấu `da_xuong_xe` — giúp phụ xe đối chiếu đúng số khách còn lại trên xe sau mỗi điểm dừng, tránh sót khách ngủ quên/xuống nhầm điểm.
-5. **Xác nhận đã đến từng điểm trung gian** trên hành trình (không chỉ điểm cuối) → ghi nhận giờ thực tế, dùng để cập nhật ETA cho khách đang chờ đón ở các điểm phía sau (báo qua WebSocket, mục 8.1) và kích hoạt đúng danh sách lên/xuống của điểm đó (điểm 1).
-6. Trước giờ khởi hành tại **điểm đón của từng khách** X phút (cấu hình được, VD 5 phút), với **mọi vé chưa `da_len_xe` tại điểm đó** — dù đã `da_thanh_toan` hay đang `giu_cho` (chọn "thanh toán tại quầy" nhưng chưa từng ra quầy trả tiền) — → đánh dấu `khong_den` (mục 9). **Cùng mốc X phút này cũng là hạn chót để khách tự hủy giữ chỗ** (mục 7, mục 8.1 điểm 6) — qua mốc đó khách không tự hủy được nữa.
+5. **Mỗi điểm có 2 pha: đang dừng rồi đang di chuyển.** Xe đang dừng thì lên/xuống xe, chất/dỡ hàng; muốn đi tiếp phải bấm **"Bắt đầu di chuyển"** — **bị chặn** nếu còn khách phải xuống hoặc hàng phải dỡ tại điểm đó, **cảnh báo** (phụ xe xác nhận mới đi) nếu còn khách chưa lên hoặc hàng chưa chất. Trong lúc di chuyển không lên/xuống xe, chất/dỡ hàng được. Khi tới nơi, **xác nhận đã đến từng điểm trung gian** (không chỉ điểm cuối) → ghi nhận giờ thực tế, dùng để cập nhật ETA cho khách đang chờ đón ở các điểm phía sau (báo qua WebSocket, mục 8.1) và mở lại danh sách lên/xuống của điểm đó (điểm 1). Khách chưa lên xe ở điểm vừa rời bị đánh dấu `khong_den` ngay lúc xe tới điểm kế tiếp. Xe chỉ xuống khách tại **đúng điểm xe đang đứng** — đã rời điểm trả thì không xác nhận xuống được nữa (báo điều độ viên).
+6. (Job dự phòng) Trước giờ khởi hành tại **điểm đón của từng khách** X phút (cấu hình được, VD 5 phút), với **mọi vé chưa `da_len_xe` tại điểm đó** — dù đã `da_thanh_toan` hay đang `giu_cho` (chọn "thanh toán tại quầy" nhưng chưa từng ra quầy trả tiền) — → đánh dấu `khong_den` (mục 9). **Cùng mốc X phút này cũng là hạn chót để khách tự hủy giữ chỗ** (mục 7, mục 8.1 điểm 6) — qua mốc đó khách không tự hủy được nữa.
 7. **Báo sự cố giữa đường** (hỏng xe, tai nạn, tắc đường nghiêm trọng — theo thông tin tài xế cung cấp, phụ xe là người thao tác trên hệ thống) → chuyến chuyển `gap_su_co`, điều độ viên nhận cảnh báo ngay; báo các bất thường khác chưa tới mức sự cố cho điều độ viên khi cần.
 8. Xác nhận đến điểm cuối cùng của tuyến → chuyến chuyển `hoan_thanh`.
 9. Xác nhận đã chất/dỡ hàng gửi (`don_hang`, mục 10) tại từng điểm dừng, song song với soát vé hành khách — báo thất lạc/hư hỏng nếu có.
@@ -731,10 +731,10 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
 *Gộp UC-15 (xác nhận xuất phát) và UC-16 (xác nhận đến điểm) cũ: cùng phụ xe, cùng mục tiêu báo mốc chạy của chuyến — xuất phát là mốc đầu, mỗi lần tới điểm là mốc tiếp theo.*
 
 - **Actor**: Phụ xe.
-- **Tiền điều kiện**: Chuyến `chua_khoi_hanh`, tới giờ khởi hành tại điểm đầu tuyến.
+- **Tiền điều kiện**: Chuyến `chua_khoi_hanh`, tới giờ khởi hành tại điểm đầu tuyến (bến mở từ 15 phút trước để cho khách lên xe/chất hàng).
 - **Luồng chính** (mục 8.2 điểm 2):
-  1. Phụ xe xác nhận xuất phát đúng giờ tại điểm đầu tuyến.
-  2. Chuyến chuyển `dang_chay`.
+  1. Phụ xe bấm "Xuất phát" đúng giờ tại điểm đầu tuyến (cảnh báo nếu còn khách chưa lên/hàng chưa chất).
+  2. Chuyến chuyển `dang_chay`, xe vào pha đang di chuyển tới điểm kế tiếp.
 - **Hậu điều kiện**: Chuyến `dang_chay`.
 
 #### Nhánh kèm theo — trước đây là UC-16 (Xác nhận đến điểm (trung gian/cuối cùng))
@@ -742,7 +742,7 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
 - **Actor**: Phụ xe.
 - **Tiền điều kiện**: Chuyến `dang_chay`, xe vừa tới 1 điểm dừng trên tuyến.
 - **Luồng chính** (mục 8.2 điểm 5, 8):
-  1. Phụ xe xác nhận đã đến điểm hiện tại.
+  1. Phụ xe xác nhận đã đến điểm hiện tại (xe phải đang ở pha di chuyển — đã bấm "Bắt đầu di chuyển" ở điểm trước).
   2. Hệ thống ghi giờ thực tế, cập nhật ETA cho khách chờ ở các điểm phía sau (WebSocket).
   3. Hệ thống kích hoạt đúng danh sách lên/xuống của điểm đó (UC-12/UC-13).
 - **Luồng rẽ nhánh**:
