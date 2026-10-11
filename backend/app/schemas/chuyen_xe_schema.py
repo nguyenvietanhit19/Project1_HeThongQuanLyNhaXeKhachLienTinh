@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import BaseModel
 
@@ -62,3 +63,52 @@ class ThongKePhuXeResponse(BaseModel):
     ty_le_lap_day_trung_binh: float
     so_chuyen_su_co: int
     so_chuyen_huy: int
+
+
+# ============================================================
+# Schemas cho Điều độ viên (UC-44, UC-45, UC-19, UC-20, UC-40, UC-39)
+# ============================================================
+
+class ChuyenXeResponse(BaseModel):
+    id: UUID
+    tuyen_id: UUID
+    ten_tuyen: str
+    chieu: str                  # 'xuoi' | 'nguoc'
+    xe_id: UUID | None
+    bien_so_xe: str | None
+    loai_xe_id: UUID
+    ten_loai_xe: str
+    lich_chay_dinh_ky_id: UUID | None
+    xe_thuc_te_id: UUID | None
+    gio_khoi_hanh: datetime
+    trang_thai: str
+    dang_hoan: bool
+    co_canh_bao_xung_dot_vi_tri: bool
+    loai_su_co: str | None
+
+
+class DanhSachChuyenResponse(BaseModel):
+    chuyen: list[ChuyenXeResponse]
+
+
+class XeDuDieuKienResponse(BaseModel):
+    id: UUID
+    bien_so: str
+    loai_xe_id: UUID
+    ten_loai_xe: str
+    tuyen_id: UUID | None       # None = xe dự phòng
+    diem_goc_id: UUID
+    ten_diem_goc: str
+
+
+class GanXeRequest(BaseModel):
+    xe_id: UUID
+
+
+class DieuXeThayTheRequest(BaseModel):
+    xe_thay_the_id: UUID
+
+
+class HoanChuyenRequest(BaseModel):
+    gio_khoi_hanh_moi: datetime
+

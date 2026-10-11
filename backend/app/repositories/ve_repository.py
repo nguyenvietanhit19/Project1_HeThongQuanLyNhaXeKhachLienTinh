@@ -210,3 +210,32 @@ def xac_nhan_xuong_xe(ve_id: str) -> None:
         conn.commit()
     finally:
         release_connection(conn)
+
+
+def lay_ve_da_thanh_toan_theo_chuyen(chuyen_id: str) -> list[dict]:
+    """Tìm tất cả vé đã thanh toán (chưa lên xe, chưa hủy) của một chuyến.
+    Dùng cho:
+      - UC-45: Thông báo hoãn chuyến tới khách hàng
+      - UC-19 / UC-21: Xử lý hoàn tiền khi chuyến bị hủy
+    """
+    sql = """
+        SELECT
+            v.id, v.chuyen_id, v.so_ghe, v.khach_hang_id,
+            v.gia, v.ma_dat_cho, v.trang_thai,
+            v.ten_khach_vang_lai, v.sdt_khach_vang_lai
+        FROM ve v
+        WHERE v.chuyen_id = %s
+          AND v.trang_thai = 'da_thanh_toan'
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, (chuyen_id,))
+            return _thanh_list(cur, cur.fetchall())
+    finally:
+        release_connection(conn)
+
+
+tim_ve_da_thanh_toan_theo_chuyen = lay_ve_da_thanh_toan_theo_chuyen
+
+

@@ -225,3 +225,28 @@ def danh_sach_id_theo_vai_tro(vai_tro: str, chi_dang_hoat_dong: bool = False) ->
             return [str(row[0]) for row in cur.fetchall()]
     finally:
         release_connection(conn)
+
+
+def lay_ho_so_can_bo(nguoi_dung_id: str) -> dict | None:
+    """Lấy hồ sơ cán bộ điểm (van_phong_id) của tài khoản cán bộ.
+    Dùng cho điều độ viên, nhân viên quầy vé, nhân viên gửi hàng, phụ xe
+    — các vai trò có văn phòng gắn kèm (DATABASE.md mục 1.2).
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT nguoi_dung_id, van_phong_id
+                FROM ho_so_can_bo_diem
+                WHERE nguoi_dung_id = %s
+                """,
+                (nguoi_dung_id,),
+            )
+            row = cur.fetchone()
+            if row is None:
+                return None
+            return {"nguoi_dung_id": str(row[0]), "van_phong_id": str(row[1])}
+    finally:
+        release_connection(conn)
+

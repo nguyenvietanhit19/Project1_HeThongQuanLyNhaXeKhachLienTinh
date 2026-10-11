@@ -1,0 +1,808 @@
+/*
+ * CSS khung dashboard cho các trang Điều độ viên (sidebar + topbar + nội dung +
+ * bảng + modal + các thành phần điều độ) — "Soft Card UI" theo THIET_KE_UI.md.
+ * Thiết kế đồng bộ hoàn toàn với giao diện Quản lý (frontend/nhan-vien/quan-ly/).
+ */
+
+body.nhan-vien-shell {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+}
+
+.nv-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ===== Sidebar ===== */
+
+.nv-sidebar {
+  flex: 0 0 252px;
+  background: linear-gradient(165deg, var(--color-secondary) 0%, var(--color-secondary-dark) 78%);
+  color: var(--color-text-on-dark);
+  padding: 22px 14px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  box-sizing: border-box;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.nv-sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 26px;
+  padding: 6px 10px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.nv-sidebar__brand-mark {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-float);
+  overflow: hidden;
+}
+
+.nv-sidebar__brand-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.nv-sidebar__brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.nv-sidebar__brand-text strong {
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.nv-sidebar__brand-text em {
+  font-style: normal;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
+}
+
+.nv-sidebar__section-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 4px 10px 10px;
+}
+
+.nv-sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nv-sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-button);
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.nv-sidebar__link-icon {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.nv-sidebar__link:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  transform: translateX(2px);
+}
+
+.nv-sidebar__link.active {
+  background: var(--color-primary);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-float);
+}
+
+.nv-sidebar__link.active .nv-sidebar__link-icon {
+  opacity: 1;
+}
+
+.nv-sidebar__deco {
+  margin-top: auto;
+  height: 90px;
+  border-radius: var(--radius-button);
+  background:
+    radial-gradient(circle at 78% 22%, rgba(245, 166, 35, 0.55), transparent 55%),
+    repeating-linear-gradient(100deg, transparent 0 10px, rgba(255, 255, 255, 0.15) 10px 12px);
+  opacity: 0.6;
+}
+
+/* ===== Main / topbar / content ===== */
+
+.nv-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nv-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px;
+  background: linear-gradient(90deg, #FFFFFF 0%, #F6F3FB 100%);
+  box-shadow: var(--shadow-soft);
+  border-bottom: 3px solid var(--color-primary);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.nv-topbar h1 {
+  font-size: 20px;
+  margin: 0;
+  padding-left: 14px;
+  border-left: 4px solid var(--color-primary);
+  color: var(--color-secondary-dark);
+}
+
+.nv-topbar__user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.nv-topbar__avatar {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-secondary), var(--color-secondary-dark));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 15px;
+  box-shadow: var(--shadow-float);
+}
+
+.nv-topbar__identity {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+
+.nv-topbar__user .ho-ten {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.nv-topbar__role {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-primary-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.nv-content {
+  flex: 1;
+  padding: 28px 32px;
+}
+
+/* ===== Banner giới thiệu đầu trang ===== */
+
+.nv-page-intro {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-secondary-dark) 100%);
+  color: var(--color-text-on-dark);
+  border-radius: var(--radius-card);
+  padding: 22px 26px;
+  margin-bottom: 22px;
+  box-shadow: var(--shadow-soft);
+  position: relative;
+  overflow: hidden;
+}
+
+.nv-page-intro::after {
+  content: "";
+  position: absolute;
+  right: -30px;
+  top: -50px;
+  width: 180px;
+  height: 180px;
+  background: radial-gradient(circle, rgba(245, 166, 35, 0.4), transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.nv-page-intro__icon {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-button);
+  background: rgba(255, 255, 255, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+
+.nv-page-intro__icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.nv-page-intro__body {
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.nv-page-intro__title {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.nv-page-intro__desc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.82);
+  max-width: 620px;
+}
+
+.nv-page-intro__stat {
+  margin-left: auto;
+  flex-shrink: 0;
+  text-align: right;
+  position: relative;
+  z-index: 1;
+}
+
+.nv-page-intro__stat-num {
+  display: block;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.nv-page-intro__stat-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* ===== Card + table ===== */
+
+.nv-card {
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.nv-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.nv-card__header h2 {
+  font-size: 17px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nv-card__header h2 .nv-card__count {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-secondary-dark);
+  background: rgba(91, 62, 150, 0.1);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+}
+
+.nv-table-wrap {
+  border: 1.5px solid #ECEAF3;
+  border-radius: var(--radius-button);
+  overflow: hidden;
+}
+
+.nv-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.nv-table th {
+  text-align: left;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-secondary-dark);
+  font-weight: 700;
+  padding: 13px 14px;
+  background: linear-gradient(180deg, #F1EEF9, #EAE6F5);
+  border-bottom: 2.5px solid var(--color-primary);
+  white-space: nowrap;
+}
+
+.nv-table td {
+  padding: 13px 14px;
+  border-bottom: 1px solid #F1F1F3;
+  font-size: 14px;
+}
+
+.nv-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.nv-table tbody tr {
+  background: var(--color-bg-surface);
+  transition: background 0.15s ease;
+}
+
+.nv-table tbody tr:hover {
+  background: rgba(91, 62, 150, 0.05);
+}
+
+.nv-table tbody tr.nv-table__row--khan {
+  background: #FFF5F5;
+  border-left: 3px solid var(--color-danger);
+}
+
+.nv-table tbody tr.nv-table__row--hoan {
+  background: #F9F9FA;
+  opacity: 0.85;
+}
+
+.nv-table__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: 48px 20px;
+  font-size: 14px;
+}
+
+.nv-btn-sua {
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid rgba(91, 62, 150, 0.25);
+  background: rgba(91, 62, 150, 0.06);
+  color: var(--color-secondary-dark);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nv-btn-sua:hover:not(:disabled) {
+  border-color: var(--color-secondary);
+  background: rgba(91, 62, 150, 0.14);
+}
+
+.nv-btn-danger {
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.06);
+  color: var(--color-danger);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nv-btn-danger:hover:not(:disabled) {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.nv-btn-secondary {
+  padding: 10px 20px;
+  border-radius: var(--radius-button);
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+  font-weight: 600;
+  font-size: 14px;
+  font-family: inherit;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.nv-btn-secondary:hover {
+  background: #CFCBDC;
+}
+
+/* ===== Form Controls & Buttons ===== */
+
+.input-field {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid #D5D3DE;
+  border-radius: var(--radius-button);
+  background: #fff;
+  font-size: 14px;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.2);
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-text-primary);
+  font-weight: 700;
+  padding: 10px 20px;
+  border-radius: var(--radius-button);
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: inherit;
+  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-float);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary.is-loading {
+  color: transparent !important;
+  pointer-events: none;
+  position: relative;
+}
+
+.btn-primary.is-loading::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  border: 2px solid rgba(23, 23, 26, 0.25);
+  border-top-color: var(--color-text-primary);
+  animation: nv-spin 0.6s linear infinite;
+}
+
+@keyframes nv-spin {
+  to { transform: rotate(360deg); }
+}
+
+.text-error {
+  color: var(--color-danger);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.nv-hint {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-secondary-dark);
+  background: rgba(91, 62, 150, 0.08);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 6px 0 14px;
+}
+
+/* ===== Modal ===== */
+
+.nv-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(23, 23, 26, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 100;
+}
+
+.nv-modal-overlay[hidden] {
+  display: none;
+}
+
+.nv-modal {
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: nv-modal-in 0.2s ease;
+}
+
+@keyframes nv-modal-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.nv-modal__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-secondary-dark) 100%);
+  color: var(--color-text-on-dark);
+  flex-shrink: 0;
+}
+
+.nv-modal__header-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-button);
+  background: rgba(255, 255, 255, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nv-modal h2 {
+  margin: 0;
+  font-size: 17px;
+  color: inherit;
+}
+
+.nv-modal__body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.nv-modal__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* ===== Thành phần riêng của Điều độ viên ===== */
+
+.dd-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.dd-pill--success {
+  background: #EBFDF2;
+  color: var(--color-success);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.dd-pill--warn {
+  background: #FFFBEB;
+  color: var(--color-primary-dark);
+  border: 1px solid rgba(245, 166, 35, 0.3);
+}
+
+.dd-pill--danger {
+  background: #FEF2F2;
+  color: var(--color-danger);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.dd-pill--dark {
+  background: #27272A;
+  color: #fff;
+}
+
+.dd-pill--primary {
+  background: rgba(91, 62, 150, 0.1);
+  color: var(--color-secondary-dark);
+}
+
+.dd-pill--muted {
+  background: #F1F1F4;
+  color: var(--color-text-muted);
+}
+
+/* Nút Filter */
+.dd-filter-btn {
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid #D5D3DE;
+  background: #fff;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.dd-filter-btn:hover {
+  border-color: var(--color-secondary);
+}
+
+.dd-filter-btn--active {
+  background: var(--color-secondary);
+  color: #fff;
+  border-color: var(--color-secondary);
+}
+
+/* Thông tin chuyến xe trong Modal */
+.dd-chuyen-info {
+  background: var(--color-bg-canvas);
+  border-radius: var(--radius-button);
+  padding: 14px 18px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dd-chuyen-info__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.dd-chuyen-info__label {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+/* Box sự cố */
+.dd-su-co-card {
+  border: 1.5px solid rgba(239, 68, 68, 0.3);
+  border-left: 4px solid var(--color-danger);
+  border-radius: var(--radius-button);
+  background: #FFF9F9;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.dd-su-co-card__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-danger);
+  margin: 0 0 6px;
+}
+
+.dd-su-co-card__meta {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+/* Tabs */
+.dd-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #E5E5EB;
+  padding-bottom: 2px;
+}
+
+.dd-tab-btn {
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.dd-tab-btn:hover {
+  color: var(--color-secondary);
+}
+
+.dd-tab-btn.active {
+  color: var(--color-secondary);
+  border-bottom-color: var(--color-secondary);
+}
+
+/* Thống kê KPI grid */
+.dd-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.dd-kpi-card {
+  background: #fff;
+  border-radius: var(--radius-card);
+  padding: 20px;
+  box-shadow: var(--shadow-soft);
+  border-top: 4px solid var(--color-secondary);
+}
+
+.dd-kpi-card--primary { border-top-color: var(--color-secondary); }
+.dd-kpi-card--success { border-top-color: var(--color-success); }
+.dd-kpi-card--danger  { border-top-color: var(--color-danger); }
+.dd-kpi-card--warning { border-top-color: var(--color-primary); }
+
+.dd-kpi-card__title {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 8px;
+}
+
+.dd-kpi-card__num {
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+}
+
+.dd-kpi-card__desc {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: 6px;
+}

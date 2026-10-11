@@ -6,9 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import CORS_ORIGINS
-from app.jobs import quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han
+from app.jobs import quet_chua_gan_xe, quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han
 from app.routes.auth import router as auth_router
 from app.routes.chuyen import router as chuyen_router
+from app.routes.dieu_do import router as dieu_do_router
 from app.routes.phu_xe import router as phu_xe_router
 from app.routes.gui_hang import router as gui_hang_router
 from app.routes.quan_ly import router as quan_ly_router
@@ -34,6 +35,8 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(quet_hang_ton.chay_job_quet_hang_ton, "interval", hours=1, id="quet_hang_ton")
     # Nhắc khách "sắp đến giờ đi" (NGHIEP_VU.md mục 8.1 điểm 4) — mỗi vé nhắc đúng 1 lần
     scheduler.add_job(quet_nhac_sap_di.chay, "interval", minutes=5, id="quet_nhac_sap_di")
+    # UC-45 (⏱) — quét các chuyến chưa gán xe khi tới giờ khởi hành
+    scheduler.add_job(quet_chua_gan_xe.chay, "interval", minutes=1, id="quet_chua_gan_xe")
     scheduler.start()
     yield
     scheduler.shutdown()
@@ -107,6 +110,7 @@ app.include_router(auth_router)
 app.include_router(quan_ly_router)
 app.include_router(phu_xe_router)
 app.include_router(gui_hang_router)
+app.include_router(dieu_do_router)
 app.include_router(thong_bao_router)
 app.include_router(chuyen_router)
 app.include_router(ve_router)
