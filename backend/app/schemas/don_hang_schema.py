@@ -184,6 +184,7 @@ class BaoCaoSuCoHangResponse(BaseModel):
     mo_ta: str
     ten_nguoi_bao_cao: str | None = None
     ngay_tao: datetime
+    loai: str = "hu_hong"
 
 
 class GanVanPhongCanBoRequest(BaseModel):
@@ -281,6 +282,8 @@ class DonHangChoChatResponse(BaseModel):
     ten_diem_nhan: str
     can_nang_kg: float
     ngay_tao: datetime
+    so_bao_hu_hong: int = 0
+    so_bao_that_lac: int = 0
 
 
 class DonHangChoDoResponse(BaseModel):
@@ -290,6 +293,20 @@ class DonHangChoDoResponse(BaseModel):
     ma_van_don: str
     ten_nguoi_nhan: str
     can_nang_kg: float
+    so_bao_hu_hong: int = 0
+    so_bao_that_lac: int = 0
+
+
+class DonHangHoanTacResponse(BaseModel):
+    """Đơn vừa chất ('chat') hoặc vừa dỡ ('do') tại điểm xe đang đứng — có thể hoàn tác."""
+
+    id: str
+    ma_van_don: str
+    ten_nguoi_nhan: str
+    can_nang_kg: float
+    loai: Literal["chat", "do"]
+    so_bao_hu_hong: int = 0
+    so_bao_that_lac: int = 0
 
 
 class XacNhanChatHangRequest(BaseModel):
@@ -298,3 +315,4 @@ class XacNhanChatHangRequest(BaseModel):
 
 class BaoThatLacRequest(BaseModel):
     mo_ta: str
+    loai: Literal["hu_hong", "that_lac"] = "hu_hong"
