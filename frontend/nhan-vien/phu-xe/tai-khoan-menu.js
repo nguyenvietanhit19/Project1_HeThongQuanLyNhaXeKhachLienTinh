@@ -1,6 +1,7 @@
 /*
- * Menu tài khoản của phụ xe: nút tròn chữ cái đầu tên ở góc phải thanh trên → mở menu
- * "Hồ sơ" / "Đăng xuất". "Hồ sơ" mở hộp thoại xem họ tên, SĐT, email, vai trò, ngày tham gia
+ * Menu chung của phụ xe: nút ☰ ở góc phải thanh trên → mở menu gom TẤT CẢ điều hướng
+ * (Chuyến của tôi, Thao tác / Tổng quan chuyến đang xem, Thống kê & chuyến đã chạy) cùng
+ * "Hồ sơ" / "Đăng xuất" — thay cho các liên kết rải rác từng trang. "Hồ sơ" mở hộp thoại xem họ tên, SĐT, email, vai trò, ngày tham gia
  * và cho sửa họ tên + SĐT (NGHIEP_VU.md UC-53 — API GET/PUT /auth/toi dùng chung mọi vai trò;
  * email và vai trò không sửa được). Cần nạp SAU /shared/api-client.js và ../shared/auth-check.js.
  * CSS: các lớp .tk-* và .modal-* trong phu-xe.css.
@@ -20,16 +21,47 @@
     return iso ? new Date(iso).toLocaleDateString("vi-VN") : "";
   }
 
-  // ---------- Nút avatar + menu thả xuống ----------
+  // ---------- Điều hướng: các mục chung + các mục theo chuyến đang xem (có ?chuyen_id=) ----------
+  const ICON = {
+    chuyen: '<path d="M4 16V8a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v8"/><path d="M3 16h18v2a1 1 0 0 1-1 1h-1M5 19H4a1 1 0 0 1-1-1v-2"/><circle cx="8" cy="16" r="1.2"/><circle cx="16" cy="16" r="1.2"/>',
+    thaoTac: '<path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/>',
+    tongQuan: '<path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/>',
+    thongKe: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  };
+
+  function veMucDieuHuong() {
+    const trang = location.pathname.split("/").pop() || "";
+    const chuyenId = new URLSearchParams(location.search).get("chuyen_id");
+    const q = chuyenId ? `?chuyen_id=${encodeURIComponent(chuyenId)}` : "";
+    const muc = [
+      { file: "chuyen-cua-toi.html", nhan: "Chuyến của tôi", icon: ICON.chuyen },
+      chuyenId && { file: "chuyen-dang-chay.html", nhan: "Thao tác chuyến này", icon: ICON.thaoTac, q },
+      chuyenId && { file: "chi-tiet-chuyen.html", nhan: "Tổng quan chuyến này", icon: ICON.tongQuan, q },
+      { file: "thong-ke.html", nhan: "Thống kê & chuyến đã chạy", icon: ICON.thongKe },
+    ].filter(Boolean);
+    return muc
+      .map((m) => {
+        const dang = m.file === trang;
+        return `<a class="tk-menu__muc${dang ? " tk-menu__muc--dang-chon" : ""}" role="menuitem" href="${m.file}${m.q || ""}"${dang ? ' aria-current="page"' : ""}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${m.icon}</svg>${esc(m.nhan)}
+        </a>`;
+      })
+      .join("") + '<div class="tk-menu__chia" role="separator"></div>';
+  }
+
+  // ---------- Nút ☰ + menu thả xuống ----------
   let hoTenHienTai = localStorage.getItem("ho_ten") || "";
 
   const khungNut = document.createElement("div");
   khungNut.className = "tk-khung";
   khungNut.innerHTML = `
     <button type="button" class="btn-icon-circle btn-icon-circle--dark tk-avatar" id="tk-avatar"
-            aria-haspopup="true" aria-expanded="false" aria-label="Tài khoản của tôi" title="Tài khoản"></button>
+            aria-haspopup="true" aria-expanded="false" aria-label="Menu" title="Menu">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
     <div class="tk-menu" id="tk-menu" role="menu" hidden>
-      <div class="tk-menu__ten" id="tk-menu-ten"></div>
+      <div class="tk-menu__ten"><span class="tk-menu__chu" id="tk-menu-chu"></span><span id="tk-menu-ten"></span></div>
+      ${veMucDieuHuong()}
       <button type="button" class="tk-menu__muc" id="tk-ho-so" role="menuitem">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="7.5" r="4.2"/><path d="M3.8 21c0-4.2 3.6-7 8.2-7s8.2 2.8 8.2 7c0 .6-.4 1-1 1H4.8c-.6 0-1-.4-1-1Z"/></svg>
         Hồ sơ
@@ -42,7 +74,7 @@
 
   function capNhatTen(ten) {
     hoTenHienTai = ten;
-    khungNut.querySelector("#tk-avatar").textContent = chuDau(ten);
+    khungNut.querySelector("#tk-menu-chu").textContent = chuDau(ten);
     khungNut.querySelector("#tk-menu-ten").textContent = ten || "Phụ xe";
   }
 

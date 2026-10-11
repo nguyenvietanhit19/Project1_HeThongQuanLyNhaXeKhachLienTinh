@@ -1721,3 +1721,169 @@ body.phu-xe-page {
     animation: none !important;
   }
 }
+
+/* ---------- Rời điểm / đang di chuyển (hành trình) ---------- */
+.viec-diem {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-button);
+  background: var(--color-bg-canvas);
+  display: grid;
+  gap: 6px;
+}
+
+.viec-diem__dong {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.viec-diem__dau {
+  flex: 0 0 18px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.viec-diem__dong--ok { color: var(--color-success); }
+.viec-diem__dong--cho { color: #B26A00; }
+.viec-diem__dong--chan { color: var(--color-danger); font-weight: 600; }
+
+.route-step .nut-di-chuyen {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 10px;
+}
+
+.route-step .nut-di-chuyen[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.route-step .trang-thai-di-chuyen {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #B26A00;
+}
+
+.route-step .trang-thai-di-chuyen::before {
+  content: "🚌 ";
+}
+
+.route-step.dang-toi .dot {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  animation: xung-diem 1.4s ease-in-out infinite;
+}
+
+@keyframes xung-diem {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 170, 0, 0.5); }
+  50% { box-shadow: 0 0 0 6px rgba(255, 170, 0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-step.dang-toi .dot { animation: none; }
+}
+
+.danh-sach-canh-bao {
+  margin: 0 0 14px;
+  padding-left: 20px;
+  line-height: 1.6;
+}
+
+/* ---------- Thẻ "Đang trên xe": tab Hàng / Khách ---------- */
+.tab-tren-xe {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+
+.tab-tren-xe__nut {
+  flex: 1;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--color-secondary);
+  background: none;
+  color: var(--color-secondary);
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.tab-tren-xe__nut.is-chon {
+  background: var(--color-secondary);
+  color: var(--color-text-on-dark);
+}
+
+.tren-xe-nhom {
+  margin-bottom: 10px;
+}
+
+.tren-xe-nhom--ke-tiep {
+  padding: 4px 10px 6px;
+  border-radius: var(--radius-button);
+  background: #FFF6E5;
+  border-left: 5px solid var(--color-primary);
+}
+
+/* ---------- Thẻ "Hàng tại điểm này": các mục chất / dỡ / vừa xử lý ---------- */
+.hang-muc + .hang-muc {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #ECECF0;
+}
+
+.hang-muc__tieu {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.hang-muc .list-item:last-child {
+  border-bottom: none;
+}
+
+/* ---------- Menu ☰ gom điều hướng ---------- */
+.tk-menu__ten {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tk-menu__chu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--color-secondary);
+  color: var(--color-primary);
+  font-family: var(--font-heading);
+  font-weight: 800;
+}
+
+a.tk-menu__muc {
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.tk-menu__muc--dang-chon {
+  background: var(--color-bg-canvas);
+  font-weight: 700;
+  box-shadow: inset 4px 0 0 var(--color-primary);
+}
+
+.tk-menu__chia {
+  height: 1px;
+  margin: 6px 0;
+  background: #EEEEF1;
+}
+
+.tk-menu__muc--dang-xuat {
+  border-top: none;
+}

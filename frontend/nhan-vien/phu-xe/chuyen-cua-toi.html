@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Chuyến của tôi — Phụ xe</title>
 <link rel="stylesheet" href="/shared/design-tokens.css?v=2" />
-<link rel="stylesheet" href="phu-xe.css?v=10" />
+<link rel="stylesheet" href="phu-xe.css?v=14" />
 </head>
 <body class="phu-xe-page">
   <div class="app-shell">
@@ -25,16 +25,12 @@
         <p class="empty-state">Đang tải...</p>
       </div>
     </div>
-
-    <div class="section" style="text-align:center;padding-bottom:8px;">
-      <a class="text-link" href="thong-ke.html">Thống kê &amp; chuyến đã chạy →</a>
-    </div>
   </div>
   </div>
 
   <script src="/shared/api-client.js"></script>
   <script src="../shared/auth-check.js"></script>
-  <script src="tai-khoan-menu.js?v=1"></script>
+  <script src="tai-khoan-menu.js?v=2"></script>
   <script>
     const { hoTen } = requireRole("phu_xe");
     document.getElementById("loi-chao").textContent = `Xin chào, ${hoTen}`;
@@ -48,6 +44,18 @@
       dang_chay: "Đang chạy",
       gap_su_co: "Đang gặp sự cố",
     };
+
+    // Nhãn + màu theo pha thật của chuyến (đang dừng / đang di chuyển / bến mở...) thay cho "Đang chạy" chung chung
+    function nhanChuyen(c) {
+      if (c.trang_thai === "dang_chay") return c.dang_di_chuyen ? ["Đang di chuyển", "pill--success"] : ["Xe đang dừng", "pill--success"];
+      if (c.trang_thai === "gap_su_co") return ["Đang gặp sự cố", "pill--dark"];
+      if (c.trang_thai === "chua_khoi_hanh") {
+        const bay = Date.now();
+        if (bay >= new Date(c.gio_khoi_hanh).getTime()) return ["Đến giờ chạy", "pill--primary"];
+        if (bay >= new Date(c.gio_mo_ben).getTime()) return ["Bến đã mở", "pill--primary"];
+      }
+      return [NHAN_TRANG_THAI[c.trang_thai] || c.trang_thai, "pill--primary"];
+    }
 
     function dinhDangGio(iso) {
       const d = new Date(iso);
@@ -70,9 +78,7 @@
             <div class="trip-route">${esc(c.tuyen_ten)}</div>
             <div class="trip-meta">
               <span>${esc(c.bien_so)}</span> · ${dinhDangGio(c.gio_khoi_hanh)} ·
-              <span class="pill ${c.trang_thai === "dang_chay" ? "pill--success" : c.trang_thai === "gap_su_co" ? "pill--dark" : "pill--primary"}">
-                ${NHAN_TRANG_THAI[c.trang_thai] || c.trang_thai}
-              </span>
+              <span class="pill ${nhanChuyen(c)[1]}">${esc(nhanChuyen(c)[0])}</span>
               ${c.dang_hoan ? '<span class="pill pill--dark">Đang hoãn</span>' : ""}
             </div>
           </a>`

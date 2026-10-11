@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Tổng quan chuyến — Phụ xe</title>
 <link rel="stylesheet" href="/shared/design-tokens.css?v=2" />
-<link rel="stylesheet" href="phu-xe.css?v=10" />
+<link rel="stylesheet" href="phu-xe.css?v=14" />
 </head>
 <body class="phu-xe-page">
   <div class="app-shell">
@@ -64,7 +64,7 @@
 
   <script src="/shared/api-client.js"></script>
   <script src="../shared/auth-check.js"></script>
-  <script src="tai-khoan-menu.js?v=1"></script>
+  <script src="tai-khoan-menu.js?v=2"></script>
   <script src="khach-chi-tiet.js?v=1"></script>
   <script>
     requireRole("phu_xe");
@@ -279,7 +279,8 @@
         `<span class="chip">${esc(c.bien_so || "Chưa gán xe")}</span>` +
         `<span class="chip">${c.chieu === "nguoc" ? "Chiều ngược" : "Chiều xuôi"}</span>` +
         `<span class="chip">Giờ chạy ${esc(gio(c.gio_khoi_hanh))}</span>` +
-        `<span class="chip ${lop}">${esc(CHUYEN[c.trang_thai] || c.trang_thai)}</span>`;
+        `<span class="chip ${lop}">${esc(CHUYEN[c.trang_thai] || c.trang_thai)}</span>` +
+        (c.trang_thai === "dang_chay" ? `<span class="chip ${c.dang_di_chuyen ? "chip--warn" : ""}">${c.dang_di_chuyen ? "Đang di chuyển" : "Xe đang dừng"}</span>` : "");
 
       const banner = document.getElementById("banner-vung");
       banner.innerHTML = "";
