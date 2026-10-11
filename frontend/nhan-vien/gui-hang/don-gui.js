@@ -42,8 +42,11 @@ function renderDonGui() {
         <td class="text-center">${badgeTrangThai(d.trang_thai)}${d.trang_thai === "da_len_xe" && d.bien_so_xe ? `<div class="cell-sub">${escapeHtml(d.bien_so_xe)}</div>` : ""}</td>
         <td class="text-center"><div class="table-actions-cell">
           ${coTheSuaDon(d) ? `<button type="button" class="btn-action-icon" data-hanh-dong="sua-lien-he" data-id="${escapeHtml(d.id)}" title="Sửa tên / SĐT người gửi, người nhận">✏️</button>` : ""}
-          <button type="button" class="btn-action-icon" data-hanh-dong="in-bien-nhan" data-id="${escapeHtml(d.id)}" title="In lại biên nhận cho người gửi">🖨️</button>
-          <button type="button" class="btn-action-icon" data-hanh-dong="in-nhan" data-id="${escapeHtml(d.id)}" title="In lại nhãn dán kiện hàng">🏷️</button>
+          ${d.trang_thai === "da_huy"
+            ? `<button type="button" class="btn-action-icon" data-hanh-dong="xem-chi-tiet" data-ma="${escapeHtml(d.ma_van_don)}" title="Xem lý do hủy">🔍</button>`
+            : `<button type="button" class="btn-action-icon" data-hanh-dong="in-bien-nhan" data-id="${escapeHtml(d.id)}" title="In lại biên nhận cho người gửi">🖨️</button>
+          <button type="button" class="btn-action-icon" data-hanh-dong="in-nhan" data-id="${escapeHtml(d.id)}" title="In lại nhãn dán kiện hàng">🏷️</button>`}
+          ${coTheHuyDon(d) ? `<button type="button" class="btn-action-icon btn-action-icon--danger" data-hanh-dong="huy-don" data-id="${escapeHtml(d.id)}" title="Hủy đơn — trả hàng cho người gửi">🗑️</button>` : ""}
         </div></td>
       </tr>`).join("");
   }
@@ -72,12 +75,14 @@ async function xuatCsvDonGui() {
     }
     xuatCsv(`don-gui-${ngayISO(new Date())}.csv`,
       ["Mã vận đơn", "Ngày tạo", "Người gửi", "SĐT người gửi", "Người nhận", "SĐT người nhận", "Văn phòng nhận",
-        "Loại hàng", "Khối lượng (kg)", "Cước (VNĐ)", "Hình thức", "Trạng thái"],
+        "Loại hàng", "Khối lượng (kg)", "Cước (VNĐ)", "Hình thức", "Trạng thái", "Lý do hủy", "Đã hoàn (VNĐ)"],
       tatCa.map(d => [
         d.ma_van_don, dinhDangThoiGian(d.ngay_tao), d.ten_nguoi_gui, d.sdt_nguoi_gui, d.ten_nguoi_nhan, d.sdt_nguoi_nhan,
         d.ten_diem_nhan || "", d.ten_loai_hang || "", d.can_nang_kg, d.gia_cuoc,
         laCod(d) ? "COD" : "Trả trước",
         TRANG_THAI[d.trang_thai]?.ten || d.trang_thai,
+        d.ly_do_huy ? LY_DO_HUY[d.ly_do_huy] + (d.ghi_chu_huy ? ` (${d.ghi_chu_huy})` : "") : "",
+        d.so_tien_hoan ?? "",
       ]));
     if (total > tatCa.length) {
       showToast("warning", "Đã xuất một phần", `File chứa ${tatCa.length}/${total} đơn đầu tiên — hãy thu hẹp bộ lọc để xuất phần còn lại.`);

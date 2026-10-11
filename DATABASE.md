@@ -376,7 +376,7 @@ UNIQUE: (`ve_id`) — 1 vé chỉ hoàn tiền đúng 1 lần (không có cơ ch
 | `thoi_gian_thu` | TIMESTAMPTZ NULLABLE | Thời điểm xác nhận thu cước |
 | `nhan_vien_thu_id` | UUID NULLABLE, FK → `nguoi_dung(id)` | Nhân viên xác nhận khoản thu |
 | `ma_van_don` | TEXT NOT NULL UNIQUE | In trên biên nhận đưa người gửi — không gửi SMS/email tự động (mục 10.3.1) |
-| `trang_thai` | TEXT NOT NULL DEFAULT `'cho_van_chuyen'`, CHECK IN (`cho_van_chuyen`, `da_len_xe`, `cho_lay`, `da_giao`, `qua_han_luu_kho`) | Vòng đời ở mục 10.3. `qua_han_luu_kho` ("hàng tồn") không phải trạng thái tự hủy — chỉ đánh dấu cần xử lý thủ công (UC-25) |
+| `trang_thai` | TEXT NOT NULL DEFAULT `'cho_van_chuyen'`, CHECK IN (`cho_van_chuyen`, `da_len_xe`, `cho_lay`, `da_giao`, `qua_han_luu_kho`, `da_huy`) | Vòng đời ở mục 10.3. `qua_han_luu_kho` ("hàng tồn") không phải trạng thái tự hủy — chỉ đánh dấu cần xử lý thủ công (UC-25). `da_huy` chỉ do nhân viên văn phòng gửi chuyển thủ công (xem cột hủy bên dưới) |
 | `nhan_vien_gui_id` | UUID NOT NULL, FK → `nguoi_dung(id)` | Người tạo đơn (mục 10.4.1) |
 | `nhan_vien_nhan_id` | UUID NULLABLE, FK → `nguoi_dung(id)` | Người xác nhận giao (mục 10.4.2), `NULL` cho tới khi `da_giao` |
 | `thoi_gian_den_diem_nhan` | TIMESTAMPTZ NULLABLE | Set khi phụ xe xác nhận dỡ hàng, chuyển `cho_lay` (UC-27) — mốc để tính 7/14 ngày cho UC-25 (mục 10.3.1). `NULL` trước đó |
@@ -386,6 +386,18 @@ UNIQUE: (`ve_id`) — 1 vé chỉ hoàn tiền đúng 1 lần (không có cơ ch
 | `ngay_giao` | TIMESTAMPTZ NULLABLE | |
 
 CHECK bổ sung (migration `20261004_0900`): `diem_gui_id <> diem_nhan_id`, `gia_cuoc > 0`.
+
+Cột bổ sung cho **hủy đơn** (migration `20261011_0900`, nghiệp vụ ở `NGHIEP_VU_GUI_HANG.md` mục 5.4, UC-54): hủy = trả lại kiện hàng cho người gửi, chỉ khi đơn `cho_van_chuyen` và `chuyen_id IS NULL`, do nhân viên **văn phòng gửi** thao tác. Không xóa dòng, không dùng lại mã vận đơn; trigger `trg_lich_su_trang_thai_don` tự ghi mốc `cho_van_chuyen → da_huy`.
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `ly_do_huy` | TEXT NULLABLE, CHECK IN (`khach_doi_y`, `nhap_sai_thong_tin`, `hang_khong_du_dieu_kien`, `khac`) | `khac` bắt buộc có `ghi_chu_huy` (kiểm ở schema) |
+| `ghi_chu_huy` | TEXT NULLABLE | Tối đa 200 ký tự |
+| `nhan_vien_huy_id` | UUID NULLABLE, FK → `nguoi_dung(id)` | Người hủy (đồng thời là người chi tiền hoàn) |
+| `thoi_gian_huy` | TIMESTAMPTZ NULLABLE | |
+| `so_tien_hoan` | NUMERIC(12,0) NULLABLE | = `gia_cuoc` khi đơn trả trước đã thu, hoàn tiền mặt tại quầy; `NULL` = không hoàn (COD / chưa thu). Không đi qua `lich_su_hoan_tien` |
+
+CHECK `don_hang_thong_tin_huy_day_du`: `(trang_thai = 'da_huy') = (ly_do_huy, nhan_vien_huy_id, thoi_gian_huy đều NOT NULL)`. Index `(nhan_vien_huy_id, thoi_gian_huy) WHERE so_tien_hoan IS NOT NULL` cho đối soát. Thống kê (UC-39) và đối soát tiền mặt **trừ** `so_tien_hoan` theo ngày hủy, tính ở văn phòng gửi.
 
 Cột bổ sung `khoa_chong_trung` (TEXT NULLABLE, migration `20261005_0900`): khóa chống tạo trùng đơn do FE sinh cho mỗi lần xác nhận tạo đơn (header `Idempotency-Key`). UNIQUE `(nhan_vien_gui_id, khoa_chong_trung) WHERE khoa_chong_trung IS NOT NULL` — gửi lại cùng khóa (bấm 2 lần, mạng chậm) trả lại đơn đã tạo.
 

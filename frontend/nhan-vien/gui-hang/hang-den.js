@@ -283,6 +283,7 @@ async function moChiTietDon(ma, { uuTienGiao = false } = {}) {
 
   let canhBao = "";
   if (don.trang_thai === "da_giao") canhBao = `Đơn đã giao lúc ${dinhDangThoiGian(don.ngay_giao)} — không giao lại.`;
+  else if (don.trang_thai === "da_huy") canhBao = `Đơn đã hủy tại văn phòng gửi lúc ${dinhDangThoiGian(don.thoi_gian_huy)} — không có hàng để giao.`;
   else if (["cho_van_chuyen", "da_len_xe"].includes(don.trang_thai)) canhBao = "Hàng chưa tới văn phòng nhận — chưa thể giao.";
   else if (!taiVanPhongNhan) canhBao = `Đơn này giao tại văn phòng khác: ${don.ten_diem_nhan || ""}.`;
 
@@ -300,7 +301,8 @@ async function moChiTietDon(ma, { uuTienGiao = false } = {}) {
     ${dong("Hàng hóa:", moTaHang(don))}
     ${dong("Cước:", `${dinhDangTien(don.gia_cuoc)} — ${laCod(don) ? "COD" : "trả trước"}`)}
     ${dong("Tạo lúc:", dinhDangThoiGian(don.ngay_tao))}
-    ${don.thoi_gian_den_diem_nhan ? dong("Tới văn phòng nhận:", dinhDangThoiGian(don.thoi_gian_den_diem_nhan)) : ""}`;
+    ${don.thoi_gian_den_diem_nhan ? dong("Tới văn phòng nhận:", dinhDangThoiGian(don.thoi_gian_den_diem_nhan)) : ""}
+    ${dongThongTinHuy(don)}`;
 
   taiLichSuTrangThai(don);
   taiLichSuChinhSua(don);
@@ -323,7 +325,14 @@ async function moChiTietDon(ma, { uuTienGiao = false } = {}) {
     themNut("✏️ Sửa thông tin liên hệ", "btn-action-sm", () => { dongModal("modalChiTietDon"); moModalSuaLienHe(don, { quayLaiChiTiet: true }); });
   }
   if (!laQuanLyXem() && state.vanPhong && String(don.diem_gui_id) === String(state.vanPhong.id)) {
-    themNut("🖨️ In lại biên nhận", "btn-action-sm", () => { dongModal("modalChiTietDon"); hienThiBienNhan(don); });
+    if (don.trang_thai === "da_huy") {
+      if (don.so_tien_hoan) themNut("🖨️ In lại phiếu hoàn", "btn-action-sm", () => { dongModal("modalChiTietDon"); hienThiPhieuHuy(don); });
+    } else {
+      themNut("🖨️ In lại biên nhận", "btn-action-sm", () => { dongModal("modalChiTietDon"); hienThiBienNhan(don); });
+    }
+  }
+  if (coTheHuyDon(don)) {
+    themNut("🗑️ Hủy đơn", "btn-action-sm btn-action-sm--danger", () => { dongModal("modalChiTietDon"); moModalHuyDon(don); });
   }
   themNut("Đóng", "btn-close-modal", () => dongModal("modalChiTietDon"));
   moModal("modalChiTietDon");

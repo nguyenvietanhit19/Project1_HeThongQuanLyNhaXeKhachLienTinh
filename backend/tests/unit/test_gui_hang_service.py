@@ -4,7 +4,7 @@ from unittest.mock import patch
 from uuid import uuid4
 import pytest
 
-from app.schemas.don_hang_schema import SuaThongTinLienHeRequest, TaoDonHangRequest
+from app.schemas.don_hang_schema import HuyDonRequest, SuaThongTinLienHeRequest, TaoDonHangRequest
 from app.services import gui_hang_service
 from app.repositories import don_hang_repository
 from app.utils.loi import CamTruyCap, GiaTriLoi, KhongDuQuyen, KhongTimThay
@@ -812,7 +812,121 @@ def test_thong_ke_hang_tai_diem_khong_ton_tai():
 
 def test_doi_soat_tien_cong_tong():
     with patch("app.repositories.don_hang_repository.doi_soat_tien_theo_nhan_vien") as mock_ds:
-        mock_ds.return_value = [{"tong_tien": 100000}, {"tong_tien": 250000}]
+        mock_ds.return_value = [{"tong_tien": 100000, "tien_hoan": 0}, {"tong_tien": 250000, "tien_hoan": 0}]
         res = gui_hang_service.doi_soat_tien(str(uuid4()), date(2026, 10, 3), date(2026, 10, 3))
         assert res["tong_tien"] == 350000
         assert res["tu_ngay"] == "2026-10-03"
+
+
+def test_doi_soat_tien_cong_tong_tien_hoan():
+    # tong_tien của từng nhân viên đã là thu − hoàn (repo tính); service chỉ cộng lại.
+    with patch("app.repositories.don_hang_repository.doi_soat_tien_theo_nhan_vien") as mock_ds:
+        mock_ds.return_value = [{"tong_tien": 50000, "tien_hoan": 30000}, {"tong_tien": -20000, "tien_hoan": 20000}]
+        res = gui_hang_service.doi_soat_tien(None, date(2026, 10, 7), date(2026, 10, 7))
+    assert res["tong_tien_hoan"] == 50000
+    assert res["tong_tien"] == 30000
+
+
+# ---------------------------------------------------------------------
+# Hủy đơn tại văn phòng gửi (KE_HOACH_SUA_GUI_HANG.md mục 6)
+# ---------------------------------------------------------------------
+
+def _don_huy(trang_thai="cho_van_chuyen", gui=None, **them):
+    return {
+        "id": str(uuid4()), "ma_van_don": "DH-HUY", "trang_thai": trang_thai, "chuyen_id": None,
+        "diem_gui_id": gui or str(uuid4()), "diem_nhan_id": str(uuid4()),
+        "phuong_thuc_thanh_toan": "nguoi_gui_tra_truoc", "da_thu_tien": True, "gia_cuoc": 50000, **them,
+    }
+
+
+def test_huy_don_thanh_cong_goi_repo_dung_tham_so():
+    gui = str(uuid4())
+    don = _don_huy(gui=gui)
+    yeu_cau = HuyDonRequest(ly_do="khach_doi_y")
+    with patch("app.repositories.don_hang_repository.tim_theo_id", return_value=don), \
+         patch("app.repositories.don_hang_repository.huy_don",
+               return_value={**don, "trang_thai": "da_huy", "so_tien_hoan": 50000}) as mock_huy:
+        res = gui_hang_service.huy_don_hang(don["id"], "nv-gui", gui, yeu_cau)
+    assert res["trang_thai"] == "da_huy" and res["so_tien_hoan"] == 50000
+    mock_huy.assert_called_once_with(don["id"], "nv-gui", gui, "khach_doi_y", None)
+
+
+@pytest.mark.parametrize("trang_thai", ["da_len_xe", "cho_lay", "qua_han_luu_kho", "da_giao"])
+def test_huy_don_chan_khi_hang_da_roi_van_phong_gui(trang_thai):
+    gui = str(uuid4())
+    don = _don_huy(trang_thai=trang_thai, gui=gui)
+    with patch("app.repositories.don_hang_repository.tim_theo_id", return_value=don), \
+         patch("app.repositories.don_hang_repository.huy_don") as mock_huy:
+        with pytest.raises(GiaTriLoi, match="UC-25"):
+            gui_hang_service.huy_don_hang(don["id"], "nv", gui, HuyDonRequest(ly_do="khach_doi_y"))
+        mock_huy.assert_not_called()
+
+
+def test_huy_don_chan_don_da_gan_chuyen():
+    gui = str(uuid4())
+    don = _don_huy(gui=gui, chuyen_id=str(uuid4()))
+    with patch("app.repositories.don_hang_repository.tim_theo_id", return_value=don), \
+         patch("app.repositories.don_hang_repository.huy_don") as mock_huy:
+        with pytest.raises(GiaTriLoi):
+            gui_hang_service.huy_don_hang(don["id"], "nv", gui, HuyDonRequest(ly_do="khach_doi_y"))
+        mock_huy.assert_not_called()
+
+
+def test_huy_don_chan_don_da_huy():
+    gui = str(uuid4())
+    don = _don_huy(trang_thai="da_huy", gui=gui)
+    with patch("app.repositories.don_hang_repository.tim_theo_id", return_value=don):
+        with pytest.raises(GiaTriLoi, match="đã bị hủy"):
+            gui_hang_service.huy_don_hang(don["id"], "nv", gui, HuyDonRequest(ly_do="khach_doi_y"))
+
+
+def test_huy_don_chan_van_phong_khong_phai_van_phong_gui():
+    don = _don_huy()
+    with patch("app.repositories.don_hang_repository.tim_theo_id", return_value=don), \
+         patch("app.repositories.don_hang_repository.huy_don") as mock_huy:
+        # Văn phòng NHẬN của đơn cũng không được hủy
+        with pytest.raises(CamTruyCap):
+            gui_hang_service.huy_don_hang(don["id"], "nv", don["diem_nhan_id"], HuyDonRequest(ly_do="khach_doi_y"))
+        mock_huy.assert_not_called()
+
+
+def test_huy_don_khong_ton_tai():
+    with patch("app.repositories.don_hang_repository.tim_theo_id", return_value=None):
+        with pytest.raises(KhongTimThay):
+            gui_hang_service.huy_don_hang(str(uuid4()), "nv", str(uuid4()), HuyDonRequest(ly_do="khach_doi_y"))
+
+
+def test_huy_don_bao_loi_khi_phu_xe_vua_chat_hang():
+    gui = str(uuid4())
+    don = _don_huy(gui=gui)
+    with patch("app.repositories.don_hang_repository.tim_theo_id", return_value=don), \
+         patch("app.repositories.don_hang_repository.huy_don", return_value=None):
+        with pytest.raises(GiaTriLoi, match="vừa được chất lên xe"):
+            gui_hang_service.huy_don_hang(don["id"], "nv", gui, HuyDonRequest(ly_do="khach_doi_y"))
+
+
+def test_giao_hang_chan_don_da_huy():
+    don = {"id": str(uuid4()), "ma_van_don": "DH-HUY", "diem_nhan_id": str(uuid4()), "trang_thai": "da_huy"}
+    with patch("app.repositories.don_hang_repository.tim_theo_ma_van_don", return_value=don):
+        with pytest.raises(GiaTriLoi, match="đã bị hủy"):
+            gui_hang_service.xac_nhan_giao_hang(don["ma_van_don"], nhan_vien_nhan_id=str(uuid4()))
+
+
+def test_sua_lien_he_chan_don_da_huy():
+    gui = str(uuid4())
+    don = _don_sua(trang_thai="da_huy", gui=gui)
+    with patch("app.repositories.don_hang_repository.tim_theo_id", return_value=don), \
+         patch("app.repositories.don_hang_repository.sua_thong_tin_lien_he") as mock_sua:
+        with pytest.raises(GiaTriLoi, match="hủy"):
+            gui_hang_service.sua_thong_tin_lien_he(don["id"], "nv", gui, SuaThongTinLienHeRequest(ten_nguoi_gui="X"))
+        mock_sua.assert_not_called()
+
+
+def test_sua_lien_he_chan_khi_don_vua_bi_huy_giua_chung():
+    gui = str(uuid4())
+    don = _don_sua(gui=gui)
+    with patch("app.repositories.don_hang_repository.tim_theo_id", return_value=don), \
+         patch("app.repositories.don_hang_repository.sua_thong_tin_lien_he",
+               side_effect=don_hang_repository.DonDaHuy()):
+        with pytest.raises(GiaTriLoi, match="hủy"):
+            gui_hang_service.sua_thong_tin_lien_he(don["id"], "nv", gui, SuaThongTinLienHeRequest(ten_nguoi_gui="X"))

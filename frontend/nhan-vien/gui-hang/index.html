@@ -255,6 +255,7 @@
                   <option value="cho_lay">📦 Chờ người nhận lấy</option>
                   <option value="qua_han_luu_kho">🚨 Hàng tồn</option>
                   <option value="da_giao">✔️ Đã giao</option>
+                  <option value="da_huy">🗑️ Đã hủy</option>
                 </select>
                 <select id="selectThanhToanDonGui" class="filter-select">
                   <option value="">💳 Tất cả hình thức</option>
@@ -357,6 +358,7 @@
                 <div class="mini-kpi"><div class="mini-kpi__val" id="tkTongGuiDi">0</div><div class="mini-kpi__lbl">Đơn tiếp nhận trong kỳ</div></div>
                 <div class="mini-kpi"><div class="mini-kpi__val" id="tkChoXepXe">0</div><div class="mini-kpi__lbl">Đang chờ xếp xe</div></div>
                 <div class="mini-kpi"><div class="mini-kpi__val" id="tkGuiTrenXe">0</div><div class="mini-kpi__lbl">Đang trên xe</div></div>
+                <div class="mini-kpi mini-kpi--muted"><div class="mini-kpi__val" id="tkDaHuy">0</div><div class="mini-kpi__lbl">Hủy trong kỳ</div></div>
               </div>
             </div>
             <div class="card-panel">
@@ -377,7 +379,7 @@
             <div class="cashflow-left">
               <div class="cashflow-tag">💰 TIỀN MẶT THU TẠI QUẦY TRONG KỲ</div>
               <div class="cashflow-total" id="tkDoanhThu">0 đ</div>
-              <div class="cashflow-desc">Cước trả trước thu ở văn phòng gửi + cước COD thu ở văn phòng nhận, tính theo thời điểm thu tiền.</div>
+              <div class="cashflow-desc">Cước trả trước thu ở văn phòng gửi + cước COD thu ở văn phòng nhận − tiền hoàn khi hủy đơn, tính theo thời điểm thu / hoàn tiền.</div>
             </div>
             <div class="cashflow-right">
               <div class="cashflow-chip">
@@ -387,6 +389,10 @@
               <div class="cashflow-chip">
                 <div class="cashflow-chip-title">🚚 Cước COD thu khi giao</div>
                 <div class="cashflow-chip-value" id="tkTienCod">0 đ</div>
+              </div>
+              <div class="cashflow-chip">
+                <div class="cashflow-chip-title">↩️ Đã hoàn khi hủy đơn</div>
+                <div class="cashflow-chip-value" id="tkTienHoan">0 đ</div>
               </div>
             </div>
           </div>
@@ -415,7 +421,7 @@
               <div class="chart-header">
                 <div>
                   <h3 class="panel-title">🧾 Đối soát tiền mặt theo nhân viên</h3>
-                  <p class="card-desc">Số tiền từng nhân viên đã xác nhận thu trong kỳ — đối chiếu két cuối ca.</p>
+                  <p class="card-desc">Số tiền từng nhân viên đã thu trừ tiền đã hoàn khi hủy đơn trong kỳ — đối chiếu két cuối ca.</p>
                 </div>
                 <div class="toolbar-actions">
                   <button type="button" class="btn-action-sm" id="btnXuatCsvDoiSoat">⬇️ Xuất CSV</button>
@@ -429,11 +435,12 @@
                       <th>Nhân viên</th>
                       <th class="text-right">Trả trước</th>
                       <th class="text-right">COD</th>
-                      <th class="text-right">Tổng</th>
+                      <th class="text-right">Hoàn</th>
+                      <th class="text-right">Còn trong két</th>
                     </tr>
                   </thead>
-                  <tbody id="tbodyDoiSoat"><tr><td colspan="4" class="table-empty">Đang tải...</td></tr></tbody>
-                  <tfoot><tr><th>Tổng cộng</th><th></th><th></th><th class="text-right" id="tkDoiSoatTong">0 đ</th></tr></tfoot>
+                  <tbody id="tbodyDoiSoat"><tr><td colspan="5" class="table-empty">Đang tải...</td></tr></tbody>
+                  <tfoot><tr><th>Tổng cộng</th><th></th><th></th><th class="text-right" id="tkDoiSoatHoan">0 đ</th><th class="text-right" id="tkDoiSoatTong">0 đ</th></tr></tfoot>
                 </table>
               </div>
             </div>
@@ -742,6 +749,73 @@
     </div>
   </div>
 
+  <!-- ========================================================== -->
+  <!-- MODAL: HỦY ĐƠN TẠI VĂN PHÒNG GỬI                            -->
+  <!-- ========================================================== -->
+  <div id="modalHuyDon" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal-box modal-box--wide">
+      <h3 class="modal-heading">Hủy đơn <span id="hdMaVanDon"></span></h3>
+      <p class="card-desc">Chỉ hủy được khi hàng còn trong kho văn phòng gửi (chưa lên xe). Người gửi phải có mặt, đưa lại biên nhận hoặc đọc đúng mã vận đơn; mất biên nhận thì đối chiếu SĐT và họ tên người gửi.</p>
+      <div id="hdNoiDung"></div>
+      <div id="hdHoanTien"></div>
+
+      <form id="formHuyDon" novalidate>
+        <div class="form-label required">Lý do hủy</div>
+        <div class="radio-list">
+          <label class="radio-item"><input type="radio" name="ly_do_huy" value="khach_doi_y"><span>Khách đổi ý, không gửi nữa</span></label>
+          <label class="radio-item"><input type="radio" name="ly_do_huy" value="nhap_sai_thong_tin"><span>Nhập sai thông tin (tuyến, điểm nhận, loại hàng, cước) — sẽ tạo lại đơn</span></label>
+          <label class="radio-item"><input type="radio" name="ly_do_huy" value="hang_khong_du_dieu_kien"><span>Hàng không đủ điều kiện vận chuyển (khai sai loại hàng, đóng gói hỏng...)</span></label>
+          <label class="radio-item"><input type="radio" name="ly_do_huy" value="khac"><span>Lý do khác</span></label>
+        </div>
+        <div class="form-group">
+          <label class="form-label" id="hdGhiChuNhan" for="hdGhiChu">Ghi chú</label>
+          <input type="text" id="hdGhiChu" class="form-input" maxlength="200" placeholder="VD: Người gửi đổi sang gửi bằng chuyển phát khác" autocomplete="off">
+        </div>
+        <div class="delivery-check-rule">
+          <label class="delivery-checkbox-label">
+            <input type="checkbox" id="hdDaTraHang">
+            <span>Đã gỡ nhãn khỏi kiện, thu lại biên nhận và <strong>trả kiện hàng cho người gửi</strong> (kèm tiền hoàn nếu có).</span>
+          </label>
+        </div>
+        <div class="receipt-actions">
+          <button type="button" class="btn-close-modal" data-dong="modalHuyDon">Đóng</button>
+          <button type="submit" class="btn-danger-modal" id="btnXacNhanHuyDon">🗑️ Xác nhận hủy đơn</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================== -->
+  <!-- MODAL: PHIẾU HỦY ĐƠN / HOÀN TIỀN                            -->
+  <!-- ========================================================== -->
+  <div id="modalPhieuHuy" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal-box delivery-slip-box">
+      <div class="print-area">
+        <div class="receipt-header">
+          <img src="../../shared/assets/logo-full.png" alt="Logo Nhà Xe" class="receipt-logo-img" onerror="this.src='/shared/assets/logo-full.png'" />
+          <div class="receipt-title">PHIẾU HỦY ĐƠN GỬI HÀNG</div>
+          <div class="receipt-barcode" id="phMaVanDon">DH-</div>
+          <svg class="ma-vach" id="phMaVach" role="img" aria-label="Mã vạch mã vận đơn"></svg>
+        </div>
+        <div class="receipt-row"><span>Thời gian hủy:</span><strong id="phThoiGian">--</strong></div>
+        <div class="receipt-row"><span>Văn phòng gửi:</span><strong id="phVanPhong">--</strong></div>
+        <div class="receipt-row"><span>Người gửi:</span><strong id="phNguoiGui">--</strong></div>
+        <div class="receipt-row"><span>Lý do hủy:</span><strong id="phLyDo">--</strong></div>
+        <div class="receipt-row total"><span>HOÀN CHO NGƯỜI GỬI:</span><span id="phTienHoan">0 đ</span></div>
+        <div class="delivery-pledge-box"><em>Người gửi đã nhận lại đủ kiện hàng và tiền hoàn (nếu có). Mã vận đơn này không còn giá trị.</em></div>
+        <div class="signature-grid">
+          <div class="sig-box"><div class="sig-title">NGƯỜI GỬI</div><div class="sig-sub">(Ký, ghi rõ họ tên)</div><div class="sig-space"></div></div>
+          <div class="sig-box"><div class="sig-title">NHÂN VIÊN</div><div class="sig-sub">(Ký, ghi rõ họ tên)</div><div class="sig-space"></div></div>
+        </div>
+      </div>
+      <div class="receipt-actions">
+        <button type="button" class="btn-action-sm" id="btnTaoLaiDon" hidden>➕ Tạo lại đơn</button>
+        <button type="button" class="btn-print" data-in="modalPhieuHuy">📄 In phiếu</button>
+        <button type="button" class="btn-close-modal" data-dong="modalPhieuHuy">Đóng</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
   <script src="auth-check.js"></script>
@@ -757,6 +831,7 @@
   <script src="thong-ke.js"></script>
   <script src="phim-tat.js"></script>
   <script src="sua-don.js"></script>
+  <script src="huy-don.js"></script>
   <script src="khoi-tao.js"></script>
 </body>
 </html>
