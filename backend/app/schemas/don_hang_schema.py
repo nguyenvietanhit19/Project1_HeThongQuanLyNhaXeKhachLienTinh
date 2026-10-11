@@ -11,8 +11,9 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, StringConstraints, model_validator
 
-TrangThaiDonHang = Literal["cho_van_chuyen", "da_len_xe", "cho_lay", "da_giao", "qua_han_luu_kho"]
+TrangThaiDonHang = Literal["cho_van_chuyen", "da_len_xe", "cho_lay", "da_giao", "qua_han_luu_kho", "da_huy"]
 PhuongThucThanhToan = Literal["nguoi_gui_tra_truoc", "cod_nguoi_nhan_tra"]
+LyDoHuyDon = Literal["khach_doi_y", "nhap_sai_thong_tin", "hang_khong_du_dieu_kien", "khac"]
 
 # Tên người gửi/nhận: bỏ khoảng trắng 2 đầu, không được rỗng, giới hạn độ dài
 # (người vãng lai không có tài khoản — mục 10.1, chỉ lưu tên + SĐT).
@@ -95,6 +96,27 @@ class SuaThongTinLienHeRequest(BaseModel):
             raise ValueError("Cần ít nhất một thông tin để sửa")
         if not self.ly_do:
             self.ly_do = None
+        return self
+
+
+# ---------------------------------------------------------
+# 3c. Schema Hủy đơn tại văn phòng gửi (KE_HOACH_SUA_GUI_HANG.md mục 6)
+# ---------------------------------------------------------
+class HuyDonRequest(BaseModel):
+    """Hủy = trả lại kiện hàng cho người gửi khi hàng còn trong kho văn phòng gửi.
+    Lý do bắt buộc; chọn 'khac' thì phải ghi chú rõ."""
+
+    ly_do: LyDoHuyDon
+    ghi_chu: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] | None = Field(
+        None, description="Ghi chú thêm (bắt buộc khi lý do là 'khac')"
+    )
+
+    @model_validator(mode="after")
+    def _khac_phai_ghi_chu(self):
+        if not self.ghi_chu:
+            self.ghi_chu = None
+        if self.ly_do == "khac" and not self.ghi_chu:
+            raise ValueError("Chọn lý do 'Khác' thì phải ghi chú lý do hủy")
         return self
 
 
@@ -219,6 +241,14 @@ class DonHangResponse(BaseModel):
 
     ngay_tao: datetime
     ngay_giao: datetime | None = None
+
+    # Thông tin hủy (chỉ có khi trang_thai = 'da_huy'); so_tien_hoan NULL = không hoàn (COD / chưa thu)
+    ly_do_huy: LyDoHuyDon | None = None
+    ghi_chu_huy: str | None = None
+    nhan_vien_huy_id: UUID | None = None
+    ten_nhan_vien_huy: str | None = None
+    thoi_gian_huy: datetime | None = None
+    so_tien_hoan: int | None = None
 
 
 class DanhSachDonHangResponse(BaseModel):

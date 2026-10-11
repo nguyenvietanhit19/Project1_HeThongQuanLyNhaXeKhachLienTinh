@@ -97,6 +97,9 @@ function ganSuKien() {
   $("btnXacNhanGiaoHang").addEventListener("click", xacNhanGiaoHang);
   $("formLienHe").addEventListener("submit", luuKetQuaLienHe);
   $("formSuaLienHe").addEventListener("submit", luuSuaLienHe);
+  $("formHuyDon").addEventListener("submit", xacNhanHuyDon);
+  $("formHuyDon").addEventListener("change", capNhatGhiChuHuy);
+  $("btnTaoLaiDon").addEventListener("click", taoLaiDonTuDonHuy);
 
   // Đơn gửi đi
   $("btnTaiLaiDonGui").addEventListener("click", taiDonGui);
@@ -176,6 +179,14 @@ function ganSuKien() {
         if (don && coTheSuaDon(don)) moModalSuaLienHe(don);
         break;
       }
+      case "huy-don": {
+        const don = state.donGui.items.find(d => String(d.id) === id);
+        if (don && coTheHuyDon(don)) moModalHuyDon(don);
+        break;
+      }
+      case "xem-chi-tiet":
+        moChiTietDon(btn.dataset.ma);
+        break;
       case "in-bien-nhan": {
         const don = state.donGui.items.find(d => String(d.id) === id);
         if (don) hienThiBienNhan(don);

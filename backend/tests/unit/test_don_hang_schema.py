@@ -3,7 +3,9 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.don_hang_schema import CapNhatLienHeRequest, SuaThongTinLienHeRequest, TaoDonHangRequest, GiaoHangRequest
+from app.schemas.don_hang_schema import (
+    CapNhatLienHeRequest, GiaoHangRequest, HuyDonRequest, SuaThongTinLienHeRequest, TaoDonHangRequest,
+)
 from app.schemas.hoan_tien_schema import XacNhanChuyenKhoanRequest
 
 
@@ -148,3 +150,24 @@ def test_sua_lien_he_chan_ten_rong_va_ly_do_qua_dai():
 
 def test_sua_lien_he_ly_do_rong_thanh_none():
     assert SuaThongTinLienHeRequest(ten_nguoi_gui="An", ly_do="   ").ly_do is None
+
+
+@pytest.mark.parametrize("ly_do", ["khach_doi_y", "nhap_sai_thong_tin", "hang_khong_du_dieu_kien"])
+def test_huy_don_ly_do_co_san_khong_bat_buoc_ghi_chu(ly_do):
+    yeu_cau = HuyDonRequest(ly_do=ly_do, ghi_chu="   ")
+    assert yeu_cau.ly_do == ly_do and yeu_cau.ghi_chu is None
+
+
+def test_huy_don_ly_do_khac_bat_buoc_ghi_chu():
+    with pytest.raises(ValidationError):
+        HuyDonRequest(ly_do="khac")
+    with pytest.raises(ValidationError):
+        HuyDonRequest(ly_do="khac", ghi_chu="   ")
+    assert HuyDonRequest(ly_do="khac", ghi_chu=" Người gửi đổi địa chỉ nhận ").ghi_chu == "Người gửi đổi địa chỉ nhận"
+
+
+def test_huy_don_chan_ly_do_la_va_ghi_chu_qua_dai():
+    with pytest.raises(ValidationError):
+        HuyDonRequest(ly_do="khong_thich")
+    with pytest.raises(ValidationError):
+        HuyDonRequest(ly_do="khac", ghi_chu="x" * 201)
