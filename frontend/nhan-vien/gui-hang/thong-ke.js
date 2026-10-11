@@ -26,6 +26,8 @@ async function taiThongKe() {
     datText("tkTongGuiDi", tk.tong_don_gui_di);
     datText("tkChoXepXe", tk.so_don_cho_xep_xe);
     datText("tkGuiTrenXe", tk.so_don_gui_dang_tren_xe);
+    datText("tkDaHuy", tk.so_don_huy);
+    datText("tkTienHoan", dinhDangTien(tk.tien_da_hoan));
     datText("tkTongNhanDen", tk.tong_don_nhan_den);
     datText("tkDaGiao", tk.so_don_da_giao);
     datText("tkSapDen", tk.so_don_sap_den);
@@ -51,24 +53,28 @@ function xuatCsvDoiSoat() {
     return;
   }
   xuatCsv(`doi-soat-${ds.tu_ngay}_${ds.den_ngay}.csv`,
-    ["Nhân viên", "Số đơn trả trước", "Tiền trả trước (VNĐ)", "Số đơn COD", "Tiền COD (VNĐ)", "Tổng thu (VNĐ)"],
-    [...ds.nhan_vien.map(nv => [nv.ho_ten || "(không rõ)", nv.so_don_tra_truoc, nv.tien_tra_truoc, nv.so_don_cod, nv.tien_cod, nv.tong_tien]),
-      ["TỔNG", "", "", "", "", ds.tong_tien]]);
+    ["Nhân viên", "Số đơn trả trước", "Tiền trả trước (VNĐ)", "Số đơn COD", "Tiền COD (VNĐ)",
+      "Số đơn hoàn", "Tiền hoàn (VNĐ)", "Tiền mặt còn lại (VNĐ)"],
+    [...ds.nhan_vien.map(nv => [nv.ho_ten || "(không rõ)", nv.so_don_tra_truoc, nv.tien_tra_truoc, nv.so_don_cod, nv.tien_cod,
+      nv.so_don_hoan, nv.tien_hoan, nv.tong_tien]),
+      ["TỔNG", "", "", "", "", "", ds.tong_tien_hoan, ds.tong_tien]]);
 }
 
 function renderDoiSoat(doiSoat) {
   const tbody = $("tbodyDoiSoat");
   if (!doiSoat.nhan_vien.length) {
-    hienTrangThaiBang("tbodyDoiSoat", 4, "Không có khoản thu nào trong kỳ.");
+    hienTrangThaiBang("tbodyDoiSoat", 5, "Không có khoản thu / hoàn nào trong kỳ.");
   } else {
     tbody.innerHTML = doiSoat.nhan_vien.map(nv => `
       <tr>
         <td>${escapeHtml(nv.ho_ten || "(không rõ)")}</td>
         <td class="text-right">${escapeHtml(dinhDangTien(nv.tien_tra_truoc))}<div class="cell-sub">${escapeHtml(nv.so_don_tra_truoc)} đơn</div></td>
         <td class="text-right">${escapeHtml(dinhDangTien(nv.tien_cod))}<div class="cell-sub">${escapeHtml(nv.so_don_cod)} đơn</div></td>
+        <td class="text-right">${nv.tien_hoan ? `− ${escapeHtml(dinhDangTien(nv.tien_hoan))}` : "0 đ"}<div class="cell-sub">${escapeHtml(nv.so_don_hoan)} đơn</div></td>
         <td class="text-right"><strong>${escapeHtml(dinhDangTien(nv.tong_tien))}</strong></td>
       </tr>`).join("");
   }
+  datText("tkDoiSoatHoan", doiSoat.tong_tien_hoan ? `− ${dinhDangTien(doiSoat.tong_tien_hoan)}` : "0 đ");
   datText("tkDoiSoatTong", dinhDangTien(doiSoat.tong_tien));
 }
 

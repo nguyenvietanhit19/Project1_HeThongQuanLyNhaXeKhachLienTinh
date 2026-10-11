@@ -2,6 +2,7 @@
 
 Service quản lý vòng đời đơn hàng gửi theo tuyến:
 - Tạo đơn, cân đo, nhập cước, chặn hàng cấm (UC-23).
+- Hủy đơn khi hàng còn ở kho văn phòng gửi, hoàn cước trả trước (KE_HOACH_SUA_GUI_HANG.md mục 6).
 - Giao hàng cho người nhận, kiểm tra thu COD (UC-24).
 - Xử lý hàng chờ quá lâu tại điểm nhận (UC-25) + job cảnh báo (UC-46).
 - Hàm cho Phụ xe chất/dỡ hàng, báo sự cố (UC-26, UC-27, UC-28).
@@ -20,6 +21,8 @@ from app.repositories import thong_bao_repository as thong_bao_repo
 from app.schemas.don_hang_schema import TRUONG_LIEN_HE, SuaThongTinLienHeRequest, TaoDonHangRequest
 from app.services import chuyen_xe_service
 from app.services.chuyen_xe_service import XeDangDiChuyen, diem_hien_tai, kiem_tra_ben_da_mo, lay_chuyen_cua_phu_xe
+from app.schemas.don_hang_schema import TRUONG_LIEN_HE, HuyDonRequest, SuaThongTinLienHeRequest, TaoDonHangRequest
+from app.services.chuyen_xe_service import diem_hien_tai, lay_chuyen_cua_phu_xe
 from app.services.websocket_manager import broadcast_sync
 from app.utils.loi import CamTruyCap, GiaTriLoi, KhongTimThay, LoiHeThong
 
@@ -212,6 +215,33 @@ def tao_don_hang(
     raise LoiHeThong("Không sinh được mã vận đơn, vui lòng thử lại")
 
 
+def huy_don_hang(don_hang_id: str, nhan_vien_id: str, van_phong_id: str, du_lieu: HuyDonRequest) -> dict:
+    """Hủy đơn tại văn phòng gửi (KE_HOACH_SUA_GUI_HANG.md mục 6).
+
+    Hủy = trả lại kiện hàng cho người gửi, nên chỉ hủy được khi hàng còn trong kho
+    văn phòng gửi (`cho_van_chuyen`, chưa gắn chuyến). Đơn đã rời văn phòng gửi thì
+    người gửi muốn lấy lại phải xử lý ở văn phòng nhận theo UC-25.
+    Đơn trả trước đã thu → hoàn đủ cước tiền mặt (`so_tien_hoan`); COD / chưa thu → không hoàn.
+    """
+    don = don_hang_repo.tim_theo_id(don_hang_id)
+    if not don:
+        raise KhongTimThay("Đơn hàng không tồn tại")
+    if str(don["diem_gui_id"]) != str(van_phong_id):
+        raise CamTruyCap("Chỉ văn phòng gửi của đơn mới được hủy đơn")
+    if don["trang_thai"] == "da_huy":
+        raise GiaTriLoi("Đơn hàng này đã bị hủy trước đó")
+    if don["trang_thai"] != "cho_van_chuyen" or don.get("chuyen_id"):
+        raise GiaTriLoi(
+            "Hàng đã rời văn phòng gửi, không thể hủy đơn — người gửi muốn lấy lại hàng "
+            "thì xử lý tại văn phòng nhận (UC-25)"
+        )
+
+    don_moi = don_hang_repo.huy_don(don_hang_id, nhan_vien_id, str(van_phong_id), du_lieu.ly_do, du_lieu.ghi_chu)
+    if not don_moi:
+        raise GiaTriLoi("Đơn hàng vừa được chất lên xe hoặc xử lý bởi người khác, không thể hủy — vui lòng tải lại")
+    return don_moi
+
+
 # ====================================================================
 # 2. Giao hàng cho người nhận & Thu COD (UC-24)
 # ====================================================================
@@ -238,6 +268,9 @@ def xac_nhan_giao_hang(
 
     if don["trang_thai"] == "da_giao":
         raise GiaTriLoi("Đơn hàng này đã được giao cho người nhận trước đó")
+
+    if don["trang_thai"] == "da_huy":
+        raise GiaTriLoi("Đơn hàng này đã bị hủy tại văn phòng gửi, không có hàng để giao")
 
     if don["trang_thai"] in ("cho_van_chuyen", "da_len_xe"):
         raise GiaTriLoi("Đơn hàng đang trong quá trình luân chuyển, chưa tới điểm nhận để giao")
@@ -626,12 +659,16 @@ def sua_thong_tin_lien_he(
     _kiem_tra_don_thuoc_van_phong(don, van_phong_id)
     if don["trang_thai"] == "da_giao":
         raise GiaTriLoi("Đơn đã giao xong, không thể sửa thông tin")
+    if don["trang_thai"] == "da_huy":
+        raise GiaTriLoi("Đơn đã bị hủy, không thể sửa thông tin")
 
     thay_doi = {t: getattr(du_lieu, t) for t in TRUONG_LIEN_HE if getattr(du_lieu, t) is not None}
     try:
         don_moi = don_hang_repo.sua_thong_tin_lien_he(don_hang_id, thay_doi, nguoi_dung_id, du_lieu.ly_do)
     except don_hang_repo.DonDaGiao:
         raise GiaTriLoi("Đơn vừa được giao xong, không thể sửa thông tin") from None
+    except don_hang_repo.DonDaHuy:
+        raise GiaTriLoi("Đơn vừa bị hủy, không thể sửa thông tin") from None
     if not don_moi:
         raise KhongTimThay("Đơn hàng không tồn tại")
 
@@ -760,12 +797,13 @@ def thong_ke_hang_theo_ngay(diem_id: str | None, so_ngay: int) -> list[dict]:
 
 
 def doi_soat_tien(diem_id: str | None, tu_ngay: date, den_ngay: date) -> dict:
-    """Tiền mặt từng nhân viên đã thu trong kỳ (trả trước + COD) — đối soát két cuối ca."""
+    """Tiền mặt từng nhân viên đã thu (trả trước + COD) trừ tiền đã hoàn khi hủy đơn — đối soát két cuối ca."""
     _kiem_tra_khoang_ngay(tu_ngay, den_ngay)
     nhan_vien = don_hang_repo.doi_soat_tien_theo_nhan_vien(diem_id, tu_ngay, den_ngay)
     return {
         "tu_ngay": tu_ngay.isoformat(),
         "den_ngay": den_ngay.isoformat(),
         "nhan_vien": nhan_vien,
+        "tong_tien_hoan": sum(r["tien_hoan"] for r in nhan_vien),
         "tong_tien": sum(r["tong_tien"] for r in nhan_vien),
     }

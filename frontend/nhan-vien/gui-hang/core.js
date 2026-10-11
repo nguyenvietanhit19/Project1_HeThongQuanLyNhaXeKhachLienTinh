@@ -16,6 +16,7 @@ const TRANG_THAI = {
   cho_lay: { ten: "Chờ người nhận lấy", cls: "badge-cho_lay" },
   da_giao: { ten: "Đã giao", cls: "badge-da_giao" },
   qua_han_luu_kho: { ten: "Hàng tồn", cls: "badge-qua_han_luu_kho" },
+  da_huy: { ten: "Đã hủy", cls: "badge-da_huy" },
 };
 
 const TAB_HOP_LE = ["tao-don", "hang-den", "don-gui", "hang-ton", "thong-ke"];
@@ -38,6 +39,9 @@ const state = {
   donDangLienHe: null,
   donDangSua: null,
   dangSua: false,
+  donDangHuy: null,
+  dangHuy: false,
+  donVuaHuy: null,         // đơn vừa hủy (phiếu hủy / tạo lại đơn)
   duLieuTaoDon: null,
   dangTaoDon: false,
   phienTuyen: 0,

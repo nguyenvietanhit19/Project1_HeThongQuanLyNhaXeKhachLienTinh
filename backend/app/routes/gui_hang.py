@@ -4,7 +4,7 @@ Route chỉ nhận request, kiểm tra quyền qua dependency yeu_cau_vai_tro,
 xác định phạm vi văn phòng, gọi gui_hang_service và trả response.
 
 Phân quyền theo ma trận use case (mục 11):
-- Thao tác tại quầy (UC-23/24/25: tạo đơn, giao hàng, ghi liên hệ) — CHỈ
+- Thao tác tại quầy (UC-23/24/25: tạo đơn, hủy đơn, giao hàng, ghi liên hệ) — CHỈ
   nhan_vien_gui_hang, luôn ở văn phòng được gán trong hồ sơ.
 - Xem (hàng đến, tra cứu, danh sách đơn) — thêm quan_ly (toàn hệ thống,
   cần để xử lý/thanh lý hàng tồn theo UC-25).
@@ -28,6 +28,7 @@ from app.schemas.don_hang_schema import (
     DonHangTraCuuCongKhaiResponse,
     GiaoHangRequest,
     GoiYKhachResponse,
+    HuyDonRequest,
     LichSuChinhSuaResponse,
     LichSuLienHeResponse,
     LichSuTrangThaiResponse,
@@ -115,6 +116,12 @@ def tao_don_hang(
     return gui_hang_service.tao_don_hang(
         du_lieu, nhan_vien_id=nguoi_dung.id, diem_gui_id=diem_gui_id, khoa_chong_trung=idempotency_key,
     )
+
+
+@router.post("/don-hang/{don_hang_id}/huy", response_model=DonHangResponse)
+def huy_don_hang(don_hang_id: UUID, du_lieu: HuyDonRequest, nguoi_dung: QuyenThaoTacQuay):
+    """Hủy đơn khi hàng còn trong kho văn phòng gửi; trả trước đã thu thì hoàn đủ cước tiền mặt."""
+    return gui_hang_service.huy_don_hang(str(don_hang_id), nguoi_dung.id, _pham_vi_van_phong(nguoi_dung), du_lieu)
 
 
 @router.get("/goi-y-khach", response_model=list[GoiYKhachResponse])

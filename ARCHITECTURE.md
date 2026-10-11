@@ -82,7 +82,9 @@ project-root/
 │   │   │   ├── email_service.py               # gửi mail OTP qua Brevo API (HTTPS) — hạ tầng
 │   │   │   ├── tim_kiem_chuyen_service.py     # tìm theo điểm đi/đến (mục 3.4 bước 1-2)
 │   │   │   ├── dat_ve_service.py              # giữ ghế, chống trùng ghế, đặt cọc (mục 3.4, 6)
-│   │   │   ├── thanh_toan_service.py          # thanh toán ngay / tại quầy
+│   │   │   ├── thanh_toan_service.py          # xử lý IPN + trang kết quả của cổng thanh toán (chữ ký, số tiền, chống xử lý lặp)
+│   │   │   ├── vnpay_service.py               # ký/kiểm tra chữ ký HMAC-SHA512, tạo đường dẫn thanh toán — dùng chung giả lập và VNPay thật
+│   │   │   ├── cong_thanh_toan_gia_service.py # cổng thanh toán GIẢ LẬP để demo (VNPAY_CHE_DO=gia_lap), đóng vai VNPay
 │   │   │   ├── hoan_tien_service.py            # tạo/quản lý hàng đợi lich_su_hoan_tien; gọi API hoàn tiền VNPay khi có mã giao dịch (mục 7 NGHIEP_VU.md)
 │   │   │   ├── lich_chay_service.py            # CRUD lich_chay_dinh_ky (UC-18, khóa sửa khi đã sinh chuyến) + sinh chuyen_xe thủ công theo khoảng ngày do quan_ly chọn (UC-47, mục 3.5 NGHIEP_VU.md) — chỉ route quan_ly.py gọi, không còn job
 │   │   │   ├── chuyen_service.py               # quan_ly xem/lọc/sửa giờ/xóa chuyến còn "sạch" (UC-48) — khác chuyen_xe_service.py (vòng đời/gán xe của điều độ viên)
@@ -95,7 +97,7 @@ project-root/
 │   │   │   ├── auth.py                        # đăng ký/đăng nhập/quên mật khẩu (khách hàng)
 │   │   │   ├── chuyen.py                      # tìm kiếm chuyến công khai
 │   │   │   ├── ve.py                          # giữ ghế, chọn điểm đón/trả, thanh toán, lịch sử vé
-│   │   │   ├── thanh_toan_callback.py         # webhook nhận kết quả từ cổng thanh toán (mục 5) — không phải action của người dùng, không cần JWT thường mà xác thực bằng chữ ký/secret riêng của cổng
+│   │   │   ├── thanh_toan.py                # webhook nhận kết quả từ cổng thanh toán (mục 5) — không phải action của người dùng, không cần JWT thường mà xác thực bằng chữ ký/secret riêng của cổng
 │   │   │   ├── quay_ve.py                     # nhân viên quầy vé: bán vé, in vé cứng (không xử lý hoàn tiền)
 │   │   │   ├── gui_hang.py                    # nhân viên gửi hàng: tạo đơn, giao hàng
 │   │   │   ├── phu_xe.py                      # giao diện di động: soát vé, xác nhận trạng thái chuyến
@@ -129,7 +131,7 @@ project-root/
 │   └── .dockerignore
 │
 ├── frontend/                              # HTML/CSS/JS tĩnh — 2 giao diện tách biệt
-│   ├── index.html                         # TRANG CHỦ công khai (link production gốc `/`) — tìm chuyến + xem sơ đồ ghế, không cần đăng nhập (UC-04); CSS/JS ở khach-hang/trang-chu.*
+│   ├── index.html                         # TRANG CHỦ công khai (link production gốc `/`) — ô tìm chuyến, bấm Tìm chuyến sang khach-hang/tim-chuyen.html (kết quả + sơ đồ ghế, UC-04), không cần đăng nhập; CSS/JS ở khach-hang/trang-chu.*
 │   ├── khach-hang/                        # tìm chuyến, đặt vé, thanh toán, lịch sử vé
 │   └── nhan-vien/                         # phụ xe (di động) + quầy vé + gửi hàng + điều độ + quản lý
 │
@@ -154,7 +156,7 @@ project-root/
 - **`services/`** — nơi chứa "luật chơi" của hệ thống. Đọc thư mục này là hiểu được toàn bộ nghiệp vụ của app mà không cần biết SQL hay HTTP là gì. `dat_ve_service.py` là service phức tạp nhất, đối chiếu trực tiếp với `NGHIEP_VU.md` mục 3.4 + 6.
 - **`routes/`** — chỉ là lớp giao tiếp HTTP, cực mỏng, hầu như chỉ có 3-5 dòng mỗi endpoint. Tách riêng `phu_xe.py` khỏi `quay_ve.py`/`dieu_do.py` vì phụ xe dùng giao diện di động riêng (`NGHIEP_VU.md` mục 8.2), không phải dashboard desktop như các vai trò cán bộ khác.
 - **`jobs/`** — khác hẳn `routes/`: không được HTTP request gọi tới, mà chạy tự động theo lịch (APScheduler). Cần vì `NGHIEP_VU.md` mục 5/9 yêu cầu **ghi nhận vĩnh viễn** trạng thái `het_han`/`khong_den` (dùng để đếm vi phạm no-show) — không thể chỉ tính toán "ảo" mỗi lần có người hỏi, phải có thời điểm thực sự ghi vào DB.
-- **`migrations/`** — lịch sử thay đổi cấu trúc database, thay cho việc chỉnh tay trực tiếp trên Postgres. Một số quy tắc dữ liệu đặt ở **trigger DB** thay vì Service để mọi đường ghi đều bị ràng buộc: **mã hiển thị tự sinh** (`ma` của khu vực/điểm/tuyến/loại xe/chuyến, không sửa được — `DATABASE.md` mục 10) và **chặn đổi khu vực của điểm đón/trả**.
+- **`migrations/`** — lịch sử thay đổi cấu trúc database, thay cho việc chỉnh tay trực tiếp trên Postgres. Một số quy tắc dữ liệu đặt ở **trigger DB** thay vì Service để mọi đường ghi đều bị ràng buộc: **mã hiển thị không sửa được** (`ma` của khu vực/điểm/tuyến/loại xe, `ma_ve` — `DATABASE.md` mục 10) và **chặn đổi khu vực của điểm đón/trả**. Việc **sinh** các mã đó do hàm Python làm (`utils/ma_tu_sinh.py` + `repositories/ma_repository.py`).
 - **`tests/unit/` vs `tests/integration/`** — unit test kiểm tra logic nghiệp vụ (Service) bằng cách giả lập Repository, chạy cực nhanh, không cần DB. Integration test kiểm tra Repository có chạy đúng với Postgres thật hay không — **đặc biệt quan trọng cho `ve_repository.py`**, vì logic khóa dòng/overlap chỉ có thể kiểm chứng đúng trên Postgres thật, không mock được.
 - **`frontend/`** tách khỏi `backend/` hoàn toàn, và tách làm 2 thư mục con vì 2 nhóm người dùng có nhu cầu giao diện khác hẳn nhau (khách hàng dùng trình duyệt thường; phụ xe dùng điện thoại di động, thao tác nhanh trên danh sách khách lên/xuống từng điểm — không quét mã gì cả, chỉ cần màn hình cảm ứng bình thường, xem `NGHIEP_VU.md` mục 8.2).
 

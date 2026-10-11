@@ -127,12 +127,13 @@ def tim_ve_qua_gio_len_xe(x_phut: int) -> list[dict]:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT v.id, v.khach_hang_id
+                SELECT v.id, v.khach_hang_id, v.ma_ve, v.so_ghe
                 FROM ve v
                 JOIN chuyen_xe cx ON cx.id = v.chuyen_id
                 JOIN tuyen_diem_don_tra tdt
                     ON tdt.tuyen_id = cx.tuyen_id AND tdt.diem_don_tra_id = v.diem_don_id
-                WHERE v.trang_thai IN ('da_thanh_toan', 'giu_cho')
+                WHERE (v.trang_thai = 'da_thanh_toan'
+                       OR (v.trang_thai = 'giu_cho' AND (v.han_giu_cho_den IS NULL OR v.han_giu_cho_den > now())))
                   AND cx.trang_thai != 'da_huy'
                   AND v.gio_hoan_tac IS NULL
                   AND NOT (

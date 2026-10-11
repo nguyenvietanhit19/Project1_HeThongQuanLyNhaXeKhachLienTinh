@@ -4,7 +4,9 @@
 > Nguồn: 4 hướng rà soát độc lập (BE, FE, checklist nghiệp vụ, tích hợp liên vai trò) ra 98 phát hiện. 68 phát hiện đã qua kiểm chứng phản biện (65 đúng, 3 bị bác). 30 phát hiện tích hợp chưa qua bước phản biện tự động. Các phát hiện mức nghiêm trọng/cao trong số này đã được đối chiếu thủ công với code và git.
 > Ký hiệu công sức: **S** < 1 giờ · **M** nửa ngày · **L** ≥ 1 ngày.
 
-> **Trạng thái (04/10/2026):** đã làm toàn bộ Đợt 0–4 và nâng cấp N1 (màn Hàng đến), N3 (in đúng vùng), N4 (đối soát tiền theo nhân viên), N6 (thông báo WebSocket + chuông). Đã làm thêm (05/10/2026): N2 mã vạch Code128, N5 lịch sử trạng thái, N7 chống tạo trùng đơn (Idempotency-Key), N8 tách app.js thành module, N9 phím tắt; cùng gợi ý khách quen theo SĐT, xuất CSV, đếm ngược mốc 7/14 ngày. Đã làm thêm: sửa tên/SĐT người gửi-nhận khi đơn chưa giao + nhật ký chỉnh sửa (migration 20261006). Chưa làm: hủy đơn (đợt B, cần nhóm chốt trạng thái `da_huy` và hoàn tiền mặt), hàng đợi khi mất mạng, chốt ca. Mục 2 (phối hợp) vẫn mở, trừ P4 đã sửa và P6 đã có cột `sdt_lien_he`.
+> **Trạng thái (04/10/2026):** đã làm toàn bộ Đợt 0–4 và nâng cấp N1 (màn Hàng đến), N3 (in đúng vùng), N4 (đối soát tiền theo nhân viên), N6 (thông báo WebSocket + chuông). Đã làm thêm (05/10/2026): N2 mã vạch Code128, N5 lịch sử trạng thái, N7 chống tạo trùng đơn (Idempotency-Key), N8 tách app.js thành module, N9 phím tắt; cùng gợi ý khách quen theo SĐT, xuất CSV, đếm ngược mốc 7/14 ngày. Đã làm thêm: sửa tên/SĐT người gửi-nhận khi đơn chưa giao + nhật ký chỉnh sửa (migration 20261006). Chưa làm: hủy đơn (đợt B, cần nhóm chốt trạng thái `da_huy` và hoàn tiền mặt), hàng đợi khi mất mạng, chốt ca.
+
+> **Trạng thái (07/10/2026):** bắt đầu đợt B — hủy đơn, nhánh `feature/Trinh-huy-don`. Kế hoạch chi tiết ở **mục 6**. **Đã code xong BE + FE theo đúng các đề xuất ở 6.1** (xem 6.5), `DATABASE.md` đã cập nhật (D7). **09/10: nhóm đã chốt B1–B14 đúng đề xuất**; toàn bộ nghiệp vụ của vai trò (kể cả hủy đơn) gộp ở file riêng `NGHIEP_VU_GUI_HANG.md` (không sửa `NGHIEP_VU.md`). Mục 2 (phối hợp) vẫn mở, trừ P4 đã sửa và P6 đã có cột `sdt_lien_he`.
 
 ---
 
@@ -371,3 +373,132 @@ Song song: gửi danh sách mục 2 (P1–P6) cho các thành viên liên quan.
 - **Kiểm tra cùng chiều khi chất hàng** (`chieu_van_chuyen` so với `chuyen.chieu`) và **chặn điểm gửi/nhận phải là `van_phong`, khác nhau, cùng tuyến:** đã đúng.
 - **Ràng buộc COD/trả trước khi tạo và giao** (`xac_nhan_da_thu`) và **UPDATE giao hàng có điều kiện trạng thái:** đã đúng.
 - **Job UC-46 không tự hủy hàng, mốc 7/14 ngày tính từ `thoi_gian_den_diem_nhan`:** đúng nghiệp vụ. Chỉ cần sửa phần atomic/nội dung ở S3.5.
+
+---
+
+## 6. Đợt B — Hủy đơn gửi hàng (nhánh `feature/Trinh-huy-don`)
+
+> Căn cứ: `NGHIEP_VU.md` chưa có luồng hủy đơn hàng — vòng đời 10.3 không có nhánh hủy, `don_hang.trang_thai` (`DATABASE.md` 5.2) chưa có `da_huy`. Câu duy nhất nhắc tới là `DATABASE.md` 5.2c: "sửa tuyến/điểm nhận/loại hàng/cước thì phải hủy đơn rồi tạo lại".
+> Nguyên tắc: hủy = **trả lại kiện hàng cho người gửi tại quầy**, nên chỉ hủy khi hàng còn trong kho văn phòng gửi. Không đụng tới job 7/14 ngày ("không tự hủy" vẫn giữ nguyên).
+
+### 6.1. Cần nhóm chốt trước khi code
+
+| # | Nội dung | Đề xuất |
+|---|---|---|
+| B1 | Trạng thái được hủy | Chỉ `cho_van_chuyen` **và** `chuyen_id IS NULL` |
+| B2 | Đơn `da_len_xe` / `cho_lay` / `qua_han_luu_kho` | Không hủy. Người gửi muốn lấy lại thì xử lý theo UC-25 |
+| B3 | Giới hạn thời gian hủy | Không, chỉ ràng buộc theo trạng thái |
+| B4 | Ai được hủy | Nhân viên gửi hàng **của văn phòng gửi** (không bắt buộc là người tạo đơn). Văn phòng nhận và `quan_ly` không hủy được |
+| B5 | Quản lý duyệt | Không cần. Ghi người hủy, quản lý xem được |
+| B6 | Xác minh người gửi | Người gửi có mặt, đưa biên nhận / đọc mã vận đơn. Mất biên nhận thì tra SĐT người gửi + xác minh tên |
+| B7 | Lý do hủy | Bắt buộc: khách đổi ý / nhập sai thông tin, tạo lại / hàng không đủ điều kiện / khác (bắt buộc ghi chú) |
+| B8 | Phí hủy | Không thu |
+| B9 | Hoàn tiền | Trả trước + đã thu → hoàn 100% tiền mặt tại quầy ngay lúc hủy. COD hoặc chưa thu → hủy thẳng |
+| B10 | Qua kế toán (`lich_su_hoan_tien`)? | Không — tiền mặt trả ngay tại quầy, khác luồng hoàn vé. **Người làm kế toán xác nhận** |
+| B11 | Hủy để tạo lại | Hoàn đơn cũ, thu đơn mới riêng, không bù trừ chênh lệch |
+| B12 | Thống kê / đối soát | Đơn hủy không tính doanh thu, khoản hoàn ghi riêng. **Người làm UC-39 xác nhận** |
+| B13 | Ảnh hưởng phụ xe (UC-26) | Không phải sửa — danh sách chờ chất đã lọc `cho_van_chuyen`. **tuanhdung xác nhận** |
+| B14 | Số UC mới | UC-54 "Hủy đơn gửi hàng" — kiểm tra chưa ai dùng số này |
+
+Gộp chốt luôn 4 điểm code đã làm nhưng `NGHIEP_VU.md` chưa ghi: bảng lịch sử liên hệ (S4.3), giao đơn `qua_han_luu_kho` (S2.11), sửa tên/SĐT người gửi-nhận, đối soát tiền thu theo nhân viên (N4).
+
+### 6.2. Sửa tài liệu (sau khi chốt)
+
+| Mã | File / mục | Nội dung |
+|---|---|---|
+| D1 | `NGHIEP_VU.md` 8.5 | Thêm điểm 4 "Hủy đơn tại điểm gửi", trỏ tới 10.4.3 / UC-54 |
+| D2 | `NGHIEP_VU.md` 10.3 | Thêm nhánh `cho_van_chuyen → da_huy` vào sơ đồ; ghi rõ sau `da_len_xe` không hủy được |
+| D3 | `NGHIEP_VU.md` 10.4.3 (mới) | "Khi người gửi muốn hủy đơn": xác minh → kiểm tra trạng thái/văn phòng → chọn lý do → hoàn tiền nếu đã thu → `da_huy`, gỡ nhãn, thu biên nhận, trả hàng → tạo đơn mới nếu do nhập sai |
+| D4 | `NGHIEP_VU.md` 11 | Thêm dòng UC-54 vào ma trận, chỉ `nhan_vien_gui_hang` |
+| D5 | `NGHIEP_VU.md` 12 | Đặc tả UC-54: actor, tiền điều kiện, luồng chính, rẽ nhánh (đã lên xe / phụ xe vừa chất / đã thu tiền / COD), hậu điều kiện |
+| D6 | `NGHIEP_VU.md` 10.3.1, UC-25 | Đổi "không tự hủy" thành "job **không tự động** hủy" cho khỏi lẫn với hủy thủ công |
+| D7 | `DATABASE.md` 5.2 | Thêm `da_huy` vào CHECK; cột `ly_do_huy`, `ghi_chu_huy`, `nhan_vien_huy_id`, `thoi_gian_huy`, `so_tien_hoan`; ghi chú thống kê bỏ đơn hủy |
+| D8 | `NGHIEP_VU.md` / `DATABASE.md` | Cập nhật 4 điểm ở cuối 6.1 nếu nhóm đồng ý |
+
+### 6.3. Code
+
+**BE** · M
+- Migration mới `2026100x_xxxx_huy_don_hang.sql`: sửa CHECK `trang_thai`, thêm các cột ở D7. Không sửa migration cũ.
+- Repo `huy_don(id, nhan_vien_id, ly_do, ghi_chu, so_tien_hoan)`: `set_config('app.nguoi_dung_id')` rồi `UPDATE ... WHERE id=%s AND trang_thai='cho_van_chuyen' AND chuyen_id IS NULL RETURNING id` (cùng kiểu S0.1 — chống tranh chấp với phụ xe chất hàng). 0 dòng → service báo "Đơn đã thay đổi, không thể hủy". Trigger `trg_lich_su_trang_thai_don` tự ghi lịch sử.
+- Service: kiểm tra `diem_gui_id` = văn phòng nhân viên (`KhongDuQuyen`), tính `so_tien_hoan` = `gia_cuoc` nếu `nguoi_gui_tra_truoc AND da_thu_tien`, ngược lại `NULL`.
+- Route `POST /gui-hang/{id}/huy` với `QuyenThaoTacQuay`; schema `HuyDonRequest` (`ly_do: Literal[...]`, `ghi_chu` bắt buộc khi `ly_do = 'khac'`, tối đa 200 ký tự).
+- Thống kê / đối soát (N4): loại `da_huy` khỏi doanh thu, thêm dòng "Đã hoàn" theo `nhan_vien_huy_id`.
+- Không cho sửa tên/SĐT đơn `da_huy` (5.2c).
+
+**FE** · M
+- Nút "Hủy đơn" trong chi tiết đơn, chỉ hiện khi `cho_van_chuyen`, chưa gắn chuyến, và `diem_gui_id === vanPhongTrucId`.
+- Modal: chọn lý do, ghi chú, hiện rõ "Hoàn cho khách: X đ" hoặc "Không hoàn (COD/chưa thu)", nhắc gỡ nhãn + thu biên nhận.
+- In phiếu hoàn tiền khi có hoàn.
+- Danh sách "Đơn gửi đi": chip lọc "Đã hủy"; tra cứu hiện "Đã hủy" + lý do + thời điểm.
+- Lý do "nhập sai thông tin": sau khi hủy mở form tạo đơn điền sẵn thông tin cũ (tùy chọn).
+
+**Test** · S
+- Hủy đúng trạng thái thành công; `da_len_xe` → lỗi; văn phòng khác → `KhongDuQuyen`; UPDATE 0 dòng → lỗi; `so_tien_hoan` đúng cho 3 trường hợp (trả trước đã thu / chưa thu / COD); `ly_do='khac'` thiếu ghi chú → 422.
+
+### 6.4. Thứ tự
+
+1. Gửi bảng 6.1 cho nhóm, chờ chốt.
+2. Kiểm tra nhánh tạo từ đúng base `integration/gop-nhanh-thanh-vien`, kéo code mới nhất.
+3. Sửa tài liệu (6.2) → code BE + test → FE (6.3).
+4. PR vào base, mời người làm thống kê và tuanhdung review. Ghi trong mô tả PR: có migration mới, mọi người `yoyo apply` sau khi pull.
+
+### 6.5. Đã làm (07/10/2026)
+
+- Đã merge base mới nhất (`integration/gop-nhanh-thanh-vien`, gồm #27, #28) vào nhánh trước khi code.
+- **Migration** `20261011_0900_huy_don_hang.sql` (ban đầu đặt `20261007_1400`, đổi tên 11/10 vì base đã có `20261008_*`): thêm `da_huy` vào CHECK, 5 cột hủy/hoàn, CHECK `don_hang_thong_tin_huy_day_du`, index đối soát hoàn.
+- **BE:**
+  - `POST /gui-hang/don-hang/{id}/huy` (chỉ `nhan_vien_gui_hang`), schema `HuyDonRequest`.
+  - Repo `huy_don`: UPDATE có điều kiện `cho_van_chuyen` + `chuyen_id IS NULL` + đúng văn phòng gửi; `so_tien_hoan` tính trong SQL.
+  - Chặn sửa tên/SĐT (cả kiểm tra sau khóa dòng, `DonDaHuy`) và chặn giao hàng với đơn `da_huy`.
+  - Thống kê: thêm `so_don_huy`, `tien_da_hoan`; `tong_doanh_thu` trừ tiền hoàn. Đối soát: thêm `so_don_hoan`, `tien_hoan` theo `nhan_vien_huy_id`; `tong_tien` = thu − hoàn; thêm `tong_tien_hoan`.
+- **FE:**
+  - File mới `huy-don.js`: modal hủy (chọn lý do, ghi chú, số tiền hoàn, tích xác nhận đã trả hàng), phiếu hủy/hoàn tiền in được, nút "Tạo lại đơn" điền sẵn người gửi/nhận + hàng khi lý do là nhập sai.
+  - Nút 🗑️ ở tab Đơn gửi đi và nút "Hủy đơn" trong chi tiết đơn (chỉ hiện khi hủy được); bộ lọc "Đã hủy"; badge "Đã hủy"; chi tiết đơn hiện lý do/người hủy/tiền hoàn; CSV thêm cột lý do hủy và tiền hoàn.
+  - Thống kê: KPI "Hủy trong kỳ", chip "Đã hoàn khi hủy đơn"; bảng đối soát thêm cột "Hoàn".
+- **Kiểm thử:**
+  - `pytest tests/unit`: 322 test qua (thêm test hủy đơn, schema `HuyDonRequest`, đối soát có hoàn).
+  - Chạy thật trên Postgres local: migration OK; gọi API thật — hủy đơn trả trước (hoàn đúng `gia_cuoc`), hủy COD (không hoàn), hủy lần 2 → 400, văn phòng khác → 403, quản lý → 403, lý do `khac` thiếu ghi chú → 422, sửa/giao đơn đã hủy bị chặn, lịch sử trạng thái ghi đúng người hủy, thống kê/đối soát trừ đúng tiền hoàn. Đã trả dữ liệu test về như cũ.
+  - **Chưa** test giao diện trên trình duyệt.
+- **Lưu ý khi đọc thống kê:** tiền thu và tiền hoàn ghi theo ngày của từng khoản, nên ngày chỉ có hoàn (thu từ hôm trước) thì doanh thu ngày đó có thể âm — đúng với tiền mặt thực tế trong két.
+
+### 6.6. Việc tiếp theo (09/10/2026)
+
+Code hủy đơn đang nằm ở working tree, chưa commit. Base `integration/gop-nhanh-thanh-vien` đã có thêm #29, #30 (đụng `DATABASE.md`, `NGHIEP_VU.md`, `thong_bao_repository.py` — không đụng code gửi hàng) và migration `20261008_*`.
+
+| # | Việc | Ghi chú |
+|---|---|---|
+| T1 | **Test giao diện trên trình duyệt** | Nút 🗑️ chỉ hiện ở đơn chờ xếp xe của văn phòng mình; modal hủy (lý do, ghi chú bắt buộc khi "Khác", tích đã trả hàng); phiếu hoàn in đúng 1 trang; "Tạo lại đơn" điền sẵn; lọc/badge "Đã hủy"; chi tiết đơn đã hủy; thống kê + đối soát; tài khoản quản lý không thấy nút hủy |
+| T2 | ✅ (11/10) **Đồng bộ base** — đã kéo #29, #30 (không conflict), đổi tên migration thành `20261011_0900_huy_don_hang.sql`; trên code đã gộp: unit 426/426, E2E 148/148, `yoyo apply` OK | Commit tạm → merge `origin/integration/gop-nhanh-thanh-vien` → **đổi tên migration** `20261007_1400_huy_don_hang.sql` thành `20261009_xxxx_huy_don_hang.sql` (base đã có `20261008_*`, giữ thứ tự thời gian; migration viết idempotent nên máy đã chạy bản cũ chạy lại không lỗi) → `pytest tests/unit` → `yoyo apply` |
+| T3 | **Gửi nhóm chốt** | Bảng 6.1 (B1–B14) + 4 điểm tài liệu chưa ghi + 2 lưu ý cho kế toán: đối soát két = thu − hoàn; doanh thu ngày có thể âm |
+| T4 | **Sau khi nhóm chốt** | ✅ (09/10) Nhóm chốt B1–B14 đúng như đề xuất → code giữ nguyên. **Không sửa `NGHIEP_VU.md`**: nội dung D1–D6 ghi vào file gộp `NGHIEP_VU_GUI_HANG.md` (UC-54, mục 5.4, 8.7); 4 điểm D8 cũng đã ghi ở đó với ký hiệu ⏳ (mục 9.2). D8 (4 điểm tài liệu chưa ghi) vẫn chờ nhóm |
+| T5 | **Mở PR** vào `integration/gop-nhanh-thanh-vien` | Reviewer: người làm thống kê (UC-39), người làm kế toán, tuanhdung. Mô tả PR ghi rõ có migration mới, cần `yoyo apply` sau khi pull |
+| T6 | **Sau PR hủy đơn** | Chốt ca (tổng thu − hoàn theo ca, mở rộng N4); đẩy các việc phối hợp P1–P6 (mục 2); tài liệu S2.11, S4.3; hàng đợi khi mất mạng — đề xuất bỏ (công lớn, giá trị thấp cho BTL) |
+
+### 6.7. Kết quả test toàn bộ role (09/10/2026)
+
+**Unit test** (`pytest tests/unit`): 322/322 qua; riêng gửi hàng 101 test.
+
+**E2E gọi API thật trên Postgres local: 147/147 PASS.** Script tự tạo dữ liệu tạm (nhân viên gửi hàng tạm ở Mỹ Đình, nhân viên quầy vé, tài khoản chưa gán văn phòng, tài khoản bị khóa, quản lý nhân sự, phụ xe) và đã dọn sạch — số đơn theo trạng thái trong DB giữ nguyên như trước khi chạy. Các nhóm đã test:
+
+| Nhóm | Nội dung chính (gồm cả ngoại lệ) |
+|---|---|
+| A. Quyền | Không token / token sai 401; quầy vé, chưa gán văn phòng, tài khoản khóa 403; quản lý chỉ xem, không tạo/giao/hủy/sửa; quản lý nhân sự chỉ thống kê; xem văn phòng khác 403 |
+| B. Danh mục | Loại hàng kèm cờ cấm; điểm nhận khả dụng; tìm tuyến (đúng chiều), không có tuyến → rỗng |
+| C. Tạo đơn | Trả trước / COD; hàng cấm; trùng điểm; khai điểm gửi văn phòng khác; tuyến/điểm/loại hàng không tồn tại; xác nhận thu sai; 11 lỗi dữ liệu 422 (SĐT, tên, cước, cân nặng, kích thước...); cắt khoảng trắng; tên chứa HTML; chống tạo trùng (Idempotency-Key); gợi ý khách quen |
+| D. Tra cứu | Nội bộ (mã viết thường), công khai không lộ tên/SĐT, mã sai 404, theo SĐT, danh sách gửi/nhận + lọc + phân trang, tham số sai 422, lịch sử trạng thái |
+| E. Sửa tên/SĐT | 2 văn phòng sửa được, thông báo văn phòng còn lại, nhật ký không ghi trùng, dữ liệu sai 422, quản lý 403, đơn đã giao/đã hủy bị chặn |
+| F. Hủy đơn (UC-54) | Hoàn đúng cước / COD không hoàn; 5 lỗi lý do-ghi chú 422; quản lý và văn phòng nhận 403; đã lên xe / đã giao / đã hủy bị chặn; đơn hủy không sửa/giao/liên hệ được; lịch sử ghi người hủy; lọc "Đã hủy"; biến khỏi danh sách chờ chất; CHECK DB chặn da_huy thiếu thông tin |
+| G. Sự cố (UC-28) | Báo sự cố → văn phòng gửi nhận thông báo; mô tả rỗng 400; xem báo cáo; đếm số báo cáo |
+| H. Giao hàng (UC-24) | Chưa tới / đang trên xe chặn; hàng đến đúng văn phòng; tra SĐT khi quên mã; văn phòng gửi giao 403; mã sai 404 / rỗng 422; COD chưa xác nhận thu 400; giao COD và trả trước; giao lần 2 chặn |
+| I. Liên hệ (UC-25) | Chưa tới chặn; văn phòng gửi 403; cờ "đã báo" một chiều; 3 tổ hợp sai 422; báo quản lý trước 7 ngày 400; lịch sử liên hệ |
+| J. Job 7/14 ngày | 8 ngày → cờ cảnh báo, nội dung nhắc đúng theo cờ "đã báo"; 15 ngày → hàng tồn (không xóa); 3 ngày không đổi; chạy lại không gửi trùng; báo quản lý sau mốc 7 ngày; quản lý xem hàng tồn; giao hàng tồn |
+| K. Thống kê | Số đơn tiếp nhận, hủy trong kỳ, tiền hoàn, doanh thu = trả trước + COD − hoàn, COD đã thu, đã giao; đối soát thu − hoàn từng nhân viên; khoảng ngày sai 400; quản lý toàn hệ thống |
+| L. Thông báo | Nhân viên đọc được thông báo trên chuông |
+
+**Giới hạn của lần test này:**
+- Chất/dỡ hàng của phụ xe (UC-26/27) được **giả lập bằng SQL** (DB không có chuyến + phụ xe có biên chế); phần đó đã có unit test riêng của role phụ xe.
+- DB chỉ có 2 văn phòng nên không test được "văn phòng thứ 3 không liên quan xem đơn" bằng API — đã có unit test.
+- Tranh chấp "phụ xe chất hàng đúng lúc nhân viên bấm hủy" chỉ test bằng unit test (UPDATE có điều kiện).
+- **Giao diện chưa test trên trình duyệt** (T1).
+
+**Phát hiện nhỏ — ✅ đã sửa (09/10/2026):** đơn đã quá 14 ngày mà trước đó chưa có cờ 7 ngày (ví dụ job ngừng chạy vài ngày) nhận **2 thông báo cùng lúc** — "chờ 7 ngày" và "hàng tồn". Đã sửa `don_hang_repository.quet_canh_bao_7_ngay`: mốc 7 ngày bỏ qua đơn đã đủ 14 ngày (`thoi_gian_den_diem_nhan > now() - INTERVAL '14 days'`); đơn đó vẫn được bật cờ cảnh báo vì câu chuyển hàng tồn cũng set `co_canh_bao_cho_lau = true`. Thêm ca E2E "đơn quá 14 ngày chỉ nhận đúng 1 thông báo". Chạy lại: **E2E 148/148 PASS**, unit test 322/322.

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Tìm chuyến — GoBus</title>
+<meta name="description" content="Kết quả tìm chuyến xe khách liên tỉnh GoBus: giờ chạy, giá vé và ghế còn trống." />
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/khach-hang/trang-chu.css" />
+<link rel="stylesheet" href="/khach-hang/tim-chuyen.css" />
+</head>
+<body class="tk-trang">
+  <div class="tk-dau">
+    <header class="tc-nav" id="tc-nav-goc"></header>
+
+    <div class="tk-dau__khung">
+      <form class="tk-tim tk-tim--mo" id="form-tim" autocomplete="off" novalidate>
+        <!-- Điện thoại: thanh tóm tắt hành trình, bấm để mở/đóng ô sửa -->
+        <button type="button" class="tk-tim__tom-tat" id="tk-tom-tat" aria-expanded="true" aria-controls="tk-tim-hang">
+          <span class="tk-tim__tom-tat-chu" id="tk-tom-tat-chu">Chọn hành trình</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+
+        <div class="tk-tim__hang" id="tk-tim-hang">
+          <div class="tc-truong tc-combo" id="combo-di">
+            <label class="tc-truong__nhan" for="o-di">Điểm đi</label>
+            <div class="tc-truong__o">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
+              <input type="text" id="o-di" placeholder="Chọn điểm đi" role="combobox" aria-autocomplete="list" aria-expanded="false" />
+            </div>
+            <ul class="tc-combo__ds" role="listbox" hidden></ul>
+          </div>
+
+          <button type="button" class="tc-doi-cho" id="btn-doi-cho" aria-label="Đổi chiều đi và đến">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M7 4 3.5 7.5M7 4l3.5 3.5M17 20V4M17 20l-3.5-3.5M17 20l3.5-3.5"/></svg>
+          </button>
+
+          <div class="tc-truong tc-combo" id="combo-den">
+            <label class="tc-truong__nhan" for="o-den">Điểm đến</label>
+            <div class="tc-truong__o">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-7.16 7-12a7 7 0 1 0-14 0c0 4.84 7 12 7 12Z"/><circle cx="12" cy="9" r="2.3"/></svg>
+              <input type="text" id="o-den" placeholder="Chọn điểm đến" role="combobox" aria-autocomplete="list" aria-expanded="false" />
+            </div>
+            <ul class="tc-combo__ds" role="listbox" hidden></ul>
+          </div>
+
+          <div class="tc-truong tc-truong--ngay">
+            <label class="tc-truong__nhan" for="o-ngay-hien">Ngày đi</label>
+            <div class="tc-truong__o tc-truong__o--ngay">
+              <button type="button" class="tc-ngay-lich" id="btn-lich" aria-label="Chọn ngày từ lịch">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="2.5"/><path d="M3.5 9h17M8 3v3M16 3v3"/></svg>
+              </button>
+              <input type="text" id="o-ngay-hien" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" autocomplete="off" />
+              <input type="date" id="o-ngay" class="tc-ngay-goc" tabindex="-1" aria-hidden="true" />
+            </div>
+          </div>
+
+          <button type="submit" class="tc-nut-tim" id="btn-tim">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            Tìm chuyến
+          </button>
+        </div>
+
+        <div class="tc-tim__loi" id="tc-loi-tim" role="alert" hidden></div>
+      </form>
+    </div>
+  </div>
+
+  <main class="tk-main">
+    <div class="tk-bo-cuc">
+      <aside class="tk-loc" id="tk-loc" aria-label="Bộ lọc chuyến" hidden></aside>
+      <section class="tk-ket-qua" id="tk-ket-qua" aria-live="polite"></section>
+    </div>
+  </main>
+
+  <footer class="tc-chan" id="tc-chan-goc"></footer>
+
+  <!-- Sơ đồ ghế + đặt vé của 1 chuyến (dat-ve.js) -->
+  <div class="tc-modal" id="modal-so-do" hidden>
+    <div class="tc-modal__hop" role="dialog" aria-modal="true" aria-labelledby="tc-so-do-tieu-de">
+      <button type="button" class="tc-modal__dong" id="btn-dong-so-do" aria-label="Đóng">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+      <div id="tc-so-do-noi-dung"></div>
+    </div>
+  </div>
+
+  <script src="/shared/api-client.js"></script>
+  <script src="/shared/so-dien-thoai.js"></script>
+  <script src="/khach-hang/khung-trang.js"></script>
+  <script src="/khach-hang/ho-so.js"></script>
+  <script src="/khach-hang/tien-ich-ngay.js"></script>
+  <script src="/khach-hang/o-tim-kiem.js"></script>
+  <script src="/khach-hang/dat-ve.js"></script>
+  <script src="/khach-hang/tim-chuyen.js"></script>
+</body>
+</html>

@@ -16,9 +16,9 @@ const O_NHAP_SUA = {
   sdt_nguoi_nhan: "slSdtNhan",
 };
 
-/** Có hiện nút sửa cho đơn này không: nhân viên quầy, đơn chưa giao xong. */
+/** Có hiện nút sửa cho đơn này không: nhân viên quầy, đơn chưa giao xong và chưa bị hủy. */
 function coTheSuaDon(d) {
-  return !laQuanLyXem() && d.trang_thai !== "da_giao";
+  return !laQuanLyXem() && !["da_giao", "da_huy"].includes(d.trang_thai);
 }
 
 function timDonDeSua(id) {

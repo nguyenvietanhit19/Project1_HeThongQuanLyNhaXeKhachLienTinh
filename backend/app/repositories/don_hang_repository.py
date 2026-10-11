@@ -46,6 +46,7 @@ SELECT_DON_HANG_FULL = """
         c.ma AS ma_chuyen,
         c.gio_khoi_hanh AS gio_khoi_hanh,
         x.bien_so AS bien_so_xe,
+        nvh.ho_ten AS ten_nhan_vien_huy,
         (SELECT count(*) FROM bao_cao_su_co_hang bc WHERE bc.don_hang_id = d.id)::int AS so_bao_cao_su_co,
         (SELECT count(*) FROM lich_su_chinh_sua_don cs WHERE cs.don_hang_id = d.id)::int AS so_lan_chinh_sua
     FROM don_hang d
@@ -55,6 +56,7 @@ SELECT_DON_HANG_FULL = """
     LEFT JOIN diem_don_tra dn ON d.diem_nhan_id = dn.id
     LEFT JOIN chuyen_xe c ON c.id = d.chuyen_id
     LEFT JOIN xe x ON x.id = COALESCE(c.xe_thuc_te_id, c.xe_id)
+    LEFT JOIN nguoi_dung nvh ON nvh.id = d.nhan_vien_huy_id
 """
 
 
@@ -280,6 +282,47 @@ def cap_nhat_chat_hang_len_chuyen(don_hang_id: str, chuyen_id: str, nguoi_dung_i
         release_connection(conn)
 
 
+def huy_don(
+    don_hang_id: str, nhan_vien_id: str, van_phong_gui_id: str, ly_do: str, ghi_chu: str | None
+) -> dict | None:
+    """Hủy đơn tại văn phòng gửi (KE_HOACH_SUA_GUI_HANG.md mục 6).
+
+    Điều kiện nằm ngay trong UPDATE (cùng kiểu chất hàng UC-26): phụ xe vừa chất đơn lên xe,
+    hoặc nhân viên khác vừa hủy, thì UPDATE không khớp dòng nào → trả None.
+    Số tiền hoàn tính theo đúng dòng đang khóa: chỉ đơn trả trước đã thu mới hoàn đủ cước.
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            _ghi_nguoi_thuc_hien(cur, nhan_vien_id)
+            cur.execute(
+                """
+                UPDATE don_hang
+                SET trang_thai = 'da_huy',
+                    ly_do_huy = %s,
+                    ghi_chu_huy = %s,
+                    nhan_vien_huy_id = %s,
+                    thoi_gian_huy = now(),
+                    so_tien_hoan = CASE
+                        WHEN phuong_thuc_thanh_toan = 'nguoi_gui_tra_truoc' AND da_thu_tien THEN gia_cuoc
+                    END
+                WHERE id = %s
+                  AND diem_gui_id = %s
+                  AND trang_thai = 'cho_van_chuyen'
+                  AND chuyen_id IS NULL
+                RETURNING id
+                """,
+                (ly_do, ghi_chu, nhan_vien_id, don_hang_id, van_phong_gui_id),
+            )
+            if not cur.fetchone():
+                conn.rollback()
+                return None
+        conn.commit()
+        return tim_theo_id(don_hang_id)
+    finally:
+        release_connection(conn)
+
+
 def cap_nhat_do_hang_tai_diem(don_hang_id: str, chuyen_id: str, nguoi_dung_id: str | None = None) -> dict | None:
     """UC-27 (Phụ xe): Dỡ hàng xuống văn phòng điểm nhận, bắt đầu tính hạn lưu kho."""
     conn = get_connection()
@@ -381,6 +424,10 @@ class DonDaGiao(Exception):
     """Đơn đã giao xong — không sửa được nữa."""
 
 
+class DonDaHuy(Exception):
+    """Đơn đã bị hủy — không sửa được nữa."""
+
+
 def sua_thong_tin_lien_he(don_hang_id: str, thay_doi: dict, nguoi_dung_id: str, ly_do: str | None) -> dict | None:
     """Sửa tên/SĐT người gửi/nhận + ghi nhật ký từng trường đổi, cùng 1 transaction.
 
@@ -406,6 +453,9 @@ def sua_thong_tin_lien_he(don_hang_id: str, thay_doi: dict, nguoi_dung_id: str, 
             if row[0] == "da_giao":
                 conn.rollback()
                 raise DonDaGiao()
+            if row[0] == "da_huy":
+                conn.rollback()
+                raise DonDaHuy()
             hien_tai = dict(zip(cac_truong, row[1:]))
             doi = {t: v for t, v in thay_doi.items() if hien_tai[t] != v}
             if doi:
@@ -914,12 +964,16 @@ def _quet_va_thong_bao(sql_cap_nhat: str, tao_noi_dung) -> tuple[int, list[tuple
 
 
 def quet_canh_bao_7_ngay(tao_noi_dung) -> tuple[int, list[tuple[str, str]]]:
-    """UC-46 mốc 7 ngày: bật co_canh_bao_cho_lau (vẫn cho_lay) + nhắc nhân viên điểm nhận."""
+    """UC-46 mốc 7 ngày: bật co_canh_bao_cho_lau (vẫn cho_lay) + nhắc nhân viên điểm nhận.
+
+    Bỏ qua đơn đã đủ 14 ngày: job chạy bù sau vài ngày ngừng thì đơn đó chỉ nhận thông báo
+    hàng tồn (quet_chuyen_hang_ton_14_ngay), không nhận thêm thông báo 7 ngày đã lỗi thời."""
     return _quet_va_thong_bao(
         """UPDATE don_hang
            SET co_canh_bao_cho_lau = true
            WHERE trang_thai = 'cho_lay' AND co_canh_bao_cho_lau = false
              AND thoi_gian_den_diem_nhan <= now() - INTERVAL '7 days'
+             AND thoi_gian_den_diem_nhan > now() - INTERVAL '14 days'
            RETURNING id, ma_van_don, diem_nhan_id, da_thong_bao_nguoi_nhan""",
         tao_noi_dung,
     )
@@ -1007,6 +1061,8 @@ def thong_ke_hang_tai_diem(diem_id: str | None, tu_ngay: date, den_ngay: date) -
     - Chỉ số TỒN là ảnh chụp hiện tại (không phụ thuộc khoảng ngày).
     - Tiền trả trước tính ở văn phòng GỬI, tiền COD tính ở văn phòng NHẬN —
       đúng nơi tiền mặt thực sự vào két.
+    - Tiền hoàn khi hủy đơn trả trước tính ở văn phòng GỬI theo thời điểm hủy và được
+      TRỪ khỏi tổng doanh thu (thu và hoàn mỗi khoản ghi đúng ngày của nó).
     """
     conn = get_connection()
     try:
@@ -1021,7 +1077,8 @@ def thong_ke_hang_tai_diem(diem_id: str | None, tu_ngay: date, den_ngay: date) -
                         (d.ngay_tao AT TIME ZONE '{MUI_GIO_VN}')::date BETWEEN p.tu AND p.den AS tao_trong_ky,
                         (d.thoi_gian_den_diem_nhan AT TIME ZONE '{MUI_GIO_VN}')::date BETWEEN p.tu AND p.den AS den_trong_ky,
                         (d.ngay_giao AT TIME ZONE '{MUI_GIO_VN}')::date BETWEEN p.tu AND p.den AS giao_trong_ky,
-                        (d.thoi_gian_thu AT TIME ZONE '{MUI_GIO_VN}')::date BETWEEN p.tu AND p.den AS thu_trong_ky
+                        (d.thoi_gian_thu AT TIME ZONE '{MUI_GIO_VN}')::date BETWEEN p.tu AND p.den AS thu_trong_ky,
+                        (d.thoi_gian_huy AT TIME ZONE '{MUI_GIO_VN}')::date BETWEEN p.tu AND p.den AS huy_trong_ky
                     FROM don_hang d, p
                 )
                 SELECT
@@ -1031,6 +1088,8 @@ def thong_ke_hang_tai_diem(diem_id: str | None, tu_ngay: date, den_ngay: date) -
                     count(*) FILTER (WHERE la_gui AND trang_thai = 'da_len_xe') AS so_don_gui_dang_tren_xe,
                     COALESCE(sum(gia_cuoc) FILTER (WHERE la_gui AND phuong_thuc_thanh_toan = 'nguoi_gui_tra_truoc'
                                                    AND da_thu_tien AND thu_trong_ky), 0) AS tien_cuoc_gui_tra_truoc,
+                    count(*) FILTER (WHERE la_gui AND trang_thai = 'da_huy' AND huy_trong_ky) AS so_don_huy,
+                    COALESCE(sum(so_tien_hoan) FILTER (WHERE la_gui AND huy_trong_ky), 0) AS tien_da_hoan,
                     -- Hàng nhận về (văn phòng nhận)
                     count(*) FILTER (WHERE la_nhan AND den_trong_ky) AS tong_don_nhan_den,
                     count(*) FILTER (WHERE la_nhan AND trang_thai = 'da_len_xe') AS so_don_sap_den,
@@ -1047,7 +1106,9 @@ def thong_ke_hang_tai_diem(diem_id: str | None, tu_ngay: date, den_ngay: date) -
             )
             res = _thanh_dict(cur, cur.fetchone()) or {}
             res = {k: (int(v) if v is not None else 0) for k, v in res.items()}
-            res["tong_doanh_thu"] = res.get("tien_cuoc_gui_tra_truoc", 0) + res.get("tien_cod_da_thu", 0)
+            res["tong_doanh_thu"] = (
+                res.get("tien_cuoc_gui_tra_truoc", 0) + res.get("tien_cod_da_thu", 0) - res.get("tien_da_hoan", 0)
+            )
             res["tu_ngay"] = tu_ngay.isoformat()
             res["den_ngay"] = den_ngay.isoformat()
             return res
@@ -1085,39 +1146,53 @@ def thong_ke_hang_theo_ngay(diem_id: str | None, so_ngay: int) -> list[dict]:
 
 
 def doi_soat_tien_theo_nhan_vien(diem_id: str | None, tu_ngay: date, den_ngay: date) -> list[dict]:
-    """Tiền mặt từng nhân viên đã thu trong khoảng ngày: cước trả trước thu ở
-    văn phòng gửi, cước COD thu ở văn phòng nhận (theo nhan_vien_thu_id, thoi_gian_thu)."""
+    """Tiền mặt từng nhân viên đã thu / đã hoàn trong khoảng ngày: cước trả trước thu ở
+    văn phòng gửi, cước COD thu ở văn phòng nhận (theo nhan_vien_thu_id, thoi_gian_thu);
+    tiền hoàn khi hủy đơn chi ra ở văn phòng gửi (theo nhan_vien_huy_id, thoi_gian_huy).
+    Tổng = thu − hoàn, đúng số tiền mặt trong két của từng người."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
                 f"""
-                SELECT d.nhan_vien_thu_id AS nhan_vien_id,
+                WITH khoan AS (
+                    SELECT d.nhan_vien_thu_id AS nhan_vien_id, d.phuong_thuc_thanh_toan AS loai, d.gia_cuoc AS so_tien
+                    FROM don_hang d
+                    WHERE d.da_thu_tien
+                      AND d.nhan_vien_thu_id IS NOT NULL
+                      AND (d.thoi_gian_thu AT TIME ZONE '{MUI_GIO_VN}')::date BETWEEN %(tu)s AND %(den)s
+                      AND (
+                          %(vp)s::uuid IS NULL
+                          OR (d.phuong_thuc_thanh_toan = 'nguoi_gui_tra_truoc' AND d.diem_gui_id = %(vp)s::uuid)
+                          OR (d.phuong_thuc_thanh_toan = 'cod_nguoi_nhan_tra' AND d.diem_nhan_id = %(vp)s::uuid)
+                      )
+                    UNION ALL
+                    SELECT d.nhan_vien_huy_id, 'hoan', d.so_tien_hoan
+                    FROM don_hang d
+                    WHERE d.so_tien_hoan IS NOT NULL
+                      AND (d.thoi_gian_huy AT TIME ZONE '{MUI_GIO_VN}')::date BETWEEN %(tu)s AND %(den)s
+                      AND (%(vp)s::uuid IS NULL OR d.diem_gui_id = %(vp)s::uuid)
+                )
+                SELECT k.nhan_vien_id,
                        nd.ho_ten,
-                       count(*) FILTER (WHERE d.phuong_thuc_thanh_toan = 'nguoi_gui_tra_truoc') AS so_don_tra_truoc,
-                       COALESCE(sum(d.gia_cuoc) FILTER (WHERE d.phuong_thuc_thanh_toan = 'nguoi_gui_tra_truoc'), 0) AS tien_tra_truoc,
-                       count(*) FILTER (WHERE d.phuong_thuc_thanh_toan = 'cod_nguoi_nhan_tra') AS so_don_cod,
-                       COALESCE(sum(d.gia_cuoc) FILTER (WHERE d.phuong_thuc_thanh_toan = 'cod_nguoi_nhan_tra'), 0) AS tien_cod
-                FROM don_hang d
-                LEFT JOIN nguoi_dung nd ON nd.id = d.nhan_vien_thu_id
-                WHERE d.da_thu_tien
-                  AND d.nhan_vien_thu_id IS NOT NULL
-                  AND (d.thoi_gian_thu AT TIME ZONE '{MUI_GIO_VN}')::date BETWEEN %(tu)s AND %(den)s
-                  AND (
-                      %(vp)s::uuid IS NULL
-                      OR (d.phuong_thuc_thanh_toan = 'nguoi_gui_tra_truoc' AND d.diem_gui_id = %(vp)s::uuid)
-                      OR (d.phuong_thuc_thanh_toan = 'cod_nguoi_nhan_tra' AND d.diem_nhan_id = %(vp)s::uuid)
-                  )
-                GROUP BY d.nhan_vien_thu_id, nd.ho_ten
+                       count(*) FILTER (WHERE k.loai = 'nguoi_gui_tra_truoc') AS so_don_tra_truoc,
+                       COALESCE(sum(k.so_tien) FILTER (WHERE k.loai = 'nguoi_gui_tra_truoc'), 0) AS tien_tra_truoc,
+                       count(*) FILTER (WHERE k.loai = 'cod_nguoi_nhan_tra') AS so_don_cod,
+                       COALESCE(sum(k.so_tien) FILTER (WHERE k.loai = 'cod_nguoi_nhan_tra'), 0) AS tien_cod,
+                       count(*) FILTER (WHERE k.loai = 'hoan') AS so_don_hoan,
+                       COALESCE(sum(k.so_tien) FILTER (WHERE k.loai = 'hoan'), 0) AS tien_hoan
+                FROM khoan k
+                LEFT JOIN nguoi_dung nd ON nd.id = k.nhan_vien_id
+                GROUP BY k.nhan_vien_id, nd.ho_ten
                 ORDER BY nd.ho_ten
                 """,
                 {"vp": diem_id, "tu": tu_ngay, "den": den_ngay},
             )
             rows = _thanh_danh_sach_dict(cur, cur.fetchall())
             for r in rows:
-                for k in ("so_don_tra_truoc", "tien_tra_truoc", "so_don_cod", "tien_cod"):
+                for k in ("so_don_tra_truoc", "tien_tra_truoc", "so_don_cod", "tien_cod", "so_don_hoan", "tien_hoan"):
                     r[k] = int(r[k] or 0)
-                r["tong_tien"] = r["tien_tra_truoc"] + r["tien_cod"]
+                r["tong_tien"] = r["tien_tra_truoc"] + r["tien_cod"] - r["tien_hoan"]
                 r["nhan_vien_id"] = str(r["nhan_vien_id"])
             return rows
     finally:

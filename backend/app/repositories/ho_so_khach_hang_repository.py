@@ -26,3 +26,20 @@ def khoa_thanh_toan_tai_quay(nguoi_dung_id: str) -> None:
         conn.commit()
     finally:
         release_connection(conn)
+
+
+def lay_theo_id(nguoi_dung_id: str) -> dict:
+    """Hạn chế đặt vé của khách (mục 9). Khách chưa từng vi phạm thì chưa có dòng nào → mọi cờ là false."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT khoa_thanh_toan_tai_quay, bi_khoa, ly_do_khoa FROM ho_so_khach_hang WHERE nguoi_dung_id = %s",
+                (nguoi_dung_id,),
+            )
+            row = cur.fetchone()
+            if row is None:
+                return {"khoa_thanh_toan_tai_quay": False, "bi_khoa": False, "ly_do_khoa": None}
+            return {"khoa_thanh_toan_tai_quay": row[0], "bi_khoa": row[1], "ly_do_khoa": row[2]}
+    finally:
+        release_connection(conn)

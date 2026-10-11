@@ -134,6 +134,30 @@ def danh_sach_diem_cua_chuyen(chuyen_id: str, khu_vuc_id: str) -> list[dict]:
         release_connection(conn)
 
 
+def lo_trinh_cua_chuyen(chuyen_id: str) -> list[dict]:
+    """Toàn bộ điểm đón/trả của tuyến 1 chuyến theo THỨ TỰ CHẠY THẬT (đúng chiều chuyến), kèm số phút kể từ lúc khởi hành,
+    địa chỉ, khu vực, và giờ khởi hành/tên tuyến để dựng lộ trình. Rỗng nếu chuyến không tồn tại."""
+    sql = f"""
+        WITH cc AS (SELECT * FROM chuyen_xe c WHERE c.id = %(chuyen_id)s),
+        {_CTE_DIEM}
+        SELECT d.diem_id, d.ten, d.loai, d.khu_vuc_id, kv.ten AS ten_khu_vuc, dd.dia_chi, d.hl, d.phut,
+               cc.gio_khoi_hanh, tu.ten AS ten_tuyen
+        FROM diem d
+        JOIN cc ON cc.id = d.chuyen_id
+        JOIN tuyen tu ON tu.id = cc.tuyen_id
+        JOIN diem_don_tra dd ON dd.id = d.diem_id
+        JOIN khu_vuc kv ON kv.id = d.khu_vuc_id
+        ORDER BY d.hl
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, {"chuyen_id": chuyen_id})
+            return _thanh_list(cur, cur.fetchall())
+    finally:
+        release_connection(conn)
+
+
 def tim_doan_ve_dang_giu(chuyen_ids: list[str]) -> list[dict]:
     """Đoạn `[hl_don, hl_tra)` của các vé đang chiếm ghế (`giu_cho` còn hạn/không hạn, `da_thanh_toan`)
     — chỉ trả số ghế + đoạn, KHÔNG trả thông tin khách (ARCHITECTURE.md mục 9)."""

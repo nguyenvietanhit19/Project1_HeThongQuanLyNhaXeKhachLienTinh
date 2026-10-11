@@ -5,6 +5,8 @@ phải van_phong...) — việc đó thuộc services/dia_diem_service.py
 """
 
 from app.db import get_connection, release_connection
+from app.repositories import ma_repository
+from app.utils import ma_tu_sinh
 
 
 def _thanh_dict(cur, row):
@@ -26,9 +28,10 @@ def tao_khu_vuc(ten: str, tinh_thanh: str) -> dict:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
+            ma = ma_tu_sinh.ma_khu_vuc(ma_repository.so_tiep_theo(cur, "khu_vuc"))
             cur.execute(
-                "INSERT INTO khu_vuc (ten, tinh_thanh) VALUES (%s, %s) RETURNING id, ma, ten, tinh_thanh",
-                (ten, tinh_thanh),
+                "INSERT INTO khu_vuc (ma, ten, tinh_thanh) VALUES (%s, %s, %s) RETURNING id, ma, ten, tinh_thanh",
+                (ma, ten, tinh_thanh),
             )
             ket_qua = _thanh_dict(cur, cur.fetchone())
         conn.commit()
@@ -109,13 +112,14 @@ def tao_diem_don_tra(khu_vuc_id: str, ten: str, dia_chi: str, loai: str) -> dict
     conn = get_connection()
     try:
         with conn.cursor() as cur:
+            ma_khu_vuc, so_diem = ma_repository.cap_so_diem_trong_khu_vuc(cur, khu_vuc_id)
             cur.execute(
                 """
-                INSERT INTO diem_don_tra (khu_vuc_id, ten, dia_chi, loai)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO diem_don_tra (ma, khu_vuc_id, ten, dia_chi, loai)
+                VALUES (%s, %s, %s, %s, %s)
                 RETURNING id, ma, khu_vuc_id, ten, dia_chi, loai
                 """,
-                (khu_vuc_id, ten, dia_chi, loai),
+                (ma_tu_sinh.ma_diem_don_tra(ma_khu_vuc, so_diem), khu_vuc_id, ten, dia_chi, loai),
             )
             ket_qua = _thanh_dict(cur, cur.fetchone())
         conn.commit()
@@ -214,9 +218,10 @@ def tao_tuyen_voi_diem(ten: str, danh_sach_diem: list[dict]) -> dict:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
+            ma = ma_tu_sinh.ma_tuyen(ma_repository.so_tiep_theo(cur, "tuyen"))
             cur.execute(
-                "INSERT INTO tuyen (ten) VALUES (%s) RETURNING id, ma, ten, ngay_tao",
-                (ten,),
+                "INSERT INTO tuyen (ma, ten) VALUES (%s, %s) RETURNING id, ma, ten, ngay_tao",
+                (ma, ten),
             )
             ket_qua = _thanh_dict(cur, cur.fetchone())
             tuyen_id = ket_qua["id"]

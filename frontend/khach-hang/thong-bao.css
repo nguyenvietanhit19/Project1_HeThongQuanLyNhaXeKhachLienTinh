@@ -1,0 +1,176 @@
+/*
+ * Trang Thông báo (frontend/khach-hang/thong-bao.html). Tiền tố .tb-*; dùng lại .bk-tieu-de, .bk-tab, .bk-trong của booking.css
+ * (trang nạp cả booking.css trước file này).
+ */
+
+.tb-main {
+  flex: 1;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 36px 20px 64px;
+  box-sizing: border-box;
+}
+
+.tb-dau {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-bottom: 18px;
+}
+
+.tb-dau .bk-tieu-de {
+  margin: 0;
+}
+
+.tb-doc-het {
+  padding: 8px 4px;
+  border: 0;
+  background: none;
+  color: var(--color-secondary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tb-doc-het:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.tb-doc-het:disabled {
+  color: var(--color-text-muted);
+  opacity: 0.6;
+  cursor: default;
+}
+
+.tb-tab {
+  width: min(100%, 320px);
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.tb-ds {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tb-muc {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 18px 14px 16px;
+  border: 1px solid #E6E3EF;
+  border-radius: 18px;
+  background: #fff;
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.tb-muc:hover,
+.tb-muc:focus-visible {
+  border-color: #CFC8E4;
+  box-shadow: 0 8px 22px rgba(63, 43, 107, 0.1);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.tb-muc:focus-visible {
+  box-shadow: 0 0 0 3px rgba(91, 62, 150, 0.35);
+}
+
+/* chưa đọc: nền tím nhạt + chữ đậm + chấm cam */
+.tb-muc--chua-doc {
+  border-color: #D7CFEB;
+  background: #F8F6FD;
+}
+
+.tb-muc--chua-doc .tb-muc__noi-dung {
+  font-weight: 700;
+}
+
+.tb-muc__bieu-tuong {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #EFEBF8;
+  color: var(--color-secondary);
+}
+
+.tb-muc__bieu-tuong svg {
+  width: 20px;
+  height: 20px;
+}
+
+.tb-muc--ok .tb-muc__bieu-tuong {
+  background: rgba(34, 197, 94, 0.14);
+  color: #15803D;
+}
+
+.tb-muc--gio .tb-muc__bieu-tuong {
+  background: rgba(245, 166, 35, 0.2);
+  color: #B45F00;
+}
+
+.tb-muc--canh-bao .tb-muc__bieu-tuong {
+  background: rgba(239, 68, 68, 0.12);
+  color: #B91C1C;
+}
+
+.tb-muc__thong-tin {
+  min-width: 0;
+  flex: 1;
+}
+
+.tb-muc__noi-dung {
+  display: block;
+  font-size: 15px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.tb-muc time {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.tb-muc__cham {
+  flex: none;
+  align-self: center;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+
+@media (max-width: 700px) {
+  .tb-main {
+    padding: 22px 16px 40px;
+  }
+
+  .tb-tab {
+    width: 100%;
+  }
+
+  .tb-muc {
+    padding: 12px 14px;
+    gap: 12px;
+  }
+}

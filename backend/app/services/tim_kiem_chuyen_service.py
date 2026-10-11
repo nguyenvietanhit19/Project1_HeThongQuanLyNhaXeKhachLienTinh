@@ -9,7 +9,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from zoneinfo import ZoneInfo
 
 from app.repositories import tim_kiem_chuyen_repository as repo
-from app.utils.loi import GiaTriLoi
+from app.utils.loi import GiaTriLoi, KhongTimThay
 
 MUI_GIO_VN = ZoneInfo("Asia/Ho_Chi_Minh")
 
@@ -130,15 +130,41 @@ def tim_chuyen(khu_vuc_di_id: str, khu_vuc_den_id: str, ngay: datetime.date) -> 
     return the
 
 
-def so_do_ghe_chuyen(chuyen_id: str, khu_vuc_di_id: str, khu_vuc_den_id: str) -> dict:
-    """UC-04 bước 4: sơ đồ ghế của 1 chuyến theo đoạn rộng nhất khách có thể đi (mục 3.4 bước 3)."""
+def lay_chuyen_mo_ban(chuyen_id: str, khu_vuc_di_id: str, khu_vuc_den_id: str) -> tuple[dict, dict, set[str]]:
+    """1 chuyến còn mở bán cho đúng cặp khu vực: (dòng chuyến, {"gia"}, các ghế đang bị giữ trên đoạn rộng nhất).
+    Dùng chung cho xem sơ đồ ghế (UC-04) và giữ chỗ/đặt vé (UC-05) để 2 nơi luôn thấy cùng một sự thật."""
     _kiem_tra_cap_khu_vuc(khu_vuc_di_id, khu_vuc_den_id)
     ket_qua = repo.tim_chuyen(str(khu_vuc_di_id), str(khu_vuc_den_id), chuyen_id=str(chuyen_id))
     cac_the = _lap_the_chuyen(ket_qua, str(khu_vuc_di_id), str(khu_vuc_den_id))
     if not cac_the:
         raise GiaTriLoi("Chuyến không còn mở bán hoặc không đi qua cặp điểm này")
+    return cac_the[0]
 
-    r, gia_info, ghe_bi_giu = cac_the[0]
+
+def lo_trinh_chuyen(chuyen_id: str) -> dict:
+    """Lộ trình 1 chuyến: mọi điểm đón/trả theo thứ tự chạy thật + giờ dự kiến xe tới từng điểm (công khai, không cần đăng nhập)."""
+    diem = repo.lo_trinh_cua_chuyen(str(chuyen_id))
+    if not diem:
+        raise KhongTimThay("Không tìm thấy chuyến")
+    gio_khoi_hanh = diem[0]["gio_khoi_hanh"]
+    return {
+        "chuyen_id": chuyen_id,
+        "ten_tuyen": diem[0]["ten_tuyen"],
+        "gio_khoi_hanh": gio_khoi_hanh,
+        "tong_thoi_gian_phut": diem[-1]["phut"] - diem[0]["phut"],
+        "diem": [
+            {
+                "diem_id": d["diem_id"], "khu_vuc_id": d["khu_vuc_id"], "ten_khu_vuc": d["ten_khu_vuc"], "ten": d["ten"],
+                "dia_chi": d["dia_chi"], "loai": d["loai"], "gio_du_kien": gio_tai_diem(gio_khoi_hanh, d["phut"]),
+            }
+            for d in diem
+        ],
+    }
+
+
+def so_do_ghe_chuyen(chuyen_id: str, khu_vuc_di_id: str, khu_vuc_den_id: str) -> dict:
+    """UC-04 bước 4: sơ đồ ghế của 1 chuyến theo đoạn rộng nhất khách có thể đi (mục 3.4 bước 3)."""
+    r, gia_info, ghe_bi_giu = lay_chuyen_mo_ban(chuyen_id, khu_vuc_di_id, khu_vuc_den_id)
     so_do_ghe = [
         {**g, "trang_thai": "da_co_nguoi" if g["ma_ghe"] in ghe_bi_giu else "trong"}
         for g in r["so_do_ghe"]
