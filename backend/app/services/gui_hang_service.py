@@ -19,7 +19,7 @@ from app.repositories import nguoi_dung_repository as nguoi_dung_repo
 from app.repositories import thong_bao_repository as thong_bao_repo
 from app.schemas.don_hang_schema import TRUONG_LIEN_HE, SuaThongTinLienHeRequest, TaoDonHangRequest
 from app.services import chuyen_xe_service
-from app.services.chuyen_xe_service import diem_hien_tai, lay_chuyen_cua_phu_xe
+from app.services.chuyen_xe_service import XeDangDiChuyen, diem_hien_tai, kiem_tra_ben_da_mo, lay_chuyen_cua_phu_xe
 from app.services.websocket_manager import broadcast_sync
 from app.utils.loi import CamTruyCap, GiaTriLoi, KhongTimThay, LoiHeThong
 
@@ -339,7 +339,10 @@ def danh_sach_cho_chat(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
     """UC-26: Đơn đang chờ CÙNG TUYẾN, CÙNG CHIỀU với chuyến, và đang chờ
     đúng tại điểm xe đang đứng (mục 10.2) — đơn cũ hiện trước."""
     chuyen = _chuyen_cua_phu_xe_dang_hoat_dong(chuyen_id, nguoi_dung_id, TRANG_THAI_CHUYEN_DUOC_CHAT)
-    diem = diem_hien_tai(chuyen)
+    try:
+        diem = diem_hien_tai(chuyen)
+    except XeDangDiChuyen:
+        return []  # xe đang chạy giữa 2 điểm: không có hàng nào chất được lúc này
 
     don_hang_list = don_hang_repo.lay_danh_sach_cho_xep_xe(str(chuyen["tuyen_id"]), chuyen_id)
     return _gan_so_bao_cao([
@@ -359,7 +362,10 @@ def danh_sach_cho_chat(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
 def danh_sach_cho_do(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
     """UC-27: Đơn đang trên chính chuyến này, có điểm nhận đúng là điểm xe đang đứng."""
     chuyen = _chuyen_cua_phu_xe_dang_hoat_dong(chuyen_id, nguoi_dung_id, TRANG_THAI_CHUYEN_DUOC_DO)
-    diem = diem_hien_tai(chuyen)
+    try:
+        diem = diem_hien_tai(chuyen)
+    except XeDangDiChuyen:
+        return []
 
     don_hang_list = don_hang_repo.tim_don_can_do_tai_diem(chuyen_id, str(diem["diem_don_tra_id"]))
     return _gan_so_bao_cao([
@@ -380,6 +386,7 @@ def xac_nhan_chat_hang(don_hang_id: str, chuyen_id: str, nguoi_dung_id: str) -> 
     THAY_DOI_TUYEN_2_CHIEU.md), và đơn phải đang chờ đúng tại điểm xe đang đứng.
     """
     chuyen = _chuyen_cua_phu_xe_dang_hoat_dong(chuyen_id, nguoi_dung_id, TRANG_THAI_CHUYEN_DUOC_CHAT)
+    kiem_tra_ben_da_mo(chuyen)
 
     don = don_hang_repo.tim_theo_id(don_hang_id)
     if not don:
@@ -476,7 +483,10 @@ def do_tat_ca(chuyen_id: str, nguoi_dung_id: str) -> dict:
 def danh_sach_hoan_tac(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
     """Đơn vừa chất/dỡ tại ĐÚNG điểm xe đang đứng — phụ xe có thể hoàn tác nếu bấm nhầm."""
     chuyen = _chuyen_cua_phu_xe_dang_hoat_dong(chuyen_id, nguoi_dung_id, TRANG_THAI_CHUYEN_DUOC_DO)
-    diem = diem_hien_tai(chuyen)
+    try:
+        diem = diem_hien_tai(chuyen)
+    except XeDangDiChuyen:
+        return []
     return _gan_so_bao_cao([
         {
             "id": str(d["id"]),

@@ -29,7 +29,7 @@ def tim_theo_id(chuyen_id: str) -> dict | None:
                 """
                 SELECT id, ma, tuyen_id, chieu, xe_id, loai_xe_id, xe_thuc_te_id, gio_khoi_hanh,
                        trang_thai, dang_hoan, gio_xac_nhan_xuat_phat, gio_hoan_thanh,
-                       loai_su_co, ly_do_su_co, co_canh_bao_xung_dot_vi_tri
+                       loai_su_co, ly_do_su_co, co_canh_bao_xung_dot_vi_tri, dang_di_chuyen, gio_roi_diem
                 FROM chuyen_xe WHERE id = %s
                 """,
                 (chuyen_id,),
@@ -48,7 +48,7 @@ def tim_chuyen_cua_xe(xe_id: str) -> list[dict]:
             cur.execute(
                 """
                 SELECT cx.id, cx.tuyen_id, t.ten AS tuyen_ten, x.bien_so,
-                       cx.gio_khoi_hanh, cx.trang_thai, cx.dang_hoan
+                       cx.gio_khoi_hanh, cx.trang_thai, cx.dang_hoan, cx.dang_di_chuyen
                 FROM chuyen_xe cx
                 JOIN tuyen t ON t.id = cx.tuyen_id
                 JOIN xe x ON x.id = COALESCE(cx.xe_thuc_te_id, cx.xe_id)
@@ -101,7 +101,8 @@ def lay_diem_da_xac_nhan(chuyen_id: str) -> list[dict]:
 
 
 def cap_nhat_xac_nhan_xuat_phat(chuyen_id: str) -> bool:
-    """True nếu chuyển được sang dang_chay. Điều kiện trang_thai nằm ngay
+    """Xuất phát = rời điểm đầu tuyến: sang dang_chay và vào luôn pha đang di chuyển tới điểm kế tiếp.
+    True nếu chuyển được. Điều kiện trang_thai nằm ngay
     trong câu UPDATE để bấm đúp / 2 phụ xe cùng bấm không xác nhận 2 lần
     (đè lên gio_xac_nhan_xuat_phat đã ghi) hay xác nhận lên chuyến vừa đổi
     trạng thái giữa lúc kiểm tra và lúc ghi."""
@@ -111,7 +112,8 @@ def cap_nhat_xac_nhan_xuat_phat(chuyen_id: str) -> bool:
             cur.execute(
                 """
                 UPDATE chuyen_xe
-                SET trang_thai = 'dang_chay', gio_xac_nhan_xuat_phat = now()
+                SET trang_thai = 'dang_chay', gio_xac_nhan_xuat_phat = now(),
+                    dang_di_chuyen = true, gio_roi_diem = now()
                 WHERE id = %s AND trang_thai = 'chua_khoi_hanh' AND gio_khoi_hanh <= now()
                 """,
                 (chuyen_id,),
@@ -126,7 +128,9 @@ def cap_nhat_xac_nhan_xuat_phat(chuyen_id: str) -> bool:
 def them_lich_su_diem_dung(chuyen_id: str, diem_don_tra_id: str) -> bool:
     """True nếu ghi mới thành công, False nếu điểm này đã được ghi (bấm đúp /
     2 phụ xe cùng bấm — UNIQUE (chuyen_id, diem_don_tra_id)) — không để lỗi
-    ràng buộc lọt thành HTTP 500."""
+    ràng buộc lọt thành HTTP 500.
+
+    Xe tới điểm nên đồng thời kết thúc pha "đang di chuyển" (cùng giao dịch)."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -138,8 +142,31 @@ def them_lich_su_diem_dung(chuyen_id: str, diem_don_tra_id: str) -> bool:
                 (chuyen_id, diem_don_tra_id),
             )
             da_ghi = cur.rowcount > 0
+            if da_ghi:
+                cur.execute("UPDATE chuyen_xe SET dang_di_chuyen = false WHERE id = %s", (chuyen_id,))
         conn.commit()
         return da_ghi
+    finally:
+        release_connection(conn)
+
+
+def dat_dang_di_chuyen(chuyen_id: str, dang_di_chuyen: bool) -> bool:
+    """Bật/tắt pha "đang di chuyển". True nếu có đổi trạng thái; điều kiện nằm ngay trong UPDATE nên
+    bấm đúp / 2 phụ xe cùng bấm / chuyến vừa đổi trạng thái đều không ghi đè lên nhau."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE chuyen_xe
+                SET dang_di_chuyen = %s, gio_roi_diem = CASE WHEN %s THEN now() ELSE NULL END
+                WHERE id = %s AND trang_thai = 'dang_chay' AND dang_di_chuyen = %s
+                """,
+                (dang_di_chuyen, dang_di_chuyen, chuyen_id, not dang_di_chuyen),
+            )
+            da_doi = cur.rowcount > 0
+        conn.commit()
+        return da_doi
     finally:
         release_connection(conn)
 
@@ -149,7 +176,9 @@ def cap_nhat_hoan_thanh(chuyen_id: str) -> None:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE chuyen_xe SET trang_thai = 'hoan_thanh', gio_hoan_thanh = now() WHERE id = %s",
+                """UPDATE chuyen_xe SET trang_thai = 'hoan_thanh', gio_hoan_thanh = now(),
+                          dang_di_chuyen = false, gio_roi_diem = NULL
+                   WHERE id = %s""",
                 (chuyen_id,),
             )
         conn.commit()

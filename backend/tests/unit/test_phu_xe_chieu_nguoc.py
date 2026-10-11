@@ -21,8 +21,8 @@ def _diem_tuyen(tid=None):
     return [{"diem_don_tra_id": f"d{i}", "thu_tu": i, "ten": f"Diem {i}", "thoi_gian_du_kien_phut": (i - 1) * 60} for i in (1, 2, 3, 4)]
 
 
-def _chuyen(chieu, trang_thai="dang_chay"):
-    return {"id": "c1", "tuyen_id": "t1", "xe_id": "xe-1", "trang_thai": trang_thai, "chieu": chieu, "gio_khoi_hanh": GIO_KH}
+def _chuyen(chieu, trang_thai="dang_chay", dang_di_chuyen=False):
+    return {"id": "c1", "tuyen_id": "t1", "xe_id": "xe-1", "trang_thai": trang_thai, "chieu": chieu, "dang_di_chuyen": dang_di_chuyen, "gio_khoi_hanh": GIO_KH}
 
 
 @pytest.fixture(autouse=True)
@@ -33,6 +33,11 @@ def _tuyen(monkeypatch):
 @pytest.fixture(autouse=True)
 def _khong_cham_db_khi_dem_bao_cao(monkeypatch):
     monkeypatch.setattr(hang.don_hang_repo, "dem_bao_cao_theo_loai", lambda ids: {})
+
+
+@pytest.fixture(autouse=True)
+def _khong_cham_db_khi_danh_dau_khong_den(monkeypatch):
+    monkeypatch.setattr(svc.ve_repo, "tim_ve_chua_len_tai_diem", lambda cid, did: [])
 
 
 def _da_toi(monkeypatch, *ids):
@@ -96,7 +101,7 @@ def test_hanh_trinh_gio_du_kien_theo_chieu(monkeypatch):
 
 # ---------------------------------------------------------- xác nhận tới điểm
 def _chuan_bi_toi_diem(monkeypatch, chieu, da_toi_truoc=()):
-    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen(chieu))
+    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen(chieu, dang_di_chuyen=True))
     _da_toi(monkeypatch, *da_toi_truoc)
     ghi, hoan_thanh, hoi_khach = [], [], []
     monkeypatch.setattr(svc.chuyen_xe_repo, "them_lich_su_diem_dung", lambda cid, did: ghi.append(did) or True)

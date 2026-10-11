@@ -32,6 +32,8 @@ def tong_quan_chuyen(chuyen_id: str, nguoi_dung_id: str) -> dict:
             "gio_hoan_thanh": chuyen.get("gio_hoan_thanh"),
             "trang_thai": chuyen["trang_thai"],
             "dang_hoan": chuyen["dang_hoan"],
+            "dang_di_chuyen": bool(chuyen.get("dang_di_chuyen")),
+            "gio_roi_diem": chuyen.get("gio_roi_diem"),
             "loai_su_co": chuyen.get("loai_su_co"),
             "ly_do_su_co": chuyen.get("ly_do_su_co"),
         },

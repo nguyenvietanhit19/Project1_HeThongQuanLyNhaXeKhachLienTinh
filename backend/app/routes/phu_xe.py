@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends
 
 from app.middleware.auth_middleware import NguoiDungHienTai, yeu_cau_vai_tro
 from app.schemas.chuyen_xe_schema import (
+    BatDauDiChuyenRequest,
     BaoSuCoRequest,
     ChiTietDonHangResponse,
     ChuyenDaChayResponse,
@@ -29,7 +30,7 @@ from app.schemas.don_hang_schema import (
     DonHangHoanTacResponse,
     XacNhanChatHangRequest,
 )
-from app.services import chuyen_xe_service, gui_hang_service, phu_xe_chi_tiet_service, ve_service
+from app.services import chuyen_xe_service, di_chuyen_service, gui_hang_service, phu_xe_chi_tiet_service, ve_service
 
 router = APIRouter(prefix="/phu-xe", tags=["phu_xe"])
 
@@ -83,10 +84,10 @@ def diem_hien_tai(chuyen_id: str, nguoi_dung: _phu_xe):
     return chuyen_xe_service.khach_tai_diem_hien_tai(chuyen_id, nguoi_dung.id)
 
 
-@router.post("/chuyen/{chuyen_id}/xuat-phat")
-def xac_nhan_xuat_phat(chuyen_id: str, nguoi_dung: _phu_xe):
-    chuyen_xe_service.xac_nhan_xuat_phat(chuyen_id, nguoi_dung.id)
-    return {"thong_bao": "Đã xác nhận xuất phát"}
+@router.post("/chuyen/{chuyen_id}/bat-dau-di-chuyen")
+def bat_dau_di_chuyen(chuyen_id: str, du_lieu: BatDauDiChuyenRequest, nguoi_dung: _phu_xe):
+    kq = di_chuyen_service.bat_dau_di_chuyen(chuyen_id, du_lieu.bo_qua_canh_bao, nguoi_dung.id)
+    return {"thong_bao": f"Xe bắt đầu di chuyển tới {kq['diem_ke_tiep']}", **kq}
 
 
 @router.post("/chuyen/{chuyen_id}/toi-diem", response_model=XacNhanToiDiemResponse)

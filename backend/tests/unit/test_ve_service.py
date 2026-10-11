@@ -62,13 +62,14 @@ def test_xac_nhan_xuong_xe_thanh_cong(monkeypatch):
     monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: {"id": cid, "trang_thai": "dang_chay"})
     monkeypatch.setattr(svc.ve_repo, "tim_theo_id", lambda vid: _ve(trang_thai="da_len_xe", diem_tra_id="diem-b"))
     monkeypatch.setattr(svc.chuyen_xe_repo, "lay_diem_da_xac_nhan", lambda cid: [{"diem_don_tra_id": "diem-b"}])
+    monkeypatch.setattr(svc, "diem_hien_tai", lambda chuyen: {"diem_don_tra_id": "diem-b"})
     goi = {}
     monkeypatch.setattr(svc.ve_repo, "xac_nhan_xuong_xe", lambda vid: goi.setdefault("vid", vid))
     svc.xac_nhan_xuong_xe("chuyen-1", "ve-1", "nguoi-dung-1")
     assert goi["vid"] == "ve-1"
 
 
-@pytest.mark.parametrize("trang_thai", ["chua_khoi_hanh", "gap_su_co", "hoan_thanh", "da_huy"])
+@pytest.mark.parametrize("trang_thai", ["gap_su_co", "hoan_thanh", "da_huy"])
 def test_xac_nhan_len_xe_chuyen_khong_dang_chay(monkeypatch, trang_thai):
     monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: {"id": cid, "trang_thai": trang_thai})
     monkeypatch.setattr(svc.ve_repo, "tim_theo_id", lambda vid: _ve())
@@ -102,9 +103,17 @@ def _chuan_bi_xuong_xe(monkeypatch, trang_thai_chuyen="dang_chay", diem_da_toi=(
     monkeypatch.setattr(
         svc.chuyen_xe_repo, "lay_diem_da_xac_nhan", lambda cid: [{"diem_don_tra_id": d} for d in diem_da_toi]
     )
+    monkeypatch.setattr(svc, "diem_hien_tai", lambda chuyen: {"diem_don_tra_id": diem_da_toi[-1] if diem_da_toi else "diem-a"})
     goi = []
     monkeypatch.setattr(svc.ve_repo, "xac_nhan_xuong_xe", lambda vid: goi.append(vid))
     return goi
+
+
+def test_xac_nhan_xuong_xe_xe_da_roi_diem_tra(monkeypatch):
+    goi = _chuan_bi_xuong_xe(monkeypatch, diem_da_toi=("diem-a", "diem-b", "diem-d"), diem_tra="diem-b")
+    with pytest.raises(GiaTriLoi):
+        svc.xac_nhan_xuong_xe("chuyen-1", "ve-1", "nguoi-dung-1")
+    assert goi == []
 
 
 def test_xac_nhan_xuong_xe_xe_chua_toi_diem_tra(monkeypatch):
@@ -221,11 +230,39 @@ def test_len_xe_tat_ca_chi_lam_o_diem_xe_dang_dung(monkeypatch):
         svc.len_xe_tat_ca("chuyen-1", "c", "nd")  # xe không đứng ở c
 
 
-def test_xuong_xe_tat_ca_chi_khi_xe_da_toi_diem(monkeypatch):
+def test_xuong_xe_tat_ca_chi_khi_xe_dang_dung_o_diem(monkeypatch):
     _tuyen_abcd(monkeypatch, "b")
-    monkeypatch.setattr(svc.chuyen_xe_repo, "lay_diem_da_xac_nhan", lambda cid: [{"diem_don_tra_id": "b"}])
     monkeypatch.setattr(svc.ve_repo, "tim_ve_can_xuong_xe_tai_diem", lambda cid, did: [{"ve_id": "v1"}])
     monkeypatch.setattr(svc.ve_repo, "xac_nhan_xuong_xe_nhieu", lambda ids: len(ids))
     assert svc.xuong_xe_tat_ca("chuyen-1", "b", "nd") == 1
     with pytest.raises(GiaTriLoi):
-        svc.xuong_xe_tat_ca("chuyen-1", "d", "nd")
+        svc.xuong_xe_tat_ca("chuyen-1", "d", "nd")  # xe chưa tới d
+    _tuyen_abcd(monkeypatch, "d")
+    with pytest.raises(GiaTriLoi):
+        svc.xuong_xe_tat_ca("chuyen-1", "b", "nd")  # xe đã rời b
+
+
+def _chuyen_chua_khoi_hanh(phut_con_lai):
+    from datetime import datetime, timedelta, timezone
+    gio = datetime.now(timezone.utc) + timedelta(minutes=phut_con_lai)
+    return {"id": "chuyen-1", "trang_thai": "chua_khoi_hanh", "gio_khoi_hanh": gio}
+
+
+def test_len_xe_truoc_gio_mo_ben_bi_chan(monkeypatch):
+    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen_chua_khoi_hanh(40))
+    monkeypatch.setattr(svc.ve_repo, "tim_theo_id", lambda vid: _ve())
+    goi = []
+    monkeypatch.setattr(svc.ve_repo, "xac_nhan_len_xe", lambda vid: goi.append(vid))
+    with pytest.raises(GiaTriLoi, match="Bến chưa mở"):
+        svc.xac_nhan_len_xe("chuyen-1", "ve-1", "nd")
+    assert goi == []
+
+
+def test_len_xe_khi_ben_da_mo_truoc_gio_chay(monkeypatch):
+    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen_chua_khoi_hanh(10))
+    monkeypatch.setattr(svc.ve_repo, "tim_theo_id", lambda vid: _ve(diem_don_id="diem-a"))
+    monkeypatch.setattr(svc, "diem_hien_tai", lambda chuyen: {"diem_don_tra_id": "diem-a"})
+    goi = []
+    monkeypatch.setattr(svc.ve_repo, "xac_nhan_len_xe", lambda vid: goi.append(vid))
+    svc.xac_nhan_len_xe("chuyen-1", "ve-1", "nd")
+    assert goi == ["ve-1"]

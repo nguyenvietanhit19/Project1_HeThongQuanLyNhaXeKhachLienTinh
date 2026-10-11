@@ -16,9 +16,15 @@ NGUONG_SO_NGAY_VI_PHAM = 30
 
 def chay() -> None:
     for ve in ve_repo.tim_ve_qua_gio_len_xe(X_PHUT_TRUOC_GIO_DON):
-        ve_repo.danh_dau_khong_den(ve["id"])
-        if ve["khach_hang_id"]:
-            _kiem_tra_va_khoa_neu_vi_pham_qua_nguong(ve["khach_hang_id"])
+        danh_dau_khong_den(ve["id"], ve["khach_hang_id"])
+
+
+def danh_dau_khong_den(ve_id: str, khach_hang_id: str | None) -> None:
+    """Đánh dấu 1 vé "không đến" + tính vi phạm của khách. Dùng chung cho job và cho lúc phụ xe
+    rời điểm mà khách vẫn chưa lên xe (di_chuyen_service) — cùng 1 quy tắc phạt."""
+    ve_repo.danh_dau_khong_den(ve_id)
+    if khach_hang_id:
+        _kiem_tra_va_khoa_neu_vi_pham_qua_nguong(khach_hang_id)
 
 
 def _kiem_tra_va_khoa_neu_vi_pham_qua_nguong(khach_hang_id: str) -> None:

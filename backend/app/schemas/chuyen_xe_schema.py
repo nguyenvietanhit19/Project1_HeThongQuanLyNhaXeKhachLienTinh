@@ -23,6 +23,9 @@ class ChuyenPhuXeResponse(BaseModel):
     gio_khoi_hanh: datetime
     trang_thai: str
     dang_hoan: bool
+    dang_di_chuyen: bool = False  # xe đã rời điểm dừng, chưa tới điểm kế tiếp
+    gio_roi_diem: datetime | None = None
+    gio_mo_ben: datetime | None = None  # chuyến chưa khởi hành: từ giờ này mới cho khách lên xe / chất hàng
 
 
 class KhachTaiDiemResponse(BaseModel):
@@ -38,8 +41,15 @@ class DiemHienTaiResponse(BaseModel):
 
     diem_don_tra_id: str
     ten_diem: str
+    dang_di_chuyen: bool = False
     khach_can_len: list[KhachTaiDiemResponse]
     khach_can_xuong: list[KhachTaiDiemResponse]
+
+
+class BatDauDiChuyenRequest(BaseModel):
+    """`bo_qua_canh_bao` = phụ xe đã xem cảnh báo (còn khách chưa lên / hàng chưa chất) và vẫn muốn rời điểm."""
+
+    bo_qua_canh_bao: bool = False
 
 
 class XacNhanToiDiemRequest(BaseModel):
@@ -116,6 +126,8 @@ class ThongTinChuyenResponse(BaseModel):
     gio_hoan_thanh: datetime | None = None
     trang_thai: str
     dang_hoan: bool
+    dang_di_chuyen: bool = False
+    gio_roi_diem: datetime | None = None
     loai_su_co: str | None = None
     ly_do_su_co: str | None = None
 
