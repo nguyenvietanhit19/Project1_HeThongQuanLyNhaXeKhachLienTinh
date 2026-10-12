@@ -4082,8 +4082,8 @@ body.nhan-vien-shell {
   padding: 10px 16px 10px 10px;
   border-radius: 14px;
   border: 1.5px solid #ECECF0;
-  border-left: 5px solid var(--mau);
-  background: var(--color-bg-surface);
+  border-left: 7px solid var(--chieu, var(--mau));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--chieu, var(--mau)) 7%, white), var(--color-bg-surface) 38%);
   font-family: inherit;
   text-align: left;
   cursor: pointer;
@@ -4092,7 +4092,7 @@ body.nhan-vien-shell {
 
 .cyn-the:hover {
   transform: translateY(-1px);
-  border-color: var(--mau);
+  border-color: var(--chieu, var(--mau));
   box-shadow: var(--shadow-soft);
 }
 
@@ -4103,14 +4103,14 @@ body.nhan-vien-shell {
   gap: 2px;
   padding: 8px 6px;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--mau) 11%, white);
+  background: color-mix(in srgb, var(--chieu, var(--mau)) 14%, white);
 }
 
 .cyn-the__gio b {
   font-size: 20px;
   font-weight: 800;
   line-height: 1.1;
-  color: var(--mau);
+  color: var(--chieu, var(--mau));
 }
 
 .cyn-the__gio small {
@@ -4260,13 +4260,13 @@ body.nhan-vien-shell {
 }
 
 .lc-cap__chieu--xuoi {
-  background: rgba(91, 62, 150, 0.12);
-  color: var(--color-secondary-dark);
+  background: #2563EB;
+  color: #fff;
 }
 
 .lc-cap__chieu--nguoc {
-  background: rgba(15, 155, 142, 0.14);
-  color: #0B756B;
+  background: #DB2777;
+  color: #fff;
 }
 
 .lc-form-chieu {
@@ -4339,4 +4339,49 @@ body.nhan-vien-shell {
 .lc-xem-truoc--loi {
   background: rgba(220, 38, 38, 0.08);
   color: #B91C1C;
+}
+
+/* ===== Huy hiệu chiều chuyến: Xuôi = xanh dương, Ngược = hồng đậm (khác màu trạng thái) ===== */
+
+.chieu-huy-hieu {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 11px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.chieu-huy-hieu--xuoi {
+  background: #2563EB;
+}
+
+.chieu-huy-hieu--nguoc {
+  background: #DB2777;
+}
+
+/* Bộ lọc chiều ở trang Chuyến mang đúng màu của chiều đó */
+.dd-chip[data-chieu="xuoi"] {
+  border-color: #2563EB;
+  color: #2563EB;
+}
+
+.dd-chip[data-chieu="nguoc"] {
+  border-color: #DB2777;
+  color: #DB2777;
+}
+
+.dd-chip[data-chieu="xuoi"].is-active {
+  background: #2563EB;
+  border-color: #2563EB;
+  color: #fff;
+}
+
+.dd-chip[data-chieu="nguoc"].is-active {
+  background: #DB2777;
+  border-color: #DB2777;
+  color: #fff;
 }

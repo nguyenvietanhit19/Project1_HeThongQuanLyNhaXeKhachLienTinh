@@ -35,6 +35,12 @@ const ChuyenChiTiet = (() => {
     return "#9CA3AF"; // hoan_thanh, da_huy
   }
 
+  // Chiều chuyến: mỗi chiều 1 màu riêng, đậm và khác hẳn các màu trạng thái (xanh lá/cam/đỏ/xám) để nhìn là phân biệt được
+  const MAU_CHIEU = { xuoi: "#2563EB", nguoc: "#DB2777" };
+  const mauChieu = (chieu) => MAU_CHIEU[chieu] || MAU_CHIEU.xuoi;
+  const htmlChieu = (chieu) =>
+    `<span class="chieu-huy-hieu chieu-huy-hieu--${chieu === "xuoi" ? "xuoi" : "nguoc"}">${chieu === "xuoi" ? "Xuôi →" : "← Ngược"}</span>`;
+
   function suaXoaDuoc(chuyen) {
     return !chuyen.xe_id && chuyen.trang_thai === "chua_khoi_hanh" && chuyen.so_ve_dang_hoat_dong === 0;
   }
@@ -157,7 +163,7 @@ const ChuyenChiTiet = (() => {
           <strong>${esc(c.ten_tuyen)}</strong>
           <span class="nv-text-phu">${ngayGioHienThi}</span>
         </div>
-        <span class="pill pill--nho ${c.chieu === "xuoi" ? "pill--khu-vuc" : "pill--gia-thoi-han"}">${c.chieu === "xuoi" ? "Xuôi" : "Ngược"}</span>
+        ${htmlChieu(c.chieu)}
         <span class="pill pill--nho ${pillTrangThai(c.trang_thai)}">${NHAN_TRANG_THAI[c.trang_thai] || c.trang_thai}</span>
       </div>
 
@@ -259,5 +265,5 @@ const ChuyenChiTiet = (() => {
     }
   }
 
-  return { mo, NHAN_TRANG_THAI, pillTrangThai, mauTrangThai };
+  return { mo, NHAN_TRANG_THAI, pillTrangThai, mauTrangThai, mauChieu, htmlChieu };
 })();
