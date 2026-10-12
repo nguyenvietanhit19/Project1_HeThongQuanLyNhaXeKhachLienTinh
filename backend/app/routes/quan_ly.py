@@ -4,7 +4,7 @@ xe), UC-18 (lịch chạy định kỳ). Route chỉ mỏng: nhận request, g�
 trả response (ARCHITECTURE.md mục 2) — mọi route ở đây yêu cầu vai_tro = quan_ly.
 """
 
-from datetime import date
+from datetime import date, time
 from typing import Literal
 from uuid import UUID
 
@@ -24,12 +24,13 @@ from app.schemas.dia_diem_schema import (
 )
 from app.schemas.gia_ve_schema import GiaVeRequest, GiaVeResponse, SuaGiaVeRequest
 from app.schemas.lich_chay_schema import (
+    CapLichChayResponse,
     DoiApDungRequest,
-    LichChayRequest,
-    LichChayResponse,
     SinhChuyenRequest,
     SinhChuyenResponse,
     SuaLichChayRequest,
+    TaoCapLichChayRequest,
+    XemTruocCapResponse,
 )
 from app.schemas.xe_schema import (
     BienCheItem,
@@ -265,37 +266,44 @@ def go_bien_che(xe_nhan_su_id: UUID):
 # ---------------------------------------------------------
 # 8. Lịch chạy định kỳ (UC-18)
 # ---------------------------------------------------------
-@router.post("/lich-chay", response_model=LichChayResponse, status_code=201)
-def tao_lich_chay(du_lieu: LichChayRequest):
-    return lich_chay_service.tao_lich_chay(
-        str(du_lieu.tuyen_id), du_lieu.chieu, du_lieu.gio_khoi_hanh, str(du_lieu.loai_xe_id)
+@router.post("/lich-chay", response_model=CapLichChayResponse, status_code=201)
+def tao_cap_lich_chay(du_lieu: TaoCapLichChayRequest):
+    return lich_chay_service.tao_cap_lich_chay(
+        str(du_lieu.tuyen_id),
+        {"gio_khoi_hanh": du_lieu.gio_xuoi, "loai_xe_id": str(du_lieu.loai_xe_id)},
+        {"gio_khoi_hanh": du_lieu.gio_nguoc, "loai_xe_id": str(du_lieu.loai_xe_id)},
     )
 
 
-@router.put("/lich-chay/{lich_id}", response_model=LichChayResponse)
+@router.get("/lich-chay/xem-truoc", response_model=XemTruocCapResponse)
+def xem_truoc_cap_lich_chay(tuyen_id: UUID, gio_xuoi: time, gio_nguoc: time):
+    return lich_chay_service.xem_truoc_cap(str(tuyen_id), gio_xuoi, gio_nguoc)
+
+
+@router.put("/lich-chay/{lich_id}", response_model=CapLichChayResponse)
 def sua_lich_chay(lich_id: UUID, du_lieu: SuaLichChayRequest):
-    return lich_chay_service.sua_lich_chay(str(lich_id), du_lieu.chieu, du_lieu.gio_khoi_hanh, str(du_lieu.loai_xe_id))
+    return lich_chay_service.sua_lich_chay(str(lich_id), du_lieu.gio_khoi_hanh, str(du_lieu.loai_xe_id))
 
 
-@router.patch("/lich-chay/{lich_id}/ap-dung", response_model=LichChayResponse)
-def doi_ap_dung_lich_chay(lich_id: UUID, du_lieu: DoiApDungRequest):
-    return lich_chay_service.doi_ap_dung(str(lich_id), du_lieu.dang_ap_dung)
+@router.patch("/lich-chay/cap/{cap_id}/ap-dung", response_model=CapLichChayResponse)
+def doi_ap_dung_cap_lich_chay(cap_id: UUID, du_lieu: DoiApDungRequest):
+    return lich_chay_service.doi_ap_dung_cap(str(cap_id), du_lieu.dang_ap_dung)
 
 
-@router.get("/lich-chay", response_model=list[LichChayResponse])
-def danh_sach_lich_chay(tuyen_id: UUID | None = None):
-    return lich_chay_service.danh_sach_lich_chay(str(tuyen_id) if tuyen_id else None)
+@router.get("/lich-chay", response_model=list[CapLichChayResponse])
+def danh_sach_cap_lich_chay(tuyen_id: UUID | None = None):
+    return lich_chay_service.danh_sach_cap(str(tuyen_id) if tuyen_id else None)
 
 
-@router.delete("/lich-chay/{lich_id}")
-def xoa_lich_chay(lich_id: UUID):
-    lich_chay_service.xoa_lich_chay(str(lich_id))
-    return {"thong_bao": "Xóa lịch chạy thành công"}
+@router.delete("/lich-chay/cap/{cap_id}")
+def xoa_cap_lich_chay(cap_id: UUID):
+    lich_chay_service.xoa_cap(str(cap_id))
+    return {"thong_bao": "Xóa cặp lịch chạy thành công"}
 
 
-@router.post("/lich-chay/{lich_id}/sinh-chuyen", response_model=SinhChuyenResponse)
-def sinh_chuyen(lich_id: UUID, du_lieu: SinhChuyenRequest):
-    return lich_chay_service.sinh_chuyen_theo_khoang_ngay(str(lich_id), du_lieu.tu_ngay, du_lieu.den_ngay)
+@router.post("/lich-chay/sinh-chuyen", response_model=SinhChuyenResponse)
+def sinh_chuyen(du_lieu: SinhChuyenRequest):
+    return lich_chay_service.sinh_chuyen_cho_cac_cap([str(c) for c in du_lieu.cap_ids], du_lieu.tu_ngay, du_lieu.den_ngay)
 
 
 # ---------------------------------------------------------

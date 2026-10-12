@@ -86,7 +86,7 @@ project-root/
 │   │   │   ├── vnpay_service.py               # ký/kiểm tra chữ ký HMAC-SHA512, tạo đường dẫn thanh toán — dùng chung giả lập và VNPay thật
 │   │   │   ├── cong_thanh_toan_gia_service.py # cổng thanh toán GIẢ LẬP để demo (VNPAY_CHE_DO=gia_lap), đóng vai VNPay
 │   │   │   ├── hoan_tien_service.py            # tạo/quản lý hàng đợi lich_su_hoan_tien; gọi API hoàn tiền VNPay khi có mã giao dịch (mục 7 NGHIEP_VU.md)
-│   │   │   ├── lich_chay_service.py            # CRUD lich_chay_dinh_ky (UC-18, khóa sửa khi đã sinh chuyến) + sinh chuyen_xe thủ công theo khoảng ngày do quan_ly chọn (UC-47, mục 3.5 NGHIEP_VU.md) — chỉ route quan_ly.py gọi, không còn job
+│   │   │   ├── lich_chay_service.py            # lịch chạy theo cặp đi+về (UC-18: tạo/ngừng/xóa cả cặp, khóa sửa khi đã sinh chuyến, tính ngày lệch chiều về) + sinh chuyen_xe thủ công cho các cặp trong khoảng ngày do quan_ly chọn, 1 giao dịch (UC-47, mục 3.5 NGHIEP_VU.md) — chỉ route quan_ly.py gọi, không còn job
 │   │   │   ├── chuyen_service.py               # quan_ly xem/lọc/sửa giờ/xóa chuyến còn "sạch" (UC-48) — khác chuyen_xe_service.py (vòng đời/gán xe của điều độ viên)
 │   │   │   ├── chuyen_xe_service.py           # vòng đời chuyến, gán xe (UC-44), đổi xe, sự cố (mục 3.3, 4)
 │   │   │   ├── xe_nhan_su_service.py          # biên chế cố định/tạm thời (mục 3.2)

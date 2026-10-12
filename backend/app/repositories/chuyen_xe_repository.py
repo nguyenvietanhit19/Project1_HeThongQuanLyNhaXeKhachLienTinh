@@ -215,43 +215,38 @@ def gan_co_xung_dot_vi_tri_cho_chuyen_tuong_lai(xe_id: str, chuyen_id_hien_tai: 
 # ---------------------------------------------------------
 # Sinh chuyến theo khoảng ngày (UC-18)
 # ---------------------------------------------------------
-def da_co_chuyen_theo_ngay(lich_chay_dinh_ky_id: str, ngay) -> bool:
-    """True nếu lịch này đã có chuyến sinh cho đúng ngày `ngay` (date, giờ địa
-    phương) — chống sinh trùng khi quản lý bấm "Sinh chuyến" nhiều lần cho các
-    khoảng ngày chồng nhau."""
+def sinh_nhieu_chuyen_tu_lich(ke_hoach: list[dict]) -> list[dict]:
+    """Sinh chuyến cho nhiều (lịch, ngày) trong 1 giao dịch — lỗi ở đâu thì hủy hết, không để cặp bị sinh dở.
+    ke_hoach: [{lich: dict lịch chạy, ngay: date, gio_khoi_hanh: datetime có múi giờ}]. Ngày của lịch đã có chuyến
+    thì bỏ qua. Trả về cùng danh sách, mỗi phần tử thêm khóa `da_sinh` (bool)."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT 1 FROM chuyen_xe
-                WHERE lich_chay_dinh_ky_id = %s AND (gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = %s
-                LIMIT 1
-                """,
-                (lich_chay_dinh_ky_id, ngay),
-            )
-            return cur.fetchone() is not None
-    finally:
-        release_connection(conn)
-
-
-def tao_chuyen_tu_lich_dinh_ky(tuyen_id: str, chieu: str, loai_xe_id: str, lich_chay_dinh_ky_id: str, gio_khoi_hanh) -> str:
-    """xe_id để trống — điều độ viên gán sau qua UC-44 (mục 3.5 NGHIEP_VU.md)."""
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            ma_tuyen, ma_loai_xe = ma_repository.lay_ma_tuyen_va_loai_xe(cur, tuyen_id, loai_xe_id)
-            cur.execute(
-                """
-                INSERT INTO chuyen_xe (ma, tuyen_id, chieu, loai_xe_id, lich_chay_dinh_ky_id, gio_khoi_hanh)
-                VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
-                """,
-                (ma_tu_sinh.ma_chuyen(ma_tuyen, ma_loai_xe, gio_khoi_hanh, chieu), tuyen_id, chieu, loai_xe_id,
-                 lich_chay_dinh_ky_id, gio_khoi_hanh),
-            )
-            chuyen_id = cur.fetchone()[0]
+            for muc in ke_hoach:
+                lich = muc["lich"]
+                cur.execute(
+                    """
+                    SELECT 1 FROM chuyen_xe
+                    WHERE lich_chay_dinh_ky_id = %s AND (gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = %s
+                    LIMIT 1
+                    """,
+                    (str(lich["id"]), muc["ngay"]),
+                )
+                if cur.fetchone() is not None:
+                    muc["da_sinh"] = False
+                    continue
+                ma_tuyen, ma_loai_xe = ma_repository.lay_ma_tuyen_va_loai_xe(cur, str(lich["tuyen_id"]), str(lich["loai_xe_id"]))
+                cur.execute(
+                    """
+                    INSERT INTO chuyen_xe (ma, tuyen_id, chieu, loai_xe_id, lich_chay_dinh_ky_id, gio_khoi_hanh)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    """,
+                    (ma_tu_sinh.ma_chuyen(ma_tuyen, ma_loai_xe, muc["gio_khoi_hanh"], lich["chieu"]), str(lich["tuyen_id"]),
+                     lich["chieu"], str(lich["loai_xe_id"]), str(lich["id"]), muc["gio_khoi_hanh"]),
+                )
+                muc["da_sinh"] = True
         conn.commit()
-        return chuyen_id
+        return ke_hoach
     except Exception:
         conn.rollback()
         raise

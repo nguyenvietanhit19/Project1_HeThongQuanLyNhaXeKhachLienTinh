@@ -4195,3 +4195,148 @@ body.nhan-vien-shell {
     text-align: left;
   }
 }
+
+/* ===== Lịch chạy theo cặp (chiều đi + chiều về) ===== */
+
+.lc-ct__nut {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.lc-ct__nut .nv-btn-them {
+  height: 42px;
+  padding: 0 20px;
+  font-size: 14px;
+  width: auto;
+}
+
+.lc-cap-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.lc-cap {
+  padding: 10px 12px 12px;
+  border-radius: 14px;
+  background: #FAF9FD;
+  border: 1.5px solid #E6E1F2;
+}
+
+.lc-cap--tat {
+  background: #F7F7F9;
+  border-color: #ECECF0;
+}
+
+.lc-cap__dau {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.lc-cap__phai {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.lc-cap__phai button {
+  padding: 5px 12px;
+  font-size: 12px;
+}
+
+.lc-cap__chieu {
+  flex-shrink: 0;
+  width: 34px;
+  padding: 4px 0;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.lc-cap__chieu--xuoi {
+  background: rgba(91, 62, 150, 0.12);
+  color: var(--color-secondary-dark);
+}
+
+.lc-cap__chieu--nguoc {
+  background: rgba(15, 155, 142, 0.14);
+  color: #0B756B;
+}
+
+.lc-form-chieu {
+  margin-top: 14px;
+  padding: 10px 12px 12px;
+  border-radius: 12px;
+  background: #FAF9FD;
+  border: 1.5px solid #E6E1F2;
+}
+
+.lc-form-chieu[hidden] {
+  display: none;
+}
+
+.lc-form-chieu__tieu {
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-secondary-dark);
+}
+
+.lc-sc-ds {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0 14px;
+}
+
+.lc-sc-cap {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1.5px solid #E6E1F2;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.lc-sc-cap--tat {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.lc-sc-cap em {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--color-secondary-dark);
+}
+
+.lc-gio-den {
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  padding: 0 14px;
+  border-radius: 12px;
+  background: #F1EEF8;
+  font-weight: 700;
+  color: var(--color-secondary-dark);
+}
+
+.lc-gio-den em {
+  margin-left: 6px;
+  font-style: normal;
+  font-size: 12px;
+  color: #0B756B;
+}
+
+.lc-xem-truoc--loi {
+  background: rgba(220, 38, 38, 0.08);
+  color: #B91C1C;
+}
