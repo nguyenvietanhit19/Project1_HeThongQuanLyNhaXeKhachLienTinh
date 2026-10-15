@@ -17,15 +17,24 @@ NGUONG_SO_NGAY_VI_PHAM = 30
 
 def chay() -> None:
     for ve in ve_repo.tim_ve_qua_gio_len_xe(X_PHUT_TRUOC_GIO_DON):
-        danh_dau_khong_den(ve["id"], ve["khach_hang_id"])
+        so_lan = danh_dau_khong_den(ve["id"], ve["khach_hang_id"])
+        if ve.get("khach_hang_id") and so_lan is not None and ve.get("ma_ve") and ve.get("so_ghe"):
+            thong_bao.gui(
+                ve["khach_hang_id"],
+                thong_bao.nd_khong_den(
+                    ve["ma_ve"], ve["so_ghe"], so_lan, NGUONG_SO_LAN_VI_PHAM, NGUONG_SO_NGAY_VI_PHAM
+                ),
+                ve["id"],
+            )
 
 
-def danh_dau_khong_den(ve_id: str, khach_hang_id: str | None) -> None:
+def danh_dau_khong_den(ve_id: str, khach_hang_id: str | None) -> int | None:
     """Đánh dấu 1 vé "không đến" + tính vi phạm của khách. Dùng chung cho job và cho lúc phụ xe
     rời điểm mà khách vẫn chưa lên xe (di_chuyen_service) — cùng 1 quy tắc phạt."""
     ve_repo.danh_dau_khong_den(ve_id)
     if khach_hang_id:
-        _kiem_tra_va_khoa_neu_vi_pham_qua_nguong(khach_hang_id)
+        return _kiem_tra_va_khoa_neu_vi_pham_qua_nguong(khach_hang_id)
+    return None
 
 
 def _kiem_tra_va_khoa_neu_vi_pham_qua_nguong(khach_hang_id: str) -> int:

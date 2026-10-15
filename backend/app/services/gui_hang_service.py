@@ -360,7 +360,13 @@ def _chuyen_cua_phu_xe_dang_hoat_dong(chuyen_id: str, nguoi_dung_id: str, trang_
 
 def _gan_so_bao_cao(danh_sach: list[dict]) -> list[dict]:
     """Gắn so_bao_hu_hong / so_bao_that_lac vào từng đơn để giao diện hiện nhãn cảnh báo."""
-    dem = don_hang_repo.dem_bao_cao_theo_loai([d["id"] for d in danh_sach])
+    if not danh_sach:
+        return danh_sach
+    try:
+        dem = don_hang_repo.dem_bao_cao_theo_loai([d["id"] for d in danh_sach])
+    except Exception:  # noqa: BLE001 - dữ liệu cảnh báo là thông tin bổ sung
+        logger.exception("Không tải được số báo cáo sự cố cho danh sách hàng")
+        dem = {}
     for d in danh_sach:
         so = dem.get(d["id"], {})
         d["so_bao_hu_hong"] = so.get("hu_hong", 0)
