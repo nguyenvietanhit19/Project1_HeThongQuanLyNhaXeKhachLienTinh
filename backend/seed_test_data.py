@@ -109,6 +109,64 @@ def seed():
                     da_xac_nhan = true;
             """, (mat_khau_123456,))
 
+            print("7c. Seed tài khoản phụ xe để test giao diện mobile...")
+            cur.execute("""
+                INSERT INTO nguoi_dung (
+                    id, email, mat_khau, ho_ten, so_dien_thoai, vai_tro,
+                    dang_hoat_dong, da_xac_nhan
+                ) VALUES (
+                    '88888888-0000-0000-0000-000000000001',
+                    'phuxe@nhaxekhach.com',
+                    %s,
+                    'Nguyễn Văn Phụ Xe',
+                    '0923456789',
+                    'phu_xe',
+                    true,
+                    true
+                )
+                ON CONFLICT (email) DO UPDATE SET
+                    mat_khau = EXCLUDED.mat_khau,
+                    vai_tro = EXCLUDED.vai_tro,
+                    dang_hoat_dong = true,
+                    da_xac_nhan = true;
+
+                INSERT INTO nhan_su_van_hanh (
+                    id, ho_ten, so_dien_thoai, chuc_danh, nguoi_dung_id,
+                    trang_thai
+                ) VALUES (
+                    '99999999-0000-0000-0000-000000000001',
+                    'Nguyễn Văn Phụ Xe',
+                    '0923456789',
+                    'phu_xe',
+                    '88888888-0000-0000-0000-000000000001',
+                    'dang_lam'
+                )
+                ON CONFLICT (id) DO UPDATE SET
+                    ho_ten = EXCLUDED.ho_ten,
+                    so_dien_thoai = EXCLUDED.so_dien_thoai,
+                    chuc_danh = EXCLUDED.chuc_danh,
+                    nguoi_dung_id = EXCLUDED.nguoi_dung_id,
+                    trang_thai = 'dang_lam',
+                    ngay_nghi_viec = NULL,
+                    ly_do_nghi_viec = NULL;
+
+                INSERT INTO xe_nhan_su (
+                    id, xe_id, nhan_su_van_hanh_id, loai, trang_thai
+                ) VALUES (
+                    'aaaaaaaa-0000-0000-0000-000000000001',
+                    '55555555-0000-0000-0000-000000000001',
+                    '99999999-0000-0000-0000-000000000001',
+                    'co_dinh',
+                    'dang_hoat_dong'
+                )
+                ON CONFLICT (id) DO UPDATE SET
+                    xe_id = EXCLUDED.xe_id,
+                    nhan_su_van_hanh_id = EXCLUDED.nhan_su_van_hanh_id,
+                    loai = EXCLUDED.loai,
+                    trang_thai = 'dang_hoat_dong',
+                    ngay_ket_thuc = NULL;
+            """, (mat_khau_123456,))
+
             print("8. Gán ho_so_can_bo_diem cho cán bộ...")
             cur.execute("""
                 INSERT INTO ho_so_can_bo_diem (nguoi_dung_id, van_phong_id)

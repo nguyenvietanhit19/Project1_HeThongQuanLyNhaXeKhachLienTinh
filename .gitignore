@@ -39,3 +39,6 @@ Thumbs.db
 
 # Báo cáo + ảnh sơ đồ xuất ra (sinh lại được từ UML_DIAGRAMS.md)
 bao-cao/
+
+# Bộ nhớ cục bộ của Codex/agent — không commit hoặc push lên nhánh
+PROJECT_MEMORY.md

@@ -47,12 +47,29 @@ FROM (SELECT id, row_number() OVER (ORDER BY ten, id) AS stt FROM loai_xe) t
 WHERE x.id = t.id;
 SELECT setval('seq_ma_loai_xe', GREATEST((SELECT count(*) FROM loai_xe), 1), (SELECT count(*) FROM loai_xe) > 0);
 
+-- Dữ liệu cũ có thể có 2 chuyến trùng tuyến/loại xe/giờ/chiều (ví dụ seed
+-- hoặc lịch được tạo lặp). Phần tiền tố nghiệp vụ vẫn giữ nguyên; chỉ thêm
+-- hậu tố theo thứ tự ổn định cho các mã trùng để UNIQUE không làm rollback
+-- toàn bộ migration và khiến các bảng khác không được bổ sung cột `ma`.
+WITH ma_goc AS (
+    SELECT c.id,
+           t.ma || '-' || l.ma || '-'
+             || to_char(c.gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYMMDD-HH24MI')
+             || '-' || CASE c.chieu WHEN 'xuoi' THEN 'DI' ELSE 'VE' END AS gia_tri,
+           c.gio_khoi_hanh
+    FROM chuyen_xe c
+    JOIN tuyen t ON t.id = c.tuyen_id
+    JOIN loai_xe l ON l.id = c.loai_xe_id
+), danh_so AS (
+    SELECT id, gia_tri,
+           row_number() OVER (PARTITION BY gia_tri ORDER BY gio_khoi_hanh, id) AS stt,
+           count(*) OVER (PARTITION BY gia_tri) AS so_luong
+    FROM ma_goc
+)
 UPDATE chuyen_xe c
-SET ma = t.ma || '-' || l.ma || '-'
-      || to_char(c.gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYMMDD-HH24MI')
-      || '-' || CASE c.chieu WHEN 'xuoi' THEN 'DI' ELSE 'VE' END
-FROM tuyen t, loai_xe l
-WHERE t.id = c.tuyen_id AND l.id = c.loai_xe_id;
+SET ma = d.gia_tri || CASE WHEN d.so_luong > 1 THEN '-' || lpad(d.stt::text, 2, '0') ELSE '' END
+FROM danh_so d
+WHERE c.id = d.id;
 
 -- 3. Ràng buộc ------------------------------------------------------------
 ALTER TABLE khu_vuc      ALTER COLUMN ma SET NOT NULL;

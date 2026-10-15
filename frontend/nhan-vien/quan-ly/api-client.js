@@ -6,9 +6,13 @@
 
 // Tự nhận diện môi trường qua hostname — không cần build step/bundler
 // (ARCHITECTURE.md mục 1: frontend là HTML/JS tĩnh, không qua build).
-const API_BASE_URL = ["localhost", "127.0.0.1"].includes(location.hostname)
-  ? "http://localhost:8000"
-  : "https://nha-xe-khach-backend.onrender.com";
+// Phải dùng cùng backend với trang đăng nhập. Khi mở frontend bằng địa chỉ
+// IP LAN, đăng nhập đã gọi backend local theo IP đó; nếu ở đây rơi sang
+// Render thì token/database khác nhau và trang quản lý sẽ báo lỗi hệ thống
+// hoặc không có dữ liệu, trong khi các vai trò khác vẫn hoạt động.
+const API_BASE_URL = (['localhost', '127.0.0.1'].includes(location.hostname) || /^\d+\.\d+\.\d+\.\d+$/.test(location.hostname))
+  ? `http://${location.hostname}:8000`
+  : 'https://nha-xe-khach-backend.onrender.com';
 
 async function apiFetch(duong_dan, tuy_chon = {}) {
   const token = localStorage.getItem("token");
