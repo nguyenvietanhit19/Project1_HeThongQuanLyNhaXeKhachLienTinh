@@ -689,8 +689,8 @@ if (Có chọn ít nhất một cặp,\ncặp nào cũng còn đang áp dụng?)
   :Báo chọn lại hoặc bật lại cặp đã ngừng;
   stop
 endif
-if (Tuyến đã có giá vé cho mọi cặp khu vực\ntrên hành trình chưa?) then (chưa đủ)
-  :Báo các cặp còn thiếu giá, không tạo chuyến nào\n(vẫn lập lịch được, chỉ chưa sinh chuyến);
+if (Khoảng ngày chọn nằm trong các bộ giá vé của tuyến?\n(chuyến đi tối đa = ngày cuối bộ giá mới nhất\ntrừ số ngày lệch của chuyến về)) then (vượt ngoài)
+  :Báo ngày muộn nhất sinh được, không tạo chuyến nào\n(vẫn lập lịch được, chỉ chưa sinh chuyến);
   stop
 endif
 :Chọn ngày bắt đầu và ngày kết thúc chung;
@@ -729,7 +729,7 @@ stop
 @startuml AD_UC48_QuanLyChuyen
 start
 :Xem danh sách chuyến, lọc theo tuyến, chiều,\nkhoảng ngày, tình trạng hoặc tìm theo mã chuyến;
-:Chọn một chuyến để xem chi tiết\n(mã chuyến, loại xe, xe, số vé, lộ trình và giờ đến từng điểm);
+:Chọn một chuyến để xem chi tiết\n(mã chuyến, loại xe, xe, số vé, giá vé từng chặng,\nlộ trình và giờ đến từng điểm);
 if (Chuyến còn "sạch"?\n(chưa gán xe, chưa chạy, chưa có vé)) then (không)
   :Hiện rõ lý do không sửa hay xóa được\n(đã gán xe / đã chạy / đã có khách đặt);
   stop
@@ -1214,28 +1214,37 @@ stop
 ```plantuml
 @startuml AD_UC33_DatGiaVe
 start
-:Chọn một tuyến;
-:Chọn cặp điểm đi và điểm đến muốn bán vé;
-:Nhập giá gốc (hệ thống hiện số tiền có dấu chấm);
-:Chọn ngày bắt đầu áp dụng (mặc định ngày mai)\nvà ngày kết thúc nếu là giá theo mùa;
-:Hệ thống xem trước: giá mới, thời gian áp dụng,\ngiá cũ sẽ kết thúc ngày nào, cảnh báo giá bất thường;
-if (Có cảnh báo giá bất thường?\n(quá thấp/quá cao, lệch nhiều so với giá cũ,\nchặng ngắn đắt hơn chặng dài)) then (có)
+:Chọn một tuyến và bấm "Tạo bộ giá mới";
+if (Tuyến đã có bộ giá nào chưa?) then (chưa)
+  :Chọn ngày bắt đầu (mặc định ngày mai);
+else (rồi)
+  :Ngày bắt đầu tự là ngày liền sau\nngày kết thúc của bộ giá cuối cùng;
+endif
+:Chọn ngày kết thúc (bắt buộc);
+:Nhập giá cho từng chặng của tuyến\n(điền sẵn từ bộ đang áp dụng, hiện số tiền có dấu chấm);
+if (Bộ có đủ giá cho mọi chặng?) then (thiếu)
+  :Báo chặng còn thiếu;
+  stop
+endif
+:Hệ thống xem trước: nối tiếp bộ nào,\nchặng nào đổi giá, cảnh báo giá bất thường;
+if (Có cảnh báo giá bất thường?\n(quá thấp/quá cao, lệch nhiều so với bộ trước,\nchặng ngắn đắt hơn chặng dài)) then (có)
   if (Quản lý kiểm tra lại, vẫn muốn lưu?) then (không)
     :Quay lại sửa giá;
     stop
   endif
 endif
-:Lưu lại — giá cũ của cặp điểm này (nếu có)\ntự kết thúc ở ngày liền trước giá mới;
+:Lưu bộ mới nối liền ngay sau bộ cuối cùng;
 note right
   Vé đã đặt luôn giữ giá lúc khách giữ ghế
   nên không bị ảnh hưởng. Chuyến chưa ai đặt
-  sẽ nhận giá mới từ ngày áp dụng.
+  nằm trong khoảng bộ mới sẽ dùng giá mới.
+  Sinh chuyến chỉ được trong khoảng các bộ giá.
 end note
-if (Sau này muốn đổi giá đã lưu?) then (đổi giá)
-  if (Đã có chuyến được sinh ra\ntrong khoảng ngày áp dụng của giá này?) then (đã có)
-    :Không sửa số tiền, không xóa (kể cả chưa có khách đặt) —\nchỉ đặt ngày kết thúc rồi thêm giá mới;
+if (Sau này muốn sửa hoặc xóa bộ giá?) then (sửa/xóa)
+  if (Đã có chuyến được sinh ra\ntrong khoảng ngày của bộ này?) then (đã có)
+    :Không sửa giá, không xóa (kể cả chưa có khách đặt);\nriêng bộ cuối vẫn kéo dài hoặc rút ngắn\nngày kết thúc được (gia hạn);
   else (chưa)
-    :Cho sửa hoặc xóa tự do;
+    :Sửa giá tự do; đổi ngày kết thúc và xóa\nchỉ với bộ cuối cùng\n(bộ ở giữa đổi ngày sẽ làm hở/chồng bộ bên cạnh);
   endif
 endif
 stop

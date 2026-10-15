@@ -27,24 +27,19 @@ def chon_gia(
 ) -> int | None:
     """Giá vé bán ra của 1 chuyến cho cặp khu vực khách tìm — `None` nếu chưa cấu hình giá.
 
-    `gia_ve` chỉ lưu 1 dòng cho mỗi cặp theo thứ tự CHIỀU XUÔI, dùng chung 2 chiều (THAY_DOI_TUYEN_2_CHIEU.md
-    mục 3) → chuyến ngược phải đảo cặp đi/đến trước khi tra. Có giá theo mùa đang áp dụng đúng ngày đi thì
-    dùng giá mùa, không thì dùng giá thường (không giới hạn thời gian). Giá bán = giá gốc × hệ số loại xe.
+    `dong_gia`: mỗi phần tử là 1 bộ giá của tuyến (khoảng ngày ap_dung_tu..ap_dung_den + giá của cặp khu vực đang xét,
+    có thể rỗng nếu bộ đó không có giá cặp này). Bộ áp dụng cho ngày đi = bộ có `ngay` nằm trong khoảng của nó (các bộ
+    của 1 tuyến nối liền, không chồng). Không có bộ nào bao ngày đó, hoặc bộ đó thiếu cặp → None.
+
+    Giá lưu theo thứ tự CHIỀU ĐI, dùng chung 2 chiều (THAY_DOI_TUYEN_2_CHIEU.md mục 3) → chuyến về phải đảo cặp
+    đi/đến trước khi so. Giá bán = giá gốc × hệ số loại xe.
     """
     cap = (khu_vuc_di, khu_vuc_den) if chieu == "xuoi" else (khu_vuc_den, khu_vuc_di)
-    ung_vien = [g for g in dong_gia if (str(g["diem_di_id"]), str(g["diem_den_id"])) == cap]
-
-    def dang_ap_dung(g) -> bool:
-        return (g["ap_dung_tu"] is None or g["ap_dung_tu"] <= ngay) and (g["ap_dung_den"] is None or ngay <= g["ap_dung_den"])
-
-    gia_mua = [g for g in ung_vien if (g["ap_dung_tu"] or g["ap_dung_den"]) and dang_ap_dung(g)]
-    gia_thuong = [g for g in ung_vien if not g["ap_dung_tu"] and not g["ap_dung_den"]]
-    if gia_mua:
-        # Nhiều giá mùa chồng nhau thì lấy mùa bắt đầu muộn nhất (cụ thể nhất)
-        chon = max(gia_mua, key=lambda g: g["ap_dung_tu"] or datetime.date.min)
-    elif gia_thuong:
-        chon = gia_thuong[0]
-    else:
+    bo_ap_dung = [g for g in dong_gia if g["ap_dung_tu"] <= ngay <= g["ap_dung_den"]]
+    if not bo_ap_dung:
+        return None
+    chon = max(bo_ap_dung, key=lambda g: g["ap_dung_tu"])
+    if chon["diem_di_id"] is None or (str(chon["diem_di_id"]), str(chon["diem_den_id"])) != cap:
         return None
     return int((Decimal(chon["gia_goc"]) * Decimal(he_so_gia)).quantize(Decimal(1), rounding=ROUND_HALF_UP))
 

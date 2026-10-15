@@ -1,16 +1,21 @@
-"""Giá vé — UC-33, NGHIEP_VU.md mục 3.1 (giá gốc theo cặp điểm đi/đến,
-không phụ thuộc loại xe — hệ số loai_xe.he_so_gia nhân vào lúc bán vé).
-Đúng theo ARCHITECTURE.md mục 2: Service quyết định quy tắc nghiệp vụ,
-Repository chỉ đọc/ghi SQL thuần.
+"""Giá vé theo BỘ — UC-33, NGHIEP_VU.md mục 3.1. Mỗi tuyến có nhiều bộ giá nối liền nhau; mỗi bộ có NGÀY BẮT ĐẦU và NGÀY
+KẾT THÚC (bắt buộc) và gồm giá gốc của MỌI cặp khu vực trên tuyến (điểm đi đứng trước điểm đến theo chiều đi). Bộ mới luôn nối
+tiếp bộ cuối cùng: bắt đầu ngày liền sau ngày kết thúc của bộ trước → không chồng, không hở, không có giá theo mùa. Muốn đổi
+giá 1 chặng thì tạo bộ mới, các chặng còn lại giữ nguyên.
 
-Quy tắc đổi giá (NGHIEP_VU.md mục 3.1, UC-33): vé đã đặt luôn giữ giá lúc khách giữ ghế (ve.gia) nên đổi giá không
-ảnh hưởng vé cũ; để đổi giá có lịch sử và không đột ngột, giá đã được dùng để sinh chuyến (tuyến có chuyến khởi hành
-trong khoảng ngày áp dụng của giá đó) không được sửa số tiền/xóa, kể cả khi chưa có khách đặt — chỉ đóng bằng ngày
-kết thúc, rồi thêm giá mới. Giá mới mặc định bắt đầu từ ngày mai, tự đóng giá cũ ở ngày liền trước, và phải qua bước
-xem trước (cảnh báo giá bất thường) trước khi lưu.
+Sinh chuyến chỉ được trong khoảng ngày của các bộ giá (hết bộ cuối là hết hạn bán, gia hạn bằng cách kéo dài ngày kết thúc bộ
+cuối hoặc tạo bộ mới).
+
+Vé đã đặt luôn giữ giá lúc khách giữ ghế (ve.gia) nên đổi giá không ảnh hưởng vé cũ. Bộ đã được dùng để sinh chuyến (tuyến có
+chuyến khởi hành trong khoảng ngày bộ đó áp dụng) thì khóa: không sửa giá/ngày bắt đầu, không xóa — kể cả khi chưa có khách
+đặt; riêng bộ cuối vẫn kéo dài/rút ngắn được ngày kết thúc (không rút ngắn trước chuyến xa nhất đã sinh). Bộ mới mặc định bắt
+đầu ngay sau bộ trước (bộ đầu tiên: từ ngày mai) và phải qua bước xem trước (cảnh báo giá bất thường) trước khi lưu.
+
+Đúng theo ARCHITECTURE.md mục 2: Service quyết định quy tắc nghiệp vụ, Repository chỉ đọc/ghi SQL thuần.
 """
 
 import datetime
+from decimal import ROUND_HALF_UP, Decimal
 from zoneinfo import ZoneInfo
 
 import psycopg2.errors
@@ -20,13 +25,14 @@ from app.repositories import gia_ve_repository as repo
 from app.utils.loi import GiaTriLoi
 
 MUI_GIO_VN = ZoneInfo("Asia/Ho_Chi_Minh")
+MOT_NGAY = datetime.timedelta(days=1)
 
 # Ngưỡng cảnh báo giá bất thường (chỉ cảnh báo, quản lý xác nhận vẫn lưu được)
-TI_LE_GIAM_CANH_BAO = 0.5  # giá mới thấp hơn giá hiện tại quá 50%
-TI_LE_TANG_CANH_BAO = 2.0  # giá mới cao hơn giá hiện tại hơn 2 lần
+TI_LE_GIAM_CANH_BAO = 0.5  # giá mới thấp hơn giá của bộ trước quá 50%
+TI_LE_TANG_CANH_BAO = 2.0  # giá mới cao hơn giá của bộ trước hơn 2 lần
 GIA_THAP_BAT_THUONG = 50_000
 GIA_CAO_BAT_THUONG = 5_000_000
-SO_CANH_BAO_TOI_DA = 4
+SO_CANH_BAO_TOI_DA = 6
 
 
 def hom_nay() -> datetime.date:
@@ -38,36 +44,20 @@ def _dinh_dang_tien(so) -> str:
 
 
 def _dinh_dang_ngay(ngay) -> str:
-    return ngay.strftime("%d/%m/%Y") if ngay else "…"
+    return ngay.strftime("%d/%m/%Y")
 
 
-def _da_hieu_luc(gv: dict, ngay: datetime.date) -> bool:
-    return gv["ap_dung_tu"] is None or gv["ap_dung_tu"] <= ngay
-
-
-def _con_hieu_luc(gv: dict, ngay: datetime.date) -> bool:
-    """Đang áp dụng hoặc sắp áp dụng (chưa kết thúc tính tới `ngay`)."""
-    return gv["ap_dung_den"] is None or gv["ap_dung_den"] >= ngay
-
-
-def trang_thai_dong_gia(gv: dict, ngay: datetime.date) -> str:
-    if not _con_hieu_luc(gv, ngay):
+def trang_thai_bo(ap_dung_tu: datetime.date, ap_dung_den: datetime.date, ngay: datetime.date) -> str:
+    if ap_dung_den < ngay:
         return "da_ket_thuc"
-    if not _da_hieu_luc(gv, ngay):
+    if ap_dung_tu > ngay:
         return "sap_ap_dung"
     return "dang_ap_dung"
 
 
-def _so_chuyen_da_sinh(gv: dict) -> int:
-    """Số chuyến của tuyến đã sinh ra trong khoảng ngày áp dụng của dòng giá này."""
-    return repo.so_chuyen_trong_khoang(str(gv["tuyen_id"]), gv["ap_dung_tu"], gv["ap_dung_den"])
-
-
 def _khu_vuc_theo_tuyen_co_thu_tu(tuyen_id: str) -> list[dict]:
-    """Danh sách khu vực (không trùng lặp) mà tuyến đi qua, theo đúng thứ
-    tự tuyến di chuyển (dùng thu_tu điểm dừng nhỏ nhất của mỗi khu vực) —
-    dùng để xác định cặp điểm đi/đến hợp lệ (điểm đi phải đứng trước
-    điểm đến theo đúng chiều tuyến)."""
+    """Danh sách khu vực (không trùng lặp) mà tuyến đi qua, theo đúng thứ tự tuyến di chuyển (dùng thu_tu điểm dừng
+    nhỏ nhất của mỗi khu vực)."""
     diem = dia_diem_repo.danh_sach_diem_theo_tuyen(tuyen_id)
     da_thay: dict[str, dict] = {}
     for d in sorted(diem, key=lambda x: x["thu_tu"]):
@@ -77,118 +67,127 @@ def _khu_vuc_theo_tuyen_co_thu_tu(tuyen_id: str) -> list[dict]:
     return list(da_thay.values())
 
 
+def _cac_cap_cua_tuyen(tuyen_id: str) -> list[tuple[str, str, str]]:
+    """Mọi cặp khu vực hợp lệ của tuyến: (id đi, id đến, tên chặng), điểm đi đứng trước điểm đến."""
+    kv = _khu_vuc_theo_tuyen_co_thu_tu(tuyen_id)
+    return [(a["khu_vuc_id"], b["khu_vuc_id"], f"{a['ten']} → {b['ten']}") for i, a in enumerate(kv) for b in kv[i + 1:]]
+
+
+def _sap_xep(cac_bo: list[dict]) -> list[dict]:
+    return sorted(cac_bo, key=lambda b: b["ap_dung_tu"])
+
+
+def _bo_ap_dung_vao_ngay(cac_bo: list[dict], ngay: datetime.date) -> dict | None:
+    """Bộ có `ngay` nằm trong khoảng ngày áp dụng của nó (các bộ của 1 tuyến nối liền nên tối đa 1 bộ)."""
+    return next((b for b in cac_bo if b["ap_dung_tu"] <= ngay <= b["ap_dung_den"]), None)
+
+
+def _cap_thieu_trong_bo(bo: dict, cac_cap: list[tuple[str, str, str]]) -> list[str]:
+    co = {(str(g["diem_di_id"]), str(g["diem_den_id"])) for g in bo["danh_sach_gia"]}
+    return [ten for di, den, ten in cac_cap if (di, den) not in co]
+
+
 def cac_cap_thieu_gia(tuyen_id: str) -> list[str]:
-    """Các cặp khu vực (điểm đi → điểm đến theo chiều đi của tuyến) chưa có giá đang hoặc sắp áp dụng. Rỗng = tuyến
-    đã đủ giá vé, bán được vé mọi đoạn."""
-    khu_vuc = _khu_vuc_theo_tuyen_co_thu_tu(tuyen_id)
+    """Các chặng chưa có giá trong bộ giá hiện hành của tuyến (bộ đang áp dụng hôm nay; chưa có thì bộ sắp áp dụng gần
+    nhất; không còn bộ nào hiệu lực thì mọi chặng). Rỗng = tuyến đã đủ giá. Bộ tạo qua hệ thống luôn đủ chặng; chỉ dữ
+    liệu cũ mới thiếu."""
+    cac_cap = _cac_cap_cua_tuyen(tuyen_id)
+    cac_bo = _sap_xep(repo.danh_sach_bo(tuyen_id))
     ngay = hom_nay()
-    da_co_gia = {(str(g["diem_di_id"]), str(g["diem_den_id"])) for g in repo.danh_sach_gia_ve(tuyen_id) if _con_hieu_luc(g, ngay)}
-    return [
-        f"{a['ten']} → {b['ten']}"
-        for i, a in enumerate(khu_vuc)
-        for b in khu_vuc[i + 1:]
-        if (a["khu_vuc_id"], b["khu_vuc_id"]) not in da_co_gia
-    ]
+    bo = _bo_ap_dung_vao_ngay(cac_bo, ngay) or next((b for b in cac_bo if b["ap_dung_tu"] > ngay), None)
+    return [ten for _, _, ten in cac_cap] if bo is None else _cap_thieu_trong_bo(bo, cac_cap)
 
 
-def _kiem_tra_cap_diem(tuyen_id: str, diem_di_id: str, diem_den_id: str) -> None:
-    if diem_di_id == diem_den_id:
-        raise GiaTriLoi("Điểm đi và điểm đến không được trùng nhau")
-
-    khu_vuc_tuyen = _khu_vuc_theo_tuyen_co_thu_tu(tuyen_id)
-    thu_tu_theo_id = {kv["khu_vuc_id"]: i for i, kv in enumerate(khu_vuc_tuyen)}
-
-    if diem_di_id not in thu_tu_theo_id or diem_den_id not in thu_tu_theo_id:
-        raise GiaTriLoi("Điểm đi/điểm đến phải là khu vực mà tuyến này đi qua")
-
-    if thu_tu_theo_id[diem_di_id] >= thu_tu_theo_id[diem_den_id]:
-        raise GiaTriLoi("Điểm đi phải đứng trước điểm đến theo đúng chiều di chuyển của tuyến")
+def khoang_ngay_co_gia(tuyen_id: str) -> tuple[datetime.date, datetime.date] | None:
+    """(ngày bắt đầu bộ đầu tiên, ngày kết thúc bộ cuối cùng) — khoảng ngày chuyến được phép khởi hành; None nếu chưa có bộ
+    nào. Các bộ nối liền nên toàn khoảng này đều có giá."""
+    cac_bo = _sap_xep(repo.danh_sach_bo(tuyen_id))
+    return (cac_bo[0]["ap_dung_tu"], cac_bo[-1]["ap_dung_den"]) if cac_bo else None
 
 
-def _kiem_tra_thoi_han(ap_dung_tu, ap_dung_den) -> None:
-    if ap_dung_tu and ap_dung_den and ap_dung_tu > ap_dung_den:
-        raise GiaTriLoi("Ngày bắt đầu áp dụng phải trước ngày kết thúc")
+def ngay_chua_co_gia(tuyen_id: str, cac_ngay: list[datetime.date]) -> list[datetime.date]:
+    """Những ngày (trong `cac_ngay`) mà tuyến chưa có bộ giá đầy đủ áp dụng — chuyến khởi hành vào các ngày này sẽ không
+    có giá nên khách không thấy. Dùng chặn sinh chuyến."""
+    cac_cap = _cac_cap_cua_tuyen(tuyen_id)
+    cac_bo = repo.danh_sach_bo(tuyen_id)
+    thieu = []
+    for ngay in sorted(set(cac_ngay)):
+        bo = _bo_ap_dung_vao_ngay(cac_bo, ngay)
+        if bo is None or _cap_thieu_trong_bo(bo, cac_cap):
+            thieu.append(ngay)
+    return thieu
 
 
-def _khoang_ngay_giao_nhau(a1, b1, a2, b2) -> bool:
-    """True nếu 2 khoảng ngày [a1, b1] và [a2, b2] giao nhau — None ở đầu
-    khoảng coi như vô cực về trước, None ở cuối coi như vô cực về sau
-    (đúng nghĩa "áp dụng vô thời hạn")."""
-    return (a1 is None or b2 is None or a1 <= b2) and (a2 is None or b1 is None or a2 <= b1)
-
-
-_LOI_CHONG_LAN = (
-    "Khoảng thời gian áp dụng bị chồng lấn với 1 giá vé khác đã cấu hình "
-    "cho đúng cặp điểm đi/đến này — sửa lại khoảng ngày hoặc sửa giá vé cũ"
-)
-
-
-def _kiem_tra_khong_chong_leo(tuyen_id: str, diem_di_id: str, diem_den_id: str, ap_dung_tu, ap_dung_den, tru_id: str | None = None) -> None:
-    """UNIQUE constraint của bảng gia_ve không tự chặn được 2 dòng cùng
-    ap_dung_tu = NULL (SQL coi NULL khác NULL, không tính là trùng) — phải
-    tự kiểm tra chồng lấn khoảng ngày áp dụng ở đây, tránh 2 giá vé "vô
-    thời hạn" (hoặc 2 khoảng ngày đè lên nhau) cùng tồn tại cho 1 cặp điểm,
-    không biết giá nào là giá thật."""
-    hien_co = repo.danh_sach_gia_ve_theo_cap_diem(tuyen_id, diem_di_id, diem_den_id)
-    for gv in hien_co:
-        if tru_id and str(gv["id"]) == str(tru_id):
-            continue
-        if _khoang_ngay_giao_nhau(ap_dung_tu, ap_dung_den, gv["ap_dung_tu"], gv["ap_dung_den"]):
-            raise GiaTriLoi(_LOI_CHONG_LAN)
-
-
-# ---------------------------------------------------------
-# Cảnh báo giá bất thường (lớp bảo vệ khi nhập nhầm, vd 30.000 thay vì 300.000)
-# ---------------------------------------------------------
-def _gia_hieu_luc_vao_ngay(cac_dong: list[dict], ngay: datetime.date) -> dict | None:
-    for g in cac_dong:
-        if _da_hieu_luc(g, ngay) and _con_hieu_luc(g, ngay):
-            return g
-    return None
-
-
-def _canh_bao_gia(
-    tuyen_id: str, diem_di_id: str, diem_den_id: str, gia_goc: int, ngay_ap_dung: datetime.date,
-    tru_id: str | None = None, gia_cu_tham_chieu: int | None = None,
-) -> list[str]:
-    canh_bao: list[str] = []
-    tat_ca = [g for g in repo.danh_sach_gia_ve(tuyen_id) if not (tru_id and str(g["id"]) == str(tru_id))]
-
-    if gia_goc < GIA_THAP_BAT_THUONG:
-        canh_bao.append(f"{_dinh_dang_tien(gia_goc)} thấp bất thường cho vé xe khách liên tỉnh (dưới {_dinh_dang_tien(GIA_THAP_BAT_THUONG)})")
-    elif gia_goc > GIA_CAO_BAT_THUONG:
-        canh_bao.append(f"{_dinh_dang_tien(gia_goc)} cao bất thường cho 1 vé (trên {_dinh_dang_tien(GIA_CAO_BAT_THUONG)})")
-
-    cung_cap = [g for g in tat_ca if str(g["diem_di_id"]) == diem_di_id and str(g["diem_den_id"]) == diem_den_id]
-    gia_hien_tai = _gia_hieu_luc_vao_ngay(cung_cap, ngay_ap_dung) or _gia_hieu_luc_vao_ngay(cung_cap, hom_nay())
-    gia_tham_chieu = gia_cu_tham_chieu if gia_cu_tham_chieu is not None else (int(gia_hien_tai["gia_goc"]) if gia_hien_tai else None)
-    if gia_tham_chieu:
-        ti_le = gia_goc / gia_tham_chieu
-        if ti_le < TI_LE_GIAM_CANH_BAO:
-            canh_bao.append(f"Giá mới {_dinh_dang_tien(gia_goc)} giảm hơn một nửa so với giá hiện tại {_dinh_dang_tien(gia_tham_chieu)} của chặng này")
-        elif ti_le > TI_LE_TANG_CANH_BAO:
-            canh_bao.append(f"Giá mới {_dinh_dang_tien(gia_goc)} tăng hơn gấp đôi so với giá hiện tại {_dinh_dang_tien(gia_tham_chieu)} của chặng này")
-
-    # Chặng ngắn nằm trong chặng dài thì không được đắt hơn chặng dài
+def bang_gia_cua_chuyen(tuyen_id: str, chieu: str, ngay_khoi_hanh: datetime.date, he_so_gia) -> dict | None:
+    """Bảng giá vé của 1 chuyến: bộ giá áp dụng cho ngày khởi hành của chuyến, từng chặng đọc theo ĐÚNG CHIỀU chuyến chạy
+    (chuyến về đảo cặp), kèm giá bán = giá gốc × hệ số loại xe. None nếu ngày đó chưa có bộ giá đầy đủ (khách không thấy
+    chuyến này)."""
+    bo = _bo_ap_dung_vao_ngay(repo.danh_sach_bo(tuyen_id), ngay_khoi_hanh)
+    if bo is None or _cap_thieu_trong_bo(bo, _cac_cap_cua_tuyen(tuyen_id)):
+        return None
     thu_tu = {kv["khu_vuc_id"]: i for i, kv in enumerate(_khu_vuc_theo_tuyen_co_thu_tu(tuyen_id))}
-    ten = {kv["khu_vuc_id"]: kv["ten"] for kv in _khu_vuc_theo_tuyen_co_thu_tu(tuyen_id)}
-    if diem_di_id in thu_tu and diem_den_id in thu_tu:
-        i, j = thu_tu[diem_di_id], thu_tu[diem_den_id]
-        theo_cap: dict = {}
-        for g in tat_ca:
-            theo_cap.setdefault((str(g["diem_di_id"]), str(g["diem_den_id"])), []).append(g)
-        for (di, den), dong in theo_cap.items():
-            if (di, den) == (diem_di_id, diem_den_id) or di not in thu_tu or den not in thu_tu:
-                continue
-            g = _gia_hieu_luc_vao_ngay(dong, ngay_ap_dung)
-            if not g:
-                continue
-            k, l = thu_tu[di], thu_tu[den]
-            gia_khac = int(g["gia_goc"])
-            if k >= i and l <= j and gia_khac > gia_goc:
-                canh_bao.append(f"Chặng ngắn hơn {ten[di]} → {ten[den]} đang có giá {_dinh_dang_tien(gia_khac)}, cao hơn giá chặng dài này")
-            elif k <= i and l >= j and gia_khac < gia_goc:
-                canh_bao.append(f"Chặng dài hơn {ten[di]} → {ten[den]} đang có giá {_dinh_dang_tien(gia_khac)}, thấp hơn giá chặng ngắn này")
+    cac_chang = []
+    for g in bo["danh_sach_gia"]:
+        di, den = str(g["diem_di_id"]), str(g["diem_den_id"])
+        xuoi = chieu == "xuoi"
+        cac_chang.append({
+            "ten_chang": f"{g['ten_diem_di']} → {g['ten_diem_den']}" if xuoi else f"{g['ten_diem_den']} → {g['ten_diem_di']}",
+            "gia_goc": int(g["gia_goc"]),
+            "gia_ban": int((Decimal(g["gia_goc"]) * Decimal(he_so_gia)).quantize(Decimal(1), rounding=ROUND_HALF_UP)),
+            "_khoa": (thu_tu[di], thu_tu[den]) if xuoi else (-thu_tu[den], -thu_tu[di]),
+        })
+    cac_chang.sort(key=lambda c: c["_khoa"])
+    for c in cac_chang:
+        del c["_khoa"]
+    return {"ap_dung_tu": bo["ap_dung_tu"], "he_so_gia": Decimal(he_so_gia), "cac_chang": cac_chang}
+
+
+# ---------------------------------------------------------
+# Kiểm tra dữ liệu bộ giá + cảnh báo giá bất thường
+# ---------------------------------------------------------
+def _chuan_hoa_gia(tuyen_id: str, danh_sach_gia: list[dict]) -> tuple[list[dict], dict[tuple[str, str], int]]:
+    """Bộ phải có giá (> 0) cho đúng mọi chặng của tuyến: không thiếu, không thừa, không trùng."""
+    cac_cap = _cac_cap_cua_tuyen(tuyen_id)
+    ten_cap = {(di, den): ten for di, den, ten in cac_cap}
+    gia_theo_cap: dict[tuple[str, str], int] = {}
+    for g in danh_sach_gia:
+        cap = (str(g["diem_di_id"]), str(g["diem_den_id"]))
+        if cap not in ten_cap:
+            raise GiaTriLoi("Có chặng không thuộc tuyến này hoặc sai chiều đi của tuyến")
+        if cap in gia_theo_cap:
+            raise GiaTriLoi(f"Chặng {ten_cap[cap]} bị nhập 2 lần")
+        if int(g["gia_goc"]) <= 0:
+            raise GiaTriLoi(f"Giá chặng {ten_cap[cap]} phải lớn hơn 0")
+        gia_theo_cap[cap] = int(g["gia_goc"])
+    thieu = [ten for cap, ten in ten_cap.items() if cap not in gia_theo_cap]
+    if thieu:
+        raise GiaTriLoi("Bộ giá phải có giá cho đủ mọi chặng của tuyến — còn thiếu: " + ", ".join(thieu))
+    chuan = [{"diem_di_id": di, "diem_den_id": den, "gia_goc": gia_theo_cap[(di, den)]} for di, den, _ in cac_cap]
+    return chuan, gia_theo_cap
+
+
+def _canh_bao_bo(tuyen_id: str, gia_moi: dict[tuple[str, str], int], gia_bo_truoc: dict[tuple[str, str], int] | None) -> list[str]:
+    cac_cap = _cac_cap_cua_tuyen(tuyen_id)
+    ten_cap = {(di, den): ten for di, den, ten in cac_cap}
+    thu_tu = {kv["khu_vuc_id"]: i for i, kv in enumerate(_khu_vuc_theo_tuyen_co_thu_tu(tuyen_id))}
+    canh_bao: list[str] = []
+    for cap, gia in gia_moi.items():
+        ten = ten_cap[cap]
+        if gia < GIA_THAP_BAT_THUONG:
+            canh_bao.append(f"{ten}: {_dinh_dang_tien(gia)} thấp bất thường cho vé xe khách liên tỉnh (dưới {_dinh_dang_tien(GIA_THAP_BAT_THUONG)})")
+        elif gia > GIA_CAO_BAT_THUONG:
+            canh_bao.append(f"{ten}: {_dinh_dang_tien(gia)} cao bất thường cho 1 vé (trên {_dinh_dang_tien(GIA_CAO_BAT_THUONG)})")
+        cu = (gia_bo_truoc or {}).get(cap)
+        if cu and cu != gia:
+            if gia / cu < TI_LE_GIAM_CANH_BAO:
+                canh_bao.append(f"{ten}: {_dinh_dang_tien(gia)} giảm hơn một nửa so với giá bộ trước {_dinh_dang_tien(cu)}")
+            elif gia / cu > TI_LE_TANG_CANH_BAO:
+                canh_bao.append(f"{ten}: {_dinh_dang_tien(gia)} tăng hơn gấp đôi so với giá bộ trước {_dinh_dang_tien(cu)}")
+    # Chặng ngắn nằm trong chặng dài thì không được đắt hơn chặng dài
+    for (di, den), gia in gia_moi.items():
+        for (di2, den2), gia2 in gia_moi.items():
+            if (di, den) != (di2, den2) and thu_tu[di] <= thu_tu[di2] and thu_tu[den2] <= thu_tu[den] and gia2 > gia:
+                canh_bao.append(f"{ten_cap[(di2, den2)]} ({_dinh_dang_tien(gia2)}) là chặng ngắn hơn nhưng đắt hơn {ten_cap[(di, den)]} ({_dinh_dang_tien(gia)})")
     return canh_bao[:SO_CANH_BAO_TOI_DA]
 
 
@@ -197,162 +196,181 @@ def _bao_loi_neu_chua_xac_nhan(canh_bao: list[str], xac_nhan: bool) -> None:
         raise GiaTriLoi("Giá có dấu hiệu bất thường: " + "; ".join(canh_bao) + ". Hãy kiểm tra lại, hoặc xác nhận nếu đúng.")
 
 
+def _gia_theo_cap(bo: dict | None) -> dict[tuple[str, str], int] | None:
+    if bo is None:
+        return None
+    return {(str(g["diem_di_id"]), str(g["diem_den_id"])): int(g["gia_goc"]) for g in bo["danh_sach_gia"]}
+
+
 # ---------------------------------------------------------
-# Tạo giá mới
+# Tạo / sửa / xóa / liệt kê bộ giá
 # ---------------------------------------------------------
-def _chuan_bi_tao(tuyen_id: str, diem_di_id: str, diem_den_id: str, ap_dung_tu, ap_dung_den) -> tuple[datetime.date, dict | None, datetime.date | None]:
-    """Kiểm tra và quyết định: ngày bắt đầu thực tế (mặc định ngày mai), giá cũ cần đóng (nếu có) và ngày đóng."""
+def _lay_bo(bo_id: str) -> dict:
+    bo = repo.tim_bo_theo_id(bo_id)
+    if not bo:
+        raise GiaTriLoi("Không tìm thấy bộ giá vé")
+    return bo
+
+
+def _so_chuyen_da_sinh(bo: dict) -> int:
+    return repo.so_chuyen_trong_khoang(str(bo["tuyen_id"]), bo["ap_dung_tu"], bo["ap_dung_den"])
+
+
+def _kiem_tra_khoang(bat_dau: datetime.date, ket_thuc: datetime.date | None) -> None:
+    if ket_thuc is None:
+        raise GiaTriLoi("Bộ giá phải có ngày kết thúc")
+    if ket_thuc < bat_dau:
+        raise GiaTriLoi("Ngày kết thúc phải sau hoặc bằng ngày bắt đầu")
+
+
+def _kiem_tra_chua_co_chuyen_tu(tuyen_id: str, bat_dau: datetime.date, ngay: datetime.date) -> None:
+    """Bắt đầu từ hôm nay trở về trước sẽ đổi giá của những chuyến đã sinh cho các ngày đó → chỉ cho phép khi chưa có."""
+    if bat_dau <= ngay and repo.so_chuyen_trong_khoang(tuyen_id, bat_dau, ngay) > 0:
+        raise GiaTriLoi("Tuyến đã có chuyến khởi hành từ ngày này nên bộ giá không được bắt đầu sớm như vậy — phải bắt đầu từ ngày mai trở đi")
+
+
+def _chuan_bi_tao(tuyen_id: str, ap_dung_tu, ap_dung_den, danh_sach_gia: list[dict]) -> dict:
     if not dia_diem_repo.tim_tuyen_theo_id(tuyen_id):
         raise GiaTriLoi("Tuyến không tồn tại")
-    _kiem_tra_cap_diem(tuyen_id, diem_di_id, diem_den_id)
-
     ngay = hom_nay()
-    bat_dau = ap_dung_tu or ngay + datetime.timedelta(days=1)
-    if bat_dau < ngay:
-        raise GiaTriLoi("Giá mới không được bắt đầu áp dụng trong quá khứ")
-    _kiem_tra_thoi_han(bat_dau, ap_dung_den)
-
-    giao_nhau = [
-        g for g in repo.danh_sach_gia_ve_theo_cap_diem(tuyen_id, diem_di_id, diem_den_id)
-        if _khoang_ngay_giao_nhau(bat_dau, ap_dung_den, g["ap_dung_tu"], g["ap_dung_den"])
-    ]
-    if not giao_nhau:
-        return bat_dau, None, None
-    if len(giao_nhau) > 1:
-        raise GiaTriLoi(_LOI_CHONG_LAN)
-
-    # Giá mới thay thế giá hiện hành: tự đóng giá cũ ở ngày liền trước, miễn giá mới phủ hết phần còn lại của giá cũ
-    cu = giao_nhau[0]
-    bat_dau_cu_truoc = cu["ap_dung_tu"] is None or cu["ap_dung_tu"] < bat_dau
-    phu_het = ap_dung_den is None or (cu["ap_dung_den"] is not None and ap_dung_den >= cu["ap_dung_den"])
-    if not (bat_dau_cu_truoc and phu_het):
-        raise GiaTriLoi(_LOI_CHONG_LAN)
-    ngay_dong = bat_dau - datetime.timedelta(days=1)
-    if ngay_dong < ngay and _so_chuyen_da_sinh(cu) > 0:
-        raise GiaTriLoi(
-            "Giá cũ đã có chuyến được sinh ra nên không thể kết thúc trong quá khứ — hãy cho giá mới bắt đầu từ ngày mai trở đi"
-        )
-    return bat_dau, cu, ngay_dong
+    cac_bo = _sap_xep(repo.danh_sach_bo(tuyen_id))
+    if cac_bo:
+        # Bộ mới luôn nối liền bộ cuối: bắt đầu ngày liền sau ngày kết thúc của bộ trước
+        bat_dau = cac_bo[-1]["ap_dung_den"] + MOT_NGAY
+        if ap_dung_tu is not None and ap_dung_tu != bat_dau:
+            raise GiaTriLoi(f"Bộ mới phải bắt đầu từ ngày {_dinh_dang_ngay(bat_dau)} — ngay sau khi bộ giá trước kết thúc")
+    else:
+        bat_dau = ap_dung_tu or ngay + MOT_NGAY
+        if bat_dau < ngay:
+            raise GiaTriLoi("Bộ giá đầu tiên không được bắt đầu áp dụng trong quá khứ")
+    _kiem_tra_khoang(bat_dau, ap_dung_den)
+    if ap_dung_den < ngay:
+        raise GiaTriLoi("Ngày kết thúc không được ở quá khứ")
+    _kiem_tra_chua_co_chuyen_tu(tuyen_id, bat_dau, ngay)
+    chuan, gia_moi = _chuan_hoa_gia(tuyen_id, danh_sach_gia)
+    return {"bat_dau": bat_dau, "ket_thuc": ap_dung_den, "chuan": chuan, "gia_moi": gia_moi, "bo_truoc": cac_bo[-1] if cac_bo else None}
 
 
-def xem_truoc_tao_gia_ve(tuyen_id: str, diem_di_id: str, diem_den_id: str, gia_goc: int, ap_dung_tu, ap_dung_den) -> dict:
-    bat_dau, cu, ngay_dong = _chuan_bi_tao(tuyen_id, diem_di_id, diem_den_id, ap_dung_tu, ap_dung_den)
-    return {
-        "gia_goc": gia_goc,
-        "ap_dung_tu": bat_dau,
-        "ap_dung_den": ap_dung_den,
-        "gia_cu": (
-            {"gia_goc": int(cu["gia_goc"]), "ap_dung_tu": cu["ap_dung_tu"], "ap_dung_den": cu["ap_dung_den"], "se_ket_thuc_vao": ngay_dong}
-            if cu else None
-        ),
-        "canh_bao": _canh_bao_gia(tuyen_id, diem_di_id, diem_den_id, gia_goc, bat_dau),
-    }
-
-
-def tao_gia_ve(
-    tuyen_id: str, diem_di_id: str, diem_den_id: str, gia_goc: int, ap_dung_tu, ap_dung_den, xac_nhan_canh_bao: bool = False
-) -> dict:
-    bat_dau, cu, ngay_dong = _chuan_bi_tao(tuyen_id, diem_di_id, diem_den_id, ap_dung_tu, ap_dung_den)
-    _bao_loi_neu_chua_xac_nhan(_canh_bao_gia(tuyen_id, diem_di_id, diem_den_id, gia_goc, bat_dau), xac_nhan_canh_bao)
-    try:
-        return repo.tao_gia_ve_va_dong_gia_cu(
-            tuyen_id, diem_di_id, diem_den_id, gia_goc, bat_dau, ap_dung_den, str(cu["id"]) if cu else None, ngay_dong
-        )
-    except psycopg2.errors.UniqueViolation:
-        raise GiaTriLoi("Đã có giá vé cho đúng cặp điểm đi/đến này (cùng thời hạn áp dụng)")
-
-
-# ---------------------------------------------------------
-# Sửa / xóa giá đã có
-# ---------------------------------------------------------
-def _kiem_tra_duoc_sua(gv: dict, gia_goc: int, ap_dung_tu, ap_dung_den) -> datetime.date | None:
-    """Trả về ngày bắt đầu hiệu lực cuối cùng (giữ nguyên nếu giá đã áp dụng, mặc định ngày mai nếu giá chưa áp dụng mà
-    bỏ trống). Ném lỗi nếu giá đã được dùng để sinh chuyến mà bị sửa số tiền/ngày bắt đầu."""
+def _chuan_bi_sua(bo: dict, ap_dung_tu, ap_dung_den, danh_sach_gia: list[dict]) -> dict:
+    tuyen_id = str(bo["tuyen_id"])
     ngay = hom_nay()
-    so_chuyen = _so_chuyen_da_sinh(gv)
+    cac_bo = _sap_xep(repo.danh_sach_bo(tuyen_id))
+    vi_tri = next(i for i, b in enumerate(cac_bo) if str(b["id"]) == str(bo["id"]))
+    la_dau, la_cuoi = vi_tri == 0, vi_tri == len(cac_bo) - 1
+    bat_dau = ap_dung_tu or bo["ap_dung_tu"]
+    ket_thuc = ap_dung_den
+    _kiem_tra_khoang(bat_dau, ket_thuc)
+
+    chuan, gia_moi = _chuan_hoa_gia(tuyen_id, danh_sach_gia)
+    if bat_dau != bo["ap_dung_tu"] and not la_dau:
+        raise GiaTriLoi("Chỉ đổi được ngày bắt đầu của bộ giá đầu tiên — các bộ sau phải nối liền bộ trước")
+    if ket_thuc != bo["ap_dung_den"] and not la_cuoi:
+        raise GiaTriLoi("Chỉ đổi được ngày kết thúc của bộ giá cuối cùng — bộ sau đã nối liền ngay sau bộ này")
+
+    so_chuyen = _so_chuyen_da_sinh(bo)
     if so_chuyen:
-        if int(gia_goc) != int(gv["gia_goc"]) or ap_dung_tu != gv["ap_dung_tu"]:
+        if bat_dau != bo["ap_dung_tu"] or gia_moi != _gia_theo_cap(bo):
             raise GiaTriLoi(
-                f"Giá này đã có {so_chuyen} chuyến được sinh ra nên không sửa số tiền hay ngày bắt đầu được — "
-                "hãy đặt ngày kết thúc cho giá này rồi thêm giá mới"
+                f"Bộ giá này đã có {so_chuyen} chuyến được sinh ra nên không sửa giá hay ngày bắt đầu được — "
+                + ("chỉ kéo dài hoặc rút ngắn được ngày kết thúc; muốn đổi giá hãy tạo bộ giá mới nối tiếp" if la_cuoi
+                   else "muốn đổi giá hãy tạo bộ giá mới nối tiếp bộ cuối cùng")
             )
-        if gv["ap_dung_den"] is not None and gv["ap_dung_den"] < ngay:
-            raise GiaTriLoi("Giá này đã kết thúc và đã có chuyến được sinh ra nên không sửa được nữa")
-        if ap_dung_den is not None and ap_dung_den < ngay:
-            raise GiaTriLoi("Ngày kết thúc không được trước hôm nay vì giá này đã có chuyến được sinh ra")
-        return ap_dung_tu
-    if _da_hieu_luc(gv, ngay):
-        return ap_dung_tu
-    bat_dau = ap_dung_tu or ngay + datetime.timedelta(days=1)
-    if bat_dau < ngay:
-        raise GiaTriLoi("Giá chưa áp dụng không được dời về quá khứ")
-    return bat_dau
-
-
-def xem_truoc_sua_gia_ve(gia_ve_id: str, gia_goc: int, ap_dung_tu, ap_dung_den) -> dict:
-    gv = repo.tim_gia_ve_theo_id(gia_ve_id)
-    if not gv:
-        raise GiaTriLoi("Không tìm thấy giá vé")
-    _kiem_tra_thoi_han(ap_dung_tu, ap_dung_den)
-    bat_dau = _kiem_tra_duoc_sua(gv, gia_goc, ap_dung_tu, ap_dung_den)
-    _kiem_tra_khong_chong_leo(str(gv["tuyen_id"]), str(gv["diem_di_id"]), str(gv["diem_den_id"]), bat_dau, ap_dung_den, tru_id=gia_ve_id)
-    doi_so_tien = int(gia_goc) != int(gv["gia_goc"])
+        chuyen_cuoi = repo.ngay_chuyen_cuoi_trong_khoang(tuyen_id, bo["ap_dung_tu"], bo["ap_dung_den"])
+        if chuyen_cuoi and ket_thuc < chuyen_cuoi:
+            raise GiaTriLoi(f"Không rút ngắn trước ngày {_dinh_dang_ngay(chuyen_cuoi)} vì đã có chuyến sinh ra tới ngày đó")
+    else:
+        if bat_dau != bo["ap_dung_tu"]:
+            if bat_dau < ngay:
+                raise GiaTriLoi("Bộ giá không được dời ngày bắt đầu về quá khứ")
+            _kiem_tra_chua_co_chuyen_tu(tuyen_id, bat_dau, ngay)
+        if ket_thuc != bo["ap_dung_den"] and ket_thuc < ngay:
+            raise GiaTriLoi("Ngày kết thúc không được ở quá khứ")
     return {
-        "gia_goc": gia_goc,
-        "ap_dung_tu": bat_dau,
-        "ap_dung_den": ap_dung_den,
-        "gia_cu": {"gia_goc": int(gv["gia_goc"]), "ap_dung_tu": gv["ap_dung_tu"], "ap_dung_den": gv["ap_dung_den"], "se_ket_thuc_vao": None},
-        "canh_bao": (
-            _canh_bao_gia(str(gv["tuyen_id"]), str(gv["diem_di_id"]), str(gv["diem_den_id"]), gia_goc, bat_dau or hom_nay(), tru_id=gia_ve_id, gia_cu_tham_chieu=int(gv["gia_goc"]))
-            if doi_so_tien else []
-        ),
+        "bat_dau": bat_dau, "ket_thuc": ket_thuc, "chuan": chuan, "gia_moi": gia_moi,
+        "bo_truoc": cac_bo[vi_tri - 1] if vi_tri > 0 else None,
     }
 
 
-def sua_gia_ve(gia_ve_id: str, gia_goc: int, ap_dung_tu, ap_dung_den, xac_nhan_canh_bao: bool = False) -> None:
-    gia_ve_hien_tai = repo.tim_gia_ve_theo_id(gia_ve_id)
-    if not gia_ve_hien_tai:
-        raise GiaTriLoi("Không tìm thấy giá vé")
-    _kiem_tra_thoi_han(ap_dung_tu, ap_dung_den)
-    bat_dau = _kiem_tra_duoc_sua(gia_ve_hien_tai, gia_goc, ap_dung_tu, ap_dung_den)
-    _kiem_tra_khong_chong_leo(
-        str(gia_ve_hien_tai["tuyen_id"]),
-        str(gia_ve_hien_tai["diem_di_id"]),
-        str(gia_ve_hien_tai["diem_den_id"]),
-        bat_dau,
-        ap_dung_den,
-        tru_id=gia_ve_id,
-    )
-    if int(gia_goc) != int(gia_ve_hien_tai["gia_goc"]):
-        canh_bao = _canh_bao_gia(
-            str(gia_ve_hien_tai["tuyen_id"]), str(gia_ve_hien_tai["diem_di_id"]), str(gia_ve_hien_tai["diem_den_id"]),
-            gia_goc, bat_dau or hom_nay(), tru_id=gia_ve_id, gia_cu_tham_chieu=int(gia_ve_hien_tai["gia_goc"]),
-        )
-        _bao_loi_neu_chua_xac_nhan(canh_bao, xac_nhan_canh_bao)
+def _xem_truoc(tuyen_id: str, kq: dict) -> dict:
+    ten_cap = {(di, den): ten for di, den, ten in _cac_cap_cua_tuyen(tuyen_id)}
+    gia_cu = _gia_theo_cap(kq["bo_truoc"])
+    bo_truoc = kq["bo_truoc"]
+    return {
+        "ap_dung_tu": kq["bat_dau"],
+        "ap_dung_den": kq["ket_thuc"],
+        "bo_truoc": {"ap_dung_tu": bo_truoc["ap_dung_tu"], "ap_dung_den": bo_truoc["ap_dung_den"]} if bo_truoc else None,
+        "thay_doi": [
+            {"ten_chang": ten_cap[cap], "gia_cu": (gia_cu or {}).get(cap), "gia_moi": gia}
+            for cap, gia in kq["gia_moi"].items()
+        ],
+        "canh_bao": _canh_bao_bo(tuyen_id, kq["gia_moi"], gia_cu),
+    }
+
+
+def xem_truoc_tao_bo(tuyen_id: str, ap_dung_tu, ap_dung_den, danh_sach_gia: list[dict]) -> dict:
+    return _xem_truoc(tuyen_id, _chuan_bi_tao(tuyen_id, ap_dung_tu, ap_dung_den, danh_sach_gia))
+
+
+def tao_bo(tuyen_id: str, ap_dung_tu, ap_dung_den, danh_sach_gia: list[dict], xac_nhan_canh_bao: bool = False) -> dict:
+    kq = _chuan_bi_tao(tuyen_id, ap_dung_tu, ap_dung_den, danh_sach_gia)
+    _bao_loi_neu_chua_xac_nhan(_xem_truoc(tuyen_id, kq)["canh_bao"], xac_nhan_canh_bao)
     try:
-        repo.sua_gia_ve(gia_ve_id, gia_goc, bat_dau, ap_dung_den)
+        bo_id = repo.tao_bo(tuyen_id, kq["bat_dau"], kq["ket_thuc"], kq["chuan"])
     except psycopg2.errors.UniqueViolation:
-        raise GiaTriLoi("Đã có giá vé khác trùng thời hạn áp dụng cho đúng cặp điểm đi/đến này")
+        raise GiaTriLoi(f"Tuyến đã có bộ giá áp dụng từ ngày {_dinh_dang_ngay(kq['bat_dau'])}")
+    return next(b for b in danh_sach_bo(tuyen_id) if str(b["id"]) == bo_id)
 
 
-def danh_sach_gia_ve(tuyen_id: str | None = None) -> list[dict]:
-    ngay = hom_nay()
-    ket_qua = repo.danh_sach_gia_ve(tuyen_id)
-    for g in ket_qua:
-        g["trang_thai"] = trang_thai_dong_gia(g, ngay)
-        # Khóa số tiền: giá đã được dùng để sinh chuyến (chỉ còn đóng bằng ngày kết thúc)
-        g["so_chuyen_da_sinh"] = _so_chuyen_da_sinh(g)
-        g["khoa_so_tien"] = g["so_chuyen_da_sinh"] > 0
-    return ket_qua
+def xem_truoc_sua_bo(bo_id: str, ap_dung_tu, ap_dung_den, danh_sach_gia: list[dict]) -> dict:
+    bo = _lay_bo(bo_id)
+    return _xem_truoc(str(bo["tuyen_id"]), _chuan_bi_sua(bo, ap_dung_tu, ap_dung_den, danh_sach_gia))
 
 
-def xoa_gia_ve(gia_ve_id: str) -> None:
-    gv = repo.tim_gia_ve_theo_id(gia_ve_id)
-    if not gv:
-        raise GiaTriLoi("Không tìm thấy giá vé")
-    so_chuyen = _so_chuyen_da_sinh(gv)
+def sua_bo(bo_id: str, ap_dung_tu, ap_dung_den, danh_sach_gia: list[dict], xac_nhan_canh_bao: bool = False) -> dict:
+    bo = _lay_bo(bo_id)
+    tuyen_id = str(bo["tuyen_id"])
+    kq = _chuan_bi_sua(bo, ap_dung_tu, ap_dung_den, danh_sach_gia)
+    # Chỉ cảnh báo giá khi giá thực sự đổi (kéo dài/rút ngắn ngày kết thúc thì giá giữ nguyên)
+    if kq["gia_moi"] != _gia_theo_cap(bo):
+        _bao_loi_neu_chua_xac_nhan(_xem_truoc(tuyen_id, kq)["canh_bao"], xac_nhan_canh_bao)
+    try:
+        repo.sua_bo(bo_id, kq["bat_dau"], kq["ket_thuc"], kq["chuan"])
+    except psycopg2.errors.UniqueViolation:
+        raise GiaTriLoi(f"Tuyến đã có bộ giá áp dụng từ ngày {_dinh_dang_ngay(kq['bat_dau'])}")
+    return next(b for b in danh_sach_bo(tuyen_id) if str(b["id"]) == str(bo_id))
+
+
+def xoa_bo(bo_id: str) -> None:
+    bo = _lay_bo(bo_id)
+    tuyen_id = str(bo["tuyen_id"])
+    cac_bo = _sap_xep(repo.danh_sach_bo(tuyen_id))
+    if str(cac_bo[-1]["id"]) != str(bo_id):
+        raise GiaTriLoi("Chỉ xóa được bộ giá cuối cùng của tuyến — xóa bộ ở giữa sẽ làm hở giữa các bộ")
+    so_chuyen = _so_chuyen_da_sinh(bo)
     if so_chuyen:
-        raise GiaTriLoi(
-            f"Không thể xóa: giá này đã có {so_chuyen} chuyến được sinh ra — hãy đặt ngày kết thúc cho giá này (nút Sửa)"
-        )
-    repo.xoa_gia_ve(gia_ve_id)
+        raise GiaTriLoi(f"Không thể xóa: bộ giá này đã có {so_chuyen} chuyến được sinh ra — hãy tạo bộ giá mới nối tiếp thay thế")
+    repo.xoa_bo(bo_id)
+
+
+def danh_sach_bo(tuyen_id: str | None = None) -> list[dict]:
+    """Mọi bộ giá kèm: trạng thái, số chuyến đã sinh, khóa, có phải bộ cuối không, ngày chuyến xa nhất đã sinh, chặng còn
+    thiếu (chỉ dữ liệu cũ)."""
+    ngay = hom_nay()
+    theo_tuyen: dict[str, list[dict]] = {}
+    for b in repo.danh_sach_bo(tuyen_id):
+        theo_tuyen.setdefault(str(b["tuyen_id"]), []).append(b)
+    ket_qua: list[dict] = []
+    for tid, cac_bo in theo_tuyen.items():
+        cac_bo = _sap_xep(cac_bo)
+        cac_cap = _cac_cap_cua_tuyen(tid)
+        thu_tu_cap = {(di, den): i for i, (di, den, _) in enumerate(cac_cap)}
+        for i, b in enumerate(cac_bo):
+            b["trang_thai"] = trang_thai_bo(b["ap_dung_tu"], b["ap_dung_den"], ngay)
+            b["so_chuyen_da_sinh"] = repo.so_chuyen_trong_khoang(tid, b["ap_dung_tu"], b["ap_dung_den"])
+            b["khoa"] = b["so_chuyen_da_sinh"] > 0
+            b["la_bo_cuoi"] = i == len(cac_bo) - 1
+            b["ngay_chuyen_cuoi"] = repo.ngay_chuyen_cuoi_trong_khoang(tid, b["ap_dung_tu"], b["ap_dung_den"]) if b["khoa"] else None
+            b["cac_cap_thieu_gia"] = _cap_thieu_trong_bo(b, cac_cap)
+            b["danh_sach_gia"].sort(key=lambda g: thu_tu_cap.get((str(g["diem_di_id"]), str(g["diem_den_id"])), 999))
+        ket_qua.extend(cac_bo)
+    return sorted(ket_qua, key=lambda b: (b["ten_tuyen"], b["ap_dung_tu"]))

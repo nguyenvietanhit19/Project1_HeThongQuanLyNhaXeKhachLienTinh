@@ -139,11 +139,17 @@ def danh_sach_cap(tuyen_id: str | None = None) -> list[dict]:
         theo_cap.setdefault(lich["cap_id"], []).append(lich)
     cac_cap = [_dung_cap(v) for v in theo_cap.values() if len(v) == 2]
     thieu_gia_theo_tuyen: dict = {}
+    khoang_gia_theo_tuyen: dict = {}
     for cap in cac_cap:
         tid = str(cap["tuyen_id"])
         if tid not in thieu_gia_theo_tuyen:
             thieu_gia_theo_tuyen[tid] = gia_ve_service.cac_cap_thieu_gia(tid)
+            khoang_gia_theo_tuyen[tid] = gia_ve_service.khoang_ngay_co_gia(tid)
         cap["cac_cap_thieu_gia"] = thieu_gia_theo_tuyen[tid]
+        khoang = khoang_gia_theo_tuyen[tid]
+        cap["sinh_chuyen_tu_ngay"] = khoang[0] if khoang else None
+        # chuyến về chạy sau chuyến đi `ngay_lech` ngày nên chuyến đi phải sớm hơn ngày cuối bộ giá chừng đó để cả chu kỳ còn trong bộ
+        cap["sinh_chuyen_den_ngay"] = khoang[1] - datetime.timedelta(days=cap["ngay_lech"]) if khoang else None
     return sorted(cac_cap, key=lambda c: (c["ten_tuyen"], c["xuoi"]["gio_khoi_hanh"]))
 
 
@@ -190,6 +196,27 @@ def xoa_cap(cap_id: str) -> None:
         raise GiaTriLoi("Không thể xóa: cặp lịch này đã sinh chuyến — hãy ngừng áp dụng thay vì xóa")
 
 
+def _kiem_tra_trong_khoang_bo_gia(lich_cap: dict, tu_ngay: datetime.date, den_ngay: datetime.date) -> None:
+    """Chỉ được sinh chuyến trong khoảng ngày của các bộ giá vé của tuyến; chuyến về lệch +N ngày nên ngày chuyến đi tối đa
+    là ngày cuối bộ giá mới nhất trừ N (cả chu kỳ phải nằm trong bộ giá)."""
+    ten = lich_cap["xuoi"]["ten_tuyen"]
+    khoang = gia_ve_service.khoang_ngay_co_gia(str(lich_cap["xuoi"]["tuyen_id"]))
+    if khoang is None:
+        raise GiaTriLoi(f"Tuyến {ten} chưa có bộ giá vé nên chưa sinh chuyến được — hãy tạo bộ giá (mục Giá vé)")
+    dau, cuoi = khoang
+    lech = lich_cap["nguoc"]["ngay_lech"]
+    toi_da = cuoi - datetime.timedelta(days=lech)
+    if tu_ngay < dau:
+        raise GiaTriLoi(f"Tuyến {ten} có bộ giá vé đầu tiên bắt đầu từ ngày {dau.strftime('%d/%m/%Y')} nên chưa sinh chuyến trước ngày đó được")
+    if den_ngay > toi_da:
+        raise GiaTriLoi(
+            f"Tuyến {ten} chỉ sinh được đến ngày {toi_da.strftime('%d/%m/%Y')} "
+            f"(bộ giá vé mới nhất kết thúc ngày {cuoi.strftime('%d/%m/%Y')}"
+            + (f"; chuyến về chạy sau chuyến đi {lech} ngày" if lech else "")
+            + ") — hãy kéo dài bộ giá hoặc tạo bộ giá mới nối tiếp"
+        )
+
+
 def sinh_chuyen_cho_cac_cap(cap_ids: list[str], tu_ngay: datetime.date, den_ngay: datetime.date) -> dict:
     """UC-18 — sinh chuyen_xe cho các cặp được chọn: mỗi ngày D trong khoảng, chiều đi chạy ngày D còn chiều về chạy
     ngày D + ngay_lech của cặp (nên ngày đầu không có chuyến về buổi sáng còn chiều về của ngày cuối có thể rơi sau
@@ -208,22 +235,13 @@ def sinh_chuyen_cho_cac_cap(cap_ids: list[str], tu_ngay: datetime.date, den_ngay
 
     bay_gio = datetime.datetime.now(MUI_GIO_VN)
     ke_hoach = []
-    da_kiem_gia: set = set()
     so_chu_ky_qua_gio = 0
     for cap_id in dict.fromkeys(cap_ids):
         lich_cap = {l["chieu"]: l for l in _lay_cap(cap_id)}
-        tuyen_id = str(lich_cap["xuoi"]["tuyen_id"])
-        if tuyen_id not in da_kiem_gia:
-            thieu = gia_ve_service.cac_cap_thieu_gia(tuyen_id)
-            if thieu:
-                raise GiaTriLoi(
-                    f"Tuyến {lich_cap['xuoi']['ten_tuyen']} chưa đủ giá vé nên chưa sinh chuyến được — "
-                    f"còn thiếu giá cho: {', '.join(thieu[:5])}{' …' if len(thieu) > 5 else ''} (mục Giá vé)"
-                )
-            da_kiem_gia.add(tuyen_id)
         for lich in lich_cap.values():
             if not lich["dang_ap_dung"]:
                 raise GiaTriLoi(f"Cặp lịch tuyến {lich['ten_tuyen']} đã ngừng áp dụng — hãy bật lại trước khi sinh chuyến")
+        _kiem_tra_trong_khoang_bo_gia(lich_cap, tu_ngay, den_ngay)
         ngay = tu_ngay
         while ngay <= den_ngay:
             # gio_khoi_hanh lưu TIMESTAMPTZ nhưng session Postgres mặc định Etc/UTC — gắn múi giờ VN tường minh
@@ -237,6 +255,21 @@ def sinh_chuyen_cho_cac_cap(cap_ids: list[str], tu_ngay: datetime.date, den_ngay
                     gio = datetime.datetime.combine(ngay_chay, lich["gio_khoi_hanh"], tzinfo=MUI_GIO_VN)
                     ke_hoach.append({"lich": lich, "ngay": ngay_chay, "gio_khoi_hanh": gio})
             ngay += datetime.timedelta(days=1)
+
+    # Mỗi ngày khởi hành của các chuyến sắp sinh (cả chuyến về lệch ngày) phải có bộ giá vé đầy đủ áp dụng, nếu không
+    # chuyến đó không có giá nên khách không thấy
+    ngay_theo_tuyen: dict[str, dict] = {}
+    for muc in ke_hoach:
+        thong_tin = ngay_theo_tuyen.setdefault(str(muc["lich"]["tuyen_id"]), {"ten": muc["lich"]["ten_tuyen"], "ngay": set()})
+        thong_tin["ngay"].add(muc["ngay"])
+    for tuyen_id, thong_tin in ngay_theo_tuyen.items():
+        thieu = gia_ve_service.ngay_chua_co_gia(tuyen_id, list(thong_tin["ngay"]))
+        if thieu:
+            ds = ", ".join(n.strftime("%d/%m/%Y") for n in thieu[:4]) + (" …" if len(thieu) > 4 else "")
+            raise GiaTriLoi(
+                f"Tuyến {thong_tin['ten']} chưa có bộ giá vé đầy đủ áp dụng cho ngày {ds} nên chưa sinh chuyến được — "
+                "hãy tạo bộ giá (mục Giá vé) có ngày áp dụng không muộn hơn ngày đầu tiên đó"
+            )
 
     tong = {"xuoi": {"moi": 0, "da_co": 0}, "nguoc": {"moi": 0, "da_co": 0}}
     for muc in chuyen_xe_repo.sinh_nhieu_chuyen_tu_lich(ke_hoach):

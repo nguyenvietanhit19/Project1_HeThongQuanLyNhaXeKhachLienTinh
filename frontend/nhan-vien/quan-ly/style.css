@@ -4461,3 +4461,179 @@ body.nhan-vien-shell {
 #form-gia-ve.dang-xac-nhan #khoi-diem-readonly {
   display: none;
 }
+
+/* ===== Bộ giá vé: danh sách bộ, bảng nhập, so sánh thay đổi ===== */
+
+.gv-bo-ds {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.gv-bo {
+  padding: 12px 14px 8px;
+  border-radius: 14px;
+  border: 1.5px solid #ECECF0;
+  background: var(--color-bg-surface);
+}
+
+.gv-bo--dang-ap-dung {
+  border-color: #86D3A3;
+  background: linear-gradient(180deg, #F3FCF6, var(--color-bg-surface) 60%);
+}
+
+.gv-bo--sap-ap-dung {
+  border-color: #F2C879;
+  background: linear-gradient(180deg, #FFFAEE, var(--color-bg-surface) 60%);
+}
+
+.gv-bo--da-ket-thuc {
+  opacity: 0.75;
+}
+
+.gv-bo__dau {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin-bottom: 6px;
+}
+
+.gv-bo__ten {
+  font-size: 15px;
+}
+
+.gv-bo__nut {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.gv-bo__nut button {
+  padding: 5px 12px;
+  font-size: 12px;
+}
+
+.gv-bo__bang {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.gv-bo__bang td {
+  padding: 7px 4px;
+  border-top: 1px solid #F0EEF5;
+  font-size: 14px;
+}
+
+.gv-bo__gia {
+  text-align: right;
+  font-weight: 800;
+  color: var(--color-secondary-dark);
+  white-space: nowrap;
+}
+
+.gv-bang-nhap {
+  margin-top: 14px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+.gv-form-bang {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.gv-form-bang th {
+  padding: 6px 4px;
+  text-align: left;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+
+.gv-form-bang td {
+  padding: 6px 4px;
+  border-top: 1px solid #F0EEF5;
+  vertical-align: middle;
+  font-size: 14px;
+}
+
+.gv-form-bang .gv-o-gia {
+  width: 100%;
+  margin-bottom: 2px;
+}
+
+.gv-form-bang .gv-gia-dinh-dang {
+  display: block;
+  min-height: 16px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.gv-xn-doi {
+  margin: 10px 0 6px;
+  padding-left: 20px;
+  font-size: 14px;
+}
+
+.gv-xn-doi li + li {
+  margin-top: 4px;
+}
+
+.gv-thieu-chip {
+  cursor: default;
+}
+
+.gv-xn-tieu {
+  margin: 4px 0 10px;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--color-secondary-dark);
+}
+
+/* ===== Chi tiết chuyến: giá vé theo chặng ===== */
+
+.ct-gia {
+  margin: 4px 0 14px;
+  border: 1.5px solid #ECECF0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.ct-gia__hang {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  font-size: 14px;
+}
+
+.ct-gia__hang + .ct-gia__hang {
+  border-top: 1px solid #F0EEF5;
+}
+
+.ct-gia__goc {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+.ct-gia__ban {
+  min-width: 96px;
+  text-align: right;
+  font-size: 15px;
+  color: var(--color-secondary-dark);
+}
+
+.ct-khong-gia {
+  margin: 4px 0 14px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(220, 38, 38, 0.08);
+  color: #B91C1C;
+  font-size: 13.5px;
+  font-weight: 600;
+}

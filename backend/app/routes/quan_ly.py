@@ -23,11 +23,11 @@ from app.schemas.dia_diem_schema import (
     TuyenResponse,
 )
 from app.schemas.gia_ve_schema import (
-    GiaVeRequest,
-    GiaVeResponse,
-    SuaGiaVeRequest,
-    XemTruocGiaVeResponse,
-    XemTruocSuaGiaVeRequest,
+    BoGiaRequest,
+    BoGiaResponse,
+    SuaBoGiaRequest,
+    XemTruocBoGiaResponse,
+    XemTruocSuaBoGiaRequest,
 )
 from app.schemas.lich_chay_schema import (
     CapLichChayResponse,
@@ -180,46 +180,43 @@ def xoa_loai_xe(loai_xe_id: UUID):
 # ---------------------------------------------------------
 # 5. Giá vé (UC-33)
 # ---------------------------------------------------------
-@router.post("/gia-ve", response_model=GiaVeResponse, status_code=201)
-def tao_gia_ve(du_lieu: GiaVeRequest):
-    return gia_ve_service.tao_gia_ve(
-        str(du_lieu.tuyen_id),
-        str(du_lieu.diem_di_id),
-        str(du_lieu.diem_den_id),
-        du_lieu.gia_goc,
-        du_lieu.ap_dung_tu,
-        du_lieu.ap_dung_den,
-        du_lieu.xac_nhan_canh_bao,
+@router.get("/bo-gia", response_model=list[BoGiaResponse])
+def danh_sach_bo_gia(tuyen_id: UUID | None = None):
+    return gia_ve_service.danh_sach_bo(str(tuyen_id) if tuyen_id else None)
+
+
+@router.post("/bo-gia", response_model=BoGiaResponse, status_code=201)
+def tao_bo_gia(du_lieu: BoGiaRequest):
+    return gia_ve_service.tao_bo(
+        str(du_lieu.tuyen_id), du_lieu.ap_dung_tu, du_lieu.ap_dung_den, [g.model_dump() for g in du_lieu.danh_sach_gia], du_lieu.xac_nhan_canh_bao
     )
 
 
-@router.post("/gia-ve/xem-truoc", response_model=XemTruocGiaVeResponse)
-def xem_truoc_tao_gia_ve(du_lieu: GiaVeRequest):
-    return gia_ve_service.xem_truoc_tao_gia_ve(
-        str(du_lieu.tuyen_id), str(du_lieu.diem_di_id), str(du_lieu.diem_den_id), du_lieu.gia_goc, du_lieu.ap_dung_tu, du_lieu.ap_dung_den
+@router.post("/bo-gia/xem-truoc", response_model=XemTruocBoGiaResponse)
+def xem_truoc_tao_bo_gia(du_lieu: BoGiaRequest):
+    return gia_ve_service.xem_truoc_tao_bo(
+        str(du_lieu.tuyen_id), du_lieu.ap_dung_tu, du_lieu.ap_dung_den, [g.model_dump() for g in du_lieu.danh_sach_gia]
     )
 
 
-@router.put("/gia-ve/{gia_ve_id}")
-def sua_gia_ve(gia_ve_id: UUID, du_lieu: SuaGiaVeRequest):
-    gia_ve_service.sua_gia_ve(str(gia_ve_id), du_lieu.gia_goc, du_lieu.ap_dung_tu, du_lieu.ap_dung_den, du_lieu.xac_nhan_canh_bao)
-    return {"thong_bao": "Cập nhật giá vé thành công"}
+@router.put("/bo-gia/{bo_gia_id}", response_model=BoGiaResponse)
+def sua_bo_gia(bo_gia_id: UUID, du_lieu: SuaBoGiaRequest):
+    return gia_ve_service.sua_bo(
+        str(bo_gia_id), du_lieu.ap_dung_tu, du_lieu.ap_dung_den, [g.model_dump() for g in du_lieu.danh_sach_gia], du_lieu.xac_nhan_canh_bao
+    )
 
 
-@router.post("/gia-ve/{gia_ve_id}/xem-truoc", response_model=XemTruocGiaVeResponse)
-def xem_truoc_sua_gia_ve(gia_ve_id: UUID, du_lieu: XemTruocSuaGiaVeRequest):
-    return gia_ve_service.xem_truoc_sua_gia_ve(str(gia_ve_id), du_lieu.gia_goc, du_lieu.ap_dung_tu, du_lieu.ap_dung_den)
+@router.post("/bo-gia/{bo_gia_id}/xem-truoc", response_model=XemTruocBoGiaResponse)
+def xem_truoc_sua_bo_gia(bo_gia_id: UUID, du_lieu: XemTruocSuaBoGiaRequest):
+    return gia_ve_service.xem_truoc_sua_bo(
+        str(bo_gia_id), du_lieu.ap_dung_tu, du_lieu.ap_dung_den, [g.model_dump() for g in du_lieu.danh_sach_gia]
+    )
 
 
-@router.get("/gia-ve", response_model=list[GiaVeResponse])
-def danh_sach_gia_ve(tuyen_id: UUID | None = None):
-    return gia_ve_service.danh_sach_gia_ve(str(tuyen_id) if tuyen_id else None)
-
-
-@router.delete("/gia-ve/{gia_ve_id}")
-def xoa_gia_ve(gia_ve_id: UUID):
-    gia_ve_service.xoa_gia_ve(str(gia_ve_id))
-    return {"thong_bao": "Xóa giá vé thành công"}
+@router.delete("/bo-gia/{bo_gia_id}")
+def xoa_bo_gia(bo_gia_id: UUID):
+    gia_ve_service.xoa_bo(str(bo_gia_id))
+    return {"thong_bao": "Xóa bộ giá vé thành công"}
 
 
 # ---------------------------------------------------------

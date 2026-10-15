@@ -833,30 +833,45 @@ Muốn đổi giờ/loại xe: bấm "Ngừng" cặp này rồi tạo cặp lị
       return `${d}/${m}/${y}`;
     }
 
+    // Giới hạn ngày chọn theo các cặp đang tick: từ ngày muộn nhất trong các "ngày sớm nhất", đến ngày sớm nhất trong các "ngày muộn nhất"
+    function capNhatGioiHanNgay(datMacDinh) {
+      const homNay = khoaNgay(new Date());
+      const dangChon = [...scDsCap.querySelectorAll("input:checked")];
+      const tuMin = dangChon.reduce((m, o) => (o.dataset.tu > m ? o.dataset.tu : m), homNay);
+      const denMax = dangChon.length ? dangChon.reduce((m, o) => (o.dataset.den < m ? o.dataset.den : m), "9999-12-31") : "";
+      scTuNgay.min = tuMin;
+      scDenNgay.max = denMax;
+      if (datMacDinh || !scTuNgay.value || scTuNgay.value < tuMin) scTuNgay.value = tuMin;
+      const mocSau = new Date();
+      mocSau.setDate(mocSau.getDate() + 6);
+      const macDinhDen = denMax && khoaNgay(mocSau) > denMax ? denMax : khoaNgay(mocSau);
+      if (datMacDinh || !scDenNgay.value || (denMax && scDenNgay.value > denMax)) scDenNgay.value = macDinhDen;
+      scDenNgay.min = scTuNgay.value;
+    }
+
     function moModalSinhChuyen(tuyen) {
       tuyenDangSinhChuyen = tuyen;
       document.getElementById("sc-mo-ta").innerHTML = `<strong>${esc(tuyen.ten)}</strong> · ${esc(nhanChieu(tuyen.id, "xuoi"))}`;
 
       scDsCap.innerHTML = capTheoTuyen(tuyen.id)
         .map((c) => {
-          const dung = c.dang_ap_dung;
+          // Chỉ sinh được trong khoảng các bộ giá vé của tuyến; chuyến đi muộn nhất = ngày cuối bộ giá − độ lệch chuyến về
+          const coGia = !!(c.sinh_chuyen_tu_ngay && c.sinh_chuyen_den_ngay && c.sinh_chuyen_den_ngay >= c.sinh_chuyen_tu_ngay);
+          const dung = c.dang_ap_dung && coGia;
           return `
             <label class="lc-sc-cap${dung ? "" : " lc-sc-cap--tat"}">
-              <input type="checkbox" value="${c.cap_id}"${dung ? " checked" : " disabled"} />
+              <input type="checkbox" value="${c.cap_id}" data-tu="${c.sinh_chuyen_tu_ngay || ""}" data-den="${c.sinh_chuyen_den_ngay || ""}"${dung ? " checked" : " disabled"} />
               <span>Đi <b>${gioNgan(c.xuoi.gio_khoi_hanh)}</b> · ${esc(c.xuoi.ma_loai_xe)}</span>
               <span>Về <b>${gioNgan(c.nguoc.gio_khoi_hanh)}</b>${c.ngay_lech ? ` <em>+${c.ngay_lech}</em>` : ""}</span>
-              ${dung ? "" : '<span class="pill pill--nho pill--xam">Đã ngừng</span>'}
+              ${!c.dang_ap_dung ? '<span class="pill pill--nho pill--xam">Đã ngừng</span>' : !coGia ? '<span class="pill pill--nho pill--xam">Chưa có bộ giá</span>' : `<span class="nv-text-phu">sinh đến ${dinhDangNgay(c.sinh_chuyen_den_ngay)}</span>`}
             </label>`;
         })
         .join("");
+      scDsCap.querySelectorAll("input").forEach((o) => o.addEventListener("change", () => capNhatGioiHanNgay(false)));
 
-      const homNay = khoaNgay(new Date());
-      scTuNgay.min = homNay;
-      scTuNgay.value = homNay;
-      const mocSau = new Date();
-      mocSau.setDate(mocSau.getDate() + 6);
-      scDenNgay.min = homNay;
-      scDenNgay.value = khoaNgay(mocSau);
+      scTuNgay.value = "";
+      scDenNgay.value = "";
+      capNhatGioiHanNgay(true);
 
       scLoi.hidden = true;
       scKetQua.hidden = true;

@@ -69,7 +69,7 @@ project-root/
 │   │   │   ├── khu_vuc_repository.py
 │   │   │   ├── diem_don_tra_repository.py
 │   │   │   ├── tuyen_repository.py            # tuyen (chạy cả 2 chiều) + tuyen_diem_don_tra
-│   │   │   ├── gia_ve_repository.py
+│   │   │   ├── gia_ve_repository.py            # bộ giá vé (bo_gia_ve) + giá từng chặng (gia_ve) — UC-33; đếm chuyến đã sinh trong khoảng áp dụng của bộ (để khóa sửa/xóa)
 │   │   │   ├── xe_repository.py
 │   │   │   ├── chuyen_xe_repository.py
 │   │   │   ├── tim_kiem_chuyen_repository.py   # SQL chỉ-đọc cho tra cứu chuyến công khai (UC-04): chuyến theo khu vực đi/đến + ngày, ghế đang bị giữ, giá — so thứ tự điểm bằng thu_tu hiệu lực theo chiều
@@ -80,14 +80,15 @@ project-root/
 │   │   │   ├── mat_khau_service.py            # đăng ký/đăng nhập/quên mật khẩu — kế thừa bản v1
 │   │   │   ├── tai_khoan_can_bo_service.py    # tạo/khóa/mở khóa tài khoản cán bộ (UC-36/37) — kiểm tra quyền actor vs vai trò mục tiêu, chặn khóa quan_ly gốc (mục 8.9 NGHIEP_VU.md)
 │   │   │   ├── email_service.py               # gửi mail OTP qua Brevo API (HTTPS) — hạ tầng
-│   │   │   ├── tim_kiem_chuyen_service.py     # tìm theo điểm đi/đến (mục 3.4 bước 1-2)
+│   │   │   ├── tim_kiem_chuyen_service.py     # tìm theo điểm đi/đến (mục 3.4 bước 1-2); chọn giá theo bộ giá áp dụng cho ngày khởi hành của từng chuyến
+│   │   │   ├── gia_ve_service.py              # giá vé theo bộ (UC-33): bộ đủ mọi chặng, có ngày bắt đầu + kết thúc, bộ mới nối liền bộ cuối, khóa bộ đã sinh chuyến (bộ cuối vẫn gia hạn được), cảnh báo giá bất thường, bảng giá của 1 chuyến, kiểm tra giá phủ từng ngày khi sinh chuyến
 │   │   │   ├── dat_ve_service.py              # giữ ghế, chống trùng ghế, đặt cọc (mục 3.4, 6)
 │   │   │   ├── thanh_toan_service.py          # xử lý IPN + trang kết quả của cổng thanh toán (chữ ký, số tiền, chống xử lý lặp)
 │   │   │   ├── vnpay_service.py               # ký/kiểm tra chữ ký HMAC-SHA512, tạo đường dẫn thanh toán — dùng chung giả lập và VNPay thật
 │   │   │   ├── cong_thanh_toan_gia_service.py # cổng thanh toán GIẢ LẬP để demo (VNPAY_CHE_DO=gia_lap), đóng vai VNPay
 │   │   │   ├── hoan_tien_service.py            # tạo/quản lý hàng đợi lich_su_hoan_tien; gọi API hoàn tiền VNPay khi có mã giao dịch (mục 7 NGHIEP_VU.md)
 │   │   │   ├── lich_chay_service.py            # lịch chạy theo cặp đi+về (UC-18: tạo/ngừng/xóa cả cặp, khóa sửa khi đã sinh chuyến, tính ngày lệch chiều về) + sinh chuyen_xe thủ công cho các cặp trong khoảng ngày do quan_ly chọn, 1 giao dịch (UC-47, mục 3.5 NGHIEP_VU.md) — chỉ route quan_ly.py gọi, không còn job
-│   │   │   ├── chuyen_service.py               # quan_ly xem/lọc/sửa giờ/xóa chuyến còn "sạch" (UC-48) — khác chuyen_xe_service.py (vòng đời/gán xe của điều độ viên)
+│   │   │   ├── chuyen_service.py               # quan_ly xem/lọc/sửa giờ/xóa chuyến còn "sạch" (UC-48); chi tiết chuyến kèm bảng giá vé — khác chuyen_xe_service.py (vòng đời/gán xe của điều độ viên)
 │   │   │   ├── chuyen_xe_service.py           # vòng đời chuyến, gán xe (UC-44), đổi xe, sự cố (mục 3.3, 4)
 │   │   │   ├── xe_nhan_su_service.py          # biên chế cố định/tạm thời (mục 3.2)
 │   │   │   ├── gui_hang_service.py            # tạo đơn theo tuyến, phụ xe chọn xếp lên chuyến cụ thể (mục 10.2) — không còn tính sức chứa tự động

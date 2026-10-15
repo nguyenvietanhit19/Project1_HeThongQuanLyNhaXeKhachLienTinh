@@ -107,6 +107,29 @@ const ChuyenChiTiet = (() => {
       </div>`;
   }
 
+  // Giá vé của chuyến: bộ giá áp dụng cho ngày khởi hành × hệ số loại xe (server tính); chưa có giá thì khách không thấy chuyến
+  function renderGiaVe(c) {
+    const bg = c.bang_gia;
+    if (!bg) {
+      return `
+        <div class="cy-ct__tieu-de">Giá vé</div>
+        <div class="ct-khong-gia">Chưa có bộ giá vé áp dụng cho ngày này — khách không thấy chuyến này (mục Giá vé).</div>`;
+    }
+    const ngayAp = bg.ap_dung_tu.split("-").reverse().join("/");
+    const heSo = Number(bg.he_so_gia);
+    const hang = bg.cac_chang
+      .map((g) => `
+        <div class="ct-gia__hang">
+          <span class="ct-gia__chang">${esc(g.ten_chang)}</span>
+          <span class="ct-gia__goc">${heSo !== 1 ? Number(g.gia_goc).toLocaleString("vi-VN") + "đ" : ""}</span>
+          <strong class="ct-gia__ban">${Number(g.gia_ban).toLocaleString("vi-VN")}đ</strong>
+        </div>`)
+      .join("");
+    return `
+      <div class="cy-ct__tieu-de">Giá vé <span class="nv-text-phu">· bộ giá từ ${ngayAp}${heSo !== 1 ? ` · hệ số loại xe ×${heSo}` : ""}</span></div>
+      <div class="ct-gia">${hang}</div>`;
+  }
+
   // ---------- Modal ----------
   let modal = null;
   let noiDung = null;
@@ -183,6 +206,8 @@ const ChuyenChiTiet = (() => {
         <span class="nv-label" style="margin:0;">Vé đang giữ/đã bán</span>
         <span class="nv-text-phu">${c.so_ve_dang_hoat_dong}</span>
       </div>
+
+      ${renderGiaVe(c)}
 
       ${renderLoTrinhChuyen(c)}
 

@@ -73,5 +73,7 @@ class CapLichChayResponse(BaseModel):
     dang_ap_dung: bool
     so_chuyen_da_sinh: int
     cac_cap_thieu_gia: list[str] = []
+    sinh_chuyen_tu_ngay: date | None = None  # ngày sớm nhất sinh được chuyến đi (bộ giá đầu tiên của tuyến bắt đầu); None = tuyến chưa có bộ giá
+    sinh_chuyen_den_ngay: date | None = None  # ngày muộn nhất sinh được chuyến đi = ngày cuối bộ giá mới nhất trừ độ lệch chuyến về
     xuoi: LichChayResponse
     nguoc: LichChayResponse
