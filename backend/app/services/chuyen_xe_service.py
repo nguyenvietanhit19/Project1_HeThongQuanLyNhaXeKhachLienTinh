@@ -11,8 +11,10 @@ chung 1 file vì cùng đang xây tuần tự).
 "quản lý danh mục" đã có sẵn.
 """
 
-from datetime import datetime, timedelta
+import logging
+from datetime import datetime, timedelta, timezone
 
+from app.jobs import quet_no_show
 from app.repositories import chuyen_xe_repository as chuyen_xe_repo
 from app.repositories import dia_diem_repository as dia_diem_repo
 from app.repositories import nguoi_dung_repository as nd_repo
@@ -23,7 +25,15 @@ from app.services.websocket_manager import broadcast_sync, manager as ws_manager
 from app.utils.loi import GiaTriLoi, KhongDuQuyen
 
 repo = chuyen_xe_repo
+nguoi_dung_repo = nd_repo
+logger = logging.getLogger(__name__)
 LOAI_SU_CO_HOP_LE = ("loi_nha_xe", "loi_khach_quan")
+GIO_VIET_NAM = timezone(timedelta(hours=7))
+PHUT_MO_BEN_TRUOC_GIO = 15  # chuyến chưa khởi hành: cho khách lên xe / chất hàng từ ngần này phút trước giờ chạy
+
+
+def _bay_gio() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 def _gui_thong_bao(nguoi_nhan_id: str, noi_dung: str) -> None:
@@ -56,26 +66,55 @@ def lay_chuyen_cua_phu_xe(chuyen_id: str, nguoi_dung_id: str) -> dict:
     return chuyen
 
 
+def diem_theo_chieu(chuyen: dict) -> list[dict]:
+    """Các điểm của tuyến theo ĐÚNG HƯỚNG xe chạy: điểm xuất phát đứng đầu,
+    điểm cuối đứng cuối.
+
+    `tuyen_diem_don_tra.thu_tu` luôn lưu theo chiều xuôi; chuyến `nguoc` đi
+    theo `thu_tu` giảm dần (THAY_DOI_TUYEN_2_CHIEU.md mục 3). Mọi nơi cần
+    "điểm đầu / điểm cuối / điểm kế tiếp / điểm phía sau" phải lấy từ danh
+    sách này, không tự giả định `thu_tu` tăng = hướng xe đi. Giá trị `thu_tu`
+    gốc trong từng phần tử được giữ nguyên (dùng cho truy vấn SQL)."""
+    diem_list = sorted(dia_diem_repo.danh_sach_diem_theo_tuyen(chuyen["tuyen_id"]), key=lambda d: d["thu_tu"])
+    if chuyen["chieu"] == "nguoc":
+        diem_list.reverse()
+    return diem_list
+
+
+class XeDangDiChuyen(GiaTriLoi):
+    """Xe đã rời điểm dừng và chưa tới điểm kế tiếp — không thể lên/xuống xe hay chất/dỡ hàng."""
+
+    def __init__(self) -> None:
+        super().__init__("Xe đang di chuyển tới điểm kế tiếp — chờ xe tới nơi rồi mới thao tác được")
+
+
 def diem_hien_tai(chuyen: dict) -> dict:
-    """Điểm phụ xe đang đứng: điểm cuối cùng đã xác nhận đến, hoặc điểm đầu
+    """Điểm phụ xe đang ĐỨNG: điểm cuối cùng đã xác nhận đến, hoặc điểm đầu
     tuyến nếu chưa xác nhận điểm nào (mục 8.2 điểm 1/5).
 
-    Dùng chung cho khach_tai_diem_hien_tai() ở đây và
-    gui_hang_service.danh_sach_cho_chat() — cả hai đều cần biết "điểm hiện
-    tại" của cùng 1 chuyến."""
-    diem_list = dia_diem_repo.danh_sach_diem_theo_tuyen(chuyen["tuyen_id"])
+    Dùng chung cho mọi thao tác tại điểm (lên/xuống xe, chất/dỡ hàng) — nên
+    xe đang di chuyển giữa 2 điểm thì báo lỗi `XeDangDiChuyen` ở đây, không
+    phải kiểm tra lặp lại ở từng nơi."""
+    if chuyen.get("dang_di_chuyen"):
+        raise XeDangDiChuyen()
+    return diem_xe_vua_roi_hoac_dung(chuyen)
+
+
+def diem_xe_vua_roi_hoac_dung(chuyen: dict) -> dict:
+    """Điểm cuối cùng xe đã tới (kể cả khi xe vừa rời điểm đó và đang di chuyển)."""
+    diem_list = diem_theo_chieu(chuyen)
     if not diem_list:
         raise GiaTriLoi("Tuyến chưa có điểm đón/trả nào")
 
-    da_xac_nhan = chuyen_xe_repo.lay_diem_da_xac_nhan(chuyen["id"])
-    if not da_xac_nhan:
+    da_xac_nhan_ids = {d["diem_don_tra_id"] for d in chuyen_xe_repo.lay_diem_da_xac_nhan(chuyen["id"])}
+    if not da_xac_nhan_ids:
         return diem_list[0]
 
-    diem_id_hien_tai = da_xac_nhan[0]["diem_don_tra_id"]  # thu_tu DESC -> dòng đầu là mới nhất
-    for diem in diem_list:
-        if diem["diem_don_tra_id"] == diem_id_hien_tai:
-            return diem
-    raise GiaTriLoi("Dữ liệu điểm dừng không nhất quán với tuyến")
+    # Điểm hiện tại = điểm xa nhất THEO HƯỚNG ĐI trong số các điểm đã xác nhận đến.
+    diem_da_toi = [d for d in diem_list if d["diem_don_tra_id"] in da_xac_nhan_ids]
+    if not diem_da_toi:
+        raise GiaTriLoi("Dữ liệu điểm dừng không nhất quán với tuyến")
+    return diem_da_toi[-1]
 
 
 def chi_tiet_cho_phu_xe(chuyen_id: str, nguoi_dung_id: str) -> dict:
@@ -94,6 +133,9 @@ def chi_tiet_cho_phu_xe(chuyen_id: str, nguoi_dung_id: str) -> dict:
         "gio_khoi_hanh": chuyen["gio_khoi_hanh"],
         "trang_thai": chuyen["trang_thai"],
         "dang_hoan": chuyen["dang_hoan"],
+        "dang_di_chuyen": bool(chuyen.get("dang_di_chuyen")),
+        "gio_roi_diem": chuyen.get("gio_roi_diem"),
+        "gio_mo_ben": gio_mo_ben(chuyen),
     }
 
 
@@ -106,7 +148,7 @@ def danh_sach_chuyen_cua_toi(nguoi_dung_id: str) -> list[dict]:
     if not xe_id:
         return []  # chưa được biên chế vào xe nào (mục 3.2)
 
-    return chuyen_xe_repo.tim_chuyen_cua_xe(xe_id)
+    return [{**c, "gio_mo_ben": gio_mo_ben(c)} for c in chuyen_xe_repo.tim_chuyen_cua_xe(xe_id)]
 
 
 def thong_ke_cua_toi(nguoi_dung_id: str, tu_ngay, den_ngay) -> dict:
@@ -129,7 +171,8 @@ def thong_ke_cua_toi(nguoi_dung_id: str, tu_ngay, den_ngay) -> dict:
     if not chuyen_list:
         return {"so_chuyen": 0, "doanh_thu": 0, "ty_le_lap_day_trung_binh": 0, "so_chuyen_su_co": 0, "so_chuyen_huy": 0}
 
-    ty_le_lap_day = [c["so_ve_ban"] / c["tong_ghe"] for c in chuyen_list if c["tong_ghe"]]
+    # Chuyến đã hủy không tính vào tỷ lệ lấp đầy (không chạy nên không có "ghế bán được" để so).
+    ty_le_lap_day = [c["so_ve_ban"] / c["tong_ghe"] for c in chuyen_list if c["tong_ghe"] and c["trang_thai"] != "da_huy"]
 
     return {
         "so_chuyen": len(chuyen_list),
@@ -149,21 +192,52 @@ def khach_tai_diem_hien_tai(chuyen_id: str, nguoi_dung_id: str) -> dict:
     # nốt khách xuống xe/hàng dỡ tại đúng điểm cuối đó ngay sau đó — không
     # thể chặn chỉ vì chuyến đã "xong" theo nghĩa xe đã tới đích.
 
-    diem = diem_hien_tai(chuyen)
+    diem = diem_xe_vua_roi_hoac_dung(chuyen)
+    dang_di_chuyen = bool(chuyen.get("dang_di_chuyen"))
     return {
         "diem_don_tra_id": diem["diem_don_tra_id"],
         "ten_diem": diem["ten"],
-        "khach_can_len": ve_repo.tim_ve_can_len_xe_tai_diem(chuyen_id, diem["diem_don_tra_id"]),
-        "khach_can_xuong": ve_repo.tim_ve_can_xuong_xe_tai_diem(chuyen_id, diem["diem_don_tra_id"]),
+        "dang_di_chuyen": dang_di_chuyen,
+        # Đang di chuyển thì chưa có ai để lên/xuống — danh sách chỉ có nghĩa khi xe đang đứng
+        "khach_can_len": [] if dang_di_chuyen else ve_repo.tim_ve_can_len_xe_tai_diem(chuyen_id, diem["diem_don_tra_id"]),
+        "khach_can_xuong": [] if dang_di_chuyen else ve_repo.tim_ve_can_xuong_xe_tai_diem(chuyen_id, diem["diem_don_tra_id"]),
     }
 
 
-def xac_nhan_xuat_phat(chuyen_id: str, nguoi_dung_id: str) -> None:
-    chuyen = lay_chuyen_cua_phu_xe(chuyen_id, nguoi_dung_id)
+def gio_mo_ben(chuyen: dict) -> datetime:
+    return chuyen["gio_khoi_hanh"] - timedelta(minutes=PHUT_MO_BEN_TRUOC_GIO)
+
+
+def kiem_tra_ben_da_mo(chuyen: dict) -> None:
+    """Chuyến chưa khởi hành chỉ cho khách lên xe / chất hàng khi bến đã mở (15 phút trước giờ chạy).
+    Chuyến đang chạy thì luôn qua."""
+    if chuyen["trang_thai"] != "chua_khoi_hanh" or not chuyen.get("gio_khoi_hanh"):
+        return
+    if _bay_gio() < gio_mo_ben(chuyen):
+        gio_vn = gio_mo_ben(chuyen).astimezone(GIO_VIET_NAM).strftime("%H:%M")
+        raise GiaTriLoi(f"Bến chưa mở — từ {gio_vn} ({PHUT_MO_BEN_TRUOC_GIO} phút trước giờ chạy) mới cho khách lên xe và chất hàng")
+
+
+def kiem_tra_co_the_xuat_phat(chuyen: dict) -> None:
     if chuyen["trang_thai"] != "chua_khoi_hanh":
         raise GiaTriLoi("Chuyến không ở trạng thái chưa khởi hành")
+    # Mục 3.3 điểm 9: chuyến đang "hoãn" (chưa có xe thay thế) chưa được chạy — chờ điều độ viên tắt cờ hoãn.
+    if chuyen.get("dang_hoan"):
+        raise GiaTriLoi("Chuyến đang hoãn, chưa thể xuất phát — chờ điều độ viên xử lý")
+    # UC-15: chỉ được xuất phát đúng giờ hoặc muộn hơn, không xuất phát sớm.
+    # (Repository kiểm lại ngay trong UPDATE bằng now() của DB.)
+    if _bay_gio() < chuyen["gio_khoi_hanh"]:
+        gio_vn = chuyen["gio_khoi_hanh"].astimezone(GIO_VIET_NAM).strftime("%H:%M %d/%m/%Y")
+        raise GiaTriLoi(f"Chưa đến giờ khởi hành ({gio_vn}), không thể xuất phát sớm")
 
-    chuyen_xe_repo.cap_nhat_xac_nhan_xuat_phat(chuyen_id)
+
+def xac_nhan_xuat_phat(chuyen_id: str, nguoi_dung_id: str) -> None:
+    """Không còn route riêng — xuất phát là bước đầu của "Bắt đầu di chuyển" tại điểm xuất phát (di_chuyen_service)."""
+    chuyen = lay_chuyen_cua_phu_xe(chuyen_id, nguoi_dung_id)
+    kiem_tra_co_the_xuat_phat(chuyen)
+
+    if not chuyen_xe_repo.cap_nhat_xac_nhan_xuat_phat(chuyen_id):
+        raise GiaTriLoi("Chuyến vừa được xác nhận xuất phát hoặc đổi trạng thái, vui lòng tải lại")
 
 
 def hanh_trinh(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
@@ -171,18 +245,26 @@ def hanh_trinh(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
     giao diện hiển thị hành trình và biết điểm tiếp theo cần xác nhận
     (mục 8.2 điểm 5)."""
     chuyen = lay_chuyen_cua_phu_xe(chuyen_id, nguoi_dung_id)
-    diem_list = dia_diem_repo.danh_sach_diem_theo_tuyen(chuyen["tuyen_id"])
+    diem_list = diem_theo_chieu(chuyen)
     da_xac_nhan = {d["diem_don_tra_id"]: d["gio_thuc_te"] for d in chuyen_xe_repo.lay_diem_da_xac_nhan(chuyen_id)}
+    # Giờ dự kiến tới từng điểm — cùng công thức với job no-show (ve_repository.tim_ve_qua_gio_len_xe):
+    # chiều xuôi = mốc của điểm; chiều ngược = mốc cuối tuyến trừ mốc của điểm.
+    moc_cuoi = max((d["thoi_gian_du_kien_phut"] for d in diem_list), default=0)
+
+    def gio_du_kien(diem):
+        phut = diem["thoi_gian_du_kien_phut"]
+        return chuyen["gio_khoi_hanh"] + timedelta(minutes=phut if chuyen["chieu"] == "xuoi" else moc_cuoi - phut)
 
     return [
         {
             "diem_don_tra_id": diem["diem_don_tra_id"],
             "ten_diem": diem["ten"],
-            "thu_tu": diem["thu_tu"],
+            "thu_tu": vi_tri,  # thứ tự THEO HƯỚNG ĐI (1 = điểm xuất phát), không phải thu_tu gốc của tuyến
             "da_toi": diem["diem_don_tra_id"] in da_xac_nhan,
             "gio_thuc_te": da_xac_nhan.get(diem["diem_don_tra_id"]),
+            "gio_du_kien": gio_du_kien(diem),
         }
-        for diem in diem_list
+        for vi_tri, diem in enumerate(diem_list, start=1)
     ]
 
 
@@ -191,8 +273,10 @@ def xac_nhan_toi_diem(chuyen_id: str, diem_don_tra_id: str, nguoi_dung_id: str) 
     chuyen = lay_chuyen_cua_phu_xe(chuyen_id, nguoi_dung_id)
     if chuyen["trang_thai"] != "dang_chay":
         raise GiaTriLoi("Chuyến chưa xuất phát")
+    if not chuyen.get("dang_di_chuyen"):
+        raise GiaTriLoi("Xe chưa bắt đầu di chuyển — bấm \"Bắt đầu di chuyển\" ở điểm hiện tại trước, tới nơi mới xác nhận đã đến")
 
-    diem_list = dia_diem_repo.danh_sach_diem_theo_tuyen(chuyen["tuyen_id"])
+    diem_list = diem_theo_chieu(chuyen)
     diem_muc_tieu = next((d for d in diem_list if d["diem_don_tra_id"] == diem_don_tra_id), None)
     if diem_muc_tieu is None:
         raise GiaTriLoi("Điểm này không thuộc tuyến của chuyến")
@@ -201,14 +285,21 @@ def xac_nhan_toi_diem(chuyen_id: str, diem_don_tra_id: str, nguoi_dung_id: str) 
     if diem_don_tra_id in da_xac_nhan_ids:
         raise GiaTriLoi("Điểm này đã được xác nhận đến trước đó")
 
-    # Điểm đầu tuyến (thu_tu nhỏ nhất) là nơi xe xuất phát (UC-15), không
+    # Điểm đầu theo hướng đi (xuôi: thu_tu nhỏ nhất, ngược: lớn nhất) là nơi xe xuất phát (UC-15), không
     # phải điểm "đến" — các điểm còn lại phải xác nhận đúng thứ tự, không
     # được nhảy cóc bỏ qua 1 điểm giữa đường.
     con_lai = [d for d in diem_list[1:] if d["diem_don_tra_id"] not in da_xac_nhan_ids]
     if not con_lai or diem_muc_tieu["diem_don_tra_id"] != con_lai[0]["diem_don_tra_id"]:
         raise GiaTriLoi("Phải xác nhận lần lượt theo đúng thứ tự các điểm trên tuyến")
 
-    chuyen_xe_repo.them_lich_su_diem_dung(chuyen_id, diem_don_tra_id)
+    diem_vua_roi = diem_xe_vua_roi_hoac_dung(chuyen)  # điểm xe vừa rời (lấy TRƯỚC khi ghi điểm mới)
+
+    if not chuyen_xe_repo.them_lich_su_diem_dung(chuyen_id, diem_don_tra_id):
+        raise GiaTriLoi("Điểm này đã được xác nhận đến trước đó")
+
+    # Xe đã tới điểm kế tiếp → không còn quay lại điểm vừa rời: khách ở đó vẫn chưa lên xe là "không đến"
+    for ve in ve_repo.tim_ve_chua_len_tai_diem(chuyen_id, str(diem_vua_roi["diem_don_tra_id"])):
+        quet_no_show.danh_dau_khong_den(str(ve["ve_id"]), ve["khach_hang_id"])
 
     diem_cuoi_tuyen = diem_list[-1]["diem_don_tra_id"]
     da_hoan_thanh = diem_don_tra_id == diem_cuoi_tuyen
@@ -226,25 +317,26 @@ def xac_nhan_toi_diem(chuyen_id: str, diem_don_tra_id: str, nguoi_dung_id: str) 
 
 
 def bao_su_co(chuyen_id: str, loai_su_co: str, ly_do: str, nguoi_dung_id: str) -> None:
+    """UC-17. Phụ xe chọn nguyên nhân theo thông tin tài xế cung cấp bằng lời."""
     if loai_su_co not in LOAI_SU_CO_HOP_LE:
         raise GiaTriLoi("Nguyên nhân sự cố không hợp lệ")
+    if not ly_do.strip():
+        raise GiaTriLoi("Vui lòng nhập mô tả sự cố")
 
     chuyen = lay_chuyen_cua_phu_xe(chuyen_id, nguoi_dung_id)
     if chuyen["trang_thai"] != "dang_chay":
         raise GiaTriLoi("Chỉ báo được sự cố khi chuyến đang chạy")
 
-    chuyen_xe_repo.cap_nhat_gap_su_co(chuyen_id, loai_su_co, ly_do)
+    if not chuyen_xe_repo.cap_nhat_gap_su_co(chuyen_id, loai_su_co, ly_do):
+        raise GiaTriLoi("Chuyến vừa được báo sự cố hoặc đổi trạng thái, vui lòng tải lại")
     chuyen_xe_repo.gan_co_xung_dot_vi_tri_cho_chuyen_tuong_lai(chuyen["xe_id"], chuyen_id)
 
     # mục 8.1 điểm 4 — báo khách đang có vé active trên chuyến này.
-    # Báo điều độ viên phụ trách điểm xuất phát (mục 8.2 điểm 7) CHƯA làm
-    # được ở đây vì hệ thống chưa có bảng phạm vi văn phòng của điều độ
-    # viên (ho_so_can_bo_diem) lẫn tài khoản điều độ viên nào — thuộc
-    # phần chưa xây (CONTRIBUTING.md, "người 4").
     noi_dung = "Chuyến bạn đang đi gặp sự cố dọc đường, nhà xe đang xử lý"
     for khach in ve_repo.tim_khach_hang_dang_hoat_dong_theo_chuyen(chuyen_id):
         _gui_thong_bao(khach["khach_hang_id"], noi_dung)
 
+    _bao_dieu_do_vien_su_co(chuyen, loai_su_co, ly_do)
 
 # ============================================================
 # CÁC HÀM NGHIỆP VỤ CHO ĐIỀU ĐỘ VIÊN (Người 4: UC-44, UC-45, UC-19, UC-20, UC-40, UC-39)
@@ -495,3 +587,19 @@ def lay_thong_ke_van_hanh(tu_ngay: str, den_ngay: str, nguoi_dung_id: str | None
     """UC-39: Thống kê hiệu suất vận hành trong khoảng thời gian."""
     return repo.thong_ke_van_hanh(tu_ngay, den_ngay)
 
+def _bao_dieu_do_vien_su_co(chuyen: dict, loai_su_co: str, ly_do: str) -> None:
+    """UC-17 bước 4 (mục 8.2 điểm 7): điều độ viên nhận cảnh báo ngay. Ưu tiên
+    người phụ trách văn phòng ở điểm xuất phát của chuyến; chưa ai phụ trách
+    điểm đó thì báo toàn bộ điều độ viên để cảnh báo không bị bỏ sót. Sự cố đã
+    được ghi (commit) nên lỗi gửi thông báo chỉ ghi log, không làm hỏng thao tác."""
+    try:
+        diem_xuat_phat = diem_theo_chieu(chuyen)[0]["diem_don_tra_id"]
+        nguoi_nhan = chuyen_xe_repo.danh_sach_dieu_do_vien_tai_diem(str(diem_xuat_phat))
+        if not nguoi_nhan:
+            nguoi_nhan = nguoi_dung_repo.danh_sach_id_theo_vai_tro("dieu_do_vien", chi_dang_hoat_dong=True)
+        nguyen_nhan = "lỗi nhà xe" if loai_su_co == "loi_nha_xe" else "lỗi khách quan"
+        noi_dung = f"Chuyến {chuyen.get('ma') or chuyen['id']} gặp sự cố ({nguyen_nhan}): {ly_do.strip()}"
+        for nguoi_id in nguoi_nhan:
+            _gui_thong_bao(nguoi_id, noi_dung)
+    except Exception:  # noqa: BLE001
+        logger.exception("Không báo được điều độ viên về sự cố chuyến %s", chuyen["id"])

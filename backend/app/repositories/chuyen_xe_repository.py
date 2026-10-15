@@ -35,9 +35,9 @@ def tim_theo_id(chuyen_id: str) -> dict | None:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, tuyen_id, xe_id, loai_xe_id, xe_thuc_te_id, gio_khoi_hanh,
+                SELECT id, ma, tuyen_id, chieu, xe_id, loai_xe_id, xe_thuc_te_id, gio_khoi_hanh,
                        trang_thai, dang_hoan, gio_xac_nhan_xuat_phat, gio_hoan_thanh,
-                       loai_su_co, ly_do_su_co, co_canh_bao_xung_dot_vi_tri
+                       loai_su_co, ly_do_su_co, co_canh_bao_xung_dot_vi_tri, dang_di_chuyen, gio_roi_diem
                 FROM chuyen_xe WHERE id = %s
                 """,
                 (chuyen_id,),
@@ -56,7 +56,7 @@ def tim_chuyen_cua_xe(xe_id: str) -> list[dict]:
             cur.execute(
                 """
                 SELECT cx.id, cx.tuyen_id, t.ten AS tuyen_ten, x.bien_so,
-                       cx.gio_khoi_hanh, cx.trang_thai, cx.dang_hoan
+                       cx.gio_khoi_hanh, cx.trang_thai, cx.dang_hoan, cx.dang_di_chuyen
                 FROM chuyen_xe cx
                 JOIN tuyen t ON t.id = cx.tuyen_id
                 JOIN xe x ON x.id = COALESCE(cx.xe_thuc_te_id, cx.xe_id)
@@ -108,32 +108,73 @@ def lay_diem_da_xac_nhan(chuyen_id: str) -> list[dict]:
         release_connection(conn)
 
 
-def cap_nhat_xac_nhan_xuat_phat(chuyen_id: str) -> None:
+def cap_nhat_xac_nhan_xuat_phat(chuyen_id: str) -> bool:
+    """Xuất phát = rời điểm đầu tuyến: sang dang_chay và vào luôn pha đang di chuyển tới điểm kế tiếp.
+    True nếu chuyển được. Điều kiện trang_thai nằm ngay
+    trong câu UPDATE để bấm đúp / 2 phụ xe cùng bấm không xác nhận 2 lần
+    (đè lên gio_xac_nhan_xuat_phat đã ghi) hay xác nhận lên chuyến vừa đổi
+    trạng thái giữa lúc kiểm tra và lúc ghi."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
                 """
                 UPDATE chuyen_xe
-                SET trang_thai = 'dang_chay', gio_xac_nhan_xuat_phat = now()
-                WHERE id = %s
+                SET trang_thai = 'dang_chay', gio_xac_nhan_xuat_phat = now(),
+                    dang_di_chuyen = true, gio_roi_diem = now()
+                WHERE id = %s AND trang_thai = 'chua_khoi_hanh' AND gio_khoi_hanh <= now()
                 """,
                 (chuyen_id,),
             )
+            da_cap_nhat = cur.rowcount > 0
         conn.commit()
+        return da_cap_nhat
     finally:
         release_connection(conn)
 
 
-def them_lich_su_diem_dung(chuyen_id: str, diem_don_tra_id: str) -> None:
+def them_lich_su_diem_dung(chuyen_id: str, diem_don_tra_id: str) -> bool:
+    """True nếu ghi mới thành công, False nếu điểm này đã được ghi (bấm đúp /
+    2 phụ xe cùng bấm — UNIQUE (chuyen_id, diem_don_tra_id)) — không để lỗi
+    ràng buộc lọt thành HTTP 500.
+
+    Xe tới điểm nên đồng thời kết thúc pha "đang di chuyển" (cùng giao dịch)."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO lich_su_diem_dung_chuyen (chuyen_id, diem_don_tra_id) VALUES (%s, %s)",
+                """
+                INSERT INTO lich_su_diem_dung_chuyen (chuyen_id, diem_don_tra_id) VALUES (%s, %s)
+                ON CONFLICT (chuyen_id, diem_don_tra_id) DO NOTHING
+                """,
                 (chuyen_id, diem_don_tra_id),
             )
+            da_ghi = cur.rowcount > 0
+            if da_ghi:
+                cur.execute("UPDATE chuyen_xe SET dang_di_chuyen = false WHERE id = %s", (chuyen_id,))
         conn.commit()
+        return da_ghi
+    finally:
+        release_connection(conn)
+
+
+def dat_dang_di_chuyen(chuyen_id: str, dang_di_chuyen: bool) -> bool:
+    """Bật/tắt pha "đang di chuyển". True nếu có đổi trạng thái; điều kiện nằm ngay trong UPDATE nên
+    bấm đúp / 2 phụ xe cùng bấm / chuyến vừa đổi trạng thái đều không ghi đè lên nhau."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE chuyen_xe
+                SET dang_di_chuyen = %s, gio_roi_diem = CASE WHEN %s THEN now() ELSE NULL END
+                WHERE id = %s AND trang_thai = 'dang_chay' AND dang_di_chuyen = %s
+                """,
+                (dang_di_chuyen, dang_di_chuyen, chuyen_id, not dang_di_chuyen),
+            )
+            da_doi = cur.rowcount > 0
+        conn.commit()
+        return da_doi
     finally:
         release_connection(conn)
 
@@ -143,7 +184,9 @@ def cap_nhat_hoan_thanh(chuyen_id: str) -> None:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE chuyen_xe SET trang_thai = 'hoan_thanh', gio_hoan_thanh = now() WHERE id = %s",
+                """UPDATE chuyen_xe SET trang_thai = 'hoan_thanh', gio_hoan_thanh = now(),
+                          dang_di_chuyen = false, gio_roi_diem = NULL
+                   WHERE id = %s""",
                 (chuyen_id,),
             )
         conn.commit()
@@ -151,7 +194,11 @@ def cap_nhat_hoan_thanh(chuyen_id: str) -> None:
         release_connection(conn)
 
 
-def cap_nhat_gap_su_co(chuyen_id: str, loai_su_co: str, ly_do: str) -> None:
+def cap_nhat_gap_su_co(chuyen_id: str, loai_su_co: str, ly_do: str) -> bool:
+    """True nếu chuyển được sang gap_su_co. `AND trang_thai = 'dang_chay'` nằm
+    trong UPDATE để báo đúp không ghi đè loại/lý do sự cố đã lưu (quyết định
+    quyền hoàn tiền của khách — mục 3.3/4/7), và không biến chuyến vừa
+    hoan_thanh/da_huy thành gap_su_co."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -159,11 +206,13 @@ def cap_nhat_gap_su_co(chuyen_id: str, loai_su_co: str, ly_do: str) -> None:
                 """
                 UPDATE chuyen_xe
                 SET trang_thai = 'gap_su_co', loai_su_co = %s, ly_do_su_co = %s
-                WHERE id = %s
+                WHERE id = %s AND trang_thai = 'dang_chay'
                 """,
                 (loai_su_co, ly_do, chuyen_id),
             )
+            da_cap_nhat = cur.rowcount > 0
         conn.commit()
+        return da_cap_nhat
     finally:
         release_connection(conn)
 
@@ -171,9 +220,12 @@ def cap_nhat_gap_su_co(chuyen_id: str, loai_su_co: str, ly_do: str) -> None:
 def thong_ke_theo_xe(xe_id: str, tu_ngay, den_ngay) -> list[dict]:
     """Mỗi dòng = 1 chuyến của xe trong khoảng ngày, kèm số ghế đã bán và
     doanh thu — dùng cho UC-39 (thống kê của phụ xe, chỉ tính chuyến của
-    xe mình). Quy ước `loai_xe.so_do_ghe` có khóa "so_luong" = tổng số
-    ghế (mục 3.1 NGHIEP_VU.md, JSON tự do vì hệ thống không có bảng ghe_xe
-    riêng)."""
+    xe mình). `loai_xe.so_do_ghe` là MẢNG JSON mỗi phần tử 1 ghế
+    (`xe_schema.GheXe`, UC-32) nên tổng ghế = độ dài mảng.
+
+    `tu_ngay` (gồm) / `den_ngay` (loại trừ) là NGÀY theo giờ Việt Nam, không
+    phải mốc UTC — DB chạy múi giờ UTC nên so thẳng với gio_khoi_hanh sẽ
+    lệch 7 tiếng: chuyến 05:00 sáng ngày D (giờ VN) bị tính vào ngày D-1."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -181,18 +233,74 @@ def thong_ke_theo_xe(xe_id: str, tu_ngay, den_ngay) -> list[dict]:
                 """
                 SELECT
                     cx.id, cx.trang_thai,
-                    (lx.so_do_ghe->>'so_luong')::int AS tong_ghe,
+                    CASE WHEN jsonb_typeof(lx.so_do_ghe) = 'array' THEN jsonb_array_length(lx.so_do_ghe) END AS tong_ghe,
                     COUNT(v.id) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe')) AS so_ve_ban,
                     COALESCE(SUM(v.gia) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe')), 0) AS doanh_thu
                 FROM chuyen_xe cx
                 JOIN loai_xe lx ON lx.id = cx.loai_xe_id
                 LEFT JOIN ve v ON v.chuyen_id = cx.id
-                WHERE cx.xe_id = %s AND cx.gio_khoi_hanh >= %s AND cx.gio_khoi_hanh < %s
+                WHERE cx.xe_id = %s
+                  AND cx.trang_thai <> 'chua_khoi_hanh'
+                  AND (cx.gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= %s
+                  AND (cx.gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < %s
                 GROUP BY cx.id, cx.trang_thai, lx.so_do_ghe
                 """,
                 (xe_id, tu_ngay, den_ngay),
             )
             return _thanh_list(cur, cur.fetchall())
+    finally:
+        release_connection(conn)
+
+
+def danh_sach_chuyen_da_chay(xe_id: str, tu_ngay, den_ngay) -> list[dict]:
+    """Các chuyến của xe trong khoảng ngày (giờ Việt Nam, `den_ngay` loại trừ), mới nhất
+    trước, kèm số vé bán/doanh thu/số đơn hàng — danh sách "chuyến đã chạy" ở trang thống kê.
+    Không lấy chuyến chưa khởi hành (chưa có gì để thống kê)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT cx.id, cx.ma, cx.chieu, cx.gio_khoi_hanh, cx.trang_thai,
+                       t.ten AS tuyen_ten,
+                       CASE WHEN jsonb_typeof(lx.so_do_ghe) = 'array' THEN jsonb_array_length(lx.so_do_ghe) END AS tong_ghe,
+                       (SELECT count(*) FROM ve v WHERE v.chuyen_id = cx.id
+                          AND v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe'))::int AS so_ve_ban,
+                       (SELECT COALESCE(SUM(v.gia), 0) FROM ve v WHERE v.chuyen_id = cx.id
+                          AND v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe')) AS doanh_thu,
+                       (SELECT count(*) FROM don_hang d WHERE d.chuyen_id = cx.id)::int AS so_don_hang
+                FROM chuyen_xe cx
+                JOIN tuyen t ON t.id = cx.tuyen_id
+                JOIN loai_xe lx ON lx.id = cx.loai_xe_id
+                WHERE cx.xe_id = %s
+                  AND cx.trang_thai <> 'chua_khoi_hanh'
+                  AND (cx.gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= %s
+                  AND (cx.gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < %s
+                ORDER BY cx.gio_khoi_hanh DESC
+                """,
+                (xe_id, tu_ngay, den_ngay),
+            )
+            return _thanh_list(cur, cur.fetchall())
+    finally:
+        release_connection(conn)
+
+
+def danh_sach_dieu_do_vien_tai_diem(diem_id: str) -> list[str]:
+    """Điều độ viên đang hoạt động, phụ trách văn phòng `diem_id` (ho_so_can_bo_diem).
+    Dùng để báo sự cố (UC-17, mục 8.2 điểm 7) cho đúng người phụ trách điểm xuất phát."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT h.nguoi_dung_id
+                FROM ho_so_can_bo_diem h
+                JOIN nguoi_dung nd ON nd.id = h.nguoi_dung_id
+                WHERE h.van_phong_id = %s AND nd.vai_tro = 'dieu_do_vien' AND nd.dang_hoat_dong = true
+                """,
+                (diem_id,),
+            )
+            return [str(row[0]) for row in cur.fetchall()]
     finally:
         release_connection(conn)
 
