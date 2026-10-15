@@ -10,6 +10,7 @@ import datetime
 import random
 
 from passlib.context import CryptContext
+from passlib.exc import UnknownHashError
 
 from app.middleware.auth_middleware import tao_token
 from app.repositories import nguoi_dung_repository as repo
@@ -74,7 +75,13 @@ def dang_nhap(email: str, mat_khau: str) -> dict:
         raise KhongDuQuyen("Tài khoản chưa xác nhận")
     if not nguoi_dung["dang_hoat_dong"]:
         raise KhongDuQuyen("Tài khoản đã bị khóa")
-    if not _pwd_context.verify(mat_khau, nguoi_dung["mat_khau"]):
+    try:
+        mat_khau_dung = _pwd_context.verify(mat_khau, nguoi_dung["mat_khau"])
+    except (UnknownHashError, ValueError, TypeError):
+        # Dữ liệu tài khoản cũ có thể chứa hash hỏng/chưa được seed đúng.
+        # Không để lỗi này biến thành HTTP 500 và làm frontend báo lỗi hệ thống.
+        mat_khau_dung = False
+    if not mat_khau_dung:
         raise KhongDuQuyen("Email hoặc mật khẩu sai")
 
     token = tao_token(nguoi_dung["id"], nguoi_dung["vai_tro"])
