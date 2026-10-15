@@ -73,28 +73,36 @@
             <span class="pill pill--khu-vuc" id="hien-thi-diem-den"></span>
           </div>
 
-          <label class="nv-label" for="gia_goc">Giá gốc (VNĐ)</label>
-          <input class="input-field" type="number" id="gia_goc" min="1000" step="1000" placeholder="VD 150000" required />
+          <div id="buoc-nhap">
+            <label class="nv-label" for="gia_goc">Giá gốc (VNĐ) <b id="gia-dinh-dang" class="gv-gia-dinh-dang"></b></label>
+            <input class="input-field" type="number" id="gia_goc" min="1000" step="1000" placeholder="VD 150000" required />
 
-          <label class="nv-thoi-han-toggle" for="co_thoi_han">
-            <input type="checkbox" id="co_thoi_han" />
-            Chỉ áp dụng theo mùa/dịp lễ (có hạn)
-          </label>
-          <div id="khoi-khoang-ngay" class="nv-khoang-ngay" hidden>
-            <div>
-              <label class="nv-label" for="ap_dung_tu">Từ ngày</label>
-              <input class="input-field" type="date" id="ap_dung_tu" />
-            </div>
-            <div>
+            <label class="nv-label" for="ap_dung_tu">Áp dụng từ ngày</label>
+            <input class="input-field" type="date" id="ap_dung_tu" />
+
+            <label class="nv-thoi-han-toggle" for="co_thoi_han">
+              <input type="checkbox" id="co_thoi_han" />
+              Có ngày kết thúc (giá theo mùa/dịp lễ)
+            </label>
+            <div id="khoi-khoang-ngay" hidden>
               <label class="nv-label" for="ap_dung_den">Đến ngày</label>
               <input class="input-field" type="date" id="ap_dung_den" />
             </div>
+
+            <div id="loi-form" class="text-error" hidden></div>
+            <div class="nv-modal__actions">
+              <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
+              <button type="submit" class="btn-primary">Tiếp tục</button>
+            </div>
           </div>
 
-          <div id="loi-form" class="text-error" hidden></div>
-          <div class="nv-modal__actions">
-            <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
-            <button type="submit" class="btn-primary">Lưu</button>
+          <div id="buoc-xac-nhan" hidden>
+            <div id="xn-noi-dung" class="gv-xac-nhan"></div>
+            <div id="xn-loi" class="text-error" hidden></div>
+            <div class="nv-modal__actions">
+              <button type="button" class="nv-btn-secondary" id="btn-quay-lai">Quay lại sửa</button>
+              <button type="button" class="btn-primary" id="btn-xac-nhan">Xác nhận lưu</button>
+            </div>
           </div>
         </div>
       </form>
@@ -124,27 +132,36 @@
     const NHAN_TRANG_THAI = { du: "Đủ giá", chua_du: "Chưa đủ", chua_co: "Chưa có giá" };
     const THU_TU_TRANG_THAI = { chua_co: 0, chua_du: 1, du: 2 }; // tuyến cần xử lý xếp lên đầu
 
-    const laGiaThuong = (g) => !g.ap_dung_tu && !g.ap_dung_den;
+    const NHAN_TRANG_THAI_GIA = {
+      dang_ap_dung: ["Đang áp dụng", "pill--gia-vinh-vien"],
+      sap_ap_dung: ["Sắp áp dụng", "pill--gia-thoi-han"],
+      da_ket_thuc: ["Đã kết thúc", "pill--xam"],
+    };
 
     function dinhDangTien(so) {
       return Number(so).toLocaleString("vi-VN") + "đ";
     }
 
+    const dinhDangNgay = (iso) => (iso ? iso.split("-").reverse().join("/") : "");
+
     function dinhDangThoiHan(r) {
-      if (laGiaThuong(r)) {
-        return '<span class="pill pill--gia-vinh-vien">Vô thời hạn</span>';
+      if (!r.ap_dung_den) {
+        return `<span class="pill pill--gia-vinh-vien">${r.ap_dung_tu ? "Từ " + dinhDangNgay(r.ap_dung_tu) : "Vô thời hạn"}</span>`;
       }
-      const tu = r.ap_dung_tu ? new Date(r.ap_dung_tu).toLocaleDateString("vi-VN") : "…";
-      const den = r.ap_dung_den ? new Date(r.ap_dung_den).toLocaleDateString("vi-VN") : "…";
-      return `<span class="pill pill--gia-thoi-han">${tu} — ${den}</span>`;
+      return `<span class="pill pill--gia-thoi-han">${r.ap_dung_tu ? dinhDangNgay(r.ap_dung_tu) : "…"} — ${dinhDangNgay(r.ap_dung_den)}</span>`;
+    }
+
+    function dinhDangTrangThaiGia(r) {
+      const [nhan, lop] = NHAN_TRANG_THAI_GIA[r.trang_thai] || ["", "pill--xam"];
+      return `<span class="pill pill--nho ${lop}">${nhan}</span>${r.khoa_so_tien ? ` <span class="gv-khoa" title="Đã có ${r.so_chuyen_da_sinh} chuyến được sinh theo giá này — chỉ đặt được ngày kết thúc">🔒</span>` : ""}`;
     }
 
     // ---------- Phân tích độ đầy đủ giá của 1 tuyến ----------
-    // Đủ = mọi cặp (điểm đi → điểm đến, đi trước đến sau) đều có ít nhất 1 giá vô thời hạn.
+    // Đủ = mọi cặp (điểm đi → điểm đến, đi trước đến sau) đều có ít nhất 1 giá đang hoặc sắp áp dụng.
     function phanTichTuyen(tuyen) {
       const kv = khuVucTheoTuyen.get(tuyen.id) || [];
       const ds = dsGiaVe.filter((g) => g.tuyen_id === tuyen.id);
-      const coGiaThuong = new Set(ds.filter(laGiaThuong).map((g) => `${g.diem_di_id}|${g.diem_den_id}`));
+      const coGiaThuong = new Set(ds.filter((g) => g.trang_thai !== "da_ket_thuc").map((g) => `${g.diem_di_id}|${g.diem_den_id}`));
 
       const thieu = [];
       let tong = 0;
@@ -270,7 +287,7 @@
 
         <div class="gv-ct__tien-do">
           <div class="gv-ct__thanh gv-ct__thanh--${p.trangThai.replace("_", "-")}"><i style="width:${phanTram}%"></i></div>
-          <span><strong>${p.daCo}/${p.tong}</strong> cặp có giá thường</span>
+          <span><strong>${p.daCo}/${p.tong}</strong> cặp đã có giá</span>
         </div>
 
         ${
@@ -304,6 +321,7 @@
           { key: "chang", label: "Chặng", render: (r) => `<strong>${r.ten_diem_di}</strong> <span class="nv-text-phu">→</span> <strong>${r.ten_diem_den}</strong>` },
           { key: "gia_goc", label: "Giá gốc", render: (r) => dinhDangTien(r.gia_goc) },
           { key: "thoi_han", label: "Thời hạn", render: dinhDangThoiHan },
+          { key: "trang_thai", label: "Trạng thái", render: dinhDangTrangThaiGia },
         ],
         dsSapXep,
         { onEdit: moModalSua, onDelete: xoaGiaVe, tenXoa: (r) => `${r.ten_diem_di} → ${r.ten_diem_den}` }
@@ -369,6 +387,26 @@
     const selectDiemDen = document.getElementById("diem_den_id");
     const oCoThoiHan = document.getElementById("co_thoi_han");
     const khoiKhoangNgay = document.getElementById("khoi-khoang-ngay");
+    const oGiaGoc = document.getElementById("gia_goc");
+    const oApDungTu = document.getElementById("ap_dung_tu");
+    const oApDungDen = document.getElementById("ap_dung_den");
+    const buocNhap = document.getElementById("buoc-nhap");
+    const buocXacNhan = document.getElementById("buoc-xac-nhan");
+
+    const khoaNgay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const homNayISO = () => khoaNgay(new Date());
+    const ngayMaiISO = () => {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      return khoaNgay(d);
+    };
+
+    // Hiện số tiền có dấu phân cách ngay cạnh ô nhập, để nhìn ra gõ thiếu/thừa số 0
+    function capNhatTienDinhDang() {
+      const v = Number(oGiaGoc.value);
+      document.getElementById("gia-dinh-dang").textContent = v > 0 ? `= ${dinhDangTien(v)}` : "";
+    }
+    oGiaGoc.addEventListener("input", capNhatTienDinhDang);
 
     const khuVucTuyenHienTai = () => khuVucTheoTuyen.get(tuyenDangChon) || [];
 
@@ -397,6 +435,10 @@
 
     function moModal() {
       loiForm.hidden = true;
+      buocNhap.hidden = false;
+      buocXacNhan.hidden = true;
+      form.classList.remove("dang-xac-nhan");
+      capNhatTienDinhDang();
       modalOverlay.hidden = false;
     }
 
@@ -418,6 +460,11 @@
         capNhatDiemDenTheoDiemDi();
         selectDiemDen.value = denId;
       }
+      oGiaGoc.disabled = false;
+      oApDungTu.disabled = false;
+      oApDungTu.min = homNayISO();
+      oApDungTu.value = ngayMaiISO(); // mặc định từ ngày mai để còn thời gian kiểm tra lại
+      oApDungDen.min = homNayISO();
       khoiKhoangNgay.hidden = true;
       moModal();
     }
@@ -430,58 +477,129 @@
       document.getElementById("khoi-diem-readonly").hidden = false;
       document.getElementById("hien-thi-diem-di").textContent = giaVe.ten_diem_di;
       document.getElementById("hien-thi-diem-den").textContent = giaVe.ten_diem_den;
-      document.getElementById("gia_goc").value = giaVe.gia_goc;
+      oGiaGoc.value = giaVe.gia_goc;
 
-      const coThoiHan = !!(giaVe.ap_dung_tu || giaVe.ap_dung_den);
+      const coThoiHan = !!giaVe.ap_dung_den;
       oCoThoiHan.checked = coThoiHan;
       khoiKhoangNgay.hidden = !coThoiHan;
-      document.getElementById("ap_dung_tu").value = giaVe.ap_dung_tu || "";
-      document.getElementById("ap_dung_den").value = giaVe.ap_dung_den || "";
+      oApDungTu.value = giaVe.ap_dung_tu || "";
+      oApDungDen.value = giaVe.ap_dung_den || "";
+      // Giá đã được dùng để sinh chuyến: khóa số tiền + ngày bắt đầu, chỉ còn đặt ngày kết thúc
+      oGiaGoc.disabled = !!giaVe.khoa_so_tien;
+      oApDungTu.disabled = !!giaVe.khoa_so_tien;
+      oApDungTu.min = giaVe.trang_thai === "sap_ap_dung" ? homNayISO() : "";
+      oApDungDen.min = homNayISO();
       moModal();
     }
 
     document.getElementById("btn-huy").addEventListener("click", () => { modalOverlay.hidden = true; });
+
+    // ---------- Bước 1: nhập → xem trước ; Bước 2: xác nhận (kèm cảnh báo giá bất thường) → lưu ----------
+    let banXemTruoc = null; // { duongDan, duLieu, ketQua }
+
+    const thongTinChang = () => {
+      const id = document.getElementById("gia_ve_id").value;
+      if (id) {
+        return { ten: `${document.getElementById("hien-thi-diem-di").textContent} → ${document.getElementById("hien-thi-diem-den").textContent}` };
+      }
+      const tuyChon = (sel) => sel.options[sel.selectedIndex]?.textContent || "";
+      return { ten: `${tuyChon(selectDiemDi)} → ${tuyChon(selectDiemDen)}` };
+    };
+
+    function veXacNhan(ketQua, ten) {
+      const co_canh_bao = ketQua.canh_bao.length > 0;
+      const tu = ketQua.ap_dung_tu ? dinhDangNgay(ketQua.ap_dung_tu) : "trước đến nay";
+      const thoiHan = ketQua.ap_dung_den ? `từ ${tu} đến ${dinhDangNgay(ketQua.ap_dung_den)}` : `từ ${tu}, không có ngày kết thúc`;
+      const giaCu = ketQua.gia_cu;
+      let dongGiaCu = "";
+      if (giaCu) {
+        dongGiaCu = giaCu.se_ket_thuc_vao
+          ? `<div class="gv-xn-dong">Giá hiện tại <b>${dinhDangTien(giaCu.gia_goc)}</b> sẽ kết thúc vào <b>${dinhDangNgay(giaCu.se_ket_thuc_vao)}</b></div>`
+          : giaCu.gia_goc !== ketQua.gia_goc
+            ? `<div class="gv-xn-dong">Thay cho giá hiện tại <b>${dinhDangTien(giaCu.gia_goc)}</b></div>`
+            : "";
+      }
+      document.getElementById("xn-noi-dung").innerHTML = `
+        <div class="gv-xn-chang">${esc2(ten)}</div>
+        <div class="gv-xn-gia">${dinhDangTien(ketQua.gia_goc)}</div>
+        <div class="gv-xn-dong">Áp dụng ${thoiHan}</div>
+        ${dongGiaCu}
+        ${co_canh_bao ? `<ul class="gv-xn-canh-bao">${ketQua.canh_bao.map((c) => `<li>${esc2(c)}</li>`).join("")}</ul>` : ""}`;
+      const btn = document.getElementById("btn-xac-nhan");
+      btn.textContent = co_canh_bao ? "Tôi chắc chắn, vẫn lưu" : "Xác nhận lưu";
+      btn.classList.toggle("gv-nut-nguy-hiem", co_canh_bao);
+      document.getElementById("xn-loi").hidden = true;
+      buocNhap.hidden = true;
+      buocXacNhan.hidden = false;
+      form.classList.add("dang-xac-nhan");
+    }
+
+    const esc2 = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+    document.getElementById("btn-quay-lai").addEventListener("click", () => {
+      buocXacNhan.hidden = true;
+      buocNhap.hidden = false;
+      form.classList.remove("dang-xac-nhan");
+    });
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       loiForm.hidden = true;
 
       const id = document.getElementById("gia_ve_id").value;
-      const apDungTu = oCoThoiHan.checked ? (document.getElementById("ap_dung_tu").value || null) : null;
-      const apDungDen = oCoThoiHan.checked ? (document.getElementById("ap_dung_den").value || null) : null;
+      const apDungTu = oApDungTu.value || null;
+      const apDungDen = oCoThoiHan.checked ? (oApDungDen.value || null) : null;
 
-      if (oCoThoiHan.checked && apDungTu && apDungDen && apDungTu > apDungDen) {
+      if (oCoThoiHan.checked && !apDungDen) {
+        loiForm.textContent = "Chọn ngày kết thúc hoặc bỏ chọn \"Có ngày kết thúc\"";
+        loiForm.hidden = false;
+        return;
+      }
+      if (apDungTu && apDungDen && apDungTu > apDungDen) {
         loiForm.textContent = "Ngày bắt đầu áp dụng phải trước ngày kết thúc";
         loiForm.hidden = false;
         return;
       }
 
+      const duLieu = { gia_goc: Number(oGiaGoc.value), ap_dung_tu: apDungTu, ap_dung_den: apDungDen };
+      let duongDan;
+      if (id) {
+        duongDan = { xem: `/quan-ly/gia-ve/${id}/xem-truoc`, luu: `/quan-ly/gia-ve/${id}`, phuongThuc: apiPut };
+      } else {
+        Object.assign(duLieu, { tuyen_id: tuyenDangChon, diem_di_id: selectDiemDi.value, diem_den_id: selectDiemDen.value });
+        duongDan = { xem: "/quan-ly/gia-ve/xem-truoc", luu: "/quan-ly/gia-ve", phuongThuc: apiPost };
+      }
+
       const btnSubmit = form.querySelector("button[type=submit]");
       btnSubmit.classList.add("is-loading");
       try {
-        if (id) {
-          await apiPut(`/quan-ly/gia-ve/${id}`, {
-            gia_goc: Number(document.getElementById("gia_goc").value),
-            ap_dung_tu: apDungTu,
-            ap_dung_den: apDungDen,
-          });
-        } else {
-          await apiPost("/quan-ly/gia-ve", {
-            tuyen_id: tuyenDangChon,
-            diem_di_id: selectDiemDi.value,
-            diem_den_id: selectDiemDen.value,
-            gia_goc: Number(document.getElementById("gia_goc").value),
-            ap_dung_tu: apDungTu,
-            ap_dung_den: apDungDen,
-          });
-        }
-        modalOverlay.hidden = true;
-        lamMoiSauKhiDoiGia();
+        const ketQua = await apiPost(duongDan.xem, duLieu);
+        banXemTruoc = { duongDan, duLieu, ketQua };
+        veXacNhan(ketQua, thongTinChang().ten);
       } catch (err) {
         loiForm.textContent = err.message;
         loiForm.hidden = false;
       } finally {
         btnSubmit.classList.remove("is-loading");
+      }
+    });
+
+    document.getElementById("btn-xac-nhan").addEventListener("click", async () => {
+      if (!banXemTruoc) return;
+      const { duongDan, duLieu, ketQua } = banXemTruoc;
+      const btn = document.getElementById("btn-xac-nhan");
+      btn.classList.add("is-loading");
+      try {
+        await duongDan.phuongThuc(duongDan.luu, { ...duLieu, ap_dung_tu: duLieu.ap_dung_tu ?? ketQua.ap_dung_tu ?? null, xac_nhan_canh_bao: ketQua.canh_bao.length > 0 });
+        modalOverlay.hidden = true;
+        banXemTruoc = null;
+        lamMoiSauKhiDoiGia();
+      } catch (err) {
+        const loi = document.getElementById("xn-loi");
+        loi.textContent = err.message;
+        loi.hidden = false;
+      } finally {
+        btn.classList.remove("is-loading");
       }
     });
   </script>

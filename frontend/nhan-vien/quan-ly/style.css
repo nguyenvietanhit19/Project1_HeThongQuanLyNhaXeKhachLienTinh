@@ -4385,3 +4385,79 @@ body.nhan-vien-shell {
   border-color: #DB2777;
   color: #fff;
 }
+
+.lc-thieu-gia {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(220, 38, 38, 0.1);
+  color: #B91C1C;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: help;
+}
+
+#lc-btn-sinh:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ===== Giá vé: số tiền định dạng, bước xác nhận, cảnh báo ===== */
+
+.gv-gia-dinh-dang {
+  margin-left: 6px;
+  color: var(--color-secondary-dark);
+  font-weight: 800;
+}
+
+.gv-khoa {
+  cursor: help;
+  font-size: 12px;
+}
+
+.gv-xac-nhan {
+  padding: 4px 2px 14px;
+}
+
+.gv-xn-chang {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.gv-xn-gia {
+  margin: 4px 0 10px;
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--color-secondary-dark);
+}
+
+.gv-xn-dong {
+  margin-top: 6px;
+  font-size: 14px;
+}
+
+.gv-xn-canh-bao {
+  margin: 14px 0 0;
+  padding: 10px 12px 10px 30px;
+  border-radius: 10px;
+  background: rgba(220, 38, 38, 0.08);
+  color: #B91C1C;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.gv-xn-canh-bao li + li {
+  margin-top: 4px;
+}
+
+.btn-primary.gv-nut-nguy-hiem {
+  background: #DC2626 !important;
+  box-shadow: none;
+  color: #fff;
+}
+
+#form-gia-ve.dang-xac-nhan #khoi-chon-diem,
+#form-gia-ve.dang-xac-nhan #khoi-diem-readonly {
+  display: none;
+}

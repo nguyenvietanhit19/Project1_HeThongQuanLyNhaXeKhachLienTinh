@@ -14,9 +14,9 @@ import psycopg2.errors
 
 from app.repositories import chuyen_xe_repository as chuyen_xe_repo
 from app.repositories import dia_diem_repository as dia_diem_repo
-from app.repositories import gia_ve_repository as gia_ve_repo
 from app.repositories import lich_chay_repository as repo
 from app.repositories import xe_repository as xe_repo
+from app.services import gia_ve_service
 from app.utils.loi import GiaTriLoi
 
 MUI_GIO_VN = ZoneInfo("Asia/Ho_Chi_Minh")
@@ -119,9 +119,7 @@ def tao_cap_lich_chay(tuyen_id: str, xuoi: dict, nguoc: dict) -> dict:
     """xuoi/nguoc: {gio_khoi_hanh, loai_xe_id}. Tạo đồng thời cả 2 lịch hoặc không tạo gì."""
     if not dia_diem_repo.tim_tuyen_theo_id(tuyen_id):
         raise GiaTriLoi("Tuyến không tồn tại")
-    # Tiền điều kiện UC-18: tuyến phải có ít nhất 1 giá vé, nếu không khách không thể đặt vé cho các chuyến sinh ra
-    if not gia_ve_repo.danh_sach_gia_ve(tuyen_id):
-        raise GiaTriLoi("Tuyến này chưa có giá vé nào — hãy cấu hình giá vé (mục Giá vé) trước khi lập lịch chạy")
+    # Lập lịch không cần giá vé; thiếu giá vé chỉ chặn bước sinh chuyến (xem sinh_chuyen_cho_cac_cap)
     tong = _tong_phut(tuyen_id)
     if xuoi["loai_xe_id"] != nguoc["loai_xe_id"]:
         raise GiaTriLoi("Chiều đi và chiều về của 1 cặp phải dùng cùng loại xe")
@@ -140,6 +138,12 @@ def danh_sach_cap(tuyen_id: str | None = None) -> list[dict]:
     for lich in repo.danh_sach(tuyen_id):
         theo_cap.setdefault(lich["cap_id"], []).append(lich)
     cac_cap = [_dung_cap(v) for v in theo_cap.values() if len(v) == 2]
+    thieu_gia_theo_tuyen: dict = {}
+    for cap in cac_cap:
+        tid = str(cap["tuyen_id"])
+        if tid not in thieu_gia_theo_tuyen:
+            thieu_gia_theo_tuyen[tid] = gia_ve_service.cac_cap_thieu_gia(tid)
+        cap["cac_cap_thieu_gia"] = thieu_gia_theo_tuyen[tid]
     return sorted(cac_cap, key=lambda c: (c["ten_tuyen"], c["xuoi"]["gio_khoi_hanh"]))
 
 
@@ -204,9 +208,19 @@ def sinh_chuyen_cho_cac_cap(cap_ids: list[str], tu_ngay: datetime.date, den_ngay
 
     bay_gio = datetime.datetime.now(MUI_GIO_VN)
     ke_hoach = []
+    da_kiem_gia: set = set()
     so_chu_ky_qua_gio = 0
     for cap_id in dict.fromkeys(cap_ids):
         lich_cap = {l["chieu"]: l for l in _lay_cap(cap_id)}
+        tuyen_id = str(lich_cap["xuoi"]["tuyen_id"])
+        if tuyen_id not in da_kiem_gia:
+            thieu = gia_ve_service.cac_cap_thieu_gia(tuyen_id)
+            if thieu:
+                raise GiaTriLoi(
+                    f"Tuyến {lich_cap['xuoi']['ten_tuyen']} chưa đủ giá vé nên chưa sinh chuyến được — "
+                    f"còn thiếu giá cho: {', '.join(thieu[:5])}{' …' if len(thieu) > 5 else ''} (mục Giá vé)"
+                )
+            da_kiem_gia.add(tuyen_id)
         for lich in lich_cap.values():
             if not lich["dang_ap_dung"]:
                 raise GiaTriLoi(f"Cặp lịch tuyến {lich['ten_tuyen']} đã ngừng áp dụng — hãy bật lại trước khi sinh chuyến")

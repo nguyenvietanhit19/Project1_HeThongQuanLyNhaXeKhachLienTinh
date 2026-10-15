@@ -481,14 +481,16 @@
       const xuoi = lichCuaTuyen.filter((l) => l.chieu === "xuoi").sort((a, b) => a.gio_khoi_hanh.localeCompare(b.gio_khoi_hanh));
       const nguoc = lichCuaTuyen.filter((l) => l.chieu === "nguoc").sort((a, b) => a.gio_khoi_hanh.localeCompare(b.gio_khoi_hanh));
       const dangApDung = capCuaTuyen.filter((c) => c.dang_ap_dung).length;
+      const thieuGia = capCuaTuyen[0]?.cac_cap_thieu_gia || [];
 
       lcChiTiet.innerHTML = `
         <div class="lc-ct__dau">
           <h2>${htmlMa(esc(tuyen.ma))} ${esc(tuyen.ten)}</h2>
           <span class="pill pill--nho pill--gia-vinh-vien">${dangApDung} đang áp dụng</span>
           ${capCuaTuyen.length > dangApDung ? `<span class="pill pill--nho pill--xam">${capCuaTuyen.length - dangApDung} đã ngừng</span>` : ""}
+          ${thieuGia.length ? `<span class="lc-thieu-gia" title="${esc(thieuGia.join(", "))}">Chưa đủ giá vé · thiếu ${thieuGia.length} cặp</span>` : ""}
           <span class="lc-ct__nut">
-            <button class="nv-btn-phu" id="lc-btn-sinh" type="button"${dangApDung ? "" : " disabled"}>Sinh chuyến</button>
+            <button class="nv-btn-phu" id="lc-btn-sinh" type="button"${dangApDung && !thieuGia.length ? "" : " disabled"}${thieuGia.length ? ` title="${esc("Cần cấu hình đủ giá vé (mục Giá vé) trước khi sinh chuyến. Còn thiếu: " + thieuGia.join(", "))}"` : ""}>Sinh chuyến</button>
             <button class="btn-primary nv-btn-them" id="lc-btn-them" type="button">+ Thêm lịch chạy</button>
           </span>
         </div>

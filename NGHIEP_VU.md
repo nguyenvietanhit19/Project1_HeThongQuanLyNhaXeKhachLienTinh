@@ -150,6 +150,7 @@ Thực tế vận hành (quan sát từ app Futa/Hà Sơn): khách đặt đư�
 
 - **Lịch chạy luôn đi theo CẶP (1 lịch chiều đi + 1 lịch chiều về của cùng 1 tuyến)**, tạo/hiển thị/ngừng/xóa cùng nhau — để không bao giờ có chuyến 1 chiều mà thiếu chiều kia (trước đây 2 lịch tạo rời nhau nên dễ có 3 lịch đi mà 0 lịch về). Mỗi lịch là 1 dòng `lich_chay_dinh_ky(tuyen_id, chieu, gio_khoi_hanh, loai_xe_id, dang_ap_dung, cap_id, ngay_lech)` do **`quan_ly`** thiết lập: chọn 1 `tuyen` có sẵn, nhập **giờ khởi hành riêng cho từng chiều**, chọn 1 `loai_xe` dự kiến **dùng chung cho cả 2 chiều** của cặp. 1 tuyến có nhiều cặp (nhiều khung giờ/loại xe khác nhau) — VD cặp "đi 7h00 / về 20h00" và cặp "đi 23h00 / về 7h00" cùng trỏ 1 `tuyen_id`.
 - **Giờ chiều về do quản lý nhập, hệ thống chỉ chặn tối thiểu**: xe đi xong chiều đi (giờ khởi hành + thời gian chạy cả tuyến, lấy từ mốc muộn nhất mà quản lý đã nhập ở tuyến) rồi phải **nghỉ ít nhất 30 phút** mới được chạy chiều về. **Chiều đi kết thúc ngay trong ngày thì chiều về cũng phải chạy cùng ngày**, từ lúc xe nghỉ đủ 30 phút trở lên — nhập giờ về sớm hơn thì bị chặn (VD tuyến 6 giờ, đi 6h00 → tới 12h00 mà đặt về 10h00 là không hợp lệ). Chỉ khi chiều đi chạy qua nửa đêm, hệ thống mới tự tính **số ngày lệch** của chiều về: nhỏ nhất sao cho đủ 30 phút nghỉ. VD tuyến chạy 6 giờ, đi 23h00 → tới 5h00 hôm sau → chiều về 7h00 chạy **sau chiều đi 1 ngày**; đi 6h00 → tới 12h00 → chiều về từ 12h30 trở đi chạy **cùng ngày**. Độ lệch này được lưu cố định trên cặp lịch (sửa thời gian chạy của tuyến sau này không làm lệch các cặp đã có) và hiển thị ngay trên form tạo lịch ("xe tới nơi lúc … · chuyến về chạy sau chuyến đi … ngày").
+- **Lập lịch không cần giá vé, nhưng sinh chuyến thì cần đủ giá vé**: khách chỉ đặt được vé khi mọi đoạn của chuyến có giá, nên tuyến phải có giá cho **mọi cặp khu vực** (điểm đi trước điểm đến theo chiều đi) trước khi sinh chuyến; chưa đủ thì vẫn tạo/sửa/ngừng lịch bình thường nhưng bị chặn sinh chuyến, giao diện nêu rõ các cặp còn thiếu. Chỉ xét đã có giá hay chưa, không xét khoảng ngày áp dụng của giá.
 - **`quan_ly` chủ động sinh chuyến cho cả cặp** (UC-47) — **không có job nền tự động, không có tham số "N ngày tới"**: quan_ly bấm "Sinh chuyến" ở tuyến, **tick chọn các cặp** đang `dang_ap_dung` cần sinh (mỗi cặp là cả 2 chiều, không sinh riêng 1 chiều) và **tự chọn hẳn ngày bắt đầu và ngày kết thúc** chung (không chọn ngày quá khứ, tối đa 180 ngày mỗi lần để tránh nhỡ tay gõ nhầm). Với mỗi ngày D trong khoảng, hệ thống tạo chuyến chiều đi vào ngày D và chuyến chiều về vào ngày D + số ngày lệch của cặp; **tự bỏ qua (lịch, ngày) đã có chuyến** — nên bấm lại hoặc chọn khoảng ngày chồng lấn vẫn an toàn, không sinh trùng, và 2 lần sinh liền kề nối khít nhau. **Chuyến đi của 1 ngày đã quá giờ hiện tại thì bỏ cả chu kỳ của ngày đó** — không sinh chuyến đi lẫn chuyến về đi kèm (VD 12/10 lúc 10h mà lịch đi 5h: không sinh chuyến đi 5h hôm nay và cũng không sinh chuyến về của chu kỳ này), để không thừa chuyến về lẻ không có chuyến đi tương ứng; hệ thống báo số ngày bị bỏ vì lý do này. Hệ quả tự nhiên của chu kỳ: ngày đầu của khoảng chưa có chuyến về buổi sáng (xe chưa đi lượt nào), còn chuyến về của ngày cuối có thể rơi sau ngày kết thúc. Toàn bộ trong **1 giao dịch** (lỗi ở đâu thì không chuyến nào được tạo, không để cặp bị sinh dở). Mỗi `chuyen_xe` sinh ra có `tuyen_id`, `chieu` (copy từ lịch), `gio_khoi_hanh` (ngày cụ thể + giờ từ lịch, tính theo giờ Việt Nam), `loai_xe_id` (copy từ lịch) — **`xe_id` để trống (`NULL`)**, chưa gán xe cụ thể. Lý do chọn thủ công: người vận hành muốn kiểm soát rõ ràng chuyến nào được mở bán tới ngày nào, thay vì để 1 tham số ngầm định quyết định thay.
 - **Nhờ đúng nguyên tắc "2 xe cùng `loai_xe` giống hệt nhau"** (mục 3.1) — chỉ cần `loai_xe_id` đã có, hệ thống **đã đủ để bán vé** (hiển thị đúng sơ đồ ghế, tính đúng giá `gia_ve.gia_goc × loai_xe.he_so_gia`) — khách đặt vé bình thường dù chưa biết xe nào (biển số) sẽ chạy. **Biển số xe chỉ hiển thị cho khách sau khi đã gán xe** — trước đó khách chỉ thấy tên loại xe (VD "Giường nằm 40 chỗ").
 - **`dieu_do_vien` thực hiện gán xe** (mục 8.6, UC-44) cho từng `chuyen_xe` đã sinh sẵn — chọn 1 xe cụ thể **bắt buộc đúng `loai_xe_id`** đã cam kết ở lịch định kỳ, kiểm tra trùng lịch/vị trí liên tục như bình thường (mục 3.2/3.3). Có thể gán lại (đổi xe) **bất cứ lúc nào** trước giờ khởi hành, miễn xe mới vẫn đúng `loai_xe_id` — không giới hạn số lần đổi.
@@ -769,14 +770,14 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
 ### UC-18. Thiết lập lịch chạy định kỳ (theo cặp chiều đi + chiều về)
 
 - **Actor**: Quản lý.
-- **Tiền điều kiện**: Tuyến đã tồn tại (UC-31), có thời gian chạy giữa các điểm dừng, có ít nhất 1 `gia_ve` cấu hình cho tuyến đó (UC-33), `loai_xe` cần dùng đã tồn tại (UC-32).
+- **Tiền điều kiện**: Tuyến đã tồn tại (UC-31), có thời gian chạy giữa các điểm dừng, `loai_xe` cần dùng đã tồn tại (UC-32). **Không cần có giá vé** — lập lịch trước, cấu hình giá sau đều được (giá chỉ cần đủ khi sinh chuyến, UC-47).
 - **Luồng chính** (mục 8.7 điểm 1b, mục 3.5):
   1. Chọn 1 tuyến có sẵn.
   2. Chọn loại xe dự kiến — **dùng chung cho cả chiều đi và chiều về**.
   3. Nhập giờ khởi hành của **chiều đi** và của **chiều về**. Form hiện ngay xe tới nơi lúc mấy giờ và chuyến về chạy cùng ngày hay sau chuyến đi mấy ngày.
-  4. Xác nhận tạo → hệ thống kiểm tra tuyến có giá vé, từng chiều không trùng lịch có sẵn (cùng tuyến, chiều, giờ, loại xe) rồi lưu **cả 2 lịch cùng lúc** (`dang_ap_dung = true`) kèm số ngày lệch của chiều về. **Chưa sinh chuyến nào** — việc đó là UC-47.
+  4. Xác nhận tạo → hệ thống kiểm tra từng chiều không trùng lịch có sẵn (cùng tuyến, chiều, giờ, loại xe) rồi lưu **cả 2 lịch cùng lúc** (`dang_ap_dung = true`) kèm số ngày lệch của chiều về. **Chưa sinh chuyến nào** — việc đó là UC-47.
 - **Luồng rẽ nhánh**:
-  - Tại bước 4: tuyến chưa có giá vé nào, chưa có thời gian chạy, hoặc 1 trong 2 chiều trùng với lịch đã có → chặn, báo lý do, **không tạo lịch nào cả** → kết thúc.
+  - Tại bước 4: tuyến chưa có thời gian chạy, hoặc 1 trong 2 chiều trùng với lịch đã có → chặn, báo lý do, **không tạo lịch nào cả** → kết thúc.
   - Quản lý **ngừng áp dụng** (hoặc bật lại) 1 cặp (`dang_ap_dung = false` cho cả 2 lịch) → chỉ ngừng sinh chuyến mới, các chuyến đã sinh sẵn trước đó (có thể đã bán vé) giữ nguyên, không bị hủy.
   - Quản lý **sửa** giờ của 1 chiều hoặc loại xe của cả cặp: chỉ được khi cặp **chưa từng sinh chuyến nào** (kể cả chuyến của chiều kia); đã sinh chuyến → chặn, báo "hãy ngừng áp dụng cặp này rồi tạo cặp mới" (mục 3.5). Số ngày lệch tự tính lại theo giờ mới. Không bao giờ đổi được tuyến của 1 cặp.
   - Quản lý **xóa** cả cặp: chỉ được khi chưa sinh chuyến nào; đã sinh chuyến → chặn, gợi ý ngừng áp dụng thay vì xóa.
@@ -785,14 +786,14 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
 ### UC-47. Sinh chuyến từ lịch chạy định kỳ (cả cặp, chọn khoảng ngày)
 
 - **Actor**: Quản lý.
-- **Tiền điều kiện**: Có cặp lịch chạy đang `dang_ap_dung` (UC-18).
+- **Tiền điều kiện**: Có cặp lịch chạy đang `dang_ap_dung` (UC-18); tuyến đã **đủ giá vé** — mọi cặp khu vực (điểm đi đứng trước điểm đến theo chiều đi của tuyến) đều đã có giá (UC-33).
 - **Luồng chính** (mục 8.7 điểm 1b, mục 3.5):
   1. Chọn 1 tuyến, bấm "Sinh chuyến"; tick chọn các cặp lịch cần sinh (mặc định chọn hết các cặp đang áp dụng).
   2. Chọn **ngày bắt đầu** và **ngày kết thúc** chung của khoảng cần sinh (không chọn ngày quá khứ; tối đa 180 ngày mỗi lần).
   3. Xác nhận → hệ thống, với mỗi cặp và mỗi ngày D trong khoảng, tạo chuyến chiều đi vào ngày D và chuyến chiều về vào ngày D cộng số ngày lệch của cặp; mỗi chuyến có `tuyen_id`/`chieu`/`gio_khoi_hanh`/`loai_xe_id` copy từ lịch, **chưa gán `xe_id`**, và tự sinh **mã chuyến** (mục 3.6). Chuyến (lịch, ngày) đã có thì **bỏ qua**. Tất cả trong 1 giao dịch.
   4. Hệ thống báo kết quả: số chuyến đi và số chuyến về mới sinh, số chuyến đã có sẵn bị bỏ qua, số ngày bị bỏ vì chuyến đi đã quá giờ.
 - **Luồng rẽ nhánh**:
-  - Tại bước 1: không tick cặp nào → chặn, báo chọn ít nhất 1 cặp.
+  - Tại bước 1: không tick cặp nào → chặn, báo chọn ít nhất 1 cặp. Tuyến chưa đủ giá vé → nút "Sinh chuyến" bị khóa kèm cảnh báo nêu các cặp còn thiếu giá; nếu vẫn gọi tới hệ thống thì bị chặn, báo các cặp còn thiếu, và không chuyến nào được tạo.
   - Tại bước 2: ngày bắt đầu sau ngày kết thúc, có ngày quá khứ, hoặc khoảng dài hơn 180 ngày → chặn, báo lý do.
   - Tại bước 3: cặp đã ngừng áp dụng → chặn, báo "hãy bật lại cặp lịch trước khi sinh chuyến" (cặp đã ngừng không tick được trên giao diện).
   - Ngày có chuyến đi **đã quá giờ hiện tại** (VD sinh lúc 10h cho lịch đi 5h hôm nay) → bỏ cả ngày đó, không sinh chuyến đi lẫn chuyến về kèm theo, rồi báo số ngày bị bỏ.
@@ -1161,8 +1162,15 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
 - **Luồng chính** (mục 3.1):
   1. Chọn 1 tuyến.
   2. Chọn cặp điểm đi/điểm đến muốn bán.
-  3. Nhập giá gốc (`gia_goc`).
-  4. Lưu vào `gia_ve`.
+  3. Nhập giá gốc (`gia_goc`) — giao diện hiện luôn số tiền có dấu chấm phân cách (VD "= 300.000đ") để nhìn ra gõ thiếu/thừa số 0.
+  4. Chọn ngày bắt đầu áp dụng (**mặc định ngày mai**, không được ở quá khứ) và, nếu là giá theo mùa/dịp lễ, ngày kết thúc. Bỏ trống ngày kết thúc = giá không có ngày kết thúc.
+  5. Hệ thống **xem trước** và hiện màn hình xác nhận: chặng, giá mới, thời gian áp dụng, giá cũ sẽ kết thúc vào ngày nào, cùng các **cảnh báo giá bất thường** (nếu có). Quản lý đọc lại rồi bấm "Xác nhận lưu" (hoặc "Tôi chắc chắn, vẫn lưu" khi có cảnh báo), hoặc quay lại sửa.
+  6. Lưu vào `gia_ve`; nếu cặp khu vực này đang có giá hiện hành thì **giá cũ tự được đóng** ở ngày liền trước ngày bắt đầu của giá mới (trong cùng 1 giao dịch).
+- **Luồng rẽ nhánh**:
+  - Cảnh báo giá bất thường (chỉ cảnh báo, vẫn lưu được nếu quản lý xác nhận): giá dưới 50.000đ hoặc trên 5.000.000đ; giá mới giảm hơn một nửa hoặc tăng hơn gấp đôi so với giá hiện tại của chính chặng đó; chặng ngắn nằm trong chặng dài mà lại đắt hơn chặng dài (hoặc ngược lại chặng dài rẻ hơn chặng ngắn bên trong nó).
+  - Ngày bắt đầu ở quá khứ, hoặc khoảng ngày chồng lấn với 1 giá khác mà không thay thế trọn được (VD đặt giá theo mùa nằm gọn trong 1 giá không có ngày kết thúc) → chặn, báo lý do.
+  - **Sửa giá đã có**: vé đã đặt luôn giữ giá lúc khách giữ ghế nên đổi giá không ảnh hưởng vé cũ; nhưng chuyến đã sinh mà chưa có ai đặt sẽ nhận giá mới ngay, nên giá nào **đã được dùng để sinh chuyến** thì khóa. Cụ thể: nếu tuyến đã có chuyến sinh ra với ngày khởi hành nằm trong khoảng ngày áp dụng của dòng giá đó thì dòng giá **không sửa số tiền hay ngày bắt đầu** và **không xóa** nữa, **kể cả khi chưa có khách đặt vé**; chỉ được đặt ngày kết thúc (không lùi về quá khứ) rồi thêm giá mới. Dòng giá chưa có chuyến nào sinh ra trong khoảng của nó (VD vừa nhập sai, hoặc giá sắp áp dụng chưa sinh chuyến) thì sửa/xóa tự do. Giá mới bắt đầu từ hôm nay chỉ cho phép khi giá cũ chưa có chuyến; nếu đã có thì phải từ ngày mai.
+  - **Xóa giá**: giá đã có chuyến sinh ra → chặn, nêu số chuyến và gợi ý đặt ngày kết thúc.
 - **Hậu điều kiện**: `gia_ve` sẵn sàng — giá bán thực tế = `gia_goc × loai_xe.he_so_gia` của `loai_xe` chuyến đó cam kết (mục 3.5), dùng ngay từ lúc chuyến được sinh ra (UC-18), UC-04 hiển thị giá.
 
 ### UC-34. Quản lý xe

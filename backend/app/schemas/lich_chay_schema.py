@@ -72,5 +72,6 @@ class CapLichChayResponse(BaseModel):
     ngay_den_lech: int
     dang_ap_dung: bool
     so_chuyen_da_sinh: int
+    cac_cap_thieu_gia: list[str] = []
     xuoi: LichChayResponse
     nguoc: LichChayResponse

@@ -39,6 +39,54 @@ def tao_gia_ve(tuyen_id: str, diem_di_id: str, diem_den_id: str, gia_goc: int, a
         release_connection(conn)
 
 
+def tao_gia_ve_va_dong_gia_cu(
+    tuyen_id: str, diem_di_id: str, diem_den_id: str, gia_goc: int, ap_dung_tu, ap_dung_den,
+    gia_cu_id: str | None, ngay_dong_gia_cu,
+) -> dict:
+    """Tạo giá mới; nếu có gia_cu_id thì đặt ngày kết thúc cho giá cũ (ngay_dong_gia_cu) trong CÙNG giao dịch."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            if gia_cu_id:
+                cur.execute("UPDATE gia_ve SET ap_dung_den = %s WHERE id = %s", (ngay_dong_gia_cu, gia_cu_id))
+            cur.execute(
+                """
+                INSERT INTO gia_ve (tuyen_id, diem_di_id, diem_den_id, gia_goc, ap_dung_tu, ap_dung_den)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING id, tuyen_id, diem_di_id, diem_den_id, gia_goc, ap_dung_tu, ap_dung_den
+                """,
+                (tuyen_id, diem_di_id, diem_den_id, gia_goc, ap_dung_tu, ap_dung_den),
+            )
+            ket_qua = _thanh_dict(cur, cur.fetchone())
+        conn.commit()
+        return ket_qua
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
+def so_chuyen_trong_khoang(tuyen_id: str, tu, den) -> int:
+    """Số chuyến đã sinh của tuyến có ngày khởi hành (giờ Việt Nam) nằm trong [tu, den]; None = không giới hạn phía đó.
+    Dùng để biết 1 dòng giá đã được dùng để sinh chuyến chưa (khi đó không sửa số tiền/xóa được nữa)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT count(*) FROM chuyen_xe
+                WHERE tuyen_id = %s
+                  AND (%s::date IS NULL OR (gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= %s::date)
+                  AND (%s::date IS NULL OR (gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date <= %s::date)
+                """,
+                (tuyen_id, tu, tu, den, den),
+            )
+            return cur.fetchone()[0]
+    finally:
+        release_connection(conn)
+
+
 def sua_gia_ve(gia_ve_id: str, gia_goc: int, ap_dung_tu, ap_dung_den) -> None:
     """Chỉ sửa giá + thời hạn áp dụng — đổi tuyến/điểm đi/điểm đến coi như
     1 cấu hình giá khác hẳn, phải xóa dòng cũ và tạo dòng mới."""
@@ -79,7 +127,7 @@ def danh_sach_gia_ve_theo_cap_diem(tuyen_id: str, diem_di_id: str, diem_den_id: 
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, ap_dung_tu, ap_dung_den FROM gia_ve
+                SELECT id, gia_goc, ap_dung_tu, ap_dung_den FROM gia_ve
                 WHERE tuyen_id = %s AND diem_di_id = %s AND diem_den_id = %s
                 """,
                 (tuyen_id, diem_di_id, diem_den_id),

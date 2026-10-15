@@ -186,10 +186,12 @@ UNIQUE: (`tuyen_id`, `thu_tu`) và (`tuyen_id`, `diem_don_tra_id`) — 1 điểm
 | `diem_di_id` | UUID NOT NULL, FK → `khu_vuc(id)` | |
 | `diem_den_id` | UUID NOT NULL, FK → `khu_vuc(id)` | |
 | `gia_goc` | NUMERIC(12,0) NOT NULL | Giá ứng với `loai_xe.he_so_gia = 1` (hệ số chuẩn) — giá thực tế bán ra = `gia_goc × he_so_gia` của xe đang chạy chuyến đó (mục 7) |
-| `ap_dung_tu` | DATE NULLABLE | Cho giá theo mùa/dịp lễ; `NULL` = áp dụng vô thời hạn |
-| `ap_dung_den` | DATE NULLABLE | |
+| `ap_dung_tu` | DATE NULLABLE | Ngày bắt đầu áp dụng. Giá mới luôn có giá trị (mặc định ngày mai, không ở quá khứ); `NULL` chỉ còn ở dữ liệu cũ, hiểu là "đã áp dụng từ trước" |
+| `ap_dung_den` | DATE NULLABLE | Ngày kết thúc; `NULL` = chưa có ngày kết thúc. Khi thêm giá mới thay thế giá hiện hành, Service tự đặt cột này của giá cũ = ngày liền trước ngày bắt đầu của giá mới (cùng giao dịch) |
 
 UNIQUE: (`tuyen_id`, `diem_di_id`, `diem_den_id`, `ap_dung_tu`).
+
+**Không có cột liên kết `ve` → `gia_ve`**: vé tự lưu giá của mình (`ve.gia`, chốt lúc khách giữ ghế) nên đổi/xóa `gia_ve` không làm đổi tiền vé đã đặt, thanh toán hay hoàn tiền. Điều kiện khóa sửa/xóa 1 dòng giá (`NGHIEP_VU.md` UC-33) = tuyến có `chuyen_xe` với ngày khởi hành (giờ Việt Nam) nằm trong [`ap_dung_tu`, `ap_dung_den`] của dòng giá đó (`NULL` = không giới hạn phía ấy), bất kể chuyến đã có vé hay chưa — vì chuyến sinh ra là đã mở bán theo giá này. Tính theo tuyến chứ không theo từng cặp khu vực để đơn giản (mọi chuyến của tuyến đều dùng chung các cặp giá của tuyến).
 
 ---
 

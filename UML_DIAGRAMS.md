@@ -647,10 +647,6 @@ stop
 @startuml AD_UC18_LichDinhKy
 start
 :Chọn một tuyến đã có sẵn;
-if (Tuyến này đã có giá vé chưa?) then (chưa)
-  :Báo phải đặt giá vé cho tuyến trước;
-  stop
-endif
 :Chọn loại xe dự kiến — dùng chung\ncho cả chiều đi và chiều về;
 :Nhập giờ khởi hành của chiều đi\nvà của chiều về;
 :Hệ thống tính xe tới nơi lúc mấy giờ;
@@ -691,6 +687,10 @@ start
 :Chọn một tuyến, bấm "Sinh chuyến"\nvà tick các cặp lịch cần sinh;
 if (Có chọn ít nhất một cặp,\ncặp nào cũng còn đang áp dụng?) then (không)
   :Báo chọn lại hoặc bật lại cặp đã ngừng;
+  stop
+endif
+if (Tuyến đã có giá vé cho mọi cặp khu vực\ntrên hành trình chưa?) then (chưa đủ)
+  :Báo các cặp còn thiếu giá, không tạo chuyến nào\n(vẫn lập lịch được, chỉ chưa sinh chuyến);
   stop
 endif
 :Chọn ngày bắt đầu và ngày kết thúc chung;
@@ -1216,8 +1216,28 @@ stop
 start
 :Chọn một tuyến;
 :Chọn cặp điểm đi và điểm đến muốn bán vé;
-:Nhập giá gốc cho cặp điểm đó;
-:Lưu lại — giá bán thực tế sẽ bằng giá gốc\nnhân với hệ số của loại xe chạy chuyến;
+:Nhập giá gốc (hệ thống hiện số tiền có dấu chấm);
+:Chọn ngày bắt đầu áp dụng (mặc định ngày mai)\nvà ngày kết thúc nếu là giá theo mùa;
+:Hệ thống xem trước: giá mới, thời gian áp dụng,\ngiá cũ sẽ kết thúc ngày nào, cảnh báo giá bất thường;
+if (Có cảnh báo giá bất thường?\n(quá thấp/quá cao, lệch nhiều so với giá cũ,\nchặng ngắn đắt hơn chặng dài)) then (có)
+  if (Quản lý kiểm tra lại, vẫn muốn lưu?) then (không)
+    :Quay lại sửa giá;
+    stop
+  endif
+endif
+:Lưu lại — giá cũ của cặp điểm này (nếu có)\ntự kết thúc ở ngày liền trước giá mới;
+note right
+  Vé đã đặt luôn giữ giá lúc khách giữ ghế
+  nên không bị ảnh hưởng. Chuyến chưa ai đặt
+  sẽ nhận giá mới từ ngày áp dụng.
+end note
+if (Sau này muốn đổi giá đã lưu?) then (đổi giá)
+  if (Đã có chuyến được sinh ra\ntrong khoảng ngày áp dụng của giá này?) then (đã có)
+    :Không sửa số tiền, không xóa (kể cả chưa có khách đặt) —\nchỉ đặt ngày kết thúc rồi thêm giá mới;
+  else (chưa)
+    :Cho sửa hoặc xóa tự do;
+  endif
+endif
 stop
 @enduml
 ```

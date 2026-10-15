@@ -163,7 +163,6 @@ def test_tinh_ngay_lech_hanh_trinh_dai_hon_mot_ngay():
 
 def _gia_lap_cap(monkeypatch, co_gia_ve=True, trung_chieu=None, tong_phut=TONG_PHUT):
     monkeypatch.setattr(lc.dia_diem_repo, "tim_tuyen_theo_id", lambda _id: {"id": _id})
-    monkeypatch.setattr(lc.gia_ve_repo, "danh_sach_gia_ve", lambda _id: [{"id": "gv"}] if co_gia_ve else [])
     monkeypatch.setattr(lc.xe_repo, "tim_loai_xe_theo_id", lambda _id: {"id": _id})
     monkeypatch.setattr(lc.repo, "tim_trung", lambda t, chieu, *a, **k: {"id": "cu"} if chieu == trung_chieu else None)
     monkeypatch.setattr(lc.repo, "tong_phut_tuyen", lambda _id: tong_phut)
@@ -191,10 +190,11 @@ CHIEU_DI = {"gio_khoi_hanh": gio(23), "loai_xe_id": "loai-1"}
 CHIEU_VE = {"gio_khoi_hanh": gio(7), "loai_xe_id": "loai-1"}
 
 
-def test_tao_cap_tuyen_chua_co_gia_ve_bi_chan(monkeypatch):
-    _gia_lap_cap(monkeypatch, co_gia_ve=False)
-    with pytest.raises(GiaTriLoi, match="giá vé"):
-        lc.tao_cap_lich_chay("tuyen-1", CHIEU_DI, CHIEU_VE)
+def test_tao_cap_van_tao_duoc_khi_tuyen_chua_du_gia_ve(monkeypatch):
+    da_tao = _gia_lap_cap(monkeypatch)
+    monkeypatch.setattr(lc.gia_ve_service, "cac_cap_thieu_gia", lambda _id: ["A → B"])
+    lc.tao_cap_lich_chay("tuyen-1", CHIEU_DI, CHIEU_VE)
+    assert len(da_tao) == 1
 
 
 def test_tao_cap_chieu_ve_trung_bi_chan(monkeypatch):
@@ -242,7 +242,7 @@ def test_doi_ap_dung_cap_khong_ton_tai(monkeypatch):
 # ---------------------------------------------------------
 # UC-18 Sinh chuyến cho các cặp (thủ công, không job nền)
 # ---------------------------------------------------------
-def _gia_lap_sinh(monkeypatch, lich=None, da_co=lambda lich_id, ngay: False):
+def _gia_lap_sinh(monkeypatch, lich=None, da_co=lambda lich_id, ngay: False, thieu_gia=()):
     monkeypatch.setattr(lc.repo, "lich_cua_cap", lambda _id: lich if lich is not None else _lich_cua_cap())
     da_sinh = []
 
@@ -254,6 +254,7 @@ def _gia_lap_sinh(monkeypatch, lich=None, da_co=lambda lich_id, ngay: False):
         return ke_hoach
 
     monkeypatch.setattr(lc.chuyen_xe_repo, "sinh_nhieu_chuyen_tu_lich", sinh)
+    monkeypatch.setattr(lc.gia_ve_service, "cac_cap_thieu_gia", lambda _id: thieu_gia)
     return da_sinh
 
 
@@ -302,6 +303,13 @@ def test_sinh_chuyen_chuyen_di_hom_nay_con_gio_thi_van_sinh_ca_hai_chieu(monkeyp
     kq = lc.sinh_chuyen_cho_cac_cap(["cap-1"], hom_nay, hom_nay)
     assert kq["so_chu_ky_bo_qua_do_qua_gio"] == 0
     assert (kq["so_chuyen_di_moi_sinh"], kq["so_chuyen_ve_moi_sinh"]) == (1, 1)
+
+
+def test_sinh_chuyen_tuyen_thieu_gia_ve_bi_chan_va_khong_sinh_gi(monkeypatch):
+    da_sinh = _gia_lap_sinh(monkeypatch, thieu_gia=["Hà Nội → Sapa", "Hà Nội → Bắc Hà"])
+    with pytest.raises(GiaTriLoi, match="chưa đủ giá vé.*Hà Nội → Sapa"):
+        lc.sinh_chuyen_cho_cac_cap(["cap-1"], _ngay_mai(), _ngay_mai())
+    assert da_sinh == []
 
 
 def test_sinh_chuyen_khong_chon_cap_nao_bi_chan(monkeypatch):
@@ -428,3 +436,34 @@ def test_tao_cap_chieu_ve_truoc_gio_ket_thuc_chieu_di_bi_chan(monkeypatch):
     with pytest.raises(GiaTriLoi, match="cùng ngày"):
         lc.tao_cap_lich_chay("tuyen-1", {**CHIEU_DI, "gio_khoi_hanh": gio(6)}, {**CHIEU_VE, "gio_khoi_hanh": gio(10)})
     assert da_tao == []
+
+
+# ---------------------------------------------------------
+# Tuyến đủ giá vé = mọi cặp khu vực (đi trước, đến sau theo chiều đi) đều có dòng giá
+# ---------------------------------------------------------
+def _gia_lap_tuyen_3_khu_vuc(monkeypatch, cac_gia):
+    from app.services import gia_ve_service as gv
+
+    diem = [
+        {"khu_vuc_id": "A", "ten_khu_vuc": "Hà Nội", "thu_tu": 1},
+        {"khu_vuc_id": "B", "ten_khu_vuc": "Bắc Hà", "thu_tu": 2},
+        {"khu_vuc_id": "C", "ten_khu_vuc": "Sapa", "thu_tu": 3},
+    ]
+    monkeypatch.setattr(gv.dia_diem_repo, "danh_sach_diem_theo_tuyen", lambda _id: diem)
+    monkeypatch.setattr(gv.repo, "danh_sach_gia_ve", lambda _id: [{"diem_di_id": a, "diem_den_id": b, "ap_dung_tu": None, "ap_dung_den": None} for a, b in cac_gia])
+    return gv
+
+
+def test_cac_cap_thieu_gia_chua_co_gia_nao_thieu_ca_3_cap(monkeypatch):
+    gv = _gia_lap_tuyen_3_khu_vuc(monkeypatch, [])
+    assert gv.cac_cap_thieu_gia("t") == ["Hà Nội → Bắc Hà", "Hà Nội → Sapa", "Bắc Hà → Sapa"]
+
+
+def test_cac_cap_thieu_gia_chi_con_thieu_cap_chua_nhap(monkeypatch):
+    gv = _gia_lap_tuyen_3_khu_vuc(monkeypatch, [("A", "B"), ("B", "C")])
+    assert gv.cac_cap_thieu_gia("t") == ["Hà Nội → Sapa"]
+
+
+def test_cac_cap_thieu_gia_du_gia_thi_rong(monkeypatch):
+    gv = _gia_lap_tuyen_3_khu_vuc(monkeypatch, [("A", "B"), ("A", "C"), ("B", "C")])
+    assert gv.cac_cap_thieu_gia("t") == []
