@@ -53,8 +53,8 @@ rectangle "Hệ thống Quản lý Nhà xe Khách" {
   usecase "UC-31 Tạo tuyến" as UC31
   usecase "UC-32 Quản lý loại xe" as UC32
   usecase "UC-33 Cấu hình giá vé" as UC33
-  usecase "UC-18 Thiết lập lịch\nchạy định kỳ" as UC18
-  usecase "UC-47 Sinh chuyến từ lịch chạy\n(chọn khoảng ngày)" as UC47
+  usecase "UC-18 Thiết lập lịch chạy\nđịnh kỳ (cặp đi + về)" as UC18
+  usecase "UC-47 Sinh chuyến từ lịch chạy\n(cả cặp, chọn khoảng ngày)" as UC47
   usecase "UC-48 Quản lý chuyến đã sinh\n(xem, sửa giờ, xóa)" as UC48
   usecase "UC-34 Quản lý xe" as UC34
   usecase "UC-35 Quản lý biên chế xe" as UC35

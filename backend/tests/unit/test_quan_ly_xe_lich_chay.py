@@ -125,160 +125,361 @@ def test_go_bien_che_tam_thoi_bi_chan(monkeypatch):
     monkeypatch.setattr(bc.nhan_su_repo, "tim_bien_che_theo_id", lambda _id: {"id": _id, "xe_id": "xe-1", "loai": "tam_thoi"})
     with pytest.raises(GiaTriLoi, match="điều độ viên"):
         bc.go_bien_che_co_dinh("dong-1")
-
-
 # ---------------------------------------------------------
-# UC-18 Lịch chạy định kỳ
+# UC-18 Lịch chạy định kỳ theo cặp (chiều đi + chiều về)
 # ---------------------------------------------------------
-GIO = datetime.time(6, 30)
+def gio(h, m=0):
+    return datetime.time(h, m)
 
 
-def _gia_lap_lich_chay(monkeypatch, co_gia_ve=True, trung=None):
+TONG_PHUT = 360  # tuyến chạy 6 giờ
+
+
+def test_tinh_ngay_lech_cung_ngay_khi_ve_sau_khi_toi_noi_du_30_phut():
+    # đi 06:00, tới 12:00, về 13:00 → cùng ngày
+    assert lc.tinh_ngay_lech(gio(6), gio(13), TONG_PHUT) == 0
+
+
+def test_tinh_ngay_lech_dung_30_phut_nghi_van_hop_le():
+    # đi 06:00, tới 12:00, về đúng 12:30
+    assert lc.tinh_ngay_lech(gio(6), gio(12, 30), TONG_PHUT) == 0
+
+
+def test_tinh_ngay_lech_thieu_30_phut_day_sang_ngay_sau():
+    # đi 06:00, tới 12:00, về 12:29 chưa đủ nghỉ → chiều về chạy ngày hôm sau
+    assert lc.tinh_ngay_lech(gio(6), gio(12, 29), TONG_PHUT) == 1
+
+
+def test_tinh_ngay_lech_xe_toi_sang_hom_sau_ve_sang_som():
+    # đi 23:00, tới 05:00 hôm sau, về 07:00 → lệch 1 ngày
+    assert lc.tinh_ngay_lech(gio(23), gio(7), TONG_PHUT) == 1
+
+
+def test_tinh_ngay_lech_hanh_trinh_dai_hon_mot_ngay():
+    # tuyến 30 giờ: đi 08:00 tới 14:00 hôm sau, về 20:00 → lệch 1 ngày; về 13:00 → lệch 2 ngày
+    assert lc.tinh_ngay_lech(gio(8), gio(20), 30 * 60) == 1
+    assert lc.tinh_ngay_lech(gio(8), gio(13), 30 * 60) == 2
+
+
+def _gia_lap_cap(monkeypatch, co_gia_ve=True, trung_chieu=None, tong_phut=TONG_PHUT):
     monkeypatch.setattr(lc.dia_diem_repo, "tim_tuyen_theo_id", lambda _id: {"id": _id})
-    monkeypatch.setattr(lc.gia_ve_repo, "danh_sach_gia_ve", lambda _id: [{"id": "gv"}] if co_gia_ve else [])
     monkeypatch.setattr(lc.xe_repo, "tim_loai_xe_theo_id", lambda _id: {"id": _id})
-    monkeypatch.setattr(lc.repo, "tim_trung", lambda *a, **k: trung)
-    monkeypatch.setattr(lc.repo, "tao", lambda *a: "lich-1")
-    monkeypatch.setattr(lc.repo, "tim_theo_id", lambda _id: {"id": _id})
-
-
-def test_tao_lich_chay_tuyen_chua_co_gia_ve_bi_chan(monkeypatch):
-    _gia_lap_lich_chay(monkeypatch, co_gia_ve=False)
-    with pytest.raises(GiaTriLoi, match="giá vé"):
-        lc.tao_lich_chay("tuyen-1", "xuoi", GIO, "loai-1")
-
-
-def test_tao_lich_chay_trung_bi_chan(monkeypatch):
-    _gia_lap_lich_chay(monkeypatch, trung={"id": "lich-cu"})
-    with pytest.raises(GiaTriLoi, match="Đã có lịch chạy"):
-        lc.tao_lich_chay("tuyen-1", "xuoi", GIO, "loai-1")
-
-
-def test_tao_lich_chay_hop_le(monkeypatch):
-    _gia_lap_lich_chay(monkeypatch)
-    assert lc.tao_lich_chay("tuyen-1", "nguoc", GIO, "loai-1") == {"id": "lich-1"}
-
-
-def test_doi_ap_dung_khong_dung_den_chuyen(monkeypatch):
-    monkeypatch.setattr(lc.repo, "tim_theo_id", lambda _id: {"id": _id})
-    da_goi = []
-    monkeypatch.setattr(lc.repo, "doi_ap_dung", lambda lich_id, gia_tri: da_goi.append((lich_id, gia_tri)))
-    lc.doi_ap_dung("lich-1", False)
-    assert da_goi == [("lich-1", False)]
-
-
-# ---------------------------------------------------------
-# UC-18 Sinh chuyến theo khoảng ngày (thủ công, không job nền)
-# ---------------------------------------------------------
-HOM_NAY = lc.datetime.datetime.now(lc.MUI_GIO_VN).date()
-
-
-def _lich(**ghi_de):
-    du_lieu = {"id": "lich-1", "tuyen_id": "tuyen-1", "chieu": "xuoi", "gio_khoi_hanh": GIO, "loai_xe_id": "loai-1", "dang_ap_dung": True}
-    du_lieu.update(ghi_de)
-    return du_lieu
-
-
-def _gia_lap_sinh_chuyen(monkeypatch, dang_ap_dung=True, da_co_theo_ngay=None):
-    monkeypatch.setattr(
-        lc.repo,
-        "tim_theo_id",
-        lambda _id: _lich(dang_ap_dung=dang_ap_dung, id=_id) if _id else None,
-    )
-    monkeypatch.setattr(lc.chuyen_xe_repo, "da_co_chuyen_theo_ngay", da_co_theo_ngay or (lambda *_: False))
+    monkeypatch.setattr(lc.repo, "tim_trung", lambda t, chieu, *a, **k: {"id": "cu"} if chieu == trung_chieu else None)
+    monkeypatch.setattr(lc.repo, "tong_phut_tuyen", lambda _id: tong_phut)
     da_tao = []
-    monkeypatch.setattr(lc.chuyen_xe_repo, "tao_chuyen_tu_lich_dinh_ky", lambda *a: da_tao.append(a) or "moi")
+
+    def tao_cap(tuyen_id, xuoi, nguoc, ngay_lech):
+        da_tao.append((tuyen_id, xuoi, nguoc, ngay_lech))
+        return "cap-1"
+
+    monkeypatch.setattr(lc.repo, "tao_cap", tao_cap)
+    monkeypatch.setattr(lc.repo, "lich_cua_cap", lambda _id: _lich_cua_cap())
     return da_tao
 
 
-def test_sinh_chuyen_lich_khong_ton_tai_bi_chan(monkeypatch):
-    monkeypatch.setattr(lc.repo, "tim_theo_id", lambda _id: None)
-    with pytest.raises(GiaTriLoi, match="Không tìm thấy lịch"):
-        lc.sinh_chuyen_theo_khoang_ngay("lich-1", HOM_NAY, HOM_NAY)
+def _lich_cua_cap(so_chuyen_xuoi=0, so_chuyen_nguoc=0, dang_ap_dung=True, ngay_lech=1):
+    chung = {"cap_id": "cap-1", "tuyen_id": "tuyen-1", "ma_tuyen": "T001", "ten_tuyen": "Tuyến 1", "tong_phut": TONG_PHUT,
+             "dang_ap_dung": dang_ap_dung, "loai_xe_id": "loai-1"}
+    return [
+        {**chung, "id": "lich-di", "chieu": "xuoi", "gio_khoi_hanh": gio(23), "ngay_lech": 0, "so_chuyen_da_sinh": so_chuyen_xuoi},
+        {**chung, "id": "lich-ve", "chieu": "nguoc", "gio_khoi_hanh": gio(7), "ngay_lech": ngay_lech, "so_chuyen_da_sinh": so_chuyen_nguoc},
+    ]
 
 
-def test_sinh_chuyen_lich_da_ngung_ap_dung_bi_chan(monkeypatch):
-    _gia_lap_sinh_chuyen(monkeypatch, dang_ap_dung=False)
+CHIEU_DI = {"gio_khoi_hanh": gio(23), "loai_xe_id": "loai-1"}
+CHIEU_VE = {"gio_khoi_hanh": gio(7), "loai_xe_id": "loai-1"}
+
+
+def test_tao_cap_van_tao_duoc_khi_tuyen_chua_du_gia_ve(monkeypatch):
+    da_tao = _gia_lap_cap(monkeypatch)
+    monkeypatch.setattr(lc.gia_ve_service, "cac_cap_thieu_gia", lambda _id: ["A → B"])
+    lc.tao_cap_lich_chay("tuyen-1", CHIEU_DI, CHIEU_VE)
+    assert len(da_tao) == 1
+
+
+def test_tao_cap_chieu_ve_trung_bi_chan(monkeypatch):
+    da_tao = _gia_lap_cap(monkeypatch, trung_chieu="nguoc")
+    with pytest.raises(GiaTriLoi, match="chiều về"):
+        lc.tao_cap_lich_chay("tuyen-1", CHIEU_DI, CHIEU_VE)
+    assert da_tao == []
+
+
+def test_tao_cap_khac_loai_xe_bi_chan(monkeypatch):
+    da_tao = _gia_lap_cap(monkeypatch)
+    with pytest.raises(GiaTriLoi, match="cùng loại xe"):
+        lc.tao_cap_lich_chay("tuyen-1", CHIEU_DI, {**CHIEU_VE, "loai_xe_id": "loai-2"})
+    assert da_tao == []
+
+
+def test_tao_cap_tuyen_chua_co_thoi_gian_chay_bi_chan(monkeypatch):
+    _gia_lap_cap(monkeypatch, tong_phut=None)
+    with pytest.raises(GiaTriLoi, match="thời gian chạy"):
+        lc.tao_cap_lich_chay("tuyen-1", CHIEU_DI, CHIEU_VE)
+
+
+def test_tao_cap_hop_le_luu_dung_ngay_lech_va_loai_xe_tung_chieu(monkeypatch):
+    da_tao = _gia_lap_cap(monkeypatch)
+    cap = lc.tao_cap_lich_chay("tuyen-1", CHIEU_DI, CHIEU_VE)
+    assert da_tao == [("tuyen-1", CHIEU_DI, CHIEU_VE, 1)]  # đi 23:00 tới 05:00 → về 07:00 hôm sau
+    assert cap["xuoi"]["id"] == "lich-di" and cap["nguoc"]["id"] == "lich-ve"
+    assert cap["gio_den_chieu_di"] == gio(5) and cap["ngay_den_lech"] == 1
+
+
+def test_doi_ap_dung_ca_cap(monkeypatch):
+    monkeypatch.setattr(lc.repo, "lich_cua_cap", lambda _id: _lich_cua_cap())
+    da_goi = []
+    monkeypatch.setattr(lc.repo, "doi_ap_dung_cap", lambda cap_id, gia_tri: da_goi.append((cap_id, gia_tri)))
+    lc.doi_ap_dung_cap("cap-1", False)
+    assert da_goi == [("cap-1", False)]
+
+
+def test_doi_ap_dung_cap_khong_ton_tai(monkeypatch):
+    monkeypatch.setattr(lc.repo, "lich_cua_cap", lambda _id: [])
+    with pytest.raises(GiaTriLoi, match="Không tìm thấy"):
+        lc.doi_ap_dung_cap("cap-x", False)
+
+
+# ---------------------------------------------------------
+# UC-18 Sinh chuyến cho các cặp (thủ công, không job nền)
+# ---------------------------------------------------------
+KHOANG_RONG = (datetime.date(2000, 1, 1), datetime.date(2099, 12, 31))
+
+
+def _gia_lap_sinh(monkeypatch, lich=None, da_co=lambda lich_id, ngay: False, thieu_gia=(), khoang=KHOANG_RONG):
+    monkeypatch.setattr(lc.repo, "lich_cua_cap", lambda _id: lich if lich is not None else _lich_cua_cap())
+    monkeypatch.setattr(lc.gia_ve_service, "khoang_ngay_co_gia", lambda _id: khoang)
+    da_sinh = []
+
+    def sinh(ke_hoach):
+        for muc in ke_hoach:
+            muc["da_sinh"] = not da_co(muc["lich"]["id"], muc["ngay"])
+            if muc["da_sinh"]:
+                da_sinh.append(muc)
+        return ke_hoach
+
+    monkeypatch.setattr(lc.chuyen_xe_repo, "sinh_nhieu_chuyen_tu_lich", sinh)
+    monkeypatch.setattr(lc.gia_ve_service, "ngay_chua_co_gia", lambda _id, cac_ngay: sorted(cac_ngay) if thieu_gia else [])
+    return da_sinh
+
+
+def _hom_nay():
+    return datetime.datetime.now(lc.MUI_GIO_VN).date()
+
+
+def _ngay_mai():
+    return _hom_nay() + datetime.timedelta(days=1)
+
+
+def _gia_lap_gio_hien_tai(monkeypatch, bay_gio):
+    """Đóng băng đồng hồ của service (bay_gio là datetime có múi giờ VN)."""
+    import types
+
+    class DongHo(datetime.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return bay_gio
+
+    monkeypatch.setattr(lc, "datetime", types.SimpleNamespace(
+        datetime=DongHo, date=datetime.date, time=datetime.time, timedelta=datetime.timedelta))
+
+
+def test_sinh_chuyen_chuyen_di_hom_nay_da_qua_gio_thi_bo_ca_chu_ky_khong_thua_chuyen_ve(monkeypatch):
+    # Lịch: đi 23:00, về 07:00 (lệch 1 ngày). Bây giờ 12/10 lúc 23:30 → chuyến đi 12/10 đã quá giờ
+    bay_gio = datetime.datetime(2026, 10, 12, 23, 30, tzinfo=lc.MUI_GIO_VN)
+    _gia_lap_gio_hien_tai(monkeypatch, bay_gio)
+    da_sinh = _gia_lap_sinh(monkeypatch)
+    hom_nay = datetime.date(2026, 10, 12)
+    kq = lc.sinh_chuyen_cho_cac_cap(["cap-1"], hom_nay, hom_nay + datetime.timedelta(days=2))
+    assert kq["so_chu_ky_bo_qua_do_qua_gio"] == 1
+    assert kq["so_chuyen_di_moi_sinh"] == 2 and kq["so_chuyen_ve_moi_sinh"] == 2
+    ngay_di = sorted(m["ngay"] for m in da_sinh if m["lich"]["chieu"] == "xuoi")
+    ngay_ve = sorted(m["ngay"] for m in da_sinh if m["lich"]["chieu"] == "nguoc")
+    assert ngay_di == [datetime.date(2026, 10, 13), datetime.date(2026, 10, 14)]
+    # chuyến về 13/10 (của chu kỳ đi 12/10 đã bỏ) không được sinh
+    assert ngay_ve == [datetime.date(2026, 10, 14), datetime.date(2026, 10, 15)]
+
+
+def test_sinh_chuyen_chuyen_di_hom_nay_con_gio_thi_van_sinh_ca_hai_chieu(monkeypatch):
+    bay_gio = datetime.datetime(2026, 10, 12, 10, 0, tzinfo=lc.MUI_GIO_VN)
+    _gia_lap_gio_hien_tai(monkeypatch, bay_gio)
+    da_sinh = _gia_lap_sinh(monkeypatch)
+    hom_nay = datetime.date(2026, 10, 12)
+    kq = lc.sinh_chuyen_cho_cac_cap(["cap-1"], hom_nay, hom_nay)
+    assert kq["so_chu_ky_bo_qua_do_qua_gio"] == 0
+    assert (kq["so_chuyen_di_moi_sinh"], kq["so_chuyen_ve_moi_sinh"]) == (1, 1)
+
+
+def test_sinh_chuyen_tuyen_chua_co_bo_gia_nao_bi_chan(monkeypatch):
+    da_sinh = _gia_lap_sinh(monkeypatch, khoang=None)
+    with pytest.raises(GiaTriLoi, match="chưa có bộ giá vé nên chưa sinh chuyến"):
+        lc.sinh_chuyen_cho_cac_cap(["cap-1"], _ngay_mai(), _ngay_mai())
+    assert da_sinh == []
+
+
+def test_sinh_chuyen_vuot_ngay_cuoi_bo_gia_tinh_lui_theo_do_lech_chuyen_ve(monkeypatch):
+    # cặp lệch +1 ngày; bộ giá mới nhất kết thúc 20/10 → chuyến đi tối đa 19/10 (để chuyến về 20/10 còn trong bộ)
+    da_sinh = _gia_lap_sinh(monkeypatch, khoang=(datetime.date(2026, 10, 1), datetime.date(2026, 10, 20)))
+    _gia_lap_gio_hien_tai(monkeypatch, datetime.datetime(2026, 10, 12, 0, 0, tzinfo=lc.MUI_GIO_VN))
+    with pytest.raises(GiaTriLoi, match="chỉ sinh được đến ngày 19/10/2026"):
+        lc.sinh_chuyen_cho_cac_cap(["cap-1"], datetime.date(2026, 10, 13), datetime.date(2026, 10, 20))
+    assert da_sinh == []
+    kq = lc.sinh_chuyen_cho_cac_cap(["cap-1"], datetime.date(2026, 10, 13), datetime.date(2026, 10, 19))  # đúng mốc tối đa
+    assert kq["so_chuyen_di_moi_sinh"] == 7 and kq["so_chuyen_ve_moi_sinh"] == 7
+    assert max(m["ngay"] for m in da_sinh) == datetime.date(2026, 10, 20)  # chuyến về cuối cùng đúng ngày cuối bộ giá
+
+
+def test_sinh_chuyen_truoc_ngay_bat_dau_bo_gia_dau_tien_bi_chan(monkeypatch):
+    _gia_lap_sinh(monkeypatch, khoang=(datetime.date(2026, 11, 1), datetime.date(2026, 12, 31)))
+    _gia_lap_gio_hien_tai(monkeypatch, datetime.datetime(2026, 10, 12, 0, 0, tzinfo=lc.MUI_GIO_VN))
+    with pytest.raises(GiaTriLoi, match="bắt đầu từ ngày 01/11/2026"):
+        lc.sinh_chuyen_cho_cac_cap(["cap-1"], datetime.date(2026, 10, 20), datetime.date(2026, 10, 25))
+
+
+def test_danh_sach_cap_tra_ve_khoang_ngay_sinh_chuyen_toi_da_theo_do_lech(monkeypatch):
+    monkeypatch.setattr(lc.repo, "danh_sach", lambda tuyen_id=None: _lich_cua_cap())  # ngay_lech = 1
+    monkeypatch.setattr(lc.gia_ve_service, "cac_cap_thieu_gia", lambda _id: [])
+    monkeypatch.setattr(lc.gia_ve_service, "khoang_ngay_co_gia", lambda _id: (datetime.date(2026, 10, 1), datetime.date(2026, 10, 20)))
+    cap = lc.danh_sach_cap()[0]
+    assert cap["sinh_chuyen_tu_ngay"] == datetime.date(2026, 10, 1)
+    assert cap["sinh_chuyen_den_ngay"] == datetime.date(2026, 10, 19)
+
+
+def test_danh_sach_cap_tuyen_chua_co_bo_gia_khong_co_khoang(monkeypatch):
+    monkeypatch.setattr(lc.repo, "danh_sach", lambda tuyen_id=None: _lich_cua_cap())
+    monkeypatch.setattr(lc.gia_ve_service, "cac_cap_thieu_gia", lambda _id: [])
+    monkeypatch.setattr(lc.gia_ve_service, "khoang_ngay_co_gia", lambda _id: None)
+    cap = lc.danh_sach_cap()[0]
+    assert cap["sinh_chuyen_tu_ngay"] is None and cap["sinh_chuyen_den_ngay"] is None
+
+
+def test_sinh_chuyen_ngay_chua_co_bo_gia_bi_chan_va_khong_sinh_gi(monkeypatch):
+    da_sinh = _gia_lap_sinh(monkeypatch, thieu_gia=True)
+    with pytest.raises(GiaTriLoi, match="chưa có bộ giá vé đầy đủ áp dụng cho ngày"):
+        lc.sinh_chuyen_cho_cac_cap(["cap-1"], _ngay_mai(), _ngay_mai())
+    assert da_sinh == []
+
+
+def test_sinh_chuyen_khong_chon_cap_nao_bi_chan(monkeypatch):
+    _gia_lap_sinh(monkeypatch)
+    with pytest.raises(GiaTriLoi, match="ít nhất 1 cặp"):
+        lc.sinh_chuyen_cho_cac_cap([], _hom_nay(), _hom_nay())
+
+
+def test_sinh_chuyen_cap_khong_ton_tai_bi_chan(monkeypatch):
+    _gia_lap_sinh(monkeypatch, lich=[])
+    with pytest.raises(GiaTriLoi, match="Không tìm thấy"):
+        lc.sinh_chuyen_cho_cac_cap(["cap-x"], _hom_nay(), _hom_nay())
+
+
+def test_sinh_chuyen_cap_da_ngung_bi_chan(monkeypatch):
+    _gia_lap_sinh(monkeypatch, lich=_lich_cua_cap(dang_ap_dung=False))
     with pytest.raises(GiaTriLoi, match="ngừng áp dụng"):
-        lc.sinh_chuyen_theo_khoang_ngay("lich-1", HOM_NAY, HOM_NAY)
+        lc.sinh_chuyen_cho_cac_cap(["cap-1"], _hom_nay(), _hom_nay())
 
 
 def test_sinh_chuyen_ngay_bat_dau_sau_ngay_ket_thuc_bi_chan(monkeypatch):
-    _gia_lap_sinh_chuyen(monkeypatch)
+    _gia_lap_sinh(monkeypatch)
     with pytest.raises(GiaTriLoi, match="trước hoặc bằng"):
-        lc.sinh_chuyen_theo_khoang_ngay("lich-1", HOM_NAY + datetime.timedelta(days=2), HOM_NAY)
+        lc.sinh_chuyen_cho_cac_cap(["cap-1"], _hom_nay() + datetime.timedelta(days=3), _hom_nay())
 
 
 def test_sinh_chuyen_ngay_qua_khu_bi_chan(monkeypatch):
-    _gia_lap_sinh_chuyen(monkeypatch)
-    hom_qua = HOM_NAY - datetime.timedelta(days=1)
+    _gia_lap_sinh(monkeypatch)
+    qua_khu = _hom_nay() - datetime.timedelta(days=1)
     with pytest.raises(GiaTriLoi, match="quá khứ"):
-        lc.sinh_chuyen_theo_khoang_ngay("lich-1", hom_qua, HOM_NAY)
+        lc.sinh_chuyen_cho_cac_cap(["cap-1"], qua_khu, _hom_nay())
 
 
 def test_sinh_chuyen_khoang_qua_dai_bi_chan(monkeypatch):
-    _gia_lap_sinh_chuyen(monkeypatch)
-    with pytest.raises(GiaTriLoi, match="tối đa 180 ngày"):
-        lc.sinh_chuyen_theo_khoang_ngay("lich-1", HOM_NAY, HOM_NAY + datetime.timedelta(days=200))
+    _gia_lap_sinh(monkeypatch)
+    hom_nay = _hom_nay()
+    with pytest.raises(GiaTriLoi, match="tối đa"):
+        lc.sinh_chuyen_cho_cac_cap(["cap-1"], hom_nay, hom_nay + datetime.timedelta(days=lc.SO_NGAY_TOI_DA_MOI_LAN))
 
 
-def test_sinh_chuyen_du_so_ngay_khi_chua_co_chuyen_nao(monkeypatch):
-    da_tao = _gia_lap_sinh_chuyen(monkeypatch)
-    ket_qua = lc.sinh_chuyen_theo_khoang_ngay("lich-1", HOM_NAY, HOM_NAY + datetime.timedelta(days=4))
-    assert ket_qua == {"so_chuyen_moi_sinh": 5, "so_ngay_da_co_san": 0}
-    assert len(da_tao) == 5
-    for _, _, _, _, gio_khoi_hanh in da_tao:
-        assert gio_khoi_hanh.tzinfo is not None
-        assert str(gio_khoi_hanh.tzinfo) == "Asia/Ho_Chi_Minh"
+def test_sinh_chuyen_chieu_ve_lech_dung_so_ngay_cua_cap(monkeypatch):
+    da_sinh = _gia_lap_sinh(monkeypatch)  # ngay_lech = 1
+    hom_nay = _ngay_mai()
+    kq = lc.sinh_chuyen_cho_cac_cap(["cap-1"], hom_nay, hom_nay + datetime.timedelta(days=2))
+    assert kq == {"so_chuyen_di_moi_sinh": 3, "so_chuyen_ve_moi_sinh": 3, "so_chuyen_di_da_co_san": 0, "so_chuyen_ve_da_co_san": 0, "so_chu_ky_bo_qua_do_qua_gio": 0}
+    ngay_di = sorted(m["ngay"] for m in da_sinh if m["lich"]["chieu"] == "xuoi")
+    ngay_ve = sorted(m["ngay"] for m in da_sinh if m["lich"]["chieu"] == "nguoc")
+    assert ngay_di == [hom_nay + datetime.timedelta(days=i) for i in range(3)]
+    assert ngay_ve == [hom_nay + datetime.timedelta(days=i) for i in range(1, 4)]  # chuyến về cuối rơi sau ngày kết thúc
 
 
-def test_sinh_chuyen_bo_qua_ngay_da_co_san(monkeypatch):
-    da_co_san = {HOM_NAY, HOM_NAY + datetime.timedelta(days=1)}
-    da_tao = _gia_lap_sinh_chuyen(monkeypatch, da_co_theo_ngay=lambda lich_id, ngay: ngay in da_co_san)
-
-    ket_qua = lc.sinh_chuyen_theo_khoang_ngay("lich-1", HOM_NAY, HOM_NAY + datetime.timedelta(days=3))
-
-    assert ket_qua == {"so_chuyen_moi_sinh": 2, "so_ngay_da_co_san": 2}
-    assert len(da_tao) == 2
+def test_sinh_chuyen_gan_mui_gio_viet_nam_cho_gio_khoi_hanh(monkeypatch):
+    da_sinh = _gia_lap_sinh(monkeypatch)
+    lc.sinh_chuyen_cho_cac_cap(["cap-1"], _ngay_mai(), _ngay_mai())
+    assert all(m["gio_khoi_hanh"].tzinfo is not None for m in da_sinh)
+    assert da_sinh[0]["gio_khoi_hanh"].utcoffset() == datetime.timedelta(hours=7)
 
 
-def test_sinh_chuyen_dung_tuyen_chieu_loai_xe_theo_dung_lich(monkeypatch):
-    monkeypatch.setattr(
-        lc.repo,
-        "tim_theo_id",
-        lambda _id: _lich(chieu="nguoc", tuyen_id="tuyen-9", loai_xe_id="loai-9"),
-    )
-    monkeypatch.setattr(lc.chuyen_xe_repo, "da_co_chuyen_theo_ngay", lambda *_: False)
-    da_tao = []
-    monkeypatch.setattr(lc.chuyen_xe_repo, "tao_chuyen_tu_lich_dinh_ky", lambda *a: da_tao.append(a) or "x")
+def test_sinh_chuyen_dem_rieng_chuyen_da_co_san_tung_chieu(monkeypatch):
+    # chiều đi đã có sẵn ở mọi ngày, chiều về chưa có
+    _gia_lap_sinh(monkeypatch, da_co=lambda lich_id, ngay: lich_id == "lich-di")
+    hom_nay = _ngay_mai()
+    kq = lc.sinh_chuyen_cho_cac_cap(["cap-1"], hom_nay, hom_nay + datetime.timedelta(days=1))
+    assert kq == {"so_chuyen_di_moi_sinh": 0, "so_chuyen_ve_moi_sinh": 2, "so_chuyen_di_da_co_san": 2, "so_chuyen_ve_da_co_san": 0, "so_chu_ky_bo_qua_do_qua_gio": 0}
 
-    lc.sinh_chuyen_theo_khoang_ngay("lich-1", HOM_NAY, HOM_NAY)
 
-    tuyen_id, chieu, loai_xe_id, lich_id, _ = da_tao[0]
-    assert (tuyen_id, chieu, loai_xe_id, lich_id) == ("tuyen-9", "nguoc", "loai-9", "lich-1")
+def test_sinh_chuyen_cap_chon_trung_lap_chi_tinh_mot_lan(monkeypatch):
+    _gia_lap_sinh(monkeypatch)
+    kq = lc.sinh_chuyen_cho_cac_cap(["cap-1", "cap-1"], _ngay_mai(), _ngay_mai())
+    assert kq["so_chuyen_di_moi_sinh"] == 1
 
 
 # ---------------------------------------------------------
-# UC-18 — sửa lịch đã sinh chuyến bị khóa
+# UC-18 — sửa lịch của cặp đã sinh chuyến bị khóa
 # ---------------------------------------------------------
-def _gia_lap_sua_lich(monkeypatch, so_chuyen_da_sinh):
-    lich = {"id": "lich-1", "tuyen_id": "tuyen-1", "so_chuyen_da_sinh": so_chuyen_da_sinh}
+def _gia_lap_sua_lich(monkeypatch, so_chuyen_xuoi=0, so_chuyen_nguoc=0):
+    cap = _lich_cua_cap(so_chuyen_xuoi, so_chuyen_nguoc)
     da_ghi = []
-    monkeypatch.setattr(lc.repo, "tim_theo_id", lambda _id: lich)
+    monkeypatch.setattr(lc.repo, "tim_theo_id", lambda _id: next(l for l in cap if l["id"] == _id))
+    monkeypatch.setattr(lc.repo, "lich_cua_cap", lambda _id: cap)
     monkeypatch.setattr(lc.xe_repo, "tim_loai_xe_theo_id", lambda _id: {"id": _id})
-    monkeypatch.setattr(lc.repo, "tim_trung", lambda *a, **k: False)
+    monkeypatch.setattr(lc.repo, "tim_trung", lambda *a, **k: None)
+    monkeypatch.setattr(lc.repo, "tong_phut_tuyen", lambda _id: TONG_PHUT)
     monkeypatch.setattr(lc.repo, "sua", lambda *a: da_ghi.append(a))
     return da_ghi
 
 
-def test_sua_lich_da_sinh_chuyen_bi_chan(monkeypatch):
-    da_ghi = _gia_lap_sua_lich(monkeypatch, so_chuyen_da_sinh=7)
+def test_sua_lich_cua_cap_da_sinh_chuyen_bi_chan_ke_ca_khi_chi_chieu_kia_co_chuyen(monkeypatch):
+    da_ghi = _gia_lap_sua_lich(monkeypatch, so_chuyen_xuoi=0, so_chuyen_nguoc=7)
     with pytest.raises(GiaTriLoi, match="đã sinh 7 chuyến"):
-        lc.sua_lich_chay("lich-1", "nguoc", GIO, "loai-1")
+        lc.sua_lich_chay("lich-di", gio(22), "loai-1")
     assert da_ghi == []
 
 
-def test_sua_lich_chua_sinh_chuyen_van_sua_duoc(monkeypatch):
-    da_ghi = _gia_lap_sua_lich(monkeypatch, so_chuyen_da_sinh=0)
-    lc.sua_lich_chay("lich-1", "nguoc", GIO, "loai-1")
-    assert len(da_ghi) == 1
+def test_sua_lich_chua_sinh_chuyen_tinh_lai_ngay_lech_theo_gio_moi(monkeypatch):
+    da_ghi = _gia_lap_sua_lich(monkeypatch)
+    lc.sua_lich_chay("lich-ve", gio(13), "loai-1")  # đi 23:00 tới 05:00, về 13:00 → vẫn lệch 1 ngày
+    lc.sua_lich_chay("lich-di", gio(0), "loai-1")  # đi 00:00 tới 06:00, về 07:00 → cùng ngày
+    assert [a[4] for a in da_ghi] == [1, 0]
+
+
+def test_sua_gio_lam_chieu_ve_truoc_gio_ket_thuc_chieu_di_bi_chan(monkeypatch):
+    da_ghi = _gia_lap_sua_lich(monkeypatch)
+    with pytest.raises(GiaTriLoi, match="cùng ngày"):
+        lc.sua_lich_chay("lich-di", gio(6), "loai-1")  # đi 06:00 tới 12:00 mà về 07:00
+    assert da_ghi == []
+
+
+def test_kiem_tra_gio_cap_chieu_di_ket_thuc_trong_ngay_thi_chieu_ve_cung_ngay():
+    with pytest.raises(GiaTriLoi, match="từ 12:30"):
+        lc.kiem_tra_gio_cap(gio(6), gio(10), TONG_PHUT)  # đúng ca người dùng gặp: đi 06-12, về 10
+    with pytest.raises(GiaTriLoi):
+        lc.kiem_tra_gio_cap(gio(6), gio(12, 29), TONG_PHUT)
+    lc.kiem_tra_gio_cap(gio(6), gio(12, 30), TONG_PHUT)  # đúng 30 phút: hợp lệ
+    lc.kiem_tra_gio_cap(gio(6), gio(18), TONG_PHUT)
+
+
+def test_kiem_tra_gio_cap_chieu_di_qua_nua_dem_khong_rang_buoc_gio_ve():
+    lc.kiem_tra_gio_cap(gio(23), gio(7), TONG_PHUT)  # tới 05:00 hôm sau, về 07:00 sau 1 ngày
+
+
+def test_tao_cap_chieu_ve_truoc_gio_ket_thuc_chieu_di_bi_chan(monkeypatch):
+    da_tao = _gia_lap_cap(monkeypatch)
+    with pytest.raises(GiaTriLoi, match="cùng ngày"):
+        lc.tao_cap_lich_chay("tuyen-1", {**CHIEU_DI, "gio_khoi_hanh": gio(6)}, {**CHIEU_VE, "gio_khoi_hanh": gio(10)})
+    assert da_tao == []

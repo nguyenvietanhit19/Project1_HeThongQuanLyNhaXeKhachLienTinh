@@ -9,6 +9,8 @@ from zoneinfo import ZoneInfo
 import psycopg2.errors
 
 from app.repositories import chuyen_xe_repository as repo
+from app.repositories import xe_repository as xe_repo
+from app.services import gia_ve_service
 from app.utils.loi import GiaTriLoi
 
 MUI_GIO_VN = ZoneInfo("Asia/Ho_Chi_Minh")
@@ -39,6 +41,12 @@ def chi_tiet_chuyen(chuyen_id: str) -> dict:
     chuyen = repo.tim_chuyen_theo_id_ql(chuyen_id)
     if not chuyen:
         raise GiaTriLoi("Không tìm thấy chuyến")
+    # Giá vé của chuyến: bộ giá áp dụng cho ngày khởi hành (giờ VN) × hệ số loại xe — None nếu ngày đó chưa có giá
+    loai_xe = xe_repo.tim_loai_xe_theo_id(str(chuyen["loai_xe_id"]))
+    ngay = chuyen["gio_khoi_hanh"].astimezone(MUI_GIO_VN).date()
+    chuyen["bang_gia"] = (
+        gia_ve_service.bang_gia_cua_chuyen(str(chuyen["tuyen_id"]), chuyen["chieu"], ngay, loai_xe["he_so_gia"]) if loai_xe else None
+    )
     return chuyen
 
 

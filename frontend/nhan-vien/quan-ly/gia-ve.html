@@ -41,60 +41,48 @@
   </div>
 
   <div class="nv-modal-overlay" id="modal-overlay" hidden>
-    <div class="nv-modal">
-      <form id="form-gia-ve">
+    <div class="nv-modal" style="max-width:640px;">
+      <form id="form-bo">
         <div class="nv-modal__header">
           <div class="nv-modal__header-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="9"/><path d="M9 15V9l1.8 1.8L12 9l1.2 1.8L15 9v6"/>
             </svg>
           </div>
-          <h2 id="modal-tieu-de">Thêm giá vé</h2>
+          <h2 id="modal-tieu-de">Tạo bộ giá vé mới</h2>
         </div>
         <div class="nv-modal__body">
-          <input type="hidden" id="gia_ve_id" />
-
+          <input type="hidden" id="bo_id" />
           <p id="ten-tuyen-da-chon" class="pill pill--nhom-tuyen" style="display:inline-block; margin:0 0 14px;"></p>
 
-          <div id="khoi-chon-diem" class="nv-form-row">
-            <div>
-              <label class="nv-label" for="diem_di_id">Điểm đi</label>
-              <select class="input-field" id="diem_di_id" required></select>
+          <div id="buoc-nhap">
+            <div class="nv-form-row">
+              <div>
+                <label class="nv-label" for="ap_dung_tu">Áp dụng từ ngày</label>
+                <input class="input-field" type="date" id="ap_dung_tu" />
+              </div>
+              <div>
+                <label class="nv-label" for="ap_dung_den">Đến ngày</label>
+                <input class="input-field" type="date" id="ap_dung_den" required />
+              </div>
             </div>
-            <div>
-              <label class="nv-label" for="diem_den_id">Điểm đến</label>
-              <select class="input-field" id="diem_den_id" required></select>
-            </div>
-          </div>
 
-          <div id="khoi-diem-readonly" hidden style="margin-bottom:14px;">
-            <span class="pill pill--khu-vuc" id="hien-thi-diem-di"></span>
-            <span style="margin:0 6px; color:var(--color-text-muted);">→</span>
-            <span class="pill pill--khu-vuc" id="hien-thi-diem-den"></span>
-          </div>
+            <div class="gv-bang-nhap" id="bang-nhap-gia"></div>
 
-          <label class="nv-label" for="gia_goc">Giá gốc (VNĐ)</label>
-          <input class="input-field" type="number" id="gia_goc" min="1000" step="1000" placeholder="VD 150000" required />
-
-          <label class="nv-thoi-han-toggle" for="co_thoi_han">
-            <input type="checkbox" id="co_thoi_han" />
-            Chỉ áp dụng theo mùa/dịp lễ (có hạn)
-          </label>
-          <div id="khoi-khoang-ngay" class="nv-khoang-ngay" hidden>
-            <div>
-              <label class="nv-label" for="ap_dung_tu">Từ ngày</label>
-              <input class="input-field" type="date" id="ap_dung_tu" />
-            </div>
-            <div>
-              <label class="nv-label" for="ap_dung_den">Đến ngày</label>
-              <input class="input-field" type="date" id="ap_dung_den" />
+            <div id="loi-form" class="text-error" hidden></div>
+            <div class="nv-modal__actions">
+              <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
+              <button type="submit" class="btn-primary">Tiếp tục</button>
             </div>
           </div>
 
-          <div id="loi-form" class="text-error" hidden></div>
-          <div class="nv-modal__actions">
-            <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
-            <button type="submit" class="btn-primary">Lưu</button>
+          <div id="buoc-xac-nhan" hidden>
+            <div id="xn-noi-dung" class="gv-xac-nhan"></div>
+            <div id="xn-loi" class="text-error" hidden></div>
+            <div class="nv-modal__actions">
+              <button type="button" class="nv-btn-secondary" id="btn-quay-lai">Quay lại sửa</button>
+              <button type="button" class="btn-primary" id="btn-xac-nhan">Xác nhận lưu</button>
+            </div>
           </div>
         </div>
       </form>
@@ -104,7 +92,6 @@
   <script src="/nhan-vien/quan-ly/api-client.js"></script>
   <script src="/nhan-vien/quan-ly/auth-check.js"></script>
   <script src="/nhan-vien/quan-ly/nav.js"></script>
-  <script src="/nhan-vien/quan-ly/data-table.js"></script>
   <script>
     const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
     if (nguoiDung) {
@@ -113,71 +100,71 @@
     }
     document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
 
+    const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const dinhDangTien = (so) => Number(so).toLocaleString("vi-VN") + "đ";
+    const dinhDangNgay = (iso) => (iso ? iso.split("-").reverse().join("/") : "");
+    const khoaNgay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const homNayISO = () => khoaNgay(new Date());
+    const ngayMaiISO = () => {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      return khoaNgay(d);
+    };
+
     let dsTuyen = [];
-    let dsGiaVe = []; // giá vé của MỌI tuyến
+    let dsBo = []; // mọi bộ giá của mọi tuyến (cũ → mới trong từng tuyến)
     let khuVucTheoTuyen = new Map(); // tuyen_id -> [{khu_vuc_id, ten}] theo đúng thứ tự tuyến đi qua
     let phanTichTheoTuyen = new Map(); // tuyen_id -> kết quả phanTichTuyen()
-    let tuyenDangChon = null; // id
+    let tuyenDangChon = null;
     let boLoc = "tat_ca"; // tat_ca | du | chua_du | chua_co
     let tuKhoa = "";
 
     const NHAN_TRANG_THAI = { du: "Đủ giá", chua_du: "Chưa đủ", chua_co: "Chưa có giá" };
     const THU_TU_TRANG_THAI = { chua_co: 0, chua_du: 1, du: 2 }; // tuyến cần xử lý xếp lên đầu
+    const NHAN_TRANG_THAI_BO = {
+      dang_ap_dung: ["Đang áp dụng", "pill--gia-vinh-vien"],
+      sap_ap_dung: ["Sắp áp dụng", "pill--gia-thoi-han"],
+      da_ket_thuc: ["Đã kết thúc", "pill--xam"],
+    };
 
-    const laGiaThuong = (g) => !g.ap_dung_tu && !g.ap_dung_den;
+    const boCuaTuyen = (id) => dsBo.filter((b) => b.tuyen_id === id).sort((a, b) => a.ap_dung_tu.localeCompare(b.ap_dung_tu));
+    const boHienHanh = (id) => boCuaTuyen(id).find((b) => b.trang_thai === "dang_ap_dung") || null;
 
-    function dinhDangTien(so) {
-      return Number(so).toLocaleString("vi-VN") + "đ";
-    }
-
-    function dinhDangThoiHan(r) {
-      if (laGiaThuong(r)) {
-        return '<span class="pill pill--gia-vinh-vien">Vô thời hạn</span>';
-      }
-      const tu = r.ap_dung_tu ? new Date(r.ap_dung_tu).toLocaleDateString("vi-VN") : "…";
-      const den = r.ap_dung_den ? new Date(r.ap_dung_den).toLocaleDateString("vi-VN") : "…";
-      return `<span class="pill pill--gia-thoi-han">${tu} — ${den}</span>`;
-    }
-
-    // ---------- Phân tích độ đầy đủ giá của 1 tuyến ----------
-    // Đủ = mọi cặp (điểm đi → điểm đến, đi trước đến sau) đều có ít nhất 1 giá vô thời hạn.
-    function phanTichTuyen(tuyen) {
-      const kv = khuVucTheoTuyen.get(tuyen.id) || [];
-      const ds = dsGiaVe.filter((g) => g.tuyen_id === tuyen.id);
-      const coGiaThuong = new Set(ds.filter(laGiaThuong).map((g) => `${g.diem_di_id}|${g.diem_den_id}`));
-
-      const thieu = [];
-      let tong = 0;
+    // Mọi chặng (điểm đi đứng trước điểm đến theo chiều đi của tuyến) — khớp logic backend (gia_ve_service._cac_cap_cua_tuyen)
+    function cacChangCuaTuyen(tuyenId) {
+      const kv = khuVucTheoTuyen.get(tuyenId) || [];
+      const ds = [];
       for (let i = 0; i < kv.length; i++) {
-        for (let j = i + 1; j < kv.length; j++) {
-          tong++;
-          if (!coGiaThuong.has(`${kv[i].khu_vuc_id}|${kv[j].khu_vuc_id}`)) thieu.push({ i, j });
-        }
+        for (let j = i + 1; j < kv.length; j++) ds.push({ di: kv[i].khu_vuc_id, den: kv[j].khu_vuc_id, ten_di: kv[i].ten, ten_den: kv[j].ten });
       }
+      return ds;
+    }
 
-      let trangThai = "chua_du";
-      if (!ds.length || tong === 0) trangThai = "chua_co";
-      else if (!thieu.length) trangThai = "du";
-
-      return { kv, ds, tong, daCo: tong - thieu.length, thieu, trangThai };
+    // ---------- Phân tích độ đầy đủ giá của 1 tuyến (theo bộ giá đang áp dụng hôm nay) ----------
+    function phanTichTuyen(tuyen) {
+      const tong = cacChangCuaTuyen(tuyen.id).length;
+      const hh = boHienHanh(tuyen.id);
+      const thieu = hh ? hh.cac_cap_thieu_gia : [];
+      let trangThai = "du";
+      if (!hh || tong === 0) trangThai = "chua_co";
+      else if (thieu.length) trangThai = "chua_du";
+      return { tong, hienHanh: hh, thieu, daCo: hh ? tong - thieu.length : 0, trangThai };
     }
 
     function tinhLaiPhanTich() {
       phanTichTheoTuyen = new Map(dsTuyen.map((t) => [t.id, phanTichTuyen(t)]));
     }
 
-    // ---------- Thanh thống kê 4 trạng thái (bấm để lọc danh sách) ----------
+    // ---------- Thanh thống kê (bấm để lọc danh sách) ----------
     function renderThongKe() {
       const dem = { du: 0, chua_du: 0, chua_co: 0 };
       phanTichTheoTuyen.forEach((p) => dem[p.trangThai]++);
-
       const the = [
         { loc: "tat_ca", nhan: "Tất cả tuyến", so: dsTuyen.length, lop: "tat-ca" },
         { loc: "du", nhan: "Đủ giá vé", so: dem.du, lop: "du" },
         { loc: "chua_du", nhan: "Chưa đủ giá", so: dem.chua_du, lop: "chua-du" },
         { loc: "chua_co", nhan: "Chưa có giá nào", so: dem.chua_co, lop: "chua-co" },
       ];
-
       const box = document.getElementById("gv-thong-ke");
       box.innerHTML = the
         .map(
@@ -188,7 +175,6 @@
             </button>`
         )
         .join("");
-
       box.querySelectorAll("[data-loc]").forEach((btn) => {
         btn.addEventListener("click", () => {
           boLoc = boLoc === btn.dataset.loc ? "tat_ca" : btn.dataset.loc;
@@ -213,12 +199,10 @@
     function renderDanhSachTuyen() {
       const box = document.getElementById("gv-ds-tuyen");
       const ds = tuyenDaLoc();
-
       if (!ds.length) {
         box.innerHTML = `<div class="gv-trong">${dsTuyen.length ? "Không có tuyến nào khớp." : "Chưa có tuyến — tạo ở mục Tuyến trước."}</div>`;
         return;
       }
-
       box.innerHTML = ds
         .map((t) => {
           const p = phanTichTheoTuyen.get(t.id);
@@ -226,13 +210,12 @@
           return `
             <button type="button" class="gv-tuyen gv-tuyen--${p.trangThai.replace("_", "-")}${t.id === tuyenDangChon ? " is-active" : ""}" data-id="${t.id}">
               <span class="gv-tuyen__cham"></span>
-              <span class="gv-tuyen__ten"><span class="ma-tag">${t.ma}</span> ${t.ten}</span>
+              <span class="gv-tuyen__ten"><span class="ma-tag">${esc(t.ma)}</span> ${esc(t.ten)}</span>
               <span class="gv-tuyen__dem">${p.daCo}/${p.tong}</span>
               <span class="gv-tuyen__thanh"><i style="width:${phanTram}%"></i></span>
             </button>`;
         })
         .join("");
-
       box.querySelectorAll("[data-id]").forEach((btn) => {
         btn.addEventListener("click", () => {
           tuyenDangChon = btn.dataset.id;
@@ -247,67 +230,65 @@
       renderDanhSachTuyen();
     });
 
-    // ---------- Chi tiết giá vé của tuyến đang chọn (bên phải) ----------
+    // ---------- Chi tiết các bộ giá của tuyến đang chọn (bên phải) ----------
+    function theBo(b) {
+      const [nhan, lop] = NHAN_TRANG_THAI_BO[b.trang_thai];
+      const thoiHan = `Từ ${dinhDangNgay(b.ap_dung_tu)} đến ${dinhDangNgay(b.ap_dung_den)}`;
+      // Bộ cuối đã khóa vẫn đổi được ngày kết thúc (gia hạn); bộ ở giữa đã khóa thì không đổi được gì; chỉ xóa được bộ cuối chưa khóa
+      const nutSua = b.khoa && b.la_bo_cuoi ? "Gia hạn" : "Sửa";
+      const khoaSua = b.khoa && !b.la_bo_cuoi;
+      const khoaXoa = b.khoa || !b.la_bo_cuoi;
+      const dongGia = b.danh_sach_gia
+        .map((g) => `<tr><td><strong>${esc(g.ten_diem_di)}</strong> <span class="nv-text-phu">→</span> <strong>${esc(g.ten_diem_den)}</strong></td><td class="gv-bo__gia">${dinhDangTien(g.gia_goc)}</td></tr>`)
+        .join("");
+      return `
+        <div class="gv-bo gv-bo--${b.trang_thai.replace("_", "-")}">
+          <div class="gv-bo__dau">
+            <strong class="gv-bo__ten">${thoiHan}</strong>
+            <span class="pill pill--nho ${lop}">${nhan}</span>
+            ${b.khoa ? `<span class="gv-khoa" title="Đã có ${b.so_chuyen_da_sinh} chuyến được sinh theo bộ giá này — không sửa/xóa được">🔒 ${b.so_chuyen_da_sinh} chuyến</span>` : ""}
+            <span class="gv-bo__nut">
+              <button type="button" class="nv-btn-sua${khoaSua ? " is-khoa" : ""}" data-sua="${b.id}">${nutSua}</button>
+              <button type="button" class="nv-btn-xoa${khoaXoa ? " is-khoa" : ""}" data-xoa="${b.id}">Xóa</button>
+            </span>
+          </div>
+          <table class="gv-bo__bang"><tbody>${dongGia}</tbody></table>
+        </div>`;
+    }
+
     function renderChiTiet() {
       const box = document.getElementById("gv-chi-tiet");
       const tuyen = dsTuyen.find((t) => t.id === tuyenDangChon);
-
       if (!tuyen) {
         box.innerHTML = `<div class="gv-trong gv-trong--lon">${dsTuyen.length ? "Chọn 1 tuyến ở danh sách bên trái." : "Chưa có tuyến nào."}</div>`;
         return;
       }
-
       const p = phanTichTheoTuyen.get(tuyen.id);
       const phanTram = p.tong ? Math.round((p.daCo / p.tong) * 100) : 0;
-      const thuTuKv = new Map(p.kv.map((k, i) => [k.khu_vuc_id, i]));
+      const cacBo = boCuaTuyen(tuyen.id).slice().reverse(); // mới nhất lên đầu
+      const boCuoi = cacBo[0] || null;
+      const daHetHan = boCuoi && boCuoi.trang_thai === "da_ket_thuc";
 
       box.innerHTML = `
         <div class="gv-ct__dau">
-          <h2>${htmlMa(tuyen.ma)} ${tuyen.ten}</h2>
+          <h2>${htmlMa(tuyen.ma)} ${esc(tuyen.ten)}</h2>
           <span class="gv-badge gv-badge--${p.trangThai.replace("_", "-")}">${NHAN_TRANG_THAI[p.trangThai]}</span>
-          <button class="btn-primary nv-btn-them gv-ct__them" id="btn-them" type="button">+ Thêm giá vé</button>
+          ${boCuoi ? `<span class="pill pill--nho ${daHetHan ? "pill--gia-thoi-han" : "pill--khu-vuc"}" title="Chỉ sinh được chuyến trong khoảng các bộ giá">${daHetHan ? "Đã hết hạn" : "Có giá đến"} ${dinhDangNgay(boCuoi.ap_dung_den)}</span>` : ""}
+          <button class="btn-primary nv-btn-them gv-ct__them" id="btn-them" type="button">+ Tạo bộ giá mới</button>
         </div>
 
         <div class="gv-ct__tien-do">
           <div class="gv-ct__thanh gv-ct__thanh--${p.trangThai.replace("_", "-")}"><i style="width:${phanTram}%"></i></div>
-          <span><strong>${p.daCo}/${p.tong}</strong> cặp có giá thường</span>
+          <span><strong>${p.daCo}/${p.tong}</strong> chặng có giá trong bộ đang áp dụng</span>
         </div>
 
-        ${
-          p.thieu.length
-            ? `<div class="gv-ct__thieu">
-                <span>Còn thiếu:</span>
-                ${p.thieu.map((c) => `<button type="button" class="gv-thieu-chip" data-di="${c.i}" data-den="${c.j}">+ ${p.kv[c.i].ten} → ${p.kv[c.j].ten}</button>`).join("")}
-              </div>`
-            : ""
-        }
+        ${p.thieu.length ? `<div class="gv-ct__thieu"><span>Bộ đang áp dụng còn thiếu:</span>${p.thieu.map((t) => `<span class="gv-thieu-chip">${esc(t)}</span>`).join("")}</div>` : ""}
 
-        <div id="bang-gia-ve"></div>`;
+        <div class="gv-bo-ds">${cacBo.length ? cacBo.map(theBo).join("") : '<div class="gv-trong">Chưa có bộ giá nào — bấm "Tạo bộ giá mới" để nhập giá cho các chặng của tuyến.</div>'}</div>`;
 
-      document.getElementById("btn-them").addEventListener("click", () => moModalThem());
-      box.querySelectorAll(".gv-thieu-chip").forEach((btn) => {
-        btn.addEventListener("click", () =>
-          moModalThem(p.kv[Number(btn.dataset.di)].khu_vuc_id, p.kv[Number(btn.dataset.den)].khu_vuc_id)
-        );
-      });
-
-      const dsSapXep = [...p.ds].sort(
-        (a, b) =>
-          (thuTuKv.get(a.diem_di_id) ?? 99) - (thuTuKv.get(b.diem_di_id) ?? 99) ||
-          (thuTuKv.get(a.diem_den_id) ?? 99) - (thuTuKv.get(b.diem_den_id) ?? 99) ||
-          (a.ap_dung_tu || "").localeCompare(b.ap_dung_tu || "")
-      );
-
-      renderDataTable(
-        document.getElementById("bang-gia-ve"),
-        [
-          { key: "chang", label: "Chặng", render: (r) => `<strong>${r.ten_diem_di}</strong> <span class="nv-text-phu">→</span> <strong>${r.ten_diem_den}</strong>` },
-          { key: "gia_goc", label: "Giá gốc", render: (r) => dinhDangTien(r.gia_goc) },
-          { key: "thoi_han", label: "Thời hạn", render: dinhDangThoiHan },
-        ],
-        dsSapXep,
-        { onEdit: moModalSua, onDelete: xoaGiaVe, tenXoa: (r) => `${r.ten_diem_di} → ${r.ten_diem_den}` }
-      );
+      document.getElementById("btn-them").addEventListener("click", () => moModal(null));
+      box.querySelectorAll("[data-sua]").forEach((btn) => btn.addEventListener("click", () => suaBo(btn.dataset.sua)));
+      box.querySelectorAll("[data-xoa]").forEach((btn) => btn.addEventListener("click", () => xoaBo(btn.dataset.xoa)));
     }
 
     function renderTatCa() {
@@ -318,16 +299,13 @@
     }
 
     // ---------- Nạp dữ liệu ----------
-    async function taiGiaVe() {
-      dsGiaVe = await apiGet("/quan-ly/gia-ve");
+    async function taiBoGia() {
+      dsBo = await apiGet("/quan-ly/bo-gia");
     }
 
     async function taiBanDau() {
       dsTuyen = await apiGet("/quan-ly/tuyen");
-      const [, chiTiets] = await Promise.all([taiGiaVe(), Promise.all(dsTuyen.map((t) => apiGet(`/quan-ly/tuyen/${t.id}`)))]);
-
-      // Danh sách khu vực không trùng lặp, theo đúng thứ tự tuyến đi qua —
-      // khớp logic backend (gia_ve_service._khu_vuc_theo_tuyen_co_thu_tu)
+      const [, chiTiets] = await Promise.all([taiBoGia(), Promise.all(dsTuyen.map((t) => apiGet(`/quan-ly/tuyen/${t.id}`)))]);
       dsTuyen.forEach((t, idx) => {
         const daThay = new Map();
         [...chiTiets[idx].danh_sach_diem]
@@ -337,20 +315,27 @@
           });
         khuVucTheoTuyen.set(t.id, [...daThay.entries()].map(([khu_vuc_id, ten]) => ({ khu_vuc_id, ten })));
       });
-
       tinhLaiPhanTich();
       tuyenDangChon = tuyenDaLoc()[0]?.id || null; // mở sẵn tuyến cần xử lý nhất
       renderTatCa();
     }
 
     async function lamMoiSauKhiDoiGia() {
-      await taiGiaVe();
+      await taiBoGia();
       renderTatCa();
     }
 
-    async function xoaGiaVe(giaVe) {
+    function baoKhoa(b) {
+      alert(`Bộ giá này đã có ${b.so_chuyen_da_sinh} chuyến được sinh ra nên không sửa giá hay ngày bắt đầu được.\nMuốn đổi giá: bấm "Tạo bộ giá mới" — bộ mới nối tiếp ngay sau bộ cuối cùng.`);
+    }
+
+    async function xoaBo(id) {
+      const b = dsBo.find((x) => x.id === id);
+      if (!b.la_bo_cuoi) return alert("Chỉ xóa được bộ giá cuối cùng của tuyến — xóa bộ ở giữa sẽ làm hở giữa các bộ.");
+      if (b.khoa) return alert(`Không thể xóa: bộ giá này đã có ${b.so_chuyen_da_sinh} chuyến được sinh ra.\nMuốn đổi giá: bấm "Tạo bộ giá mới" nối tiếp.`);
+      if (!confirm(`Xóa bộ giá áp dụng từ ${dinhDangNgay(b.ap_dung_tu)}? Không thể hoàn tác.`)) return;
       try {
-        await apiDelete(`/quan-ly/gia-ve/${giaVe.id}`);
+        await apiDelete(`/quan-ly/bo-gia/${id}`);
         lamMoiSauKhiDoiGia();
       } catch (err) {
         alert(err.message);
@@ -358,130 +343,212 @@
     }
 
     taiBanDau().catch((err) => {
-      document.getElementById("gv-ds-tuyen").innerHTML = `<div class="text-error">${err.message}</div>`;
+      document.getElementById("gv-ds-tuyen").innerHTML = `<div class="text-error">${esc(err.message)}</div>`;
     });
 
-    // ---------- Modal thêm/sửa ----------
+    // ---------- Modal tạo/sửa bộ giá: bước 1 nhập → bước 2 xem trước & xác nhận ----------
     const modalOverlay = document.getElementById("modal-overlay");
-    const form = document.getElementById("form-gia-ve");
+    const form = document.getElementById("form-bo");
     const loiForm = document.getElementById("loi-form");
-    const selectDiemDi = document.getElementById("diem_di_id");
-    const selectDiemDen = document.getElementById("diem_den_id");
-    const oCoThoiHan = document.getElementById("co_thoi_han");
-    const khoiKhoangNgay = document.getElementById("khoi-khoang-ngay");
-
-    const khuVucTuyenHienTai = () => khuVucTheoTuyen.get(tuyenDangChon) || [];
-
-    function renderChonDiem() {
-      selectDiemDi.innerHTML = khuVucTuyenHienTai()
-        .map((kv, idx) => `<option value="${kv.khu_vuc_id}" data-idx="${idx}">${kv.ten}</option>`)
-        .join("");
-      capNhatDiemDenTheoDiemDi();
-    }
-
-    function capNhatDiemDenTheoDiemDi() {
-      const dsKv = khuVucTuyenHienTai();
-      const idxDi = dsKv.findIndex((kv) => kv.khu_vuc_id === selectDiemDi.value);
-      selectDiemDen.innerHTML = dsKv
-        .map((kv, idx) => `<option value="${kv.khu_vuc_id}" ${idx <= idxDi ? "disabled" : ""}>${kv.ten}</option>`)
-        .join("");
-      const dauTienHopLe = dsKv.findIndex((kv, idx) => idx > idxDi);
-      if (dauTienHopLe >= 0) selectDiemDen.value = dsKv[dauTienHopLe].khu_vuc_id;
-    }
-
-    selectDiemDi.addEventListener("change", capNhatDiemDenTheoDiemDi);
-
-    oCoThoiHan.addEventListener("change", () => {
-      khoiKhoangNgay.hidden = !oCoThoiHan.checked;
+    const oApDungTu = document.getElementById("ap_dung_tu");
+    const oApDungDen = document.getElementById("ap_dung_den");
+    // Cộng/trừ số ngày cho chuỗi yyyy-mm-dd (tính theo giờ trưa để không lệch múi giờ)
+    const congNgay = (iso, n) => {
+      const d = new Date(`${iso}T12:00:00`);
+      d.setDate(d.getDate() + n);
+      return khoaNgay(d);
+    };
+    oApDungTu.addEventListener("change", () => {
+      if (oApDungTu.value) oApDungDen.min = oApDungTu.value;
     });
+    const buocNhap = document.getElementById("buoc-nhap");
+    const buocXacNhan = document.getElementById("buoc-xac-nhan");
+    let banXemTruoc = null; // { duongDan, duLieu, ketQua }
 
-    function moModal() {
-      loiForm.hidden = true;
-      modalOverlay.hidden = false;
+    // boNen: bộ lấy giá điền sẵn; boThamChieu: bộ hiển thị ở cột "Giá hiện tại" để đối chiếu (có thể không có)
+    function veBangNhap(chang, giaDienSan, giaThamChieu) {
+      document.getElementById("bang-nhap-gia").innerHTML = `
+        <table class="gv-form-bang">
+          <thead><tr><th>Chặng</th><th>${giaThamChieu ? "Giá hiện tại" : ""}</th><th>Giá gốc (VNĐ)</th></tr></thead>
+          <tbody>
+            ${chang
+              .map((c) => {
+                const k = `${c.di}|${c.den}`;
+                const cu = giaThamChieu ? giaThamChieu.get(k) : null;
+                const dien = giaDienSan.get(k);
+                return `<tr>
+                  <td><strong>${esc(c.ten_di)}</strong> <span class="nv-text-phu">→</span> <strong>${esc(c.ten_den)}</strong></td>
+                  <td class="nv-text-phu">${cu ? dinhDangTien(cu) : "—"}</td>
+                  <td>
+                    <input class="input-field gv-o-gia" type="number" min="1000" step="1000" required data-di="${c.di}" data-den="${c.den}" value="${dien ?? ""}" placeholder="VD 300000" />
+                    <b class="gv-gia-dinh-dang"></b>
+                  </td>
+                </tr>`;
+              })
+              .join("")}
+          </tbody>
+        </table>`;
+      document.querySelectorAll("#bang-nhap-gia .gv-o-gia").forEach((o) => {
+        const hien = () => (o.parentElement.querySelector(".gv-gia-dinh-dang").textContent = Number(o.value) > 0 ? dinhDangTien(o.value) : "");
+        o.addEventListener("input", hien);
+        hien();
+      });
     }
 
-    // diId/denId (tuỳ chọn): chọn sẵn cặp khu vực khi bấm từ danh sách "còn thiếu"
-    function moModalThem(diId, denId) {
-      if (khuVucTuyenHienTai().length < 2) {
+    const giaTheoCap = (b) => new Map((b?.danh_sach_gia || []).map((g) => [`${g.diem_di_id}|${g.diem_den_id}`, g.gia_goc]));
+
+    // bo = null: tạo mới; bo = đối tượng bộ: sửa
+    function moModal(bo) {
+      const tuyen = dsTuyen.find((t) => t.id === tuyenDangChon);
+      const chang = cacChangCuaTuyen(tuyen.id);
+      if (!chang.length) {
         alert("Tuyến này chưa đủ khu vực hợp lệ để cấu hình giá — kiểm tra lại mục Tuyến.");
         return;
       }
-      document.getElementById("modal-tieu-de").textContent = "Thêm giá vé";
-      form.reset();
-      document.getElementById("gia_ve_id").value = "";
-      document.getElementById("ten-tuyen-da-chon").textContent = dsTuyen.find((t) => t.id === tuyenDangChon)?.ten || "";
-      document.getElementById("khoi-chon-diem").hidden = false;
-      document.getElementById("khoi-diem-readonly").hidden = true;
-      renderChonDiem();
-      if (diId && denId) {
-        selectDiemDi.value = diId;
-        capNhatDiemDenTheoDiemDi();
-        selectDiemDen.value = denId;
+      document.getElementById("modal-tieu-de").textContent = bo ? (bo.khoa ? "Gia hạn bộ giá vé" : "Sửa bộ giá vé") : "Tạo bộ giá vé mới";
+      document.getElementById("bo_id").value = bo ? bo.id : "";
+      document.getElementById("ten-tuyen-da-chon").textContent = tuyen.ten;
+      const cacBo = boCuaTuyen(tuyen.id);
+      let giaDienSan, giaThamChieu;
+      let khoaGia = false;
+      if (bo) {
+        giaDienSan = giaTheoCap(bo);
+        const truoc = cacBo.filter((b) => b.ap_dung_tu < bo.ap_dung_tu).pop();
+        giaThamChieu = truoc ? giaTheoCap(truoc) : null;
+        oApDungTu.value = bo.ap_dung_tu;
+        oApDungDen.value = bo.ap_dung_den;
+        // Chỉ bộ đầu tiên (chưa khóa) đổi được ngày bắt đầu; chỉ bộ cuối đổi được ngày kết thúc; bộ đã khóa không đổi giá
+        oApDungTu.disabled = !(bo.ap_dung_tu === cacBo[0].ap_dung_tu && !bo.khoa);
+        oApDungDen.disabled = !bo.la_bo_cuoi;
+        oApDungTu.min = homNayISO();
+        oApDungDen.min = bo.khoa && bo.ngay_chuyen_cuoi ? bo.ngay_chuyen_cuoi : bo.ap_dung_tu; // không rút ngắn trước chuyến đã sinh
+        khoaGia = bo.khoa;
+      } else {
+        const nen = boHienHanh(tuyen.id) || cacBo[cacBo.length - 1] || null; // điền sẵn từ bộ đang áp dụng để chỉ cần sửa chặng cần đổi
+        giaDienSan = giaTheoCap(nen);
+        giaThamChieu = nen ? giaTheoCap(nen) : null;
+        // Bộ mới luôn nối liền bộ cuối (bắt đầu ngày liền sau); bộ đầu tiên của tuyến thì mặc định từ ngày mai
+        const batDau = cacBo.length ? congNgay(cacBo[cacBo.length - 1].ap_dung_den, 1) : ngayMaiISO();
+        oApDungTu.value = batDau;
+        oApDungTu.disabled = cacBo.length > 0;
+        oApDungTu.min = homNayISO();
+        oApDungDen.disabled = false;
+        oApDungDen.min = batDau;
+        const macDinhDen = congNgay(batDau, 29); // gợi ý 30 ngày, sửa tự do
+        oApDungDen.value = macDinhDen >= homNayISO() ? macDinhDen : congNgay(homNayISO(), 29);
       }
-      khoiKhoangNgay.hidden = true;
-      moModal();
+      veBangNhap(chang, giaDienSan, giaThamChieu);
+      document.querySelectorAll("#bang-nhap-gia .gv-o-gia").forEach((o) => { o.disabled = khoaGia; });
+      loiForm.hidden = true;
+      buocNhap.hidden = false;
+      buocXacNhan.hidden = true;
+      form.classList.remove("dang-xac-nhan");
+      modalOverlay.hidden = false;
     }
 
-    function moModalSua(giaVe) {
-      document.getElementById("modal-tieu-de").textContent = "Sửa giá vé";
-      document.getElementById("gia_ve_id").value = giaVe.id;
-      document.getElementById("ten-tuyen-da-chon").textContent = giaVe.ten_tuyen;
-      document.getElementById("khoi-chon-diem").hidden = true;
-      document.getElementById("khoi-diem-readonly").hidden = false;
-      document.getElementById("hien-thi-diem-di").textContent = giaVe.ten_diem_di;
-      document.getElementById("hien-thi-diem-den").textContent = giaVe.ten_diem_den;
-      document.getElementById("gia_goc").value = giaVe.gia_goc;
-
-      const coThoiHan = !!(giaVe.ap_dung_tu || giaVe.ap_dung_den);
-      oCoThoiHan.checked = coThoiHan;
-      khoiKhoangNgay.hidden = !coThoiHan;
-      document.getElementById("ap_dung_tu").value = giaVe.ap_dung_tu || "";
-      document.getElementById("ap_dung_den").value = giaVe.ap_dung_den || "";
-      moModal();
+    function suaBo(id) {
+      const b = dsBo.find((x) => x.id === id);
+      if (b.khoa && !b.la_bo_cuoi) return baoKhoa(b);
+      moModal(b);
     }
 
     document.getElementById("btn-huy").addEventListener("click", () => { modalOverlay.hidden = true; });
 
+    function veXacNhan(ketQua, tenTuyen) {
+      const coCanhBao = ketQua.canh_bao.length > 0;
+      const doi = ketQua.thay_doi.filter((c) => c.gia_cu !== c.gia_moi);
+      const giuNguyen = ketQua.thay_doi.length - doi.length;
+      const thoiHan = `từ ${dinhDangNgay(ketQua.ap_dung_tu)} đến ${dinhDangNgay(ketQua.ap_dung_den)}`;
+      const dongBoTruoc = ketQua.bo_truoc
+        ? `<div class="gv-xn-dong">Nối tiếp bộ giá trước (từ ${dinhDangNgay(ketQua.bo_truoc.ap_dung_tu)} đến <b>${dinhDangNgay(ketQua.bo_truoc.ap_dung_den)}</b>)</div>`
+        : "";
+      const boCu = banXemTruoc && banXemTruoc.boCu;
+      const dongDoiNgay = boCu && boCu.ap_dung_den !== ketQua.ap_dung_den
+        ? `<div class="gv-xn-dong">Ngày kết thúc: ${dinhDangNgay(boCu.ap_dung_den)} → <b>${dinhDangNgay(ketQua.ap_dung_den)}</b></div>`
+        : "";
+      const dongDoi = doi
+        .map((c) => `<li><strong>${esc(c.ten_chang)}</strong>: ${c.gia_cu ? `${dinhDangTien(c.gia_cu)} → ` : ""}<b>${dinhDangTien(c.gia_moi)}</b></li>`)
+        .join("");
+      document.getElementById("xn-noi-dung").innerHTML = `
+        <div class="gv-xn-chang">${esc(tenTuyen)}</div>
+        <div class="gv-xn-tieu">Bộ giá áp dụng ${thoiHan}</div>
+        ${dongBoTruoc}
+        ${dongDoiNgay}
+        <ul class="gv-xn-doi">${boCu && boCu.khoa ? "<li>Giá các chặng giữ nguyên</li>" : dongDoi || "<li>Không chặng nào đổi giá</li>"}</ul>
+        ${giuNguyen && doi.length && !(boCu && boCu.khoa) ?`<div class="nv-text-phu">${giuNguyen} chặng còn lại giữ nguyên giá</div>` : ""}
+        ${coCanhBao ? `<ul class="gv-xn-canh-bao">${ketQua.canh_bao.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>` : ""}`;
+      const btn = document.getElementById("btn-xac-nhan");
+      btn.textContent = coCanhBao ? "Tôi chắc chắn, vẫn lưu" : "Xác nhận lưu";
+      btn.classList.toggle("gv-nut-nguy-hiem", coCanhBao);
+      document.getElementById("xn-loi").hidden = true;
+      buocNhap.hidden = true;
+      buocXacNhan.hidden = false;
+      form.classList.add("dang-xac-nhan");
+    }
+
+    document.getElementById("btn-quay-lai").addEventListener("click", () => {
+      buocXacNhan.hidden = true;
+      buocNhap.hidden = false;
+      form.classList.remove("dang-xac-nhan");
+    });
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       loiForm.hidden = true;
-
-      const id = document.getElementById("gia_ve_id").value;
-      const apDungTu = oCoThoiHan.checked ? (document.getElementById("ap_dung_tu").value || null) : null;
-      const apDungDen = oCoThoiHan.checked ? (document.getElementById("ap_dung_den").value || null) : null;
-
-      if (oCoThoiHan.checked && apDungTu && apDungDen && apDungTu > apDungDen) {
-        loiForm.textContent = "Ngày bắt đầu áp dụng phải trước ngày kết thúc";
+      const id = document.getElementById("bo_id").value;
+      const danhSachGia = [...document.querySelectorAll("#bang-nhap-gia .gv-o-gia")].map((o) => ({
+        diem_di_id: o.dataset.di,
+        diem_den_id: o.dataset.den,
+        gia_goc: Number(o.value),
+      }));
+      if (danhSachGia.some((g) => !(g.gia_goc > 0))) {
+        loiForm.textContent = "Nhập giá cho đủ mọi chặng của tuyến";
         loiForm.hidden = false;
         return;
       }
-
+      if (!oApDungDen.value) {
+        loiForm.textContent = "Chọn ngày kết thúc của bộ giá";
+        loiForm.hidden = false;
+        return;
+      }
+      const duLieu = { ap_dung_tu: oApDungTu.value || null, ap_dung_den: oApDungDen.value, danh_sach_gia: danhSachGia };
+      let duongDan;
+      if (id) {
+        duongDan = { xem: `/quan-ly/bo-gia/${id}/xem-truoc`, luu: `/quan-ly/bo-gia/${id}`, phuongThuc: apiPut };
+      } else {
+        duLieu.tuyen_id = tuyenDangChon;
+        duongDan = { xem: "/quan-ly/bo-gia/xem-truoc", luu: "/quan-ly/bo-gia", phuongThuc: apiPost };
+      }
       const btnSubmit = form.querySelector("button[type=submit]");
       btnSubmit.classList.add("is-loading");
       try {
-        if (id) {
-          await apiPut(`/quan-ly/gia-ve/${id}`, {
-            gia_goc: Number(document.getElementById("gia_goc").value),
-            ap_dung_tu: apDungTu,
-            ap_dung_den: apDungDen,
-          });
-        } else {
-          await apiPost("/quan-ly/gia-ve", {
-            tuyen_id: tuyenDangChon,
-            diem_di_id: selectDiemDi.value,
-            diem_den_id: selectDiemDen.value,
-            gia_goc: Number(document.getElementById("gia_goc").value),
-            ap_dung_tu: apDungTu,
-            ap_dung_den: apDungDen,
-          });
-        }
-        modalOverlay.hidden = true;
-        lamMoiSauKhiDoiGia();
+        const ketQua = await apiPost(duongDan.xem, duLieu);
+        banXemTruoc = { duongDan, duLieu, ketQua, boCu: id ? dsBo.find((b) => b.id === id) : null };
+        veXacNhan(ketQua, dsTuyen.find((t) => t.id === tuyenDangChon)?.ten || "");
       } catch (err) {
         loiForm.textContent = err.message;
         loiForm.hidden = false;
       } finally {
         btnSubmit.classList.remove("is-loading");
+      }
+    });
+
+    document.getElementById("btn-xac-nhan").addEventListener("click", async () => {
+      if (!banXemTruoc) return;
+      const { duongDan, duLieu, ketQua } = banXemTruoc;
+      const btn = document.getElementById("btn-xac-nhan");
+      btn.classList.add("is-loading");
+      try {
+        await duongDan.phuongThuc(duongDan.luu, { ...duLieu, ap_dung_tu: ketQua.ap_dung_tu, ap_dung_den: ketQua.ap_dung_den, xac_nhan_canh_bao: ketQua.canh_bao.length > 0 });
+        modalOverlay.hidden = true;
+        banXemTruoc = null;
+        lamMoiSauKhiDoiGia();
+      } catch (err) {
+        const loi = document.getElementById("xn-loi");
+        loi.textContent = err.message;
+        loi.hidden = false;
+      } finally {
+        btn.classList.remove("is-loading");
       }
     });
   </script>

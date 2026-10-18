@@ -237,13 +237,13 @@
       const d = new Date(c.gio_khoi_hanh);
       const gio = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
       return `
-        <button type="button" class="cyn-the" data-id="${c.id}" style="--mau:${mauTrangThai(c.trang_thai)}">
+        <button type="button" class="cyn-the" data-id="${c.id}" style="--mau:${mauTrangThai(c.trang_thai)}; --chieu:${ChuyenChiTiet.mauChieu(c.chieu)}">
           <span class="cyn-the__gio"><b>${gio}</b><small>${NHAN_TRANG_THAI[c.trang_thai] || c.trang_thai}</small></span>
           <span class="cyn-the__chinh">
             <span class="cyn-the__tuyen">${esc(c.ten_tuyen)}</span>
             <span class="cyn-the__phu">
               ${htmlMa(esc(c.ma))}
-              <span class="pill pill--nho ${c.chieu === "xuoi" ? "pill--khu-vuc" : "pill--gia-thoi-han"}">${c.chieu === "xuoi" ? "Xuôi" : "Ngược"}</span>
+              ${ChuyenChiTiet.htmlChieu(c.chieu)}
               <span class="cyn-the__loai">${esc(c.ma_loai_xe)} · ${esc(c.ten_loai_xe)}</span>
             </span>
           </span>

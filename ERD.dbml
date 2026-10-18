@@ -250,17 +250,27 @@ Table tuyen_diem_don_tra [headercolor: #F5A623] {
   }
 }
 
-Table gia_ve [headercolor: #F5A623] {
+Table bo_gia_ve [headercolor: #F5A623] {
   id uuid [pk, default: `gen_random_uuid()`]
   tuyen_id uuid [not null, ref: > tuyen.id]
+  ap_dung_tu date [not null]
+  ap_dung_den date [not null, note: 'Bắt buộc; bộ sau của tuyến bắt đầu ngày liền sau ngày này (nối liền, không chồng/hở)']
+  ngay_tao timestamptz [not null, default: `now()`]
+
+  indexes {
+    (tuyen_id, ap_dung_tu) [unique]
+  }
+}
+
+Table gia_ve [headercolor: #F5A623] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  bo_gia_id uuid [not null, ref: > bo_gia_ve.id, note: 'ON DELETE CASCADE']
   diem_di_id uuid [not null, ref: > khu_vuc.id]
   diem_den_id uuid [not null, ref: > khu_vuc.id]
   gia_goc numeric(12,0) [not null, note: 'Giá ứng với he_so_gia = 1']
-  ap_dung_tu date [note: 'Giá theo mùa; NULL = vô thời hạn']
-  ap_dung_den date
 
   indexes {
-    (tuyen_id, diem_di_id, diem_den_id, ap_dung_tu) [unique]
+    (bo_gia_id, diem_di_id, diem_den_id) [unique]
   }
 }
 

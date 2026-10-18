@@ -34,11 +34,11 @@
           </div>
           <div class="nv-page-intro__body">
             <p class="nv-page-intro__title">Lịch chạy định kỳ</p>
-            <p class="nv-page-intro__desc">Chọn 1 tuyến để xem giờ chạy 2 chiều. Bấm "Sinh chuyến" trên từng giờ để tạo sẵn chuyến (chưa gán xe cụ thể) cho 1 khoảng ngày — bấm lại cho khoảng ngày chồng lấn vẫn an toàn.</p>
+            <p class="nv-page-intro__desc">Mỗi lịch gồm 1 chiều đi và 1 chiều về của cùng tuyến. Chọn 1 tuyến, bấm "Sinh chuyến" để tạo sẵn chuyến (chưa gán xe cụ thể) cho các cặp lịch trong 1 khoảng ngày.</p>
           </div>
           <div class="nv-page-intro__stat">
             <span class="nv-page-intro__stat-num" id="stat-so-luong">—</span>
-            <span class="nv-page-intro__stat-label">lịch chạy</span>
+            <span class="nv-page-intro__stat-label">cặp lịch chạy</span>
           </div>
         </div>
 
@@ -69,21 +69,40 @@
           <input type="hidden" id="lich_id" />
 
           <label class="nv-label" for="tuyen_id">Tuyến</label>
-          <select class="input-field" id="tuyen_id" required></select>
+          <select class="input-field" id="tuyen_id" disabled></select>
 
-          <label class="nv-label" for="chieu">Chiều chạy</label>
-          <select class="input-field" id="chieu" required></select>
+          <label class="nv-label" for="loai_xe_id">Loại xe dự kiến (dùng cho cả 2 chiều)</label>
+          <select class="input-field" id="loai_xe_id" required></select>
 
-          <div class="nv-form-row">
-            <div>
-              <label class="nv-label" for="gio_khoi_hanh">Giờ khởi hành</label>
-              <input class="input-field" type="time" id="gio_khoi_hanh" required />
-            </div>
-            <div>
-              <label class="nv-label" for="loai_xe_id">Loại xe dự kiến</label>
-              <select class="input-field" id="loai_xe_id" required></select>
+          <div class="lc-form-chieu" id="blk-xuoi">
+            <div class="lc-form-chieu__tieu" id="tieu-xuoi">Chiều đi</div>
+            <div class="nv-form-row">
+              <div>
+                <label class="nv-label" for="gio_xuoi">Giờ khởi hành</label>
+                <input class="input-field" type="time" id="gio_xuoi" required />
+              </div>
+              <div>
+                <span class="nv-label">Giờ kết thúc</span>
+                <div class="lc-gio-den" id="den-xuoi">—</div>
+              </div>
             </div>
           </div>
+
+          <div class="lc-form-chieu" id="blk-nguoc">
+            <div class="lc-form-chieu__tieu" id="tieu-nguoc">Chiều về</div>
+            <div class="nv-form-row">
+              <div>
+                <label class="nv-label" for="gio_nguoc">Giờ khởi hành</label>
+                <input class="input-field" type="time" id="gio_nguoc" required />
+              </div>
+              <div>
+                <span class="nv-label">Giờ kết thúc</span>
+                <div class="lc-gio-den" id="den-nguoc">—</div>
+              </div>
+            </div>
+          </div>
+
+          <div id="lc-xem-truoc" class="nv-hint" hidden></div>
 
           <div id="loi-form" class="text-error" hidden></div>
           <div class="nv-modal__actions">
@@ -132,6 +151,7 @@
       </div>
       <div class="nv-modal__body">
         <p id="sc-mo-ta" class="nv-hint"></p>
+        <div id="sc-ds-cap" class="lc-sc-ds"></div>
 
         <div class="nv-form-row">
           <div>
@@ -170,7 +190,8 @@
 
     const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-    let dsLich = [];
+    let dsCap = []; // mỗi phần tử là 1 cặp: { cap_id, tuyen_id, ngay_lech, xuoi, nguoc, ... }
+    let dsLich = []; // dsCap trải phẳng thành từng lịch 1 chiều (kèm tuyen_id, ten_tuyen, cap_id)
     let dsTuyen = [];
     let dsLoaiXe = [];
     let huongTheoTuyen = new Map(); // tuyen_id -> { dau, cuoi } tên khu vực đầu/cuối theo chiều xuôi
@@ -181,25 +202,18 @@
     const lcDsTuyen = document.getElementById("lc-ds-tuyen");
     const lcChiTiet = document.getElementById("lc-chi-tiet");
     const selectTuyen = document.getElementById("tuyen_id");
-    const selectChieu = document.getElementById("chieu");
 
     // "Xuôi" = đúng thứ tự danh sách điểm lúc tạo tuyến; "ngược" = đọc ngược lại
     function nhanChieu(tuyenId, chieu) {
       const h = huongTheoTuyen.get(tuyenId);
-      if (!h) return chieu === "xuoi" ? "Xuôi" : "Ngược";
-      return chieu === "xuoi" ? `Xuôi: ${h.dau} → ${h.cuoi}` : `Ngược: ${h.cuoi} → ${h.dau}`;
+      if (!h) return chieu === "xuoi" ? "Chiều đi" : "Chiều về";
+      return chieu === "xuoi" ? `Chiều đi: ${h.dau} → ${h.cuoi}` : `Chiều về: ${h.cuoi} → ${h.dau}`;
     }
-
-    function capNhatNhanChieu() {
-      const giaTriCu = selectChieu.value;
-      selectChieu.innerHTML = ["xuoi", "nguoc"].map((c) => `<option value="${c}">${esc(nhanChieu(selectTuyen.value, c))}</option>`).join("");
-      if (giaTriCu) selectChieu.value = giaTriCu;
-    }
-    selectTuyen.addEventListener("change", capNhatNhanChieu);
 
     const pad2 = (n) => String(n).padStart(2, "0");
     const gioNgan = (t) => String(t).slice(0, 5); // "06:30:00" -> "06:30"
     const lichTheoTuyen = (tuyenId) => dsLich.filter((l) => l.tuyen_id === tuyenId);
+    const capTheoTuyen = (tuyenId) => dsCap.filter((c) => c.tuyen_id === tuyenId);
 
     // ---------- Tính giờ đến từng điểm dựa trên lộ trình lúc tạo tuyến ----------
     // gio_khoi_hanh (HH:MM[:SS]) + phut -> { gio: "HH:MM", qua_ngay: 0/1/2... } — có thể vượt qua nửa đêm
@@ -240,8 +254,8 @@
       return dsTuyen
         .filter((t) => !tk || t.ten.toLowerCase().includes(tk) || t.ma.toLowerCase().includes(tk))
         .sort((a, b) => {
-          const trongA = lichTheoTuyen(a.id).length === 0;
-          const trongB = lichTheoTuyen(b.id).length === 0;
+          const trongA = capTheoTuyen(a.id).length === 0;
+          const trongB = capTheoTuyen(b.id).length === 0;
           if (trongA !== trongB) return trongA ? -1 : 1; // tuyến chưa có lịch nào lên đầu
           return a.ten.localeCompare(b.ten, "vi");
         });
@@ -256,13 +270,13 @@
 
       lcDsTuyen.innerHTML = ds
         .map((t) => {
-          const soLich = lichTheoTuyen(t.id).length;
+          const soCap = capTheoTuyen(t.id).length;
           return `
-            <button type="button" class="lc-tuyen ${soLich === 0 ? "lc-tuyen--trong" : ""}${t.id === tuyenDangChon ? " is-active" : ""}" data-id="${t.id}">
+            <button type="button" class="lc-tuyen ${soCap === 0 ? "lc-tuyen--trong" : ""}${t.id === tuyenDangChon ? " is-active" : ""}" data-id="${t.id}">
               <span class="lc-tuyen__cham"></span>
               <span class="lc-tuyen__ten">${esc(t.ten)}</span>
-              <span class="lc-tuyen__dem">${soLich ? soLich + " lịch" : "Chưa có lịch"}</span>
-              <span class="lc-tuyen__phu">${htmlMa(esc(t.ma))}${soLich ? `${lichTheoTuyen(t.id).filter((l) => l.chieu === "xuoi").length} xuôi · ${lichTheoTuyen(t.id).filter((l) => l.chieu === "nguoc").length} ngược` : ""}</span>
+              <span class="lc-tuyen__dem">${soCap ? soCap + " cặp lịch" : "Chưa có lịch"}</span>
+              <span class="lc-tuyen__phu">${htmlMa(esc(t.ma))}</span>
             </button>`;
         })
         .join("");
@@ -282,12 +296,13 @@
     });
 
     // ---------- Chi tiết tuyến đang chọn — timetable 2 chiều ----------
-    function gioCard(lich) {
+    function gioCard(lich, capDaSinh) {
       const tongPhut = tongThoiGianTuyen(lich.tuyen_id);
       const denNoi = tongPhut != null ? congGio(lich.gio_khoi_hanh, tongPhut) : null;
       return `
         <div class="lc-gio-item" id="lich-${lich.id}">
           <div class="lc-gio-card ${lich.dang_ap_dung ? "" : "lc-gio-card--tat"}">
+            <span class="lc-cap__chieu lc-cap__chieu--${lich.chieu}">${lich.chieu === "xuoi" ? "Đi" : "Về"}</span>
             <button type="button" class="lc-gio-card__gio" data-toggle-lo-trinh="${lich.id}" title="Bấm để xem lộ trình">
               <span class="lc-gio-card__gio-so">${gioNgan(lich.gio_khoi_hanh)}</span>
               ${
@@ -299,7 +314,6 @@
             </button>
             <div class="lc-gio-card__meta">
               <span class="pill pill--nho pill--khu-vuc">${esc(lich.ma_loai_xe)} · ${esc(lich.ten_loai_xe)}</span>
-              <span class="pill pill--nho ${lich.dang_ap_dung ? "pill--gia-vinh-vien" : "pill--xam"}">${lich.dang_ap_dung ? "Đang áp dụng" : "Đã ngừng"}</span>
               ${
                 lich.so_chuyen_da_sinh > 0
                   ? `<button type="button" class="lc-link-chuyen" data-act="ngay-da-sinh" data-id="${lich.id}">${lich.so_chuyen_da_sinh} chuyến đã sinh</button>`
@@ -307,10 +321,7 @@
               }
             </div>
             <div class="lc-gio-card__actions">
-              <button type="button" class="nv-btn-phu" data-act="sinh" data-id="${lich.id}">Sinh chuyến</button>
-              <button type="button" class="nv-btn-phu" data-act="ap-dung" data-id="${lich.id}">${lich.dang_ap_dung ? "Ngừng" : "Bật lại"}</button>
-              <button type="button" class="nv-btn-sua${lich.so_chuyen_da_sinh > 0 ? " is-khoa" : ""}" data-act="sua" data-id="${lich.id}" title="${lich.so_chuyen_da_sinh > 0 ? "Lịch đã sinh chuyến nên không sửa được" : ""}">Sửa</button>
-              <button type="button" class="nv-btn-xoa" data-act="xoa" data-id="${lich.id}">Xóa</button>
+              <button type="button" class="nv-btn-sua${capDaSinh ? " is-khoa" : ""}" data-act="sua" data-id="${lich.id}" title="${capDaSinh ? "Cặp lịch đã sinh chuyến nên không sửa được" : ""}">Sửa</button>
             </div>
           </div>
           <div class="lc-lo-trinh" id="lo-trinh-${lich.id}" hidden></div>
@@ -430,19 +441,31 @@
           <div class="lc-tl__cuon">
             <div class="lc-tl__trong-cuon">
               <div class="lc-tl__lane lc-tl__lane--truc"><div class="lc-tl__nhan"></div><div class="lc-tl__truc">${truc}</div></div>
-              ${htmlLaneBieuDo("Xuôi", h ? `${h.dau} → ${h.cuoi}` : "", xuoi, tongPhut)}
-              ${htmlLaneBieuDo("Ngược", h ? `${h.cuoi} → ${h.dau}` : "", nguoc, tongPhut)}
+              ${htmlLaneBieuDo("Chiều đi", h ? `${h.dau} → ${h.cuoi}` : "", xuoi, tongPhut)}
+              ${htmlLaneBieuDo("Chiều về", h ? `${h.cuoi} → ${h.dau}` : "", nguoc, tongPhut)}
             </div>
           </div>
           <div class="lc-tl__chu-thich">${chuThich}<span class="lc-tl__ct"><i class="lc-tl__ct-tat"></i>Đã ngừng áp dụng</span><span class="lc-tl__ct"><i class="lc-tl__ct-now"></i>Bây giờ</span></div>
         </div>`;
     }
 
-    function khoiChieu(nhan, ds) {
+    function capCard(cap) {
+      const daSinh = cap.so_chuyen_da_sinh > 0;
+      const gioDen = gioNgan(cap.gio_den_chieu_di);
       return `
-        <div class="lc-chieu">
-          <div class="lc-chieu__tieu-de">${esc(nhan)} <span class="nv-text-phu">${ds.length ? `${ds.length} lịch` : ""}</span></div>
-          ${ds.length ? `<div class="lc-gio-list">${ds.map(gioCard).join("")}</div>` : '<div class="lc-trong">Chưa có lịch chạy chiều này.</div>'}
+        <div class="lc-cap${cap.dang_ap_dung ? "" : " lc-cap--tat"}" id="cap-${cap.cap_id}">
+          <div class="lc-cap__dau">
+            <span class="pill pill--nho ${cap.dang_ap_dung ? "pill--gia-vinh-vien" : "pill--xam"}">${cap.dang_ap_dung ? "Đang áp dụng" : "Đã ngừng"}</span>
+            <span class="pill pill--nho pill--khu-vuc" title="Xe tới nơi lúc ${gioDen}${cap.ngay_den_lech ? " (+" + cap.ngay_den_lech + " ngày)" : ""}">${cap.ngay_lech ? `Chiều về +${cap.ngay_lech} ngày` : "Chiều về cùng ngày"}</span>
+            <span class="lc-cap__phai">
+              <button type="button" class="nv-btn-phu" data-cap-act="ap-dung" data-cap="${cap.cap_id}">${cap.dang_ap_dung ? "Ngừng" : "Bật lại"}</button>
+              <button type="button" class="nv-btn-xoa" data-cap-act="xoa" data-cap="${cap.cap_id}">Xóa</button>
+            </span>
+          </div>
+          <div class="lc-gio-list">
+            ${gioCard(chiTietLich(cap, cap.xuoi), daSinh)}
+            ${gioCard(chiTietLich(cap, cap.nguoc), daSinh)}
+          </div>
         </div>`;
     }
 
@@ -453,23 +476,34 @@
         return;
       }
 
+      const capCuaTuyen = capTheoTuyen(tuyen.id);
       const lichCuaTuyen = lichTheoTuyen(tuyen.id);
       const xuoi = lichCuaTuyen.filter((l) => l.chieu === "xuoi").sort((a, b) => a.gio_khoi_hanh.localeCompare(b.gio_khoi_hanh));
       const nguoc = lichCuaTuyen.filter((l) => l.chieu === "nguoc").sort((a, b) => a.gio_khoi_hanh.localeCompare(b.gio_khoi_hanh));
+      const dangApDung = capCuaTuyen.filter((c) => c.dang_ap_dung).length;
+      const thieuGia = capCuaTuyen[0]?.cac_cap_thieu_gia || [];
 
       lcChiTiet.innerHTML = `
         <div class="lc-ct__dau">
           <h2>${htmlMa(esc(tuyen.ma))} ${esc(tuyen.ten)}</h2>
-          <span class="pill pill--nho pill--gia-vinh-vien">${lichCuaTuyen.filter((l) => l.dang_ap_dung).length} đang áp dụng</span>
-          ${lichCuaTuyen.some((l) => !l.dang_ap_dung) ? `<span class="pill pill--nho pill--xam">${lichCuaTuyen.filter((l) => !l.dang_ap_dung).length} đã ngừng</span>` : ""}
-          <button class="btn-primary nv-btn-them lc-ct__them" id="lc-btn-them" type="button">+ Thêm lịch chạy</button>
+          <span class="pill pill--nho pill--gia-vinh-vien">${dangApDung} đang áp dụng</span>
+          ${capCuaTuyen.length > dangApDung ? `<span class="pill pill--nho pill--xam">${capCuaTuyen.length - dangApDung} đã ngừng</span>` : ""}
+          ${thieuGia.length ? `<span class="lc-thieu-gia" title="${esc(thieuGia.join(", "))}">Chưa đủ giá vé · thiếu ${thieuGia.length} cặp</span>` : ""}
+          <span class="lc-ct__nut">
+            <button class="nv-btn-phu" id="lc-btn-sinh" type="button"${dangApDung && !thieuGia.length ? "" : " disabled"}${thieuGia.length ? ` title="${esc("Cần cấu hình đủ giá vé (mục Giá vé) trước khi sinh chuyến. Còn thiếu: " + thieuGia.join(", "))}"` : ""}>Sinh chuyến</button>
+            <button class="btn-primary nv-btn-them" id="lc-btn-them" type="button">+ Thêm lịch chạy</button>
+          </span>
         </div>
         ${htmlBieuDo(tuyen, xuoi, nguoc)}
-        ${khoiChieu(nhanChieu(tuyen.id, "xuoi"), xuoi)}
-        ${khoiChieu(nhanChieu(tuyen.id, "nguoc"), nguoc)}
+        ${
+          capCuaTuyen.length
+            ? `<div class="lc-cap-list">${capCuaTuyen.map(capCard).join("")}</div>`
+            : '<div class="lc-trong">Chưa có lịch chạy nào cho tuyến này.</div>'
+        }
       `;
 
       document.getElementById("lc-btn-them").addEventListener("click", () => moModalThem(tuyen.id));
+      document.getElementById("lc-btn-sinh").addEventListener("click", () => moModalSinhChuyen(tuyen));
 
       // Bấm 1 thanh trên biểu đồ -> cuộn tới thẻ lịch tương ứng bên dưới và nháy sáng
       lcChiTiet.querySelectorAll("[data-lich]").forEach((thanh) => {
@@ -490,36 +524,45 @@
       lcChiTiet.querySelectorAll("[data-act]").forEach((btn) => {
         const lich = dsLich.find((l) => l.id === btn.dataset.id);
         btn.addEventListener("click", () => {
-          if (btn.dataset.act === "sinh") moModalSinhChuyen(lich);
-          else if (btn.dataset.act === "ngay-da-sinh") moModalLichNgay(lich);
-          else if (btn.dataset.act === "ap-dung") doiApDung(lich);
+          if (btn.dataset.act === "ngay-da-sinh") moModalLichNgay(lich);
           else if (btn.dataset.act === "sua") {
-            if (lich.so_chuyen_da_sinh > 0) {
-              alert(`Lịch này đã sinh ${lich.so_chuyen_da_sinh} chuyến nên không sửa được.
-Muốn đổi giờ/chiều/loại xe: bấm "Ngừng" lịch này rồi tạo lịch mới.`);
+            const cap = dsCap.find((c) => c.cap_id === lich.cap_id);
+            if (cap.so_chuyen_da_sinh > 0) {
+              alert(`Cặp lịch này đã sinh ${cap.so_chuyen_da_sinh} chuyến nên không sửa được.
+Muốn đổi giờ/loại xe: bấm "Ngừng" cặp này rồi tạo cặp lịch mới.`);
               return;
             }
             moModalSua(lich);
           }
-          else if (btn.dataset.act === "xoa") {
-            if (confirm(`Xóa lịch "${lich.ten_tuyen}" lúc ${gioNgan(lich.gio_khoi_hanh)}? Không thể hoàn tác.`)) xoaLich(lich);
-          }
+        });
+      });
+
+      lcChiTiet.querySelectorAll("[data-cap-act]").forEach((btn) => {
+        const cap = dsCap.find((c) => c.cap_id === btn.dataset.cap);
+        btn.addEventListener("click", () => {
+          if (btn.dataset.capAct === "ap-dung") doiApDung(cap);
+          else if (confirm(`Xóa cặp lịch tuyến "${cap.ten_tuyen}" (đi ${gioNgan(cap.xuoi.gio_khoi_hanh)}, về ${gioNgan(cap.nguoc.gio_khoi_hanh)})? Không thể hoàn tác.`)) xoaCap(cap);
         });
       });
     }
 
-    async function doiApDung(lich) {
+    // 1 lịch một chiều kèm các thông tin của cặp, cho các hàm dùng chung (thẻ giờ, lộ trình, biểu đồ)
+    function chiTietLich(cap, lich) {
+      return { ...lich, tuyen_id: cap.tuyen_id, ten_tuyen: cap.ten_tuyen, cap_id: cap.cap_id };
+    }
+
+    async function doiApDung(cap) {
       try {
-        await apiPatch(`/quan-ly/lich-chay/${lich.id}/ap-dung`, { dang_ap_dung: !lich.dang_ap_dung });
+        await apiPatch(`/quan-ly/lich-chay/cap/${cap.cap_id}/ap-dung`, { dang_ap_dung: !cap.dang_ap_dung });
         taiDanhSach();
       } catch (err) {
         alert(err.message);
       }
     }
 
-    async function xoaLich(lich) {
+    async function xoaCap(cap) {
       try {
-        await apiDelete(`/quan-ly/lich-chay/${lich.id}`);
+        await apiDelete(`/quan-ly/lich-chay/cap/${cap.cap_id}`);
         taiDanhSach();
       } catch (err) {
         alert(err.message);
@@ -542,16 +585,17 @@ Muốn đổi giờ/chiều/loại xe: bấm "Ngừng" lịch này rồi tạo l
       selectTuyen.innerHTML = dsTuyen.length
         ? dsTuyen.map((t) => `<option value="${t.id}">${esc(t.ma)} · ${esc(t.ten)}</option>`).join("")
         : '<option value="">Chưa có tuyến — tạo ở mục Tuyến trước</option>';
-      document.getElementById("loai_xe_id").innerHTML = dsLoaiXe.length
+      const tuyChonLoaiXe = dsLoaiXe.length
         ? dsLoaiXe.map((l) => `<option value="${l.id}">${esc(l.ma)} · ${esc(l.ten)}</option>`).join("")
         : '<option value="">Chưa có loại xe — tạo ở mục Loại xe trước</option>';
-      capNhatNhanChieu();
+      loaiXe.innerHTML = tuyChonLoaiXe;
     }
 
     async function taiDanhSach() {
       try {
-        dsLich = await apiGet("/quan-ly/lich-chay");
-        document.getElementById("stat-so-luong").textContent = dsLich.length;
+        dsCap = await apiGet("/quan-ly/lich-chay");
+        dsLich = dsCap.flatMap((c) => [chiTietLich(c, c.xuoi), chiTietLich(c, c.nguoc)]);
+        document.getElementById("stat-so-luong").textContent = dsCap.length;
         if (tuyenDangChon === null) tuyenDangChon = tuyenDaLoc()[0]?.id || null; // chỉ tự chọn ở lần tải đầu
         renderDanhSachTuyen();
         renderChiTiet();
@@ -560,19 +604,20 @@ Muốn đổi giờ/chiều/loại xe: bấm "Ngừng" lịch này rồi tạo l
       }
     }
 
-    (async () => {
-      try {
-        await naploadDauVao();
-        await taiDanhSach();
-      } catch (err) {
-        lcChiTiet.innerHTML = `<div class="text-error">${esc(err.message)}</div>`;
-      }
-    })();
-
-    // ---------- Modal thêm/sửa ----------
+    // ---------- Modal thêm cặp / sửa 1 chiều ----------
     const modalOverlay = document.getElementById("modal-overlay");
     const form = document.getElementById("form-lich");
     const loiForm = document.getElementById("loi-form");
+    const gioXuoi = document.getElementById("gio_xuoi");
+    const gioNguoc = document.getElementById("gio_nguoc");
+    const loaiXe = document.getElementById("loai_xe_id");
+    const xemTruoc = document.getElementById("lc-xem-truoc");
+    const blkXuoi = document.getElementById("blk-xuoi");
+    const blkNguoc = document.getElementById("blk-nguoc");
+
+    function boRequiredChieuAn() {
+      [blkXuoi, blkNguoc].forEach((blk) => blk.querySelectorAll("input, select").forEach((el) => (el.required = !blk.hidden)));
+    }
 
     function moModalThem(tuyenId) {
       if (!dsLoaiXe.length) {
@@ -583,24 +628,76 @@ Muốn đổi giờ/chiều/loại xe: bấm "Ngừng" lịch này rồi tạo l
       form.reset();
       document.getElementById("lich_id").value = "";
       selectTuyen.value = tuyenId;
-      selectTuyen.disabled = true; // đã chọn đúng tuyến từ danh sách bên trái
-      capNhatNhanChieu();
+      blkXuoi.hidden = false;
+      blkNguoc.hidden = false;
+      document.getElementById("tieu-xuoi").textContent = nhanChieu(tuyenId, "xuoi");
+      document.getElementById("tieu-nguoc").textContent = nhanChieu(tuyenId, "nguoc");
+      boRequiredChieuAn();
+      capNhatGioDen();
+      xemTruoc.hidden = true;
       loiForm.hidden = true;
       modalOverlay.hidden = false;
     }
 
     function moModalSua(lich) {
-      document.getElementById("modal-tieu-de").textContent = "Sửa lịch chạy";
+      document.getElementById("modal-tieu-de").textContent = lich.chieu === "xuoi" ? "Sửa lịch chiều đi" : "Sửa lịch chiều về";
       document.getElementById("lich_id").value = lich.id;
       selectTuyen.value = lich.tuyen_id;
-      selectTuyen.disabled = true; // đổi tuyến = tạo lịch mới
-      capNhatNhanChieu();
-      selectChieu.value = lich.chieu;
-      document.getElementById("gio_khoi_hanh").value = gioNgan(lich.gio_khoi_hanh);
-      document.getElementById("loai_xe_id").value = lich.loai_xe_id;
+      blkXuoi.hidden = lich.chieu !== "xuoi";
+      blkNguoc.hidden = lich.chieu !== "nguoc";
+      document.getElementById("tieu-xuoi").textContent = nhanChieu(lich.tuyen_id, "xuoi");
+      document.getElementById("tieu-nguoc").textContent = nhanChieu(lich.tuyen_id, "nguoc");
+      (lich.chieu === "xuoi" ? gioXuoi : gioNguoc).value = gioNgan(lich.gio_khoi_hanh);
+      loaiXe.value = lich.loai_xe_id;
+      boRequiredChieuAn();
+      capNhatGioDen();
+      xemTruoc.hidden = true;
       loiForm.hidden = true;
       modalOverlay.hidden = false;
     }
+
+    // Xe tới nơi lúc nào và chiều về lệch mấy ngày — tính ở server để quy tắc nghỉ tối thiểu nằm đúng 1 chỗ
+    let lanXemTruoc = 0;
+    async function capNhatXemTruoc() {
+      if (document.getElementById("lich_id").value || !gioXuoi.value || !gioNguoc.value) {
+        xemTruoc.hidden = true;
+        return;
+      }
+      const lan = ++lanXemTruoc;
+      try {
+        const r = await apiGet(`/quan-ly/lich-chay/xem-truoc?tuyen_id=${selectTuyen.value}&gio_xuoi=${gioXuoi.value}&gio_nguoc=${gioNguoc.value}`);
+        if (lan !== lanXemTruoc) return;
+        xemTruoc.textContent = `Xe tới nơi lúc ${gioNgan(r.gio_den)}${r.ngay_den_lech ? ` (+${r.ngay_den_lech} ngày)` : ""} · chuyến về chạy ${r.ngay_lech ? `sau chuyến đi ${r.ngay_lech} ngày` : "cùng ngày với chuyến đi"}`;
+        xemTruoc.hidden = false;
+        xemTruoc.classList.remove("lc-xem-truoc--loi");
+      } catch (err) {
+        if (lan !== lanXemTruoc) return;
+        xemTruoc.textContent = err.message;
+        xemTruoc.hidden = false;
+        xemTruoc.classList.add("lc-xem-truoc--loi");
+        return;
+      }
+    }
+    // Giờ kết thúc của từng chiều hiện ngay khi chọn giờ khởi hành, để ước lượng giờ cho chiều còn lại
+    function capNhatGioDen() {
+      const tong = tongThoiGianTuyen(selectTuyen.value);
+      [[gioXuoi, "den-xuoi"], [gioNguoc, "den-nguoc"]].forEach(([o, id]) => {
+        const hien = document.getElementById(id);
+        if (!o.value || tong == null) {
+          hien.textContent = "—";
+          return;
+        }
+        const d = congGio(o.value, tong);
+        hien.innerHTML = `${d.gio}${d.qua_ngay ? ` <em>+${d.qua_ngay} ngày</em>` : ""}`;
+      });
+    }
+    [gioXuoi, gioNguoc].forEach((el) => {
+      el.addEventListener("input", capNhatGioDen);
+      el.addEventListener("change", () => {
+        capNhatGioDen();
+        capNhatXemTruoc();
+      });
+    });
 
     document.getElementById("btn-huy").addEventListener("click", () => { modalOverlay.hidden = true; });
 
@@ -609,17 +706,23 @@ Muốn đổi giờ/chiều/loại xe: bấm "Ngừng" lịch này rồi tạo l
       loiForm.hidden = true;
 
       const id = document.getElementById("lich_id").value;
-      const chung = {
-        chieu: selectChieu.value,
-        gio_khoi_hanh: document.getElementById("gio_khoi_hanh").value,
-        loai_xe_id: document.getElementById("loai_xe_id").value,
-      };
-
       const btn = form.querySelector("button[type=submit]");
       btn.classList.add("is-loading");
       try {
-        if (id) await apiPut(`/quan-ly/lich-chay/${id}`, chung);
-        else await apiPost("/quan-ly/lich-chay", { tuyen_id: selectTuyen.value, ...chung });
+        if (id) {
+          const xuoi = !blkXuoi.hidden;
+          await apiPut(`/quan-ly/lich-chay/${id}`, {
+            gio_khoi_hanh: xuoi ? gioXuoi.value : gioNguoc.value,
+            loai_xe_id: loaiXe.value,
+          });
+        } else {
+          await apiPost("/quan-ly/lich-chay", {
+            tuyen_id: selectTuyen.value,
+            loai_xe_id: loaiXe.value,
+            gio_xuoi: gioXuoi.value,
+            gio_nguoc: gioNguoc.value,
+          });
+        }
         modalOverlay.hidden = true;
         taiDanhSach();
       } catch (err) {
@@ -716,30 +819,59 @@ Muốn đổi giờ/chiều/loại xe: bấm "Ngừng" lịch này rồi tạo l
       modalLichNgay.hidden = true;
     });
 
-    // ---------- Modal "Sinh chuyến" theo khoảng ngày ----------
+    // ---------- Modal "Sinh chuyến" cho các cặp của 1 tuyến ----------
     const modalSinhChuyen = document.getElementById("modal-sinh-chuyen");
     const scTuNgay = document.getElementById("sc_tu_ngay");
     const scDenNgay = document.getElementById("sc_den_ngay");
     const scLoi = document.getElementById("sc-loi");
     const scKetQua = document.getElementById("sc-ket-qua");
-    let lichDangSinhChuyen = null;
+    const scDsCap = document.getElementById("sc-ds-cap");
+    let tuyenDangSinhChuyen = null;
 
     function dinhDangNgay(iso) {
       const [y, m, d] = iso.split("-");
       return `${d}/${m}/${y}`;
     }
 
-    function moModalSinhChuyen(lich) {
-      lichDangSinhChuyen = lich;
-      document.getElementById("sc-mo-ta").innerHTML = `<strong>${esc(lich.ten_tuyen)}</strong> · ${esc(nhanChieu(lich.tuyen_id, lich.chieu))} · ${gioNgan(lich.gio_khoi_hanh)}`;
-
-      const homNay = new Date().toISOString().slice(0, 10);
-      scTuNgay.min = homNay;
-      scTuNgay.value = homNay;
+    // Giới hạn ngày chọn theo các cặp đang tick: từ ngày muộn nhất trong các "ngày sớm nhất", đến ngày sớm nhất trong các "ngày muộn nhất"
+    function capNhatGioiHanNgay(datMacDinh) {
+      const homNay = khoaNgay(new Date());
+      const dangChon = [...scDsCap.querySelectorAll("input:checked")];
+      const tuMin = dangChon.reduce((m, o) => (o.dataset.tu > m ? o.dataset.tu : m), homNay);
+      const denMax = dangChon.length ? dangChon.reduce((m, o) => (o.dataset.den < m ? o.dataset.den : m), "9999-12-31") : "";
+      scTuNgay.min = tuMin;
+      scDenNgay.max = denMax;
+      if (datMacDinh || !scTuNgay.value || scTuNgay.value < tuMin) scTuNgay.value = tuMin;
       const mocSau = new Date();
       mocSau.setDate(mocSau.getDate() + 6);
-      scDenNgay.min = homNay;
-      scDenNgay.value = mocSau.toISOString().slice(0, 10);
+      const macDinhDen = denMax && khoaNgay(mocSau) > denMax ? denMax : khoaNgay(mocSau);
+      if (datMacDinh || !scDenNgay.value || (denMax && scDenNgay.value > denMax)) scDenNgay.value = macDinhDen;
+      scDenNgay.min = scTuNgay.value;
+    }
+
+    function moModalSinhChuyen(tuyen) {
+      tuyenDangSinhChuyen = tuyen;
+      document.getElementById("sc-mo-ta").innerHTML = `<strong>${esc(tuyen.ten)}</strong> · ${esc(nhanChieu(tuyen.id, "xuoi"))}`;
+
+      scDsCap.innerHTML = capTheoTuyen(tuyen.id)
+        .map((c) => {
+          // Chỉ sinh được trong khoảng các bộ giá vé của tuyến; chuyến đi muộn nhất = ngày cuối bộ giá − độ lệch chuyến về
+          const coGia = !!(c.sinh_chuyen_tu_ngay && c.sinh_chuyen_den_ngay && c.sinh_chuyen_den_ngay >= c.sinh_chuyen_tu_ngay);
+          const dung = c.dang_ap_dung && coGia;
+          return `
+            <label class="lc-sc-cap${dung ? "" : " lc-sc-cap--tat"}">
+              <input type="checkbox" value="${c.cap_id}" data-tu="${c.sinh_chuyen_tu_ngay || ""}" data-den="${c.sinh_chuyen_den_ngay || ""}"${dung ? " checked" : " disabled"} />
+              <span>Đi <b>${gioNgan(c.xuoi.gio_khoi_hanh)}</b> · ${esc(c.xuoi.ma_loai_xe)}</span>
+              <span>Về <b>${gioNgan(c.nguoc.gio_khoi_hanh)}</b>${c.ngay_lech ? ` <em>+${c.ngay_lech}</em>` : ""}</span>
+              ${!c.dang_ap_dung ? '<span class="pill pill--nho pill--xam">Đã ngừng</span>' : !coGia ? '<span class="pill pill--nho pill--xam">Chưa có bộ giá</span>' : `<span class="nv-text-phu">sinh đến ${dinhDangNgay(c.sinh_chuyen_den_ngay)}</span>`}
+            </label>`;
+        })
+        .join("");
+      scDsCap.querySelectorAll("input").forEach((o) => o.addEventListener("change", () => capNhatGioiHanNgay(false)));
+
+      scTuNgay.value = "";
+      scDenNgay.value = "";
+      capNhatGioiHanNgay(true);
 
       scLoi.hidden = true;
       scKetQua.hidden = true;
@@ -755,6 +887,12 @@ Muốn đổi giờ/chiều/loại xe: bấm "Ngừng" lịch này rồi tạo l
       scLoi.hidden = true;
       scKetQua.hidden = true;
 
+      const capIds = [...scDsCap.querySelectorAll("input:checked")].map((i) => i.value);
+      if (!capIds.length) {
+        scLoi.textContent = "Chọn ít nhất 1 cặp lịch";
+        scLoi.hidden = false;
+        return;
+      }
       if (!scTuNgay.value || !scDenNgay.value) {
         scLoi.textContent = "Chọn đủ ngày bắt đầu và ngày kết thúc";
         scLoi.hidden = false;
@@ -769,12 +907,12 @@ Muốn đổi giờ/chiều/loại xe: bấm "Ngừng" lịch này rồi tạo l
       const btn = document.getElementById("sc-btn-sinh");
       btn.classList.add("is-loading");
       try {
-        const ket_qua = await apiPost(`/quan-ly/lich-chay/${lichDangSinhChuyen.id}/sinh-chuyen`, {
-          tu_ngay: scTuNgay.value,
-          den_ngay: scDenNgay.value,
-        });
-        const phanDaCoSan = ket_qua.so_ngay_da_co_san ? ` (${ket_qua.so_ngay_da_co_san} ngày đã có sẵn từ trước, bỏ qua)` : "";
-        scKetQua.textContent = `✓ Đã sinh ${ket_qua.so_chuyen_moi_sinh} chuyến mới, từ ${dinhDangNgay(scTuNgay.value)} đến ${dinhDangNgay(scDenNgay.value)}${phanDaCoSan}.`;
+        const kq = await apiPost("/quan-ly/lich-chay/sinh-chuyen", { cap_ids: capIds, tu_ngay: scTuNgay.value, den_ngay: scDenNgay.value });
+        const daCo = kq.so_chuyen_di_da_co_san + kq.so_chuyen_ve_da_co_san;
+        scKetQua.textContent =
+          `✓ Đã sinh ${kq.so_chuyen_di_moi_sinh} chuyến đi và ${kq.so_chuyen_ve_moi_sinh} chuyến về, từ ${dinhDangNgay(scTuNgay.value)} đến ${dinhDangNgay(scDenNgay.value)}` +
+          (daCo ? ` (${daCo} chuyến đã có sẵn từ trước, bỏ qua)` : "") + "." +
+          (kq.so_chu_ky_bo_qua_do_qua_gio ? ` Bỏ qua ${kq.so_chu_ky_bo_qua_do_qua_gio} ngày có chuyến đi đã quá giờ (kèm chuyến về của ngày đó).` : "");
         scKetQua.hidden = false;
       } catch (err) {
         scLoi.textContent = err.message;
@@ -783,6 +921,14 @@ Muốn đổi giờ/chiều/loại xe: bấm "Ngừng" lịch này rồi tạo l
         btn.classList.remove("is-loading");
       }
     });
+    (async () => {
+      try {
+        await naploadDauVao();
+        await taiDanhSach();
+      } catch (err) {
+        lcChiTiet.innerHTML = `<div class="text-error">${esc(err.message)}</div>`;
+      }
+    })();
   </script>
 </body>
 </html>
