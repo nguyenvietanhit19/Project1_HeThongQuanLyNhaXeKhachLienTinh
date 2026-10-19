@@ -15,14 +15,6 @@
     <div class="nv-main">
       <header class="nv-topbar">
         <h1>Lịch chạy</h1>
-        <div class="nv-topbar__user">
-          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
-          <div class="nv-topbar__identity">
-            <span class="ho-ten" id="topbar-ho-ten"></span>
-            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
-          </div>
-          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
-        </div>
       </header>
 
       <main class="nv-content">
@@ -55,7 +47,7 @@
   </div>
 
   <div class="nv-modal-overlay" id="modal-overlay" hidden>
-    <div class="nv-modal" style="max-width:520px;">
+    <div class="nv-modal" style="max-width:1120px;">
       <form id="form-lich">
         <div class="nv-modal__header">
           <div class="nv-modal__header-icon">
@@ -67,46 +59,88 @@
         </div>
         <div class="nv-modal__body">
           <input type="hidden" id="lich_id" />
+          <input type="hidden" id="loai_xe_id" />
 
-          <label class="nv-label" for="tuyen_id">Tuyến</label>
-          <select class="input-field" id="tuyen_id" disabled></select>
-
-          <label class="nv-label" for="loai_xe_id">Loại xe dự kiến (dùng cho cả 2 chiều)</label>
-          <select class="input-field" id="loai_xe_id" required></select>
-
-          <div class="lc-form-chieu" id="blk-xuoi">
-            <div class="lc-form-chieu__tieu" id="tieu-xuoi">Chiều đi</div>
-            <div class="nv-form-row">
-              <div>
-                <label class="nv-label" for="gio_xuoi">Giờ khởi hành</label>
-                <input class="input-field" type="time" id="gio_xuoi" required />
-              </div>
-              <div>
-                <span class="nv-label">Giờ kết thúc</span>
-                <div class="lc-gio-den" id="den-xuoi">—</div>
-              </div>
-            </div>
+          <div class="lc-modal-tuyen">
+            <label class="nv-label" for="tuyen_id" style="margin:0;">Tuyến</label>
+            <select class="input-field" id="tuyen_id" disabled></select>
           </div>
 
-          <div class="lc-form-chieu" id="blk-nguoc">
-            <div class="lc-form-chieu__tieu" id="tieu-nguoc">Chiều về</div>
-            <div class="nv-form-row">
-              <div>
-                <label class="nv-label" for="gio_nguoc">Giờ khởi hành</label>
-                <input class="input-field" type="time" id="gio_nguoc" required />
-              </div>
-              <div>
-                <span class="nv-label">Giờ kết thúc</span>
-                <div class="lc-gio-den" id="den-nguoc">—</div>
-              </div>
-            </div>
-          </div>
+          <div class="lc-modal-luoi">
+            <section class="lc-modal-cot">
+              <div class="lc-modal-tieu">1. Chọn loại xe <span>(dùng cho cả 2 chiều)</span></div>
+              <div class="lc-lx-luoi" id="lc-lx-luoi" role="radiogroup" aria-label="Loại xe"></div>
+            </section>
 
-          <div id="lc-xem-truoc" class="nv-hint" hidden></div>
+            <section class="lc-modal-cot">
+              <div class="lc-modal-tieu">2. Giờ chạy</div>
+              <div class="lc-form-chieu" id="blk-xuoi">
+                <div class="lc-form-chieu__tieu" id="tieu-xuoi">Chiều đi</div>
+                <div class="nv-form-row">
+                  <div>
+                    <label class="nv-label" for="gio_xuoi">Giờ khởi hành</label>
+                    <input class="input-field" type="time" id="gio_xuoi" required />
+                  </div>
+                  <div>
+                    <span class="nv-label">Giờ kết thúc</span>
+                    <div class="lc-gio-den" id="den-xuoi">—</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="lc-form-chieu" id="blk-nguoc">
+                <div class="lc-form-chieu__tieu" id="tieu-nguoc">Chiều về</div>
+                <div class="nv-form-row">
+                  <div>
+                    <label class="nv-label" for="gio_nguoc">Giờ khởi hành</label>
+                    <input class="input-field" type="time" id="gio_nguoc" required />
+                  </div>
+                  <div>
+                    <span class="nv-label">Giờ kết thúc</span>
+                    <div class="lc-gio-den" id="den-nguoc">—</div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="lc-xem-truoc" class="nv-hint" hidden></div>
+            </section>
+
+            <section class="lc-modal-cot" id="blk-he-so">
+              <div class="lc-modal-tieu">3. Hệ số giá</div>
+              <input class="input-field" type="number" id="he_so_gia" step="0.01" min="0.01" max="99.99" value="1" required />
+              <div id="lc-xem-gia" class="nv-hint" hidden></div>
+            </section>
+          </div>
 
           <div id="loi-form" class="text-error" hidden></div>
           <div class="nv-modal__actions">
             <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
+            <button type="submit" class="btn-primary">Lưu</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="nv-modal-overlay" id="modal-he-so" hidden>
+    <div class="nv-modal" style="max-width:480px;">
+      <form id="form-he-so">
+        <div class="nv-modal__header">
+          <div class="nv-modal__header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 3v18M16 7.5c0-1.7-1.8-3-4-3s-4 1.3-4 3 1.8 2.8 4 3 4 1.3 4 3-1.8 3-4 3-4-1.3-4-3"/>
+            </svg>
+          </div>
+          <h2 id="hs-tieu-de">Hệ số giá của cặp lịch</h2>
+        </div>
+        <div class="nv-modal__body">
+          <label class="nv-label" for="hs_he_so_gia" style="margin-top:0;">Hệ số giá</label>
+          <input class="input-field" type="number" id="hs_he_so_gia" step="0.01" min="0.01" max="99.99" required />
+          <p class="nv-hint">Giá bán được làm tròn tới 10.000đ. Chỉ áp dụng cho chuyến sinh từ bây giờ — chuyến đã sinh giữ nguyên hệ số cũ.</p>
+          <div id="hs-xem-gia" class="nv-hint" hidden></div>
+          <div id="hs-loi" class="text-error" hidden></div>
+          <div class="nv-modal__actions">
+            <button type="button" class="nv-btn-secondary" id="hs-btn-huy">Hủy</button>
             <button type="submit" class="btn-primary">Lưu</button>
           </div>
         </div>
@@ -178,15 +212,14 @@
   <script src="/nhan-vien/quan-ly/api-client.js"></script>
   <script src="/nhan-vien/quan-ly/auth-check.js"></script>
   <script src="/nhan-vien/quan-ly/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/tai-khoan.js"></script>
   <script src="/nhan-vien/quan-ly/chuyen-chi-tiet.js"></script>
   <script src="/nhan-vien/quan-ly/data-table.js"></script>
   <script>
     const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
     if (nguoiDung) {
       renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-ly/lich-chay.html");
-      renderTopbarUser();
     }
-    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
 
     const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -197,7 +230,7 @@
     let huongTheoTuyen = new Map(); // tuyen_id -> { dau, cuoi } tên khu vực đầu/cuối theo chiều xuôi
     let diemTheoTuyen = new Map(); // tuyen_id -> danh sách điểm (sắp theo thu_tu tăng dần), dùng tính giờ đến từng điểm
     let tuyenDangChon = null;
-    let tuKhoa = "";
+    let tuKhoa = TrangThaiTrang.doc().tuKhoa || "";
 
     const lcDsTuyen = document.getElementById("lc-ds-tuyen");
     const lcChiTiet = document.getElementById("lc-chi-tiet");
@@ -253,12 +286,7 @@
       const tk = tuKhoa.trim().toLowerCase();
       return dsTuyen
         .filter((t) => !tk || t.ten.toLowerCase().includes(tk) || t.ma.toLowerCase().includes(tk))
-        .sort((a, b) => {
-          const trongA = capTheoTuyen(a.id).length === 0;
-          const trongB = capTheoTuyen(b.id).length === 0;
-          if (trongA !== trongB) return trongA ? -1 : 1; // tuyến chưa có lịch nào lên đầu
-          return a.ten.localeCompare(b.ten, "vi");
-        });
+        .sort((a, b) => a.ma.localeCompare(b.ma, "vi", { numeric: true })); // theo mã tuyến: T001, T002, ... T010
     }
 
     function renderDanhSachTuyen() {
@@ -284,14 +312,17 @@
       lcDsTuyen.querySelectorAll("[data-id]").forEach((btn) => {
         btn.addEventListener("click", () => {
           tuyenDangChon = btn.dataset.id;
+          TrangThaiTrang.luu({ tuyenDangChon });
           renderDanhSachTuyen();
           renderChiTiet();
         });
       });
     }
 
+    document.getElementById("lc-tim").value = tuKhoa;
     document.getElementById("lc-tim").addEventListener("input", (e) => {
       tuKhoa = e.target.value;
+      TrangThaiTrang.luu({ tuKhoa });
       renderDanhSachTuyen();
     });
 
@@ -457,6 +488,7 @@
           <div class="lc-cap__dau">
             <span class="pill pill--nho ${cap.dang_ap_dung ? "pill--gia-vinh-vien" : "pill--xam"}">${cap.dang_ap_dung ? "Đang áp dụng" : "Đã ngừng"}</span>
             <span class="pill pill--nho pill--khu-vuc" title="Xe tới nơi lúc ${gioDen}${cap.ngay_den_lech ? " (+" + cap.ngay_den_lech + " ngày)" : ""}">${cap.ngay_lech ? `Chiều về +${cap.ngay_lech} ngày` : "Chiều về cùng ngày"}</span>
+            <button type="button" class="pill pill--nho pill--khu-vuc lc-cap__he-so" data-cap-act="he-so" data-cap="${cap.cap_id}" title="Bấm để đổi hệ số giá (chỉ áp dụng cho chuyến sinh sau)">Hệ số ×${Number(cap.he_so_gia)}</button>
             <span class="lc-cap__phai">
               <button type="button" class="nv-btn-phu" data-cap-act="ap-dung" data-cap="${cap.cap_id}">${cap.dang_ap_dung ? "Ngừng" : "Bật lại"}</button>
               <button type="button" class="nv-btn-xoa" data-cap-act="xoa" data-cap="${cap.cap_id}">Xóa</button>
@@ -481,16 +513,16 @@
       const xuoi = lichCuaTuyen.filter((l) => l.chieu === "xuoi").sort((a, b) => a.gio_khoi_hanh.localeCompare(b.gio_khoi_hanh));
       const nguoc = lichCuaTuyen.filter((l) => l.chieu === "nguoc").sort((a, b) => a.gio_khoi_hanh.localeCompare(b.gio_khoi_hanh));
       const dangApDung = capCuaTuyen.filter((c) => c.dang_ap_dung).length;
-      const thieuGia = capCuaTuyen[0]?.cac_cap_thieu_gia || [];
+      const coBoGia = !!capCuaTuyen[0]?.sinh_chuyen_tu_ngay; // tuyến chưa có bộ giá nào thì chưa sinh chuyến được
 
       lcChiTiet.innerHTML = `
         <div class="lc-ct__dau">
           <h2>${htmlMa(esc(tuyen.ma))} ${esc(tuyen.ten)}</h2>
           <span class="pill pill--nho pill--gia-vinh-vien">${dangApDung} đang áp dụng</span>
           ${capCuaTuyen.length > dangApDung ? `<span class="pill pill--nho pill--xam">${capCuaTuyen.length - dangApDung} đã ngừng</span>` : ""}
-          ${thieuGia.length ? `<span class="lc-thieu-gia" title="${esc(thieuGia.join(", "))}">Chưa đủ giá vé · thiếu ${thieuGia.length} cặp</span>` : ""}
+          ${capCuaTuyen.length && !coBoGia ? '<span class="pill pill--nho pill--gia-thoi-han" title="Sinh chuyến chỉ được trong khoảng các bộ giá (mục Giá vé)">Chưa có bộ giá</span>' : ""}
           <span class="lc-ct__nut">
-            <button class="nv-btn-phu" id="lc-btn-sinh" type="button"${dangApDung && !thieuGia.length ? "" : " disabled"}${thieuGia.length ? ` title="${esc("Cần cấu hình đủ giá vé (mục Giá vé) trước khi sinh chuyến. Còn thiếu: " + thieuGia.join(", "))}"` : ""}>Sinh chuyến</button>
+            <button class="nv-btn-phu" id="lc-btn-sinh" type="button"${dangApDung && coBoGia ? "" : " disabled"}${!coBoGia ? ' title="Tuyến chưa có bộ giá — tạo bộ giá (mục Giá vé) trước khi sinh chuyến"' : ""}>Sinh chuyến</button>
             <button class="btn-primary nv-btn-them" id="lc-btn-them" type="button">+ Thêm lịch chạy</button>
           </span>
         </div>
@@ -541,6 +573,7 @@ Muốn đổi giờ/loại xe: bấm "Ngừng" cặp này rồi tạo cặp lị
         const cap = dsCap.find((c) => c.cap_id === btn.dataset.cap);
         btn.addEventListener("click", () => {
           if (btn.dataset.capAct === "ap-dung") doiApDung(cap);
+          else if (btn.dataset.capAct === "he-so") moModalHeSo(cap);
           else if (confirm(`Xóa cặp lịch tuyến "${cap.ten_tuyen}" (đi ${gioNgan(cap.xuoi.gio_khoi_hanh)}, về ${gioNgan(cap.nguoc.gio_khoi_hanh)})? Không thể hoàn tác.`)) xoaCap(cap);
         });
       });
@@ -585,10 +618,7 @@ Muốn đổi giờ/loại xe: bấm "Ngừng" cặp này rồi tạo cặp lị
       selectTuyen.innerHTML = dsTuyen.length
         ? dsTuyen.map((t) => `<option value="${t.id}">${esc(t.ma)} · ${esc(t.ten)}</option>`).join("")
         : '<option value="">Chưa có tuyến — tạo ở mục Tuyến trước</option>';
-      const tuyChonLoaiXe = dsLoaiXe.length
-        ? dsLoaiXe.map((l) => `<option value="${l.id}">${esc(l.ma)} · ${esc(l.ten)}</option>`).join("")
-        : '<option value="">Chưa có loại xe — tạo ở mục Loại xe trước</option>';
-      loaiXe.innerHTML = tuyChonLoaiXe;
+      renderLoaiXeThe();
     }
 
     async function taiDanhSach() {
@@ -596,7 +626,11 @@ Muốn đổi giờ/loại xe: bấm "Ngừng" cặp này rồi tạo cặp lị
         dsCap = await apiGet("/quan-ly/lich-chay");
         dsLich = dsCap.flatMap((c) => [chiTietLich(c, c.xuoi), chiTietLich(c, c.nguoc)]);
         document.getElementById("stat-so-luong").textContent = dsCap.length;
-        if (tuyenDangChon === null) tuyenDangChon = tuyenDaLoc()[0]?.id || null; // chỉ tự chọn ở lần tải đầu
+        if (tuyenDangChon === null) {
+          // chỉ tự chọn ở lần tải đầu: quay lại trang thì mở lại tuyến đã xem, chưa có thì tuyến đầu danh sách
+          const tuyenDaLuu = TrangThaiTrang.doc().tuyenDangChon;
+          tuyenDangChon = dsTuyen.some((t) => t.id === tuyenDaLuu) ? tuyenDaLuu : tuyenDaLoc()[0]?.id || null;
+        }
         renderDanhSachTuyen();
         renderChiTiet();
       } catch (err) {
@@ -615,6 +649,54 @@ Muốn đổi giờ/loại xe: bấm "Ngừng" cặp này rồi tạo cặp lị
     const blkXuoi = document.getElementById("blk-xuoi");
     const blkNguoc = document.getElementById("blk-nguoc");
 
+    // ---------- Chọn loại xe bằng thẻ (hình sơ đồ ghế + tên + mã + số ghế) thay cho dropdown, tránh chọn nhầm ----------
+    function svgThuNhoLoaiXe(soDoGhe) {
+      const cacTang = [...new Set(soDoGhe.map((g) => g.tang))].sort();
+      return cacTang
+        .map((t) => {
+          const ghe = soDoGhe.filter((g) => g.tang === t);
+          const minX = Math.min(...ghe.map((g) => g.x));
+          const minY = Math.min(...ghe.map((g) => g.y));
+          const rong = Math.max(...ghe.map((g) => g.x)) + 40 - minX;
+          const cao = Math.max(...ghe.map((g) => g.y)) + 30 - minY;
+          const rects = ghe.map((g) => `<rect x="${g.x - minX}" y="${g.y - minY}" width="40" height="30" rx="7"/>`).join("");
+          return `<svg class="lc-lx-hinh" viewBox="-4 -4 ${rong + 8} ${cao + 8}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${rects}</svg>`;
+        })
+        .join("");
+    }
+
+    function renderLoaiXeThe() {
+      const o = document.getElementById("lc-lx-luoi");
+      if (!dsLoaiXe.length) {
+        o.innerHTML = '<div class="lc-trong">Chưa có loại xe — tạo ở mục Loại xe trước</div>';
+        return;
+      }
+      o.innerHTML = [...dsLoaiXe]
+        .sort((a, b) => a.ma.localeCompare(b.ma, "vi", { numeric: true }))
+        .map((l) => {
+          const soTang = l.so_do_ghe.some((g) => g.tang === 2) ? 2 : 1;
+          return `
+            <button type="button" class="lc-lx-the" role="radio" aria-checked="false" data-id="${l.id}">
+              <span class="lc-lx-the__hinh">${svgThuNhoLoaiXe(l.so_do_ghe)}</span>
+              <span class="lc-lx-the__ten">${esc(l.ten)}</span>
+              <span class="lc-lx-the__phu">${htmlMa(esc(l.ma))}<span>${l.so_do_ghe.length} ghế · ${soTang} tầng</span></span>
+              <i class="lc-lx-the__tick" aria-hidden="true">✓</i>
+            </button>`;
+        })
+        .join("");
+      o.querySelectorAll("[data-id]").forEach((b) => b.addEventListener("click", () => chonLoaiXe(b.dataset.id)));
+      chonLoaiXe(document.getElementById("loai_xe_id").value);
+    }
+
+    function chonLoaiXe(id) {
+      document.getElementById("loai_xe_id").value = id || "";
+      document.querySelectorAll("#lc-lx-luoi [data-id]").forEach((b) => {
+        const chon = b.dataset.id === id;
+        b.classList.toggle("is-chon", chon);
+        b.setAttribute("aria-checked", String(chon));
+      });
+    }
+
     function boRequiredChieuAn() {
       [blkXuoi, blkNguoc].forEach((blk) => blk.querySelectorAll("input, select").forEach((el) => (el.required = !blk.hidden)));
     }
@@ -627,9 +709,15 @@ Muốn đổi giờ/loại xe: bấm "Ngừng" cặp này rồi tạo cặp lị
       document.getElementById("modal-tieu-de").textContent = "Thêm lịch chạy";
       form.reset();
       document.getElementById("lich_id").value = "";
+      renderLoaiXeThe();
+      chonLoaiXe(dsLoaiXe.length === 1 ? dsLoaiXe[0].id : ""); // chỉ có 1 loại xe thì chọn sẵn; nhiều loại thì bắt chọn rõ ràng để khỏi nhầm
       selectTuyen.value = tuyenId;
       blkXuoi.hidden = false;
       blkNguoc.hidden = false;
+      document.getElementById("blk-he-so").hidden = false;
+      document.getElementById("he_so_gia").required = true;
+      document.getElementById("he_so_gia").value = "1";
+      capNhatXemGia(tuyenId, 1, xemGia);
       document.getElementById("tieu-xuoi").textContent = nhanChieu(tuyenId, "xuoi");
       document.getElementById("tieu-nguoc").textContent = nhanChieu(tuyenId, "nguoc");
       boRequiredChieuAn();
@@ -645,10 +733,13 @@ Muốn đổi giờ/loại xe: bấm "Ngừng" cặp này rồi tạo cặp lị
       selectTuyen.value = lich.tuyen_id;
       blkXuoi.hidden = lich.chieu !== "xuoi";
       blkNguoc.hidden = lich.chieu !== "nguoc";
+      document.getElementById("blk-he-so").hidden = true;
+      document.getElementById("he_so_gia").required = false;
       document.getElementById("tieu-xuoi").textContent = nhanChieu(lich.tuyen_id, "xuoi");
       document.getElementById("tieu-nguoc").textContent = nhanChieu(lich.tuyen_id, "nguoc");
       (lich.chieu === "xuoi" ? gioXuoi : gioNguoc).value = gioNgan(lich.gio_khoi_hanh);
-      loaiXe.value = lich.loai_xe_id;
+      renderLoaiXeThe();
+      chonLoaiXe(lich.loai_xe_id);
       boRequiredChieuAn();
       capNhatGioDen();
       xemTruoc.hidden = true;
@@ -701,9 +792,86 @@ Muốn đổi giờ/loại xe: bấm "Ngừng" cặp này rồi tạo cặp lị
 
     document.getElementById("btn-huy").addEventListener("click", () => { modalOverlay.hidden = true; });
 
+    // ---------- Xem trước giá bán theo hệ số + đổi hệ số của cặp ----------
+    const heSoGia = document.getElementById("he_so_gia");
+    const xemGia = document.getElementById("lc-xem-gia");
+    const tien = (n) => Number(n).toLocaleString("vi-VN") + "đ";
+    // Phải khớp backend (app/utils/gia.py): làm tròn nửa-lên tới bội số của 10.000đ, tối thiểu 10.000đ
+    const lamTronGia = (n) => Math.max(1, Math.round(n / 10000)) * 10000;
+    const boGiaTheoTuyen = new Map();
+
+    // Bộ giá đang áp dụng của tuyến (không có thì bộ sắp áp dụng gần nhất, rồi bộ cuối) làm mốc xem trước
+    async function boGiaThamChieu(tuyenId) {
+      if (!boGiaTheoTuyen.has(tuyenId)) {
+        const ds = await apiGet(`/quan-ly/bo-gia?tuyen_id=${tuyenId}`);
+        boGiaTheoTuyen.set(tuyenId, ds.find((b) => b.trang_thai === "dang_ap_dung") || ds.find((b) => b.trang_thai === "sap_ap_dung") || ds[ds.length - 1] || null);
+      }
+      return boGiaTheoTuyen.get(tuyenId);
+    }
+
+    let lanXemGia = 0;
+    async function capNhatXemGia(tuyenId, heSo, o) {
+      const lan = ++lanXemGia;
+      o.hidden = true;
+      if (!(heSo > 0)) return;
+      let bo;
+      try {
+        bo = await boGiaThamChieu(tuyenId);
+      } catch (err) {
+        return;
+      }
+      if (lan !== lanXemGia) return;
+      const canhBao = heSo < 0.5 || heSo > 3 ? '<div class="text-error">⚠ Hệ số khác thường (dưới 0,5 hoặc trên 3) — kiểm tra lại.</div>' : "";
+      if (!bo) {
+        o.innerHTML = `${canhBao}Tuyến chưa có bộ giá — chưa xem trước được giá bán.`;
+      } else {
+        const dong = bo.danh_sach_gia
+          .map((g) => `${esc(g.ten_diem_di)} → ${esc(g.ten_diem_den)}: ${tien(g.gia_goc)} × ${heSo} → <strong>${tien(lamTronGia(g.gia_goc * heSo))}</strong>`)
+          .join("<br>");
+        o.innerHTML = `${canhBao}Giá bán theo bộ giá hiện tại:<br>${dong}`;
+      }
+      o.hidden = false;
+    }
+    heSoGia.addEventListener("input", () => capNhatXemGia(selectTuyen.value, Number(heSoGia.value), xemGia));
+
+    const modalHeSo = document.getElementById("modal-he-so");
+    const hsInput = document.getElementById("hs_he_so_gia");
+    const hsXemGia = document.getElementById("hs-xem-gia");
+    const hsLoi = document.getElementById("hs-loi");
+    let capDangDoiHeSo = null;
+
+    function moModalHeSo(cap) {
+      capDangDoiHeSo = cap;
+      document.getElementById("hs-tieu-de").textContent = `Hệ số giá — ${cap.ten_tuyen}, đi ${gioNgan(cap.xuoi.gio_khoi_hanh)} / về ${gioNgan(cap.nguoc.gio_khoi_hanh)}`;
+      hsInput.value = Number(cap.he_so_gia);
+      hsLoi.hidden = true;
+      boGiaTheoTuyen.delete(cap.tuyen_id);
+      capNhatXemGia(cap.tuyen_id, Number(cap.he_so_gia), hsXemGia);
+      modalHeSo.hidden = false;
+    }
+    hsInput.addEventListener("input", () => capNhatXemGia(capDangDoiHeSo.tuyen_id, Number(hsInput.value), hsXemGia));
+    document.getElementById("hs-btn-huy").addEventListener("click", () => { modalHeSo.hidden = true; });
+    document.getElementById("form-he-so").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hsLoi.hidden = true;
+      try {
+        await apiPatch(`/quan-ly/lich-chay/cap/${capDangDoiHeSo.cap_id}/he-so-gia`, { he_so_gia: Number(hsInput.value) });
+        modalHeSo.hidden = true;
+        taiDanhSach();
+      } catch (err) {
+        hsLoi.textContent = err.message;
+        hsLoi.hidden = false;
+      }
+    });
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       loiForm.hidden = true;
+      if (!loaiXe.value) {
+        loiForm.textContent = "Hãy chọn loại xe cho lịch chạy";
+        loiForm.hidden = false;
+        return;
+      }
 
       const id = document.getElementById("lich_id").value;
       const btn = form.querySelector("button[type=submit]");
@@ -721,6 +889,7 @@ Muốn đổi giờ/loại xe: bấm "Ngừng" cặp này rồi tạo cặp lị
             loai_xe_id: loaiXe.value,
             gio_xuoi: gioXuoi.value,
             gio_nguoc: gioNguoc.value,
+            he_so_gia: Number(heSoGia.value),
           });
         }
         modalOverlay.hidden = true;

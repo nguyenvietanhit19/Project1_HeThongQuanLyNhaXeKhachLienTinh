@@ -22,5 +22,9 @@ class KhongTimThay(Exception):
     """Không tìm thấy bản ghi được yêu cầu — HTTP 404."""
 
 
+class XungDot(Exception):
+    """Dữ liệu đã bị người khác sửa trong lúc mình đang mở form (khóa lạc quan theo `phien_ban`) — HTTP 409."""
+
+
 class LoiHeThong(Exception):
     """Lỗi hạ tầng (gửi email thất bại...) — HTTP 500."""

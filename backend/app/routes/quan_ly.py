@@ -32,6 +32,7 @@ from app.schemas.gia_ve_schema import (
 from app.schemas.lich_chay_schema import (
     CapLichChayResponse,
     DoiApDungRequest,
+    DoiHeSoGiaRequest,
     SinhChuyenRequest,
     SinhChuyenResponse,
     SuaLichChayRequest,
@@ -157,12 +158,14 @@ def chi_tiet_tuyen(tuyen_id: UUID):
 # ---------------------------------------------------------
 @router.post("/loai-xe", response_model=LoaiXeResponse, status_code=201)
 def tao_loai_xe(du_lieu: LoaiXeRequest):
-    return xe_service.tao_loai_xe(du_lieu.ten, du_lieu.he_so_gia, [g.model_dump() for g in du_lieu.so_do_ghe])
+    return xe_service.tao_loai_xe(du_lieu.ten, [g.model_dump() for g in du_lieu.so_do_ghe], du_lieu.he_so_ghe)
 
 
 @router.put("/loai-xe/{loai_xe_id}")
 def sua_loai_xe(loai_xe_id: UUID, du_lieu: LoaiXeRequest):
-    xe_service.sua_loai_xe(str(loai_xe_id), du_lieu.ten, du_lieu.he_so_gia, [g.model_dump() for g in du_lieu.so_do_ghe])
+    xe_service.sua_loai_xe(
+        str(loai_xe_id), du_lieu.ten, [g.model_dump() for g in du_lieu.so_do_ghe], du_lieu.he_so_ghe, du_lieu.phien_ban
+    )
     return {"thong_bao": "Cập nhật loại xe thành công"}
 
 
@@ -288,6 +291,7 @@ def tao_cap_lich_chay(du_lieu: TaoCapLichChayRequest):
         str(du_lieu.tuyen_id),
         {"gio_khoi_hanh": du_lieu.gio_xuoi, "loai_xe_id": str(du_lieu.loai_xe_id)},
         {"gio_khoi_hanh": du_lieu.gio_nguoc, "loai_xe_id": str(du_lieu.loai_xe_id)},
+        du_lieu.he_so_gia,
     )
 
 
@@ -299,6 +303,11 @@ def xem_truoc_cap_lich_chay(tuyen_id: UUID, gio_xuoi: time, gio_nguoc: time):
 @router.put("/lich-chay/{lich_id}", response_model=CapLichChayResponse)
 def sua_lich_chay(lich_id: UUID, du_lieu: SuaLichChayRequest):
     return lich_chay_service.sua_lich_chay(str(lich_id), du_lieu.gio_khoi_hanh, str(du_lieu.loai_xe_id))
+
+
+@router.patch("/lich-chay/cap/{cap_id}/he-so-gia", response_model=CapLichChayResponse)
+def doi_he_so_gia_cap_lich_chay(cap_id: UUID, du_lieu: DoiHeSoGiaRequest):
+    return lich_chay_service.doi_he_so_gia_cap(str(cap_id), du_lieu.he_so_gia)
 
 
 @router.patch("/lich-chay/cap/{cap_id}/ap-dung", response_model=CapLichChayResponse)

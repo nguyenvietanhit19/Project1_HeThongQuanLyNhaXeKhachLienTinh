@@ -3,6 +3,7 @@ chuyến (riêng bộ cuối vẫn kéo dài/rút ngắn được), cảnh báo 
 monkeypatch, không cần DB."""
 
 import datetime
+from decimal import Decimal
 
 import pytest
 
@@ -107,6 +108,13 @@ def test_tao_bo_chang_sai_chieu_hoac_ngoai_tuyen_bi_chan(moi_truong):
 def test_tao_bo_chang_bi_nhap_hai_lan_bi_chan(moi_truong):
     with pytest.raises(GiaTriLoi, match="2 lần"):
         gv.tao_bo("t1", None, ngay(30), cac_gia() + [{"diem_di_id": A, "diem_den_id": B, "gia_goc": 1}])
+
+
+def test_tao_bo_gia_goc_khong_phai_boi_so_10000_bi_chan(moi_truong):
+    with pytest.raises(GiaTriLoi, match="bội số của 10.000đ"):
+        gv.tao_bo("t1", None, ngay(30), cac_gia(ab=315_000))
+    with pytest.raises(GiaTriLoi, match="bội số của 10.000đ"):
+        gv.xem_truoc_tao_bo("t1", None, ngay(30), cac_gia(bc=255_000))
 
 
 def test_tao_bo_ke_tiep_tu_dong_bat_dau_ngay_lien_sau_bo_truoc(moi_truong):
@@ -222,7 +230,7 @@ def test_sua_bo_khong_phai_cuoi_da_khoa_khong_doi_duoc_gi(moi_truong):
     moi_truong["bo"] = [bo("a", ngay(-30), ngay(40)), bo("b", ngay(41), ngay(70))]
     moi_truong["so_chuyen"] = 5
     with pytest.raises(GiaTriLoi, match="5 chuyến"):
-        gv.sua_bo("a", None, ngay(40), cac_gia(ab=999_999))
+        gv.sua_bo("a", None, ngay(40), cac_gia(ab=990_000))
 
 
 def test_xem_truoc_sua_bo_da_khoa_doi_gia_cung_bi_chan(moi_truong):
@@ -324,7 +332,6 @@ def test_danh_sach_bo_danh_dau_bo_cuoi_khoa_va_ngay_chuyen_cuoi(moi_truong):
     assert ds["mot"]["trang_thai"] == "dang_ap_dung" and ds["hai"]["trang_thai"] == "sap_ap_dung"
     assert ds["mot"]["la_bo_cuoi"] is False and ds["hai"]["la_bo_cuoi"] is True
     assert ds["mot"]["khoa"] is True and ds["mot"]["so_chuyen_da_sinh"] == 4 and ds["mot"]["ngay_chuyen_cuoi"] == ngay(9)
-    assert ds["mot"]["cac_cap_thieu_gia"] == []
 
 
 def test_khoang_ngay_co_gia(moi_truong):
@@ -344,14 +351,7 @@ def test_ngay_chua_co_gia_bo_thieu_chang_cung_tinh_la_chua_co(moi_truong):
     assert gv.ngay_chua_co_gia("t1", [HOM_NAY]) == [HOM_NAY]
 
 
-def test_cac_cap_thieu_gia(moi_truong):
-    assert gv.cac_cap_thieu_gia("t1") == ["KV-A → KV-B", "KV-A → KV-C", "KV-B → KV-C"]  # chưa có bộ nào
-    moi_truong["bo"] = [bo("b", ngay(-5), ngay(10), cac_gia()[:2])]
-    assert gv.cac_cap_thieu_gia("t1") == ["KV-B → KV-C"]
-    moi_truong["bo"] = [bo("b", ngay(-5), ngay(10))]
-    assert gv.cac_cap_thieu_gia("t1") == []
-    moi_truong["bo"] = [bo("b", ngay(-50), ngay(-10))]  # bộ duy nhất đã hết hạn → coi như chưa có giá
-    assert len(gv.cac_cap_thieu_gia("t1")) == 3
+
 
 
 # ---------- bảng giá hiển thị ở chi tiết chuyến ----------
@@ -359,8 +359,31 @@ def test_bang_gia_chuyen_di_doc_theo_chieu_di_va_nhan_he_so(moi_truong):
     moi_truong["bo"] = [bo("b", ngay(-5), ngay(40), gia_co_ten())]
     kq = gv.bang_gia_cua_chuyen("t1", "xuoi", HOM_NAY, "1.5")
     assert [(c["ten_chang"], c["gia_goc"], c["gia_ban"]) for c in kq["cac_chang"]] == [
-        ("KV-A → KV-B", 300_000, 450_000), ("KV-A → KV-C", 500_000, 750_000), ("KV-B → KV-C", 250_000, 375_000)]
+        ("KV-A → KV-B", 300_000, 450_000), ("KV-A → KV-C", 500_000, 750_000), ("KV-B → KV-C", 250_000, 380_000)]  # 375.000 làm tròn nửa-lên tới 10.000
     assert kq["ap_dung_tu"] == ngay(-5)
+
+
+def test_bang_gia_chuyen_co_he_so_ghe_hien_khoang_gia_thap_cao_va_nhom_ghe(moi_truong):
+    moi_truong["bo"] = [bo("b", ngay(-5), ngay(40), gia_co_ten())]
+    # chặng A–B gốc 300.000, hệ số chuyến 1: A1 ×1,2 → 360.000; A2 ×0,8 → 240.000; A3 giá thường 300.000
+    kq = gv.bang_gia_cua_chuyen("t1", "xuoi", HOM_NAY, "1", ["A1", "A2", "A3"], {"A1": 1.2, "A2": 0.8})
+    ab = kq["cac_chang"][0]
+    assert (ab["gia_ban"], ab["gia_thap_nhat"], ab["gia_cao_nhat"]) == (300_000, 240_000, 360_000)
+    assert ab["gia_theo_ghe"] == {"A1": 360_000, "A2": 240_000, "A3": 300_000}  # giá TỪNG ghế ở chặng này, để vẽ sơ đồ có giá
+    assert kq["cac_nhom_ghe"] == [{"he_so": Decimal("0.8"), "cac_ghe": ["A2"]}, {"he_so": Decimal("1.2"), "cac_ghe": ["A1"]}]
+
+
+def test_bang_gia_chuyen_khong_co_he_so_ghe_thi_thap_nhat_bang_cao_nhat(moi_truong):
+    moi_truong["bo"] = [bo("b", ngay(-5), ngay(40), gia_co_ten())]
+    kq = gv.bang_gia_cua_chuyen("t1", "xuoi", HOM_NAY, "1.5", ["A1", "A2"], {})
+    assert all(c["gia_thap_nhat"] == c["gia_ban"] == c["gia_cao_nhat"] for c in kq["cac_chang"])
+    assert kq["cac_nhom_ghe"] == []
+
+
+def test_bang_gia_chuyen_goi_kieu_cu_khong_truyen_ghe_van_chay(moi_truong):
+    moi_truong["bo"] = [bo("b", ngay(-5), ngay(40), gia_co_ten())]
+    kq = gv.bang_gia_cua_chuyen("t1", "xuoi", HOM_NAY, "1")
+    assert kq["cac_chang"][0]["gia_thap_nhat"] == kq["cac_chang"][0]["gia_ban"] and kq["cac_nhom_ghe"] == []
 
 
 def test_bang_gia_chuyen_ve_dao_chang_va_sap_theo_hanh_trinh_chieu_ve(moi_truong):

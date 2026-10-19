@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 class GiaChangRequest(BaseModel):
     diem_di_id: UUID = Field(..., description="Khu vực điểm đi")
     diem_den_id: UUID = Field(..., description="Khu vực điểm đến")
-    gia_goc: int = Field(..., gt=0, description="Giá ứng với hệ số giá = 1 (chưa nhân loai_xe.he_so_gia)")
+    gia_goc: int = Field(..., gt=0, description="Giá ứng với hệ số giá = 1 (chưa nhân hệ số giá của chuyến, lấy từ lịch chạy)")
 
 
 class BoGiaRequest(BaseModel):
@@ -58,7 +58,6 @@ class BoGiaResponse(BaseModel):
     khoa: bool = Field(False, description="True = đã được dùng để sinh chuyến: không sửa giá/ngày bắt đầu, không xóa")
     la_bo_cuoi: bool = Field(False, description="Bộ cuối cùng của tuyến: chỉ bộ này đổi được ngày kết thúc / xóa được")
     ngay_chuyen_cuoi: date | None = Field(None, description="Ngày khởi hành xa nhất của chuyến đã sinh trong bộ (chỉ có khi bộ bị khóa)")
-    cac_cap_thieu_gia: list[str] = Field(default_factory=list, description="Chặng chưa có giá (chỉ dữ liệu cũ)")
     ngay_tao: datetime
     danh_sach_gia: list[GiaChangResponse]
 

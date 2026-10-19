@@ -49,7 +49,7 @@ def giu_ghe(
     diem_don_id: str,
     diem_tra_id: str,
     khach_hang_id: str,
-    gia: int,
+    gia_theo_ghe: dict[str, int],
     ma_dat_cho: str,
     han_giu_tam_phut: int,
 ) -> list[dict]:
@@ -115,7 +115,7 @@ def giu_ghe(
                     RETURNING id, so_ghe, gia, han_giu_cho_den
                     """,
                     (ma_tu_sinh.ma_ve(ma_repository.so_tiep_theo(cur, "ve")), chuyen_id, so_ghe, diem_don_id, diem_tra_id,
-                     khach_hang_id, gia, ma_dat_cho, han_giu_tam_phut),
+                     khach_hang_id, gia_theo_ghe[so_ghe], ma_dat_cho, han_giu_tam_phut),
                 )
                 ve_tao.append(_thanh_list(cur, [cur.fetchone()])[0])
         conn.commit()

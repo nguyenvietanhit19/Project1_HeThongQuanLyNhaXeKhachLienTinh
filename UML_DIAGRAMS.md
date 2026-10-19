@@ -207,7 +207,7 @@ rectangle "Hệ thống" {
   usecase "Quản lý khu vực\n(điểm đi, điểm đến)" as UC29
   usecase "Quản lý điểm đón, điểm trả" as UC30
   usecase "Tạo tuyến đường" as UC31
-  usecase "Quản lý loại xe\n(sơ đồ ghế, sức chứa, hệ số giá)" as UC32
+  usecase "Quản lý loại xe\n(sơ đồ ghế, sức chứa)" as UC32
   usecase "Đặt giá vé cho\ntừng cặp điểm" as UC33
   usecase "Thiết lập lịch chạy định kỳ\n(cặp chiều đi + chiều về)" as UC18
   usecase "Sinh chuyến từ lịch chạy\n(cả cặp, chọn khoảng ngày)" as UC47
@@ -1195,14 +1195,13 @@ endif
 
 ### UC-32. Quản lý loại xe
 
-*Mọi xe cùng loại phải giống hệt nhau — cùng sơ đồ ghế, cùng hệ số giá — chỉ khác biển số. Nhờ vậy khi 1 xe hỏng, đổi sang xe khác cùng loại luôn an toàn tuyệt đối, không ai bị ảnh hưởng.*
+*Mọi xe cùng loại phải giống hệt nhau — cùng sơ đồ ghế — chỉ khác biển số. Nhờ vậy khi 1 xe hỏng, đổi sang xe khác cùng loại luôn an toàn tuyệt đối, không ai bị ảnh hưởng.*
 
 ```plantuml
 @startuml AD_UC32_QuanLyLoaiXe
 start
 :Chọn thêm mới hoặc sửa một loại xe;
 :Nhập tên loại xe (ghế ngồi, giường đơn, cabin đôi...);
-:Nhập hệ số giá của loại xe đó so với giá gốc;
 :Nhập sơ đồ ghế ngồi áp dụng chung cho mọi xe thuộc loại này;
 :Lưu lại;
 stop

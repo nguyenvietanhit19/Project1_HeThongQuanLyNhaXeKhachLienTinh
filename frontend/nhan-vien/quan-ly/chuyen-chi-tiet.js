@@ -1,6 +1,6 @@
 /*
- * Modal "Chi tiết chuyến" dùng chung cho trang Chuyến và trang Lịch chạy — xem
- * lộ trình + mốc thời gian, sửa giờ, xóa (chỉ chuyến chưa gán xe/chưa khởi hành/
+ * Modal "Chi tiết chuyến" dùng chung cho trang Chuyến và trang Lịch chạy — xem sơ đồ ghế kèm giá từng ghế
+ * và trạng thái ghế, giá từng chặng, lộ trình + mốc thời gian, sửa giờ, xóa (chỉ chuyến chưa gán xe/chưa khởi hành/
  * chưa có vé). Cần api-client.js (apiGet/apiPut/apiDelete/htmlMa) nạp trước.
  *
  *   ChuyenChiTiet.mo(chuyenId, { onThayDoi })
@@ -107,27 +107,183 @@ const ChuyenChiTiet = (() => {
       </div>`;
   }
 
-  // Giá vé của chuyến: bộ giá áp dụng cho ngày khởi hành × hệ số loại xe (server tính); chưa có giá thì khách không thấy chuyến
-  function renderGiaVe(c) {
+  // ---------- Sơ đồ ghế kèm giá + bảng giá chặng ----------
+  // Giá = bộ giá áp dụng cho ngày khởi hành × hệ số giá của chuyến × hệ số từng ghế (đều chốt lúc sinh chuyến, server tính).
+  // Giá ghế phụ thuộc CHẶNG nên có bộ chọn chặng; mặc định chặng dài nhất (giá gốc cao nhất).
+  const tien = (n) => Number(n).toLocaleString("vi-VN") + "đ";
+  const soTien = (n) => Number(n).toLocaleString("vi-VN");
+  const HE_SO_VE = 1.5; // phóng to sơ đồ so với bản vẽ gốc (ghế gốc 40×30) cho dễ nhìn
+  const RONG_GHE = 40 * HE_SO_VE;
+  const CAO_GHE = 30 * HE_SO_VE;
+
+  let changDangChon = 0; // chỉ số trong bang_gia.cac_chang
+  let gheDangChon = null; // mã ghế đang bấm xem chi tiết
+
+  const NHAN_VE = {
+    giu_cho: "Đang giữ chỗ",
+    da_thanh_toan: "Đã thanh toán",
+    da_len_xe: "Đã lên xe",
+    da_xuong_xe: "Đã xuống xe",
+  };
+
+  // trống | giu (chỉ có vé giữ chỗ còn hạn) | ban (có vé đã thanh toán/lên/xuống xe — ở ít nhất 1 đoạn)
+  function trangThaiGhe(maGhe, cacVe) {
+    const ve = cacVe.filter((v) => v.so_ghe === maGhe);
+    if (ve.some((v) => v.trang_thai !== "giu_cho")) return "ban";
+    return ve.length ? "giu" : "trong";
+  }
+
+  const chonChangMacDinh = (bg) => {
+    if (!bg || !bg.cac_chang.length) return 0;
+    return bg.cac_chang.reduce((tot, ch, i, ds) => (ch.gia_goc > ds[tot].gia_goc ? i : tot), 0);
+  };
+
+  function renderTangSoDo(c, tang, chang) {
+    const ghe = c.so_do_ghe;
+    const minX = Math.min(...ghe.map((g) => g.x));
+    const minY = Math.min(...ghe.map((g) => g.y));
+    const rong = (Math.max(...ghe.map((g) => g.x)) - minX) * HE_SO_VE + RONG_GHE;
+    const cao = (Math.max(...ghe.map((g) => g.y)) - minY) * HE_SO_VE + CAO_GHE;
+    const nut = ghe
+      .filter((g) => g.tang === tang)
+      .map((g) => {
+        const tt = trangThaiGhe(g.ma_ghe, c.cac_ve_tren_ghe);
+        const heSo = Number(g.he_so);
+        const gia = chang ? chang.gia_theo_ghe[g.ma_ghe] ?? chang.gia_ban : null;
+        const lop = `ctn-ghe ctn-ghe--${tt}${heSo > 1 ? " ctn-ghe--dat" : heSo < 1 ? " ctn-ghe--re" : ""}${gheDangChon === g.ma_ghe ? " is-chon" : ""}`;
+        const veGhe = c.cac_ve_tren_ghe.filter((v) => v.so_ghe === g.ma_ghe);
+        const tieuDe = [
+          `Ghế ${g.ma_ghe}${heSo !== 1 ? ` — hệ số ×${heSo}` : ""}${gia != null ? ` — ${tien(gia)}` : ""}`,
+          ...veGhe.map((v) => `${v.ma_ve}: ${NHAN_VE[v.trang_thai] || v.trang_thai}, ${v.ten_diem_don} → ${v.ten_diem_tra}`),
+        ].join("\n");
+        return `<button type="button" class="${lop}" data-ghe="${esc(g.ma_ghe)}" title="${esc(tieuDe)}"
+                  style="left:${(g.x - minX) * HE_SO_VE}px; top:${(g.y - minY) * HE_SO_VE + 26}px; width:${RONG_GHE}px; height:${CAO_GHE}px">
+                  <b>${esc(g.ma_ghe)}</b>${gia != null ? `<span>${soTien(gia)}</span>` : ""}
+                </button>`;
+      })
+      .join("");
+    return `
+      <div class="ctn-tang">
+        ${c.so_tang > 1 ? `<div class="ctn-tang__ten">Tầng ${tang}</div>` : ""}
+        <div class="ctn-canvas" style="width:${rong}px; height:${cao + 26}px">
+          <div class="ctn-dau-xe">▲ Đầu xe</div>
+          ${nut}
+        </div>
+      </div>`;
+  }
+
+  function renderKhuSoDo() {
+    const c = chuyenDangXem;
+    const box = noiDung.querySelector("#ctn-khu-so-do");
+    if (!c.so_do_ghe.length) {
+      box.innerHTML = '<div class="ct-khong-gia">Loại xe của chuyến chưa có sơ đồ ghế.</div>';
+      return;
+    }
     const bg = c.bang_gia;
+    const chang = bg ? bg.cac_chang[changDangChon] : null;
+    const tong = c.so_do_ghe.length;
+    const dem = { ban: 0, giu: 0 };
+    c.so_do_ghe.forEach((g) => {
+      const tt = trangThaiGhe(g.ma_ghe, c.cac_ve_tren_ghe);
+      if (tt !== "trong") dem[tt]++;
+    });
+
+    box.innerHTML = `
+      ${
+        bg
+          ? `<div class="ctn-chang-chon" role="tablist" aria-label="Chặng xem giá ghế">
+               <span class="nv-text-phu">Giá ghế theo chặng:</span>
+               ${bg.cac_chang
+                 .map((ch, i) => `<button type="button" class="ctn-chang-nut${i === changDangChon ? " is-active" : ""}" data-chang="${i}" role="tab">${esc(ch.ten_chang)}</button>`)
+                 .join("")}
+             </div>`
+          : '<div class="ct-khong-gia">Chưa có bộ giá vé áp dụng cho ngày này — sơ đồ chưa có giá, khách không thấy chuyến này (mục Giá vé).</div>'
+      }
+      <div class="ctn-chu-thich">
+        <span><i class="ctn-mau ctn-ghe--trong"></i>Trống (${tong - dem.ban - dem.giu})</span>
+        <span><i class="ctn-mau ctn-ghe--giu"></i>Đang giữ chỗ (${dem.giu})</span>
+        <span><i class="ctn-mau ctn-ghe--ban"></i>Có vé (${dem.ban})</span>
+        <span class="ctn-chu-thich__gia"><b class="ctn-gia-dat">Giá cam</b> = đắt hơn ghế thường · <b class="ctn-gia-re">Giá xanh</b> = rẻ hơn</span>
+      </div>
+      <div class="ctn-so-do">${Array.from({ length: c.so_tang }, (_, i) => renderTangSoDo(c, i + 1, chang)).join("")}</div>
+      <div class="ctn-ghe-info" id="ctn-ghe-info"></div>`;
+
+    box.querySelectorAll("[data-chang]").forEach((b) =>
+      b.addEventListener("click", () => {
+        changDangChon = Number(b.dataset.chang);
+        renderKhuSoDo();
+        renderBangChang();
+      })
+    );
+    box.querySelectorAll("[data-ghe]").forEach((b) =>
+      b.addEventListener("click", () => {
+        gheDangChon = gheDangChon === b.dataset.ghe ? null : b.dataset.ghe;
+        renderKhuSoDo();
+      })
+    );
+    renderThongTinGhe();
+  }
+
+  // Thông tin ghế đang bấm: tầng, hệ số, giá ở từng chặng, các vé đang chiếm ghế
+  function renderThongTinGhe() {
+    const c = chuyenDangXem;
+    const o = noiDung.querySelector("#ctn-ghe-info");
+    const g = c.so_do_ghe.find((x) => x.ma_ghe === gheDangChon);
+    if (!g) {
+      o.innerHTML = '<span class="nv-text-phu">Bấm vào một ghế để xem giá ở từng chặng và các vé đang giữ ghế đó.</span>';
+      return;
+    }
+    const heSo = Number(g.he_so);
+    const bg = c.bang_gia;
+    const giaTungChang = bg
+      ? bg.cac_chang.map((ch) => `<div><span>${esc(ch.ten_chang)}</span><b>${tien(ch.gia_theo_ghe[g.ma_ghe] ?? ch.gia_ban)}</b></div>`).join("")
+      : "";
+    const ve = c.cac_ve_tren_ghe.filter((v) => v.so_ghe === g.ma_ghe);
+    o.innerHTML = `
+      <div class="ctn-ghe-info__tieu"><strong>Ghế ${esc(g.ma_ghe)}</strong>${c.so_tang > 1 ? ` · Tầng ${g.tang}` : ""} · ${heSo === 1 ? "giá thường (hệ số 1)" : `hệ số ghế ×${heSo}`}</div>
+      ${giaTungChang ? `<div class="ctn-ghe-info__chang">${giaTungChang}</div>` : ""}
+      ${
+        ve.length
+          ? `<div class="ctn-ghe-info__ve">${ve
+              .map((v) => `<div>${htmlMa(esc(v.ma_ve))} <span class="pill pill--nho ${v.trang_thai === "giu_cho" ? "pill--gia-thoi-han" : "pill--gia-vinh-vien"}">${NHAN_VE[v.trang_thai] || esc(v.trang_thai)}</span> ${esc(v.ten_diem_don)} → ${esc(v.ten_diem_tra)} · <b>${tien(v.gia)}</b></div>`)
+              .join("")}</div>`
+          : '<div class="nv-text-phu">Ghế đang trống.</div>'
+      }`;
+  }
+
+  // Bảng giá từng chặng (giá gốc, giá ghế thường, khoảng giá khi các ghế khác giá) — bấm 1 dòng để xem giá ghế theo chặng đó
+  function renderBangChang() {
+    const c = chuyenDangXem;
+    const bg = c.bang_gia;
+    const box = noiDung.querySelector("#ctn-bang-chang");
     if (!bg) {
-      return `
-        <div class="cy-ct__tieu-de">Giá vé</div>
-        <div class="ct-khong-gia">Chưa có bộ giá vé áp dụng cho ngày này — khách không thấy chuyến này (mục Giá vé).</div>`;
+      box.innerHTML = "";
+      return;
     }
     const ngayAp = bg.ap_dung_tu.split("-").reverse().join("/");
     const heSo = Number(bg.he_so_gia);
     const hang = bg.cac_chang
-      .map((g) => `
-        <div class="ct-gia__hang">
-          <span class="ct-gia__chang">${esc(g.ten_chang)}</span>
-          <span class="ct-gia__goc">${heSo !== 1 ? Number(g.gia_goc).toLocaleString("vi-VN") + "đ" : ""}</span>
-          <strong class="ct-gia__ban">${Number(g.gia_ban).toLocaleString("vi-VN")}đ</strong>
-        </div>`)
+      .map((g, i) => `
+        <button type="button" class="ctn-chang-hang${i === changDangChon ? " is-active" : ""}" data-chang="${i}">
+          <span class="ctn-chang-hang__ten">${esc(g.ten_chang)}</span>
+          <span class="ctn-chang-hang__goc">${heSo !== 1 ? `gốc ${tien(g.gia_goc)}` : ""}</span>
+          <strong>${g.gia_thap_nhat === g.gia_cao_nhat ? tien(g.gia_ban) : `${tien(g.gia_thap_nhat)} – ${tien(g.gia_cao_nhat)}`}</strong>
+        </button>`)
       .join("");
-    return `
-      <div class="cy-ct__tieu-de">Giá vé <span class="nv-text-phu">· bộ giá từ ${ngayAp}${heSo !== 1 ? ` · hệ số loại xe ×${heSo}` : ""}</span></div>
-      <div class="ct-gia">${hang}</div>`;
+    const nhom = (bg.cac_nhom_ghe || [])
+      .map((n) => `<div class="ct-gia__nhom"><b>×${Number(n.he_so)}</b> <span>${n.cac_ghe.map(esc).join(", ")}</span></div>`)
+      .join("");
+    box.innerHTML = `
+      <div class="cy-ct__tieu-de">Giá vé từng chặng <span class="nv-text-phu">· bộ giá từ ${ngayAp}${heSo !== 1 ? ` · hệ số chuyến ×${heSo}` : ""}</span></div>
+      <div class="ctn-chang-ds">${hang}</div>
+      ${nhom ? `<div class="ct-gia__nhom-ds"><div class="nv-text-phu">Ghế khác giá (hệ số ghế đã chốt lúc sinh chuyến) — ghế còn lại giá thường:</div>${nhom}</div>` : ""}`;
+    box.querySelectorAll("[data-chang]").forEach((b) =>
+      b.addEventListener("click", () => {
+        changDangChon = Number(b.dataset.chang);
+        renderKhuSoDo();
+        renderBangChang();
+      })
+    );
   }
 
   // ---------- Modal ----------
@@ -142,7 +298,7 @@ const ChuyenChiTiet = (() => {
     modal.className = "nv-modal-overlay";
     modal.hidden = true;
     modal.innerHTML = `
-      <div class="nv-modal" style="max-width:600px;">
+      <div class="nv-modal ctn-modal">
         <div class="nv-modal__header">
           <div class="nv-modal__header-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -155,6 +311,9 @@ const ChuyenChiTiet = (() => {
       </div>`;
     document.body.appendChild(modal);
     noiDung = modal.querySelector("#ct-noi-dung");
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) modal.hidden = true;
+    });
   }
 
   async function mo(chuyenId, tuyChon = {}) {
@@ -166,6 +325,8 @@ const ChuyenChiTiet = (() => {
     try {
       chuyenDangXem = await apiGet(`/quan-ly/chuyen/${chuyenId}`);
       await napDiemTuyen(chuyenDangXem.tuyen_id);
+      changDangChon = chonChangMacDinh(chuyenDangXem.bang_gia);
+      gheDangChon = null;
       renderChiTiet();
     } catch (err) {
       noiDung.innerHTML = `<div class="text-error">${esc(err.message)}</div><div class="nv-modal__actions"><button type="button" class="nv-btn-secondary" id="ct-btn-dong">Đóng</button></div>`;
@@ -178,6 +339,7 @@ const ChuyenChiTiet = (() => {
     const d = new Date(c.gio_khoi_hanh);
     const ngayGioHienThi = `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()} · ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
     const coTheSua = suaXoaDuoc(c);
+    const heSoChuyen = Number(c.he_so_gia);
 
     noiDung.innerHTML = `
       <div class="cy-ct-dau" style="--mau:${mauTrangThai(c.trang_thai)}">
@@ -190,26 +352,24 @@ const ChuyenChiTiet = (() => {
         <span class="pill pill--nho ${pillTrangThai(c.trang_thai)}">${NHAN_TRANG_THAI[c.trang_thai] || c.trang_thai}</span>
       </div>
 
-      <div class="ct-dong">
-        <span class="nv-label" style="margin:0;">Mã chuyến</span>
-        ${htmlMa(esc(c.ma))}
-      </div>
-      <div class="ct-dong">
-        <span class="nv-label" style="margin:0;">Loại xe</span>
-        <span class="pill pill--nho pill--khu-vuc">${esc(c.ma_loai_xe)} · ${esc(c.ten_loai_xe)}</span>
-      </div>
-      <div class="ct-dong">
-        <span class="nv-label" style="margin:0;">Xe</span>
-        ${c.bien_so_xe ? `<span class="pill pill--nho pill--gia-vinh-vien">${esc(c.bien_so_xe)}</span>` : '<span class="pill pill--nho pill--gia-thoi-han">Chưa gán xe</span>'}
-      </div>
-      <div class="ct-dong">
-        <span class="nv-label" style="margin:0;">Vé đang giữ/đã bán</span>
-        <span class="nv-text-phu">${c.so_ve_dang_hoat_dong}</span>
+      <div class="ctn-meta">
+        <div><span>Mã chuyến</span>${htmlMa(esc(c.ma))}</div>
+        <div><span>Loại xe</span><b>${esc(c.ma_loai_xe)} · ${esc(c.ten_loai_xe)}</b><em>${c.so_do_ghe.length} ghế${c.so_tang > 1 ? ` · ${c.so_tang} tầng` : ""}</em></div>
+        <div><span>Xe</span>${c.bien_so_xe ? `<span class="pill pill--nho pill--gia-vinh-vien">${esc(c.bien_so_xe)}</span>` : '<span class="pill pill--nho pill--gia-thoi-han">Chưa gán xe</span>'}</div>
+        <div><span>Vé đang giữ / đã bán</span><b>${c.so_ve_dang_hoat_dong}</b></div>
+        <div><span>Hệ số giá chuyến</span><b>×${heSoChuyen}</b></div>
       </div>
 
-      ${renderGiaVe(c)}
-
-      ${renderLoTrinhChuyen(c)}
+      <div class="ctn-luoi">
+        <section class="ctn-cot ctn-cot--so-do">
+          <div class="cy-ct__tieu-de">Sơ đồ ghế &amp; giá</div>
+          <div id="ctn-khu-so-do"></div>
+        </section>
+        <section class="ctn-cot">
+          <div id="ctn-bang-chang"></div>
+          ${renderLoTrinhChuyen(c)}
+        </section>
+      </div>
 
       <div id="ct-form-sua" hidden></div>
 
@@ -223,6 +383,9 @@ const ChuyenChiTiet = (() => {
       </div>
       ${coTheSua ? "" : `<p class="nv-hint" style="margin-top:10px;">${lyDoKhongSuaDuoc(c)} — không thể sửa/xóa ở đây.</p>`}
     `;
+
+    renderKhuSoDo();
+    renderBangChang();
 
     noiDung.querySelector("#ct-btn-dong").addEventListener("click", () => {
       modal.hidden = true;

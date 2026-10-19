@@ -214,7 +214,7 @@ def giu_cho(
         diem_don_id=str(diem_don_id),
         diem_tra_id=str(diem_tra_id),
         khach_hang_id=nguoi_dung_id,
-        gia=gia_info["gia"],
+        gia_theo_ghe={g: gia_info["gia_theo_ghe"][g] for g in ghe},
         ma_dat_cho=ma_dat_cho,
         han_giu_tam_phut=HAN_GIU_TAM_PHUT,
     )

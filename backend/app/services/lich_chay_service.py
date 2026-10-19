@@ -99,6 +99,7 @@ def _dung_cap(lich_cua_cap: list[dict]) -> dict:
         "ten_tuyen": xuoi["ten_tuyen"],
         "tong_phut": xuoi["tong_phut"],
         "ngay_lech": nguoc["ngay_lech"],
+        "he_so_gia": xuoi["he_so_gia"],
         "dang_ap_dung": xuoi["dang_ap_dung"] and nguoc["dang_ap_dung"],
         "so_chuyen_da_sinh": xuoi["so_chuyen_da_sinh"] + nguoc["so_chuyen_da_sinh"],
         "gio_den_chieu_di": _gio_tu_phut(den),
@@ -115,7 +116,7 @@ def _lay_cap(cap_id: str) -> list[dict]:
     return lich
 
 
-def tao_cap_lich_chay(tuyen_id: str, xuoi: dict, nguoc: dict) -> dict:
+def tao_cap_lich_chay(tuyen_id: str, xuoi: dict, nguoc: dict, he_so_gia=1) -> dict:
     """xuoi/nguoc: {gio_khoi_hanh, loai_xe_id}. Tạo đồng thời cả 2 lịch hoặc không tạo gì."""
     if not dia_diem_repo.tim_tuyen_theo_id(tuyen_id):
         raise GiaTriLoi("Tuyến không tồn tại")
@@ -129,7 +130,7 @@ def tao_cap_lich_chay(tuyen_id: str, xuoi: dict, nguoc: dict) -> dict:
 
     kiem_tra_gio_cap(xuoi["gio_khoi_hanh"], nguoc["gio_khoi_hanh"], tong)
     ngay_lech = tinh_ngay_lech(xuoi["gio_khoi_hanh"], nguoc["gio_khoi_hanh"], tong)
-    cap_id = repo.tao_cap(tuyen_id, xuoi, nguoc, ngay_lech)
+    cap_id = repo.tao_cap(tuyen_id, xuoi, nguoc, ngay_lech, he_so_gia)
     return _dung_cap(repo.lich_cua_cap(cap_id))
 
 
@@ -138,14 +139,11 @@ def danh_sach_cap(tuyen_id: str | None = None) -> list[dict]:
     for lich in repo.danh_sach(tuyen_id):
         theo_cap.setdefault(lich["cap_id"], []).append(lich)
     cac_cap = [_dung_cap(v) for v in theo_cap.values() if len(v) == 2]
-    thieu_gia_theo_tuyen: dict = {}
     khoang_gia_theo_tuyen: dict = {}
     for cap in cac_cap:
         tid = str(cap["tuyen_id"])
-        if tid not in thieu_gia_theo_tuyen:
-            thieu_gia_theo_tuyen[tid] = gia_ve_service.cac_cap_thieu_gia(tid)
+        if tid not in khoang_gia_theo_tuyen:
             khoang_gia_theo_tuyen[tid] = gia_ve_service.khoang_ngay_co_gia(tid)
-        cap["cac_cap_thieu_gia"] = thieu_gia_theo_tuyen[tid]
         khoang = khoang_gia_theo_tuyen[tid]
         cap["sinh_chuyen_tu_ngay"] = khoang[0] if khoang else None
         # chuyến về chạy sau chuyến đi `ngay_lech` ngày nên chuyến đi phải sớm hơn ngày cuối bộ giá chừng đó để cả chu kỳ còn trong bộ
@@ -179,6 +177,14 @@ def sua_lich_chay(lich_id: str, gio_khoi_hanh, loai_xe_id: str) -> dict:
     ngay_lech = tinh_ngay_lech(gio["xuoi"], gio["nguoc"], tong)
     repo.sua(lich_id, gio_khoi_hanh, loai_xe_id, str(lich["cap_id"]), ngay_lech)
     return _dung_cap(repo.lich_cua_cap(str(lich["cap_id"])))
+
+
+def doi_he_so_gia_cap(cap_id: str, he_so_gia) -> dict:
+    """Hệ số giá luôn sửa được (kể cả cặp đã sinh chuyến) vì mỗi chuyến đã chốt hệ số riêng lúc sinh: hệ số mới chỉ áp dụng
+    cho chuyến sinh sau đó."""
+    _lay_cap(cap_id)
+    repo.doi_he_so_gia_cap(cap_id, he_so_gia)
+    return _dung_cap(repo.lich_cua_cap(cap_id))
 
 
 def doi_ap_dung_cap(cap_id: str, dang_ap_dung: bool) -> dict:

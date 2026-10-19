@@ -32,7 +32,8 @@ class ChuyenTimThay(BaseModel):
     ten_diem_tra: str
     ma_loai_xe: str
     ten_loai_xe: str
-    gia: int
+    gia: int  # giá thấp nhất của chuyến (ghế rẻ nhất)
+    gia_cao_nhat: int  # giá cao nhất — bằng `gia` khi mọi ghế cùng giá
     so_ghe_trong: int
     tong_ghe: int
     bien_so: str | None = None
@@ -45,6 +46,7 @@ class GheTrongSoDo(BaseModel):
     x: float
     y: float
     trang_thai: Literal["trong", "da_co_nguoi"]
+    gia: int
 
 
 class DiemTrenChuyen(BaseModel):
