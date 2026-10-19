@@ -188,7 +188,7 @@ function theChuyen(c) {
   // Còn ghế: cả thẻ là nút bấm (mở sơ đồ ghế); hết chỗ: thẻ mờ, không bấm được
   const thuocTinh = het
     ? 'aria-disabled="true"'
-    : `role="button" tabindex="0" data-chuyen="${esc(c.id)}" aria-label="Chọn chuyến ${gioVN(c.gio_don_du_kien)} từ ${esc(c.ten_diem_don)}, giá ${tien(c.gia)}"`;
+    : `role="button" tabindex="0" data-chuyen="${esc(c.id)}" aria-label="Chọn chuyến ${gioVN(c.gio_don_du_kien)} từ ${esc(c.ten_diem_don)}, ${c.gia === c.gia_cao_nhat ? "giá" : "giá từ"} ${tien(c.gia)}"`;
   return `
     <article class="tk-chuyen${het ? " tk-chuyen--het" : ""}" ${thuocTinh}>
       <div class="tk-chuyen__chinh">
@@ -208,7 +208,7 @@ function theChuyen(c) {
         </div>
       </div>
       <div class="tk-chuyen__gia">
-        <small>Giá vé</small>
+        <small>${c.gia === c.gia_cao_nhat ? "Giá vé" : "Giá từ"}</small>
         <b>${tien(c.gia)}</b>
         ${
           het

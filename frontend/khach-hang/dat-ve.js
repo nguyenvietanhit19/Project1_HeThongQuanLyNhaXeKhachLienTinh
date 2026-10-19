@@ -137,7 +137,11 @@ function veTang(ghe, tang, tl, soTang) {
       const chon = gheDangChon.has(g.ma_ghe);
       const lop = !trong ? "tc-ghe--co-nguoi" : chon ? "tc-ghe--trong tc-ghe--chon" : "tc-ghe--trong";
       const nhan = !trong ? "đã có người" : chon ? "đang chọn" : "trống";
-      return `<span class="tc-ghe ${lop}" ${trong ? `data-ghe="${esc(g.ma_ghe)}" role="button" tabindex="0" aria-pressed="${chon}"` : ""} style="left:${g.x - tl.minX + 16}px; top:${g.y - tl.minY + 32}px" title="${esc(g.ma_ghe)} — ${nhan}">${esc(g.ma_ghe)}</span>`;
+      // Các ghế khác giá nhau (hệ số ghế) thì ghi giá ngay trên ghế; chuyến cùng giá thì giữ nguyên như cũ
+      const giaKhac = chuyenXem && chuyenXem.gia !== chuyenXem.gia_cao_nhat;
+      const giaGhe = giaKhac ? `<em class="tc-ghe__gia">${Math.round(g.gia / 1000)}k</em>` : "";
+      const tieuDe = `${g.ma_ghe} — ${nhan}${giaKhac ? ` — ${tien(g.gia)}` : ""}`;
+      return `<span class="tc-ghe ${lop}${giaKhac ? " tc-ghe--co-gia" : ""}" ${trong ? `data-ghe="${esc(g.ma_ghe)}" role="button" tabindex="0" aria-pressed="${chon}"` : ""} style="left:${g.x - tl.minX + 16}px; top:${g.y - tl.minY + 32}px" title="${esc(tieuDe)}">${esc(g.ma_ghe)}${giaGhe}</span>`;
     })
     .join("");
   return `
@@ -256,7 +260,7 @@ function veSoDo(loi = "") {
     ${dauChuyen(ct)}
     <div class="tc-so-do__thong-tin tc-so-do__thong-tin--giua">
       <span class="tc-the">${esc(ct.ten_loai_xe)}</span>
-      <span class="tc-the">${tien(ct.gia)}/ghế</span>
+      <span class="tc-the">${ct.gia === ct.gia_cao_nhat ? tien(ct.gia) : `${tien(ct.gia)} – ${tien(ct.gia_cao_nhat)}`}/ghế</span>
       <span class="tc-the ${ct.so_ghe_trong === 0 ? "tc-the--het" : ct.so_ghe_trong <= 5 ? "tc-the--ghe-it" : "tc-the--ghe-nhieu"}">${ct.so_ghe_trong === 0 ? "Hết chỗ" : `Còn ${ct.so_ghe_trong}/${ct.tong_ghe} ghế`}</span>
       ${ct.bien_so ? `<span class="tc-the">Xe ${esc(ct.bien_so)}</span>` : ""}
       ${ct.dang_hoan ? '<span class="tc-the tc-the--hoan">Đang hoãn — giờ có thể thay đổi</span>' : ""}
@@ -288,11 +292,17 @@ function veSoDo(loi = "") {
   document.getElementById("btn-xem-lo-trinh").addEventListener("click", moLoTrinh);
 }
 
+// Mỗi ghế có thể có giá riêng (hệ số ghế) nên tổng = cộng giá từng ghế đã chọn, không phải số ghế × 1 giá
+function tongGiaGheDangChon(ct) {
+  const giaTheoGhe = new Map(ct.so_do_ghe.map((g) => [g.ma_ghe, g.gia]));
+  return [...gheDangChon].reduce((t, ma) => t + (giaTheoGhe.get(ma) ?? ct.gia), 0);
+}
+
 function capNhatThanhChon() {
   const ct = chuyenXem;
   const n = gheDangChon.size;
   document.getElementById("tc-dat-tt").innerHTML = n
-    ? `<b>${n} ghế:</b> ${[...gheDangChon].map(esc).join(", ")} <span class="tc-dat-thanh__tong">${tien(n * ct.gia)}</span>`
+    ? `<b>${n} ghế:</b> ${[...gheDangChon].map(esc).join(", ")} <span class="tc-dat-thanh__tong">${tien(tongGiaGheDangChon(ct))}</span>`
     : "Chọn ghế trên sơ đồ để đặt vé";
   document.getElementById("btn-sang-diem").disabled = n === 0;
   document.querySelectorAll("#tc-khu-ghe [data-ghe]").forEach((el) => {

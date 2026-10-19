@@ -2578,3 +2578,17 @@ body.tc-trang {
   background: rgba(245, 166, 35, 0.2);
   color: #9A5B00;
 }
+
+/* Ghế có giá riêng (hệ số ghế): ghi giá nhỏ dưới mã ghế */
+.tc-ghe--co-gia {
+  flex-direction: column;
+  gap: 0;
+  line-height: 1.1;
+}
+
+.tc-ghe__gia {
+  font-style: normal;
+  font-size: 9px;
+  font-weight: 600;
+  opacity: 0.85;
+}
