@@ -15,14 +15,6 @@
     <div class="nv-main">
       <header class="nv-topbar">
         <h1>Giá vé</h1>
-        <div class="nv-topbar__user">
-          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
-          <div class="nv-topbar__identity">
-            <span class="ho-ten" id="topbar-ho-ten"></span>
-            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
-          </div>
-          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
-        </div>
       </header>
 
       <main class="nv-content gv-content">
@@ -92,13 +84,12 @@
   <script src="/nhan-vien/quan-ly/api-client.js"></script>
   <script src="/nhan-vien/quan-ly/auth-check.js"></script>
   <script src="/nhan-vien/quan-ly/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/tai-khoan.js"></script>
   <script>
     const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
     if (nguoiDung) {
       renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-ly/gia-ve.html");
-      renderTopbarUser();
     }
-    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
 
     const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     const dinhDangTien = (so) => Number(so).toLocaleString("vi-VN") + "đ";
@@ -116,11 +107,11 @@
     let khuVucTheoTuyen = new Map(); // tuyen_id -> [{khu_vuc_id, ten}] theo đúng thứ tự tuyến đi qua
     let phanTichTheoTuyen = new Map(); // tuyen_id -> kết quả phanTichTuyen()
     let tuyenDangChon = null;
-    let boLoc = "tat_ca"; // tat_ca | du | chua_du | chua_co
-    let tuKhoa = "";
+    let boLoc = TrangThaiTrang.doc().boLoc || "tat_ca"; // tat_ca | on_dinh | sap_het | het_han
+    let tuKhoa = TrangThaiTrang.doc().tuKhoa || "";
 
-    const NHAN_TRANG_THAI = { du: "Đủ giá", chua_du: "Chưa đủ", chua_co: "Chưa có giá" };
-    const THU_TU_TRANG_THAI = { chua_co: 0, chua_du: 1, du: 2 }; // tuyến cần xử lý xếp lên đầu
+    const NGUONG_SAP_HET_NGAY = 14; // bộ giá cuối còn ≤ 14 ngày là "sắp hết hạn"
+    const SO_NGAY_THANH_TIEN_DO = 60; // thanh tiến độ đầy khi còn ≥ 60 ngày có giá
     const NHAN_TRANG_THAI_BO = {
       dang_ap_dung: ["Đang áp dụng", "pill--gia-vinh-vien"],
       sap_ap_dung: ["Sắp áp dụng", "pill--gia-thoi-han"],
@@ -140,15 +131,31 @@
       return ds;
     }
 
-    // ---------- Phân tích độ đầy đủ giá của 1 tuyến (theo bộ giá đang áp dụng hôm nay) ----------
+    // ---------- Phân tích hạn có giá của 1 tuyến ----------
+    // Bộ giá luôn đủ mọi chặng (server chặn nhập thiếu) và nối liền nhau, nên điều đáng lo là THỜI HẠN: sinh chuyến
+    // chỉ được trong khoảng các bộ giá, hết bộ cuối là khách không còn thấy chuyến mới.
+    function soNgayTu(homNay, ngay) {
+      return Math.round((new Date(ngay) - new Date(homNay)) / 86400000);
+    }
+
     function phanTichTuyen(tuyen) {
-      const tong = cacChangCuaTuyen(tuyen.id).length;
-      const hh = boHienHanh(tuyen.id);
-      const thieu = hh ? hh.cac_cap_thieu_gia : [];
-      let trangThai = "du";
-      if (!hh || tong === 0) trangThai = "chua_co";
-      else if (thieu.length) trangThai = "chua_du";
-      return { tong, hienHanh: hh, thieu, daCo: hh ? tong - thieu.length : 0, trangThai };
+      const cacBo = boCuaTuyen(tuyen.id);
+      const homNay = khoaNgay(new Date());
+      if (!cacBo.length) {
+        return { trangThai: "het_han", nhan: "Chưa có giá", ghiChu: "Chưa có bộ giá nào — chưa sinh được chuyến.", conLai: 0, ngan: "—" };
+      }
+      const boCuoi = cacBo[cacBo.length - 1];
+      if (boCuoi.ap_dung_den < homNay) {
+        return { trangThai: "het_han", nhan: "Hết hạn", ghiChu: `Giá đã hết hạn từ ${dinhDangNgay(boCuoi.ap_dung_den)} — tạo bộ giá mới để tiếp tục bán.`, conLai: 0, ngan: "hết hạn" };
+      }
+      const conLai = soNgayTu(homNay, boCuoi.ap_dung_den) + 1;
+      if (cacBo[0].ap_dung_tu > homNay) {
+        return { trangThai: "sap_het", nhan: "Chưa áp dụng", ghiChu: `Bộ giá đầu tiên áp dụng từ ${dinhDangNgay(cacBo[0].ap_dung_tu)}.`, conLai, ngan: `từ ${dinhDangNgay(cacBo[0].ap_dung_tu)}` };
+      }
+      if (conLai <= NGUONG_SAP_HET_NGAY) {
+        return { trangThai: "sap_het", nhan: "Sắp hết hạn", ghiChu: `Giá chỉ còn đến ${dinhDangNgay(boCuoi.ap_dung_den)} (${conLai} ngày) — gia hạn hoặc tạo bộ giá mới để không gián đoạn.`, conLai, ngan: `còn ${conLai} ngày` };
+      }
+      return { trangThai: "on_dinh", nhan: "Đang có giá", ghiChu: "", conLai, ngan: `còn ${conLai} ngày` };
     }
 
     function tinhLaiPhanTich() {
@@ -157,13 +164,13 @@
 
     // ---------- Thanh thống kê (bấm để lọc danh sách) ----------
     function renderThongKe() {
-      const dem = { du: 0, chua_du: 0, chua_co: 0 };
+      const dem = { on_dinh: 0, sap_het: 0, het_han: 0 };
       phanTichTheoTuyen.forEach((p) => dem[p.trangThai]++);
       const the = [
         { loc: "tat_ca", nhan: "Tất cả tuyến", so: dsTuyen.length, lop: "tat-ca" },
-        { loc: "du", nhan: "Đủ giá vé", so: dem.du, lop: "du" },
-        { loc: "chua_du", nhan: "Chưa đủ giá", so: dem.chua_du, lop: "chua-du" },
-        { loc: "chua_co", nhan: "Chưa có giá nào", so: dem.chua_co, lop: "chua-co" },
+        { loc: "on_dinh", nhan: "Đang có giá", so: dem.on_dinh, lop: "on-dinh" },
+        { loc: "sap_het", nhan: "Sắp hết hạn", so: dem.sap_het, lop: "sap-het" },
+        { loc: "het_han", nhan: "Hết hạn / chưa có giá", so: dem.het_han, lop: "het-han" },
       ];
       const box = document.getElementById("gv-thong-ke");
       box.innerHTML = the
@@ -178,6 +185,7 @@
       box.querySelectorAll("[data-loc]").forEach((btn) => {
         btn.addEventListener("click", () => {
           boLoc = boLoc === btn.dataset.loc ? "tat_ca" : btn.dataset.loc;
+          TrangThaiTrang.luu({ boLoc });
           renderThongKe();
           renderDanhSachTuyen();
         });
@@ -189,11 +197,7 @@
       const tk = tuKhoa.trim().toLowerCase();
       return dsTuyen
         .filter((t) => (boLoc === "tat_ca" || phanTichTheoTuyen.get(t.id).trangThai === boLoc) && (!tk || t.ten.toLowerCase().includes(tk) || t.ma.toLowerCase().includes(tk)))
-        .sort(
-          (a, b) =>
-            THU_TU_TRANG_THAI[phanTichTheoTuyen.get(a.id).trangThai] - THU_TU_TRANG_THAI[phanTichTheoTuyen.get(b.id).trangThai] ||
-            a.ten.localeCompare(b.ten, "vi")
-        );
+        .sort((a, b) => a.ma.localeCompare(b.ma, "vi", { numeric: true })); // theo mã tuyến: T001, T002, ... T010
     }
 
     function renderDanhSachTuyen() {
@@ -206,12 +210,12 @@
       box.innerHTML = ds
         .map((t) => {
           const p = phanTichTheoTuyen.get(t.id);
-          const phanTram = p.tong ? Math.round((p.daCo / p.tong) * 100) : 0;
+          const phanTram = Math.min(100, Math.round((p.conLai / SO_NGAY_THANH_TIEN_DO) * 100));
           return `
             <button type="button" class="gv-tuyen gv-tuyen--${p.trangThai.replace("_", "-")}${t.id === tuyenDangChon ? " is-active" : ""}" data-id="${t.id}">
               <span class="gv-tuyen__cham"></span>
               <span class="gv-tuyen__ten"><span class="ma-tag">${esc(t.ma)}</span> ${esc(t.ten)}</span>
-              <span class="gv-tuyen__dem">${p.daCo}/${p.tong}</span>
+              <span class="gv-tuyen__dem">${p.ngan}</span>
               <span class="gv-tuyen__thanh"><i style="width:${phanTram}%"></i></span>
             </button>`;
         })
@@ -219,14 +223,17 @@
       box.querySelectorAll("[data-id]").forEach((btn) => {
         btn.addEventListener("click", () => {
           tuyenDangChon = btn.dataset.id;
+          TrangThaiTrang.luu({ tuyenDangChon });
           renderDanhSachTuyen();
           renderChiTiet();
         });
       });
     }
 
+    document.getElementById("gv-tim").value = tuKhoa;
     document.getElementById("gv-tim").addEventListener("input", (e) => {
       tuKhoa = e.target.value;
+      TrangThaiTrang.luu({ tuKhoa });
       renderDanhSachTuyen();
     });
 
@@ -264,7 +271,7 @@
         return;
       }
       const p = phanTichTheoTuyen.get(tuyen.id);
-      const phanTram = p.tong ? Math.round((p.daCo / p.tong) * 100) : 0;
+      const phanTram = Math.min(100, Math.round((p.conLai / SO_NGAY_THANH_TIEN_DO) * 100));
       const cacBo = boCuaTuyen(tuyen.id).slice().reverse(); // mới nhất lên đầu
       const boCuoi = cacBo[0] || null;
       const daHetHan = boCuoi && boCuoi.trang_thai === "da_ket_thuc";
@@ -272,17 +279,15 @@
       box.innerHTML = `
         <div class="gv-ct__dau">
           <h2>${htmlMa(tuyen.ma)} ${esc(tuyen.ten)}</h2>
-          <span class="gv-badge gv-badge--${p.trangThai.replace("_", "-")}">${NHAN_TRANG_THAI[p.trangThai]}</span>
+          <span class="gv-badge gv-badge--${p.trangThai.replace("_", "-")}">${p.nhan}</span>
           ${boCuoi ? `<span class="pill pill--nho ${daHetHan ? "pill--gia-thoi-han" : "pill--khu-vuc"}" title="Chỉ sinh được chuyến trong khoảng các bộ giá">${daHetHan ? "Đã hết hạn" : "Có giá đến"} ${dinhDangNgay(boCuoi.ap_dung_den)}</span>` : ""}
           <button class="btn-primary nv-btn-them gv-ct__them" id="btn-them" type="button">+ Tạo bộ giá mới</button>
         </div>
 
         <div class="gv-ct__tien-do">
           <div class="gv-ct__thanh gv-ct__thanh--${p.trangThai.replace("_", "-")}"><i style="width:${phanTram}%"></i></div>
-          <span><strong>${p.daCo}/${p.tong}</strong> chặng có giá trong bộ đang áp dụng</span>
+          <span>${p.ghiChu ? esc(p.ghiChu) : `Có giá <strong>${p.ngan}</strong> — sinh chuyến được đến hết bộ giá cuối`}</span>
         </div>
-
-        ${p.thieu.length ? `<div class="gv-ct__thieu"><span>Bộ đang áp dụng còn thiếu:</span>${p.thieu.map((t) => `<span class="gv-thieu-chip">${esc(t)}</span>`).join("")}</div>` : ""}
 
         <div class="gv-bo-ds">${cacBo.length ? cacBo.map(theBo).join("") : '<div class="gv-trong">Chưa có bộ giá nào — bấm "Tạo bộ giá mới" để nhập giá cho các chặng của tuyến.</div>'}</div>`;
 
@@ -316,7 +321,9 @@
         khuVucTheoTuyen.set(t.id, [...daThay.entries()].map(([khu_vuc_id, ten]) => ({ khu_vuc_id, ten })));
       });
       tinhLaiPhanTich();
-      tuyenDangChon = tuyenDaLoc()[0]?.id || null; // mở sẵn tuyến cần xử lý nhất
+      // Quay lại trang thì mở lại đúng tuyến đang xem lần trước; lần đầu thì mở tuyến đầu danh sách
+      const tuyenDaLuu = TrangThaiTrang.doc().tuyenDangChon;
+      tuyenDangChon = dsTuyen.some((t) => t.id === tuyenDaLuu) ? tuyenDaLuu : tuyenDaLoc()[0]?.id || null;
       renderTatCa();
     }
 
@@ -380,7 +387,7 @@
                   <td><strong>${esc(c.ten_di)}</strong> <span class="nv-text-phu">→</span> <strong>${esc(c.ten_den)}</strong></td>
                   <td class="nv-text-phu">${cu ? dinhDangTien(cu) : "—"}</td>
                   <td>
-                    <input class="input-field gv-o-gia" type="number" min="1000" step="1000" required data-di="${c.di}" data-den="${c.den}" value="${dien ?? ""}" placeholder="VD 300000" />
+                    <input class="input-field gv-o-gia" type="number" min="10000" step="10000" required data-di="${c.di}" data-den="${c.den}" value="${dien ?? ""}" placeholder="VD 300000 (bội số của 10.000)" />
                     <b class="gv-gia-dinh-dang"></b>
                   </td>
                 </tr>`;
@@ -503,6 +510,11 @@
       }));
       if (danhSachGia.some((g) => !(g.gia_goc > 0))) {
         loiForm.textContent = "Nhập giá cho đủ mọi chặng của tuyến";
+        loiForm.hidden = false;
+        return;
+      }
+      if (danhSachGia.some((g) => g.gia_goc % 10000 !== 0)) {
+        loiForm.textContent = "Giá mỗi chặng phải là bội số của 10.000đ (VD 300.000, 310.000)";
         loiForm.hidden = false;
         return;
       }
