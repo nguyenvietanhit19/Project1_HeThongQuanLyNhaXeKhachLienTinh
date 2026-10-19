@@ -90,6 +90,12 @@ class _Gia:  # chuyến giả dạng dòng của tim_chuyen
     }
 
 
+def _gia_info(gia, **gia_rieng):
+    """Kết quả giá của chuyến: mọi ghế cùng `gia`, trừ các ghế ghi đè trong `gia_rieng` (VD _gia_info(100000, **{"1": 120000}))."""
+    theo_ghe = {g["ma_ghe"]: gia_rieng.get(g["ma_ghe"], gia) for g in _Gia.r["so_do_ghe"]}
+    return {"gia": min(theo_ghe.values()), "gia_cao_nhat": max(theo_ghe.values()), "gia_theo_ghe": theo_ghe}
+
+
 @pytest.fixture
 def gia_lap(monkeypatch):
     ho_so = {"khoa_thanh_toan_tai_quay": False, "bi_khoa": False, "ly_do_khoa": None}
@@ -99,12 +105,12 @@ def gia_lap(monkeypatch):
 
 
 def test_giu_cho_thanh_cong_dung_doan_rong_nhat_va_gia(monkeypatch, gia_lap):
-    monkeypatch.setattr(svc.tim_kiem, "lay_chuyen_mo_ban", lambda c, a, b: (_Gia.r, {"gia": 150000}, {"3"}))
+    monkeypatch.setattr(svc.tim_kiem, "lay_chuyen_mo_ban", lambda c, a, b: (_Gia.r, _gia_info(150000), {"3"}))
     goi = {}
     monkeypatch.setattr(svc.lock_repo, "giu_ghe", lambda **kw: goi.update(kw))
     monkeypatch.setattr(svc.lock_repo, "lay_dat_cho", lambda ma, nid: [_ve("1", 150000, han=BAY_GIO + datetime.timedelta(minutes=9), ma_dat_cho=ma), _ve("2", 150000, han=BAY_GIO + datetime.timedelta(minutes=9), ma_dat_cho=ma)])
     kq = svc.giu_cho("kh1", "c1", "kvA", "kvC", ["1", "2"])
-    assert goi["diem_don_id"] == "d1" and goi["diem_tra_id"] == "d9" and goi["gia"] == 150000
+    assert goi["diem_don_id"] == "d1" and goi["diem_tra_id"] == "d9" and goi["gia_theo_ghe"] == {"1": 150000, "2": 150000}
     assert goi["danh_sach_ghe"] == ["1", "2"] and goi["khach_hang_id"] == "kh1"
     assert kq["tong_tien"] == 300000 and kq["so_ve"] == 2 and kq["trang_thai"] == "dang_giu"
     assert kq["can_dat_coc"] is False and kq["cho_phep_huy"] is True
@@ -117,7 +123,7 @@ def test_giu_cho_chan_tai_khoan_bi_khoa(monkeypatch, gia_lap):
 
 
 def test_giu_cho_ghe_khong_ton_tai(monkeypatch, gia_lap):
-    monkeypatch.setattr(svc.tim_kiem, "lay_chuyen_mo_ban", lambda c, a, b: (_Gia.r, {"gia": 1}, set()))
+    monkeypatch.setattr(svc.tim_kiem, "lay_chuyen_mo_ban", lambda c, a, b: (_Gia.r, _gia_info(1), set()))
     with pytest.raises(GiaTriLoi, match="không tồn tại"):
         svc.giu_cho("kh1", "c1", "kvA", "kvC", ["99"])
 
@@ -149,7 +155,7 @@ def _chuan_bi_dat_cho(monkeypatch, ve_list=None):
     ],
 )
 def test_giu_cho_chan_cap_diem_sai_va_khong_khoa_ghe(monkeypatch, gia_lap, don, tra, loi):
-    monkeypatch.setattr(svc.tim_kiem, "lay_chuyen_mo_ban", lambda c, a, b: (_Gia.r, {"gia": 150000}, set()))
+    monkeypatch.setattr(svc.tim_kiem, "lay_chuyen_mo_ban", lambda c, a, b: (_Gia.r, _gia_info(150000), set()))
     monkeypatch.setattr(svc.lock_repo, "tim_diem_cua_chuyen", lambda cid: DIEM)
     monkeypatch.setattr(svc.lock_repo, "giu_ghe", lambda **kw: pytest.fail("không được khóa ghế khi điểm sai"))
     with pytest.raises(GiaTriLoi, match=loi):
@@ -158,14 +164,14 @@ def test_giu_cho_chan_cap_diem_sai_va_khong_khoa_ghe(monkeypatch, gia_lap, don, 
 
 def test_giu_cho_diem_tra_dung_truoc_diem_don(monkeypatch, gia_lap):
     diem = [_diem("d1", "van_phong", "kvA", 5), _diem("d9", "van_phong", "kvC", 2)]  # điểm trả có thứ tự nhỏ hơn
-    monkeypatch.setattr(svc.tim_kiem, "lay_chuyen_mo_ban", lambda c, a, b: (_Gia.r, {"gia": 1}, set()))
+    monkeypatch.setattr(svc.tim_kiem, "lay_chuyen_mo_ban", lambda c, a, b: (_Gia.r, _gia_info(1), set()))
     monkeypatch.setattr(svc.lock_repo, "tim_diem_cua_chuyen", lambda cid: diem)
     with pytest.raises(GiaTriLoi, match="đứng sau"):
         svc.giu_cho("kh1", "c1", "kvA", "kvC", ["1"], "d1", "d9")
 
 
 def test_giu_cho_khoa_ghe_tren_dung_doan_khach_chon_khong_phai_doan_rong_nhat(monkeypatch, gia_lap):
-    monkeypatch.setattr(svc.tim_kiem, "lay_chuyen_mo_ban", lambda c, a, b: (_Gia.r, {"gia": 150000}, set()))
+    monkeypatch.setattr(svc.tim_kiem, "lay_chuyen_mo_ban", lambda c, a, b: (_Gia.r, _gia_info(150000), set()))
     monkeypatch.setattr(svc.lock_repo, "tim_diem_cua_chuyen", lambda cid: DIEM)
     goi = {}
     monkeypatch.setattr(svc.lock_repo, "giu_ghe", lambda **kw: goi.update(kw))
@@ -176,7 +182,7 @@ def test_giu_cho_khoa_ghe_tren_dung_doan_khach_chon_khong_phai_doan_rong_nhat(mo
 
 def test_giu_cho_ghe_thay_la_co_nguoi_tren_doan_rong_van_giu_duoc_neu_doan_hep_trong(monkeypatch, gia_lap):
     # sơ đồ (đoạn rộng nhất) báo ghế 3 có người, nhưng khách chọn đoạn hẹp — việc phán quyết nằm ở giu_ghe, không chặn sớm
-    monkeypatch.setattr(svc.tim_kiem, "lay_chuyen_mo_ban", lambda c, a, b: (_Gia.r, {"gia": 1}, {"3"}))
+    monkeypatch.setattr(svc.tim_kiem, "lay_chuyen_mo_ban", lambda c, a, b: (_Gia.r, _gia_info(1), {"3"}))
     monkeypatch.setattr(svc.lock_repo, "tim_diem_cua_chuyen", lambda cid: DIEM)
     goi = {}
     monkeypatch.setattr(svc.lock_repo, "giu_ghe", lambda **kw: goi.update(kw))
@@ -186,7 +192,7 @@ def test_giu_cho_ghe_thay_la_co_nguoi_tren_doan_rong_van_giu_duoc_neu_doan_hep_t
 
 
 def test_giu_cho_nguoi_den_sau_nhan_loi_tu_giu_ghe(monkeypatch, gia_lap):
-    monkeypatch.setattr(svc.tim_kiem, "lay_chuyen_mo_ban", lambda c, a, b: (_Gia.r, {"gia": 1}, set()))
+    monkeypatch.setattr(svc.tim_kiem, "lay_chuyen_mo_ban", lambda c, a, b: (_Gia.r, _gia_info(1), set()))
     monkeypatch.setattr(svc.lock_repo, "tim_diem_cua_chuyen", lambda cid: DIEM)
 
     def da_co_nguoi(**kw):
@@ -454,3 +460,12 @@ def test_huy_lo_da_het_han_bi_chan(monkeypatch, gia_lap):
     _chuan_bi_dat_cho(monkeypatch, [_ve("1", trang_thai="het_han")])
     with pytest.raises(GiaTriLoi, match="không còn"):
         svc.huy_dat_cho("kh1", "DCAB12")
+
+
+def test_giu_cho_ghi_gia_tung_ghe_chi_gom_ghe_khach_chon(monkeypatch, gia_lap):
+    monkeypatch.setattr(svc.tim_kiem, "lay_chuyen_mo_ban", lambda c, a, b: (_Gia.r, _gia_info(150000, **{"1": 180000}), set()))
+    goi = {}
+    monkeypatch.setattr(svc.lock_repo, "giu_ghe", lambda **kw: goi.update(kw))
+    monkeypatch.setattr(svc.lock_repo, "lay_dat_cho", lambda ma, nid: [_ve("1", 180000, ma_dat_cho=ma), _ve("2", 150000, ma_dat_cho=ma)])
+    svc.giu_cho("kh1", "c1", "kvA", "kvC", ["1", "2"])
+    assert goi["gia_theo_ghe"] == {"1": 180000, "2": 150000}  # ghế 3 khách không chọn thì không có trong dict

@@ -3,6 +3,7 @@ DATABASE.md mục 3.5.
 """
 
 from datetime import date, datetime, time
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -15,6 +16,7 @@ class TaoCapLichChayRequest(BaseModel):
     loai_xe_id: UUID
     gio_xuoi: time
     gio_nguoc: time
+    he_so_gia: Decimal = Field(Decimal("1.0"), gt=0, le=Decimal("99.99"), decimal_places=2, description="Nhân với giá gốc của bộ giá; chốt vào từng chuyến lúc sinh chuyến")
 
 
 class SuaLichChayRequest(BaseModel):
@@ -22,6 +24,10 @@ class SuaLichChayRequest(BaseModel):
 
     gio_khoi_hanh: time
     loai_xe_id: UUID
+
+
+class DoiHeSoGiaRequest(BaseModel):
+    he_so_gia: Decimal = Field(..., gt=0, le=Decimal("99.99"), decimal_places=2)
 
 
 class DoiApDungRequest(BaseModel):
@@ -56,6 +62,7 @@ class LichChayResponse(BaseModel):
     loai_xe_id: UUID
     ma_loai_xe: str
     ten_loai_xe: str
+    he_so_gia: Decimal
     dang_ap_dung: bool
     so_chuyen_da_sinh: int
     ngay_tao: datetime
@@ -68,11 +75,11 @@ class CapLichChayResponse(BaseModel):
     ten_tuyen: str
     tong_phut: int | None
     ngay_lech: int
+    he_so_gia: Decimal
     gio_den_chieu_di: time
     ngay_den_lech: int
     dang_ap_dung: bool
     so_chuyen_da_sinh: int
-    cac_cap_thieu_gia: list[str] = []
     sinh_chuyen_tu_ngay: date | None = None  # ngày sớm nhất sinh được chuyến đi (bộ giá đầu tiên của tuyến bắt đầu); None = tuyến chưa có bộ giá
     sinh_chuyen_den_ngay: date | None = None  # ngày muộn nhất sinh được chuyến đi = ngày cuối bộ giá mới nhất trừ độ lệch chuyến về
     xuoi: LichChayResponse

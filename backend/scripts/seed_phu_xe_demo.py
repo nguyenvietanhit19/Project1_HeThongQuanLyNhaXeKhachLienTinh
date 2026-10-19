@@ -129,7 +129,7 @@ def main() -> None:
            for tang in "AB" for i in range(1, 18)]
     loai_xe = lay_hoac_tao(
         "SELECT id FROM loai_xe WHERE ten = %s", (TEN_LOAI_XE,),
-        "INSERT INTO loai_xe (ten, he_so_gia, so_do_ghe, ma) VALUES (%s, 1, %s, '') RETURNING id",
+        "INSERT INTO loai_xe (ten, so_do_ghe, ma) VALUES (%s, %s, '') RETURNING id",
         (TEN_LOAI_XE, json.dumps(ghe)),
     )
     xe = lay_hoac_tao(

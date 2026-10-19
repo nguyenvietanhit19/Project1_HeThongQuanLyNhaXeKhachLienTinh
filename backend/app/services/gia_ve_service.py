@@ -15,13 +15,14 @@ chuyến khởi hành trong khoảng ngày bộ đó áp dụng) thì khóa: kh�
 """
 
 import datetime
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 import psycopg2.errors
 
 from app.repositories import dia_diem_repository as dia_diem_repo
 from app.repositories import gia_ve_repository as repo
+from app.utils.gia import BUOC_LAM_TRON, gia_theo_ghe, tinh_gia_ban
 from app.utils.loi import GiaTriLoi
 
 MUI_GIO_VN = ZoneInfo("Asia/Ho_Chi_Minh")
@@ -87,17 +88,6 @@ def _cap_thieu_trong_bo(bo: dict, cac_cap: list[tuple[str, str, str]]) -> list[s
     return [ten for di, den, ten in cac_cap if (di, den) not in co]
 
 
-def cac_cap_thieu_gia(tuyen_id: str) -> list[str]:
-    """Các chặng chưa có giá trong bộ giá hiện hành của tuyến (bộ đang áp dụng hôm nay; chưa có thì bộ sắp áp dụng gần
-    nhất; không còn bộ nào hiệu lực thì mọi chặng). Rỗng = tuyến đã đủ giá. Bộ tạo qua hệ thống luôn đủ chặng; chỉ dữ
-    liệu cũ mới thiếu."""
-    cac_cap = _cac_cap_cua_tuyen(tuyen_id)
-    cac_bo = _sap_xep(repo.danh_sach_bo(tuyen_id))
-    ngay = hom_nay()
-    bo = _bo_ap_dung_vao_ngay(cac_bo, ngay) or next((b for b in cac_bo if b["ap_dung_tu"] > ngay), None)
-    return [ten for _, _, ten in cac_cap] if bo is None else _cap_thieu_trong_bo(bo, cac_cap)
-
-
 def khoang_ngay_co_gia(tuyen_id: str) -> tuple[datetime.date, datetime.date] | None:
     """(ngày bắt đầu bộ đầu tiên, ngày kết thúc bộ cuối cùng) — khoảng ngày chuyến được phép khởi hành; None nếu chưa có bộ
     nào. Các bộ nối liền nên toàn khoảng này đều có giá."""
@@ -118,10 +108,24 @@ def ngay_chua_co_gia(tuyen_id: str, cac_ngay: list[datetime.date]) -> list[datet
     return thieu
 
 
-def bang_gia_cua_chuyen(tuyen_id: str, chieu: str, ngay_khoi_hanh: datetime.date, he_so_gia) -> dict | None:
+def _nhom_ghe_khac_gia(cac_ma_ghe, he_so_ghe: dict | None) -> list[dict]:
+    """Các ghế có hệ số khác 1, gom theo hệ số (nhỏ → lớn): [{"he_so": 1.2, "cac_ghe": ["A1-1", ...]}, ...]."""
+    he_so_ghe = he_so_ghe or {}
+    nhom: dict[Decimal, list[str]] = {}
+    for ma in cac_ma_ghe:
+        he_so = Decimal(str(he_so_ghe.get(ma, 1)))
+        if he_so != 1:
+            nhom.setdefault(he_so, []).append(ma)
+    return [{"he_so": he_so, "cac_ghe": sorted(cac_ghe)} for he_so, cac_ghe in sorted(nhom.items())]
+
+
+def bang_gia_cua_chuyen(
+    tuyen_id: str, chieu: str, ngay_khoi_hanh: datetime.date, he_so_gia, cac_ma_ghe=(), he_so_ghe: dict | None = None
+) -> dict | None:
     """Bảng giá vé của 1 chuyến: bộ giá áp dụng cho ngày khởi hành của chuyến, từng chặng đọc theo ĐÚNG CHIỀU chuyến chạy
-    (chuyến về đảo cặp), kèm giá bán = giá gốc × hệ số loại xe. None nếu ngày đó chưa có bộ giá đầy đủ (khách không thấy
-    chuyến này)."""
+    (chuyến về đảo cặp). `gia_ban` = giá ghế thường (giá gốc × hệ số giá của chuyến, làm tròn 10.000đ); `gia_thap_nhat`/
+    `gia_cao_nhat` = giá rẻ/đắt nhất trong các ghế của xe khi tính thêm hệ số từng ghế (`he_so_ghe` đã chốt vào chuyến) —
+    bằng `gia_ban` nếu không ghế nào khác giá. None nếu ngày đó chưa có bộ giá đầy đủ (khách không thấy chuyến này)."""
     bo = _bo_ap_dung_vao_ngay(repo.danh_sach_bo(tuyen_id), ngay_khoi_hanh)
     if bo is None or _cap_thieu_trong_bo(bo, _cac_cap_cua_tuyen(tuyen_id)):
         return None
@@ -130,16 +134,24 @@ def bang_gia_cua_chuyen(tuyen_id: str, chieu: str, ngay_khoi_hanh: datetime.date
     for g in bo["danh_sach_gia"]:
         di, den = str(g["diem_di_id"]), str(g["diem_den_id"])
         xuoi = chieu == "xuoi"
+        gia_ban = tinh_gia_ban(g["gia_goc"], he_so_gia)
+        gia_ghe = gia_theo_ghe(g["gia_goc"], he_so_gia, cac_ma_ghe, he_so_ghe)
         cac_chang.append({
             "ten_chang": f"{g['ten_diem_di']} → {g['ten_diem_den']}" if xuoi else f"{g['ten_diem_den']} → {g['ten_diem_di']}",
             "gia_goc": int(g["gia_goc"]),
-            "gia_ban": int((Decimal(g["gia_goc"]) * Decimal(he_so_gia)).quantize(Decimal(1), rounding=ROUND_HALF_UP)),
+            "gia_ban": gia_ban,
+            "gia_thap_nhat": min(gia_ghe.values(), default=gia_ban),
+            "gia_cao_nhat": max(gia_ghe.values(), default=gia_ban),
+            "gia_theo_ghe": gia_ghe,
             "_khoa": (thu_tu[di], thu_tu[den]) if xuoi else (-thu_tu[den], -thu_tu[di]),
         })
     cac_chang.sort(key=lambda c: c["_khoa"])
     for c in cac_chang:
         del c["_khoa"]
-    return {"ap_dung_tu": bo["ap_dung_tu"], "he_so_gia": Decimal(he_so_gia), "cac_chang": cac_chang}
+    return {
+        "ap_dung_tu": bo["ap_dung_tu"], "he_so_gia": Decimal(he_so_gia), "cac_chang": cac_chang,
+        "cac_nhom_ghe": _nhom_ghe_khac_gia(cac_ma_ghe, he_so_ghe),
+    }
 
 
 # ---------------------------------------------------------
@@ -158,6 +170,10 @@ def _chuan_hoa_gia(tuyen_id: str, danh_sach_gia: list[dict]) -> tuple[list[dict]
             raise GiaTriLoi(f"Chặng {ten_cap[cap]} bị nhập 2 lần")
         if int(g["gia_goc"]) <= 0:
             raise GiaTriLoi(f"Giá chặng {ten_cap[cap]} phải lớn hơn 0")
+        if int(g["gia_goc"]) % BUOC_LAM_TRON != 0:
+            raise GiaTriLoi(
+                f"Giá chặng {ten_cap[cap]} ({_dinh_dang_tien(g['gia_goc'])}) phải là bội số của {_dinh_dang_tien(BUOC_LAM_TRON)}"
+            )
         gia_theo_cap[cap] = int(g["gia_goc"])
     thieu = [ten for cap, ten in ten_cap.items() if cap not in gia_theo_cap]
     if thieu:
@@ -370,7 +386,6 @@ def danh_sach_bo(tuyen_id: str | None = None) -> list[dict]:
             b["khoa"] = b["so_chuyen_da_sinh"] > 0
             b["la_bo_cuoi"] = i == len(cac_bo) - 1
             b["ngay_chuyen_cuoi"] = repo.ngay_chuyen_cuoi_trong_khoang(tid, b["ap_dung_tu"], b["ap_dung_den"]) if b["khoa"] else None
-            b["cac_cap_thieu_gia"] = _cap_thieu_trong_bo(b, cac_cap)
             b["danh_sach_gia"].sort(key=lambda g: thu_tu_cap.get((str(g["diem_di_id"]), str(g["diem_den_id"])), 999))
         ket_qua.extend(cac_bo)
     return sorted(ket_qua, key=lambda b: (b["ten_tuyen"], b["ap_dung_tu"]))

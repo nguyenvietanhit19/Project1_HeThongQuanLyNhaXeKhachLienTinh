@@ -53,11 +53,11 @@ def test_ngay_ngoai_moi_bo_gia_thi_khong_co_gia():
 
 def test_bo_gia_ap_dung_thieu_cap_thi_khong_co_gia_chu_khong_roi_ve_bo_cu():
     dong = [
-        _gia(A, C, 100, tu=datetime.date(2026, 1, 1), den_ngay=datetime.date(2026, 5, 31)),
+        _gia(A, C, 100_000, tu=datetime.date(2026, 1, 1), den_ngay=datetime.date(2026, 5, 31)),
         _gia(None, None, None, tu=datetime.date(2026, 6, 1), den_ngay=datetime.date(2026, 12, 31)),
     ]
     assert svc.chon_gia(dong, "xuoi", A, C, datetime.date(2026, 7, 1), Decimal("1")) is None
-    assert svc.chon_gia(dong, "xuoi", A, C, datetime.date(2026, 5, 1), Decimal("1")) == 100
+    assert svc.chon_gia(dong, "xuoi", A, C, datetime.date(2026, 5, 1), Decimal("1")) == 100_000
 
 
 def test_gia_chuyen_ve_cua_chu_ky_lech_ngay_lay_bo_gia_theo_ngay_khoi_hanh_chuyen_ve():
@@ -70,8 +70,10 @@ def test_gia_chuyen_ve_cua_chu_ky_lech_ngay_lay_bo_gia_theo_ngay_khoi_hanh_chuye
     assert svc.chon_gia(dong, "nguoc", C, A, datetime.date(2026, 10, 16), Decimal("1")) == 400000
 
 
-def test_gia_lam_tron_len_dong():
-    assert svc.chon_gia([_gia(A, C, 100001)], "xuoi", A, C, datetime.date(2026, 10, 5), Decimal("1.25")) == 125001
+def test_gia_lam_tron_toi_boi_so_cua_10000():
+    # 130.000 × 1,15 = 149.500 → 150.000; 130.000 × 1,1 = 143.000 → 140.000
+    assert svc.chon_gia([_gia(A, C, 130000)], "xuoi", A, C, datetime.date(2026, 10, 5), Decimal("1.15")) == 150000
+    assert svc.chon_gia([_gia(A, C, 130000)], "xuoi", A, C, datetime.date(2026, 10, 5), Decimal("1.1")) == 140000
 
 
 # ---------------------------------------------------------
@@ -186,3 +188,18 @@ def test_so_do_ghe_chuyen_khong_con_mo_ban(monkeypatch):
     _gia_lap(monkeypatch, [], [])
     with pytest.raises(GiaTriLoi, match="không còn mở bán"):
         svc.so_do_ghe_chuyen("c1", A, C)
+
+
+def test_the_chuyen_gia_thap_nhat_cao_nhat_theo_he_so_ghe(monkeypatch):
+    # chặng 100.000, hệ số chuyến 1,5: ghế thường 150.000; A1 ×1,2 → 180.000; A2 ×0,8 → 120.000
+    hang = _hang(_ngay_mai(), he_so_gia=Decimal("1.50"), he_so_ghe={"A1": 1.2, "A2": 0.8})
+    _gia_lap(monkeypatch, [hang], [_gia(A, C, 100000, tu=datetime.date(2000, 1, 1), den_ngay=datetime.date(2100, 1, 1))])
+    the = svc.tim_chuyen(A, C, _ngay_mai())
+    assert the[0]["gia"] == 120000 and the[0]["gia_cao_nhat"] == 180000
+
+
+def test_the_chuyen_khong_co_he_so_ghe_thi_moi_ghe_cung_gia(monkeypatch):
+    hang = _hang(_ngay_mai(), he_so_gia=Decimal("1.50"))
+    _gia_lap(monkeypatch, [hang], [_gia(A, C, 100000, tu=datetime.date(2000, 1, 1), den_ngay=datetime.date(2100, 1, 1))])
+    the = svc.tim_chuyen(A, C, _ngay_mai())
+    assert the[0]["gia"] == the[0]["gia_cao_nhat"] == 150000

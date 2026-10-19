@@ -16,7 +16,7 @@ from app.routes.thanh_toan import router as thanh_toan_router
 from app.routes.ve import router as ve_router
 from app.routes.websocket import router as websocket_router
 from app.routes.thong_bao import router as thong_bao_router
-from app.utils.loi import CamTruyCap, GiaTriLoi, KhongDuQuyen, KhongTimThay, LoiHeThong
+from app.utils.loi import CamTruyCap, GiaTriLoi, KhongDuQuyen, KhongTimThay, LoiHeThong, XungDot
 
 scheduler = BackgroundScheduler()
 
@@ -68,6 +68,11 @@ def xu_ly_khong_du_quyen(request: Request, exc: KhongDuQuyen):
 @app.exception_handler(CamTruyCap)
 def xu_ly_cam_truy_cap(request: Request, exc: CamTruyCap):
     return JSONResponse(status_code=403, content={"loi": str(exc)})
+
+
+@app.exception_handler(XungDot)
+def xu_ly_xung_dot(request: Request, exc: XungDot):
+    return JSONResponse(status_code=409, content={"loi": str(exc)})
 
 
 @app.exception_handler(KhongTimThay)

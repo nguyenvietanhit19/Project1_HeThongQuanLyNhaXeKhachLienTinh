@@ -8,7 +8,7 @@ import pytest
 from app.services import bien_che_service as bc
 from app.services import lich_chay_service as lc
 from app.services import xe_service as xs
-from app.utils.loi import GiaTriLoi
+from app.utils.loi import GiaTriLoi, XungDot
 
 
 # ---------------------------------------------------------
@@ -168,8 +168,8 @@ def _gia_lap_cap(monkeypatch, co_gia_ve=True, trung_chieu=None, tong_phut=TONG_P
     monkeypatch.setattr(lc.repo, "tong_phut_tuyen", lambda _id: tong_phut)
     da_tao = []
 
-    def tao_cap(tuyen_id, xuoi, nguoc, ngay_lech):
-        da_tao.append((tuyen_id, xuoi, nguoc, ngay_lech))
+    def tao_cap(tuyen_id, xuoi, nguoc, ngay_lech, he_so_gia):
+        da_tao.append((tuyen_id, xuoi, nguoc, ngay_lech, he_so_gia))
         return "cap-1"
 
     monkeypatch.setattr(lc.repo, "tao_cap", tao_cap)
@@ -179,7 +179,7 @@ def _gia_lap_cap(monkeypatch, co_gia_ve=True, trung_chieu=None, tong_phut=TONG_P
 
 def _lich_cua_cap(so_chuyen_xuoi=0, so_chuyen_nguoc=0, dang_ap_dung=True, ngay_lech=1):
     chung = {"cap_id": "cap-1", "tuyen_id": "tuyen-1", "ma_tuyen": "T001", "ten_tuyen": "Tuyến 1", "tong_phut": TONG_PHUT,
-             "dang_ap_dung": dang_ap_dung, "loai_xe_id": "loai-1"}
+             "dang_ap_dung": dang_ap_dung, "loai_xe_id": "loai-1", "he_so_gia": 1}
     return [
         {**chung, "id": "lich-di", "chieu": "xuoi", "gio_khoi_hanh": gio(23), "ngay_lech": 0, "so_chuyen_da_sinh": so_chuyen_xuoi},
         {**chung, "id": "lich-ve", "chieu": "nguoc", "gio_khoi_hanh": gio(7), "ngay_lech": ngay_lech, "so_chuyen_da_sinh": so_chuyen_nguoc},
@@ -190,9 +190,8 @@ CHIEU_DI = {"gio_khoi_hanh": gio(23), "loai_xe_id": "loai-1"}
 CHIEU_VE = {"gio_khoi_hanh": gio(7), "loai_xe_id": "loai-1"}
 
 
-def test_tao_cap_van_tao_duoc_khi_tuyen_chua_du_gia_ve(monkeypatch):
+def test_tao_cap_khong_can_co_bo_gia_vi_lap_lich_khong_can_gia(monkeypatch):
     da_tao = _gia_lap_cap(monkeypatch)
-    monkeypatch.setattr(lc.gia_ve_service, "cac_cap_thieu_gia", lambda _id: ["A → B"])
     lc.tao_cap_lich_chay("tuyen-1", CHIEU_DI, CHIEU_VE)
     assert len(da_tao) == 1
 
@@ -220,9 +219,23 @@ def test_tao_cap_tuyen_chua_co_thoi_gian_chay_bi_chan(monkeypatch):
 def test_tao_cap_hop_le_luu_dung_ngay_lech_va_loai_xe_tung_chieu(monkeypatch):
     da_tao = _gia_lap_cap(monkeypatch)
     cap = lc.tao_cap_lich_chay("tuyen-1", CHIEU_DI, CHIEU_VE)
-    assert da_tao == [("tuyen-1", CHIEU_DI, CHIEU_VE, 1)]  # đi 23:00 tới 05:00 → về 07:00 hôm sau
+    assert da_tao == [("tuyen-1", CHIEU_DI, CHIEU_VE, 1, 1)]  # đi 23:00 tới 05:00 → về 07:00 hôm sau, hệ số mặc định 1
     assert cap["xuoi"]["id"] == "lich-di" and cap["nguoc"]["id"] == "lich-ve"
     assert cap["gio_den_chieu_di"] == gio(5) and cap["ngay_den_lech"] == 1
+
+
+def test_tao_cap_luu_he_so_gia_da_nhap(monkeypatch):
+    da_tao = _gia_lap_cap(monkeypatch)
+    lc.tao_cap_lich_chay("tuyen-1", CHIEU_DI, CHIEU_VE, he_so_gia=1.5)
+    assert da_tao[0][4] == 1.5
+
+
+def test_doi_he_so_gia_van_duoc_khi_cap_da_sinh_chuyen(monkeypatch):
+    monkeypatch.setattr(lc.repo, "lich_cua_cap", lambda _id: _lich_cua_cap(so_chuyen_xuoi=5, so_chuyen_nguoc=5))
+    da_goi = []
+    monkeypatch.setattr(lc.repo, "doi_he_so_gia_cap", lambda cap_id, he_so: da_goi.append((cap_id, he_so)))
+    lc.doi_he_so_gia_cap("cap-1", 1.8)
+    assert da_goi == [("cap-1", 1.8)]
 
 
 def test_doi_ap_dung_ca_cap(monkeypatch):
@@ -337,7 +350,6 @@ def test_sinh_chuyen_truoc_ngay_bat_dau_bo_gia_dau_tien_bi_chan(monkeypatch):
 
 def test_danh_sach_cap_tra_ve_khoang_ngay_sinh_chuyen_toi_da_theo_do_lech(monkeypatch):
     monkeypatch.setattr(lc.repo, "danh_sach", lambda tuyen_id=None: _lich_cua_cap())  # ngay_lech = 1
-    monkeypatch.setattr(lc.gia_ve_service, "cac_cap_thieu_gia", lambda _id: [])
     monkeypatch.setattr(lc.gia_ve_service, "khoang_ngay_co_gia", lambda _id: (datetime.date(2026, 10, 1), datetime.date(2026, 10, 20)))
     cap = lc.danh_sach_cap()[0]
     assert cap["sinh_chuyen_tu_ngay"] == datetime.date(2026, 10, 1)
@@ -346,7 +358,6 @@ def test_danh_sach_cap_tra_ve_khoang_ngay_sinh_chuyen_toi_da_theo_do_lech(monkey
 
 def test_danh_sach_cap_tuyen_chua_co_bo_gia_khong_co_khoang(monkeypatch):
     monkeypatch.setattr(lc.repo, "danh_sach", lambda tuyen_id=None: _lich_cua_cap())
-    monkeypatch.setattr(lc.gia_ve_service, "cac_cap_thieu_gia", lambda _id: [])
     monkeypatch.setattr(lc.gia_ve_service, "khoang_ngay_co_gia", lambda _id: None)
     cap = lc.danh_sach_cap()[0]
     assert cap["sinh_chuyen_tu_ngay"] is None and cap["sinh_chuyen_den_ngay"] is None
@@ -483,3 +494,91 @@ def test_tao_cap_chieu_ve_truoc_gio_ket_thuc_chieu_di_bi_chan(monkeypatch):
     with pytest.raises(GiaTriLoi, match="cùng ngày"):
         lc.tao_cap_lich_chay("tuyen-1", {**CHIEU_DI, "gio_khoi_hanh": gio(6)}, {**CHIEU_VE, "gio_khoi_hanh": gio(10)})
     assert da_tao == []
+
+
+# ---------------------------------------------------------
+# UC-32 Khóa sơ đồ ghế khi loại xe đã được dùng
+# ---------------------------------------------------------
+def _ghe(ma="A1-1", x=0, y=0):
+    return {"ma_ghe": ma, "tang": 1, "x": x, "y": y}
+
+
+def _loai_xe_da_luu(khoa, phien_ban=1):
+    return {"id": "loai-1", "so_do_ghe": [_ghe()], "he_so_ghe": {}, "khoa_so_do_ghe": khoa, "phien_ban": phien_ban}
+
+
+def _gia_lap_sua_loai_xe(monkeypatch, hien_tai):
+    """repo.sua_loai_xe giả: gọi kiem_tra(hien_tai) giống bản thật (đang giữ khóa dòng), rồi ghi vào `da_luu`."""
+    da_luu = {}
+
+    def sua(loai_xe_id, ten, so_do_ghe, he_so_ghe, kiem_tra):
+        kiem_tra(hien_tai)
+        da_luu.update(ten=ten, so_do_ghe=so_do_ghe, he_so_ghe=he_so_ghe)
+        return True
+
+    monkeypatch.setattr(xs.repo, "sua_loai_xe", sua)
+    return da_luu
+
+
+def test_sua_loai_xe_da_dung_doi_so_do_ghe_bi_chan(monkeypatch):
+    da_luu = _gia_lap_sua_loai_xe(monkeypatch, _loai_xe_da_luu(True))
+    with pytest.raises(GiaTriLoi, match="sơ đồ ghế"):
+        xs.sua_loai_xe("loai-1", "Giường", [_ghe(), _ghe("A2-1", 0, 40)], {}, 1)
+    assert da_luu == {}
+
+
+def test_sua_loai_xe_da_dung_giu_nguyen_so_do_van_sua_duoc_ten_va_he_so_ghe(monkeypatch):
+    da_luu = _gia_lap_sua_loai_xe(monkeypatch, _loai_xe_da_luu(True))
+    xs.sua_loai_xe("loai-1", "Tên mới", [_ghe(x=0.0)], {"A1-1": 1.2}, 1)
+    assert da_luu["ten"] == "Tên mới" and da_luu["he_so_ghe"] == {"A1-1": 1.2}
+
+
+def test_sua_loai_xe_chua_dung_doi_so_do_ghe_duoc(monkeypatch):
+    da_luu = _gia_lap_sua_loai_xe(monkeypatch, _loai_xe_da_luu(False))
+    xs.sua_loai_xe("loai-1", "Giường", [_ghe(), _ghe("A2-1", 0, 40)], {}, 1)
+    assert len(da_luu["so_do_ghe"]) == 2
+
+
+def test_sua_loai_xe_phien_ban_lech_bao_xung_dot_va_khong_ghi(monkeypatch):
+    da_luu = _gia_lap_sua_loai_xe(monkeypatch, _loai_xe_da_luu(False, phien_ban=3))
+    with pytest.raises(XungDot, match="người khác"):
+        xs.sua_loai_xe("loai-1", "Giường", [_ghe()], {"A1-1": 1.1}, 2)  # form mở ở phiên bản 2, DB đã là 3
+    assert da_luu == {}
+
+
+def test_sua_loai_xe_thieu_phien_ban_bi_chan(monkeypatch):
+    _gia_lap_sua_loai_xe(monkeypatch, _loai_xe_da_luu(False))
+    with pytest.raises(GiaTriLoi, match="phiên bản"):
+        xs.sua_loai_xe("loai-1", "Giường", [_ghe()], {}, None)
+
+
+def test_sua_loai_xe_khong_ton_tai(monkeypatch):
+    monkeypatch.setattr(xs.repo, "sua_loai_xe", lambda *a: False)
+    with pytest.raises(GiaTriLoi, match="Không tìm thấy"):
+        xs.sua_loai_xe("loai-x", "Giường", [_ghe()], {}, 1)
+
+
+@pytest.mark.parametrize(
+    "he_so,loi",
+    [({"Z9": 1.2}, "không nằm trong sơ đồ"), ({"A1-1": 0}, "lớn hơn 0"), ({"A1-1": -1}, "lớn hơn 0"),
+     ({"A1-1": 100}, "không quá"), ({"A1-1": 1.234}, "2 chữ số thập phân")],
+)
+def test_he_so_ghe_khong_hop_le_bi_chan(monkeypatch, he_so, loi):
+    _gia_lap_sua_loai_xe(monkeypatch, _loai_xe_da_luu(False))
+    with pytest.raises(GiaTriLoi, match=loi):
+        xs.sua_loai_xe("loai-1", "Giường", [_ghe()], he_so, 1)
+
+
+def test_he_so_ghe_bang_1_bi_bo_di_vi_la_mac_dinh(monkeypatch):
+    da_luu = _gia_lap_sua_loai_xe(monkeypatch, _loai_xe_da_luu(False))
+    xs.sua_loai_xe("loai-1", "Giường", [_ghe(), _ghe("A2-1", 0, 40)], {"A1-1": 1.0, "A2-1": 0.9}, 1)
+    assert da_luu["he_so_ghe"] == {"A2-1": 0.9}
+
+
+def test_tao_loai_xe_luu_he_so_ghe_da_chuan_hoa(monkeypatch):
+    da_luu = {}
+    monkeypatch.setattr(xs.repo, "tao_loai_xe", lambda ten, so_do, he_so: da_luu.update(he_so_ghe=he_so) or {"id": "x"})
+    xs.tao_loai_xe("Giường", [_ghe()], {"A1-1": 1.1})
+    assert da_luu["he_so_ghe"] == {"A1-1": 1.1}
+    with pytest.raises(GiaTriLoi, match="không nằm trong sơ đồ"):
+        xs.tao_loai_xe("Giường", [_ghe()], {"B7-1": 1.1})

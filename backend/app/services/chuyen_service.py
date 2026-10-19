@@ -41,12 +41,19 @@ def chi_tiet_chuyen(chuyen_id: str) -> dict:
     chuyen = repo.tim_chuyen_theo_id_ql(chuyen_id)
     if not chuyen:
         raise GiaTriLoi("Không tìm thấy chuyến")
-    # Giá vé của chuyến: bộ giá áp dụng cho ngày khởi hành (giờ VN) × hệ số loại xe — None nếu ngày đó chưa có giá
-    loai_xe = xe_repo.tim_loai_xe_theo_id(str(chuyen["loai_xe_id"]))
+    # Giá vé của chuyến: bộ giá áp dụng cho ngày khởi hành (giờ VN) × hệ số của chuyến và hệ số từng ghế (đều chốt lúc sinh chuyến) — None nếu ngày đó chưa có giá
     ngay = chuyen["gio_khoi_hanh"].astimezone(MUI_GIO_VN).date()
-    chuyen["bang_gia"] = (
-        gia_ve_service.bang_gia_cua_chuyen(str(chuyen["tuyen_id"]), chuyen["chieu"], ngay, loai_xe["he_so_gia"]) if loai_xe else None
+    loai_xe = xe_repo.tim_loai_xe_theo_id(str(chuyen["loai_xe_id"]))
+    so_do = loai_xe["so_do_ghe"] if loai_xe else []
+    cac_ma_ghe = [g["ma_ghe"] for g in so_do]
+    he_so_ghe = chuyen.get("he_so_ghe") or {}
+    chuyen["bang_gia"] = gia_ve_service.bang_gia_cua_chuyen(
+        str(chuyen["tuyen_id"]), chuyen["chieu"], ngay, chuyen["he_so_gia"], cac_ma_ghe, he_so_ghe
     )
+    # Sơ đồ ghế kèm hệ số đã chốt + vé đang chiếm ghế, để vẽ sơ đồ có giá và trạng thái ở màn chi tiết
+    chuyen["so_tang"] = 2 if any(g["tang"] == 2 for g in so_do) else 1
+    chuyen["so_do_ghe"] = [{**g, "he_so": he_so_ghe.get(g["ma_ghe"], 1)} for g in so_do]
+    chuyen["cac_ve_tren_ghe"] = [{**v, "gia": int(v["gia"])} for v in repo.danh_sach_ve_dang_chiem_ghe(chuyen_id)]
     return chuyen
 
 
@@ -76,7 +83,7 @@ def sua_gio_chuyen(chuyen_id: str, gio: datetime.time) -> dict:
     if repo.tim_trung_loai_xe_va_gio(str(chuyen["loai_xe_id"]), gio_khoi_hanh, chuyen_id):
         raise GiaTriLoi("Đã có chuyến khác cùng loại xe và cùng giờ xuất phát trong ngày này")
     repo.sua_gio_chuyen(chuyen_id, gio_khoi_hanh)
-    return repo.tim_chuyen_theo_id_ql(chuyen_id)
+    return chi_tiet_chuyen(chuyen_id)  # đủ bảng giá + sơ đồ ghế để giao diện vẽ lại ngay
 
 
 def xoa_chuyen(chuyen_id: str) -> None:

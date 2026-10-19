@@ -67,7 +67,7 @@ _CTE_DIEM = """
 
 _SELECT_KET_QUA = """
     SELECT c.id, c.ma, c.tuyen_id, c.chieu, c.gio_khoi_hanh, c.dang_hoan,
-           lx.ma AS ma_loai_xe, lx.ten AS ten_loai_xe, lx.he_so_gia,
+           lx.ma AS ma_loai_xe, lx.ten AS ten_loai_xe, c.he_so_gia, c.he_so_ghe,
            jsonb_array_length(lx.so_do_ghe) AS tong_ghe, lx.so_do_ghe,
            don.diem_id AS diem_don_id, don.ten AS ten_diem_don, don.hl AS hl_don, don.phut AS phut_don,
            tra.diem_id AS diem_tra_id, tra.ten AS ten_diem_tra, tra.hl AS hl_tra, tra.phut AS phut_tra,
