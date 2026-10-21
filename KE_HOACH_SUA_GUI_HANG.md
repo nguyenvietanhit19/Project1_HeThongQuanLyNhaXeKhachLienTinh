@@ -502,3 +502,47 @@ Code hủy đơn đang nằm ở working tree, chưa commit. Base `integration/g
 - **Giao diện chưa test trên trình duyệt** (T1).
 
 **Phát hiện nhỏ — ✅ đã sửa (09/10/2026):** đơn đã quá 14 ngày mà trước đó chưa có cờ 7 ngày (ví dụ job ngừng chạy vài ngày) nhận **2 thông báo cùng lúc** — "chờ 7 ngày" và "hàng tồn". Đã sửa `don_hang_repository.quet_canh_bao_7_ngay`: mốc 7 ngày bỏ qua đơn đã đủ 14 ngày (`thoi_gian_den_diem_nhan > now() - INTERVAL '14 days'`); đơn đó vẫn được bật cờ cảnh báo vì câu chuyển hàng tồn cũng set `co_canh_bao_cho_lau = true`. Thêm ca E2E "đơn quá 14 ngày chỉ nhận đúng 1 thông báo". Chạy lại: **E2E 148/148 PASS**, unit test 322/322.
+
+---
+
+## 7. Đợt C — Việc còn lại: chốt ca + hàng đợi khi mất mạng (12/10/2026)
+
+> Nhánh `feature/Trinh-chot-ca` — **chưa commit**. Đợt B (hủy đơn) đã vào base qua PR #31.
+>
+> **13/10/2026:** ban đầu làm chung nhánh với phần kế toán (`feature/Trinh-hoan-thien-ke-toan`). Người 5 **không làm kế toán nữa** nên đã tách ra: phần kế toán (hoàn tiền UC-22, job 3 tiếng, tra cứu cho quầy vé, thống kê hoàn tiền, giao diện `/nhan-vien/ke-toan/`, migration `20261011_1000_lien_he_hoan_tien`, `KE_HOACH_KE_TOAN.md`, `NGHIEP_VU_KE_TOAN.md`) được cất ở nhánh local `feature/Trinh-ke-toan-luu` (commit `aa33fdf`, không push, không merge) để người nhận phần kế toán dùng lại nếu cần. Nhánh này chỉ còn chốt ca. Chốt ca không phụ thuộc gì vào phần kế toán. Chạy lại sau khi tách: unit **439/439**, E2E gửi hàng **148/148**, E2E chốt ca **31/31**; DB local đã gỡ bảng `lich_su_lien_he_hoan_tien` và bản ghi yoyo của migration `20261011_1000`.
+
+### 7.1. Quyết định
+
+| Việc | Quyết định |
+|---|---|
+| Hàng đợi khi mất mạng | **Bỏ** — đơn tạo lúc mất mạng chưa có mã vận đơn nên không in được biên nhận / nhãn cho khách, vẫn phải chờ có mạng; lợi ích thấp, dễ sinh lỗi |
+| Chốt ca | **Cách A**: chốt theo từng nhân viên **từ lần chốt trước**, nhập số tiền đếm thực tế, lưu chênh lệch + ghi chú, in phiếu, quản lý xem lịch sử. (Cách B — in tổng trong ngày, không lưu — bị loại vì gộp lẫn ca và không phát hiện được thiếu tiền) |
+
+### 7.2. ✅ Chốt ca tiền mặt
+
+**DB** — migration `20261012_0900_chot_ca_gui_hang.sql`, bảng `chot_ca_gui_hang` (DATABASE.md mục 5.2d). CHECK bảo đảm `phải có = trả trước + COD − hoàn`, `chênh lệch = đếm được − phải có`, lệch thì phải có ghi chú; UNIQUE `(nhan_vien_id, den_luc)`.
+
+**BE** — `repositories/chot_ca_repository.py`, `services/chot_ca_service.py`, route trong `routes/gui_hang.py`:
+
+| Method | Đường dẫn | Quyền | Việc |
+|---|---|---|---|
+| GET | `/gui-hang/chot-ca/xem-truoc` | nhan_vien_gui_hang | Từ lần chốt trước tới bây giờ: thu trả trước, thu COD, hoàn (số khoản + tiền), phải có, từng khoản; trả mốc `den_luc` |
+| POST | `/gui-hang/chot-ca` | nhan_vien_gui_hang | `{den_luc, tien_thuc_dem, ghi_chu}` — chốt đúng mốc đã xem; mốc tương lai / quá 2 tiếng / không múi giờ / không sau lần chốt trước → 400; lệch không ghi chú → 400; khóa theo nhân viên nên bấm 2 lần chỉ lưu 1 |
+| GET | `/gui-hang/chot-ca` | nhan_vien_gui_hang, quan_ly | Lịch sử (nhân viên: chỉ của mình; quản lý: tất cả, lọc văn phòng), lọc khoảng ngày, chỉ ca lệch, phân trang |
+| GET | `/gui-hang/chot-ca/{id}` | nhan_vien_gui_hang (của mình), quan_ly | Chi tiết + từng khoản để in lại phiếu |
+
+Quy tắc tiền giống đối soát: thu theo `nhan_vien_thu_id` + `thoi_gian_thu`, hoàn theo `nhan_vien_huy_id` + `thoi_gian_huy`. Tiền phát sinh sau mốc xem trước tự sang ca sau.
+
+**FE** — file mới `chot-ca.js`; tab "Thống kê & Đối soát" thêm khối **Chốt ca tiền mặt**: nút "Chốt ca" (ẩn với quản lý), lịch sử theo khoảng ngày đang chọn + "chỉ ca bị lệch" + phân trang + in lại phiếu; modal chốt ca (tổng, từng khoản, ô nhập số đếm nhận cả "140.000", chênh lệch tính ngay, ghi chú bắt buộc khi lệch, hộp xác nhận); **phiếu chốt ca** in được, có chỗ ký người nộp / người nhận.
+
+**Kiểm thử:**
+- Unit: `tests/unit/test_chot_ca_service.py` 13 test — toàn bộ **439/439** (sau khi tách phần kế toán ra, 13/10/2026).
+- E2E API thật (`e2e_chot_ca.py`, nhân viên + đơn tạm, đã dọn): **31/31 PASS** — quyền (không token, quản lý không chốt hộ, chưa gán văn phòng); ca 1: thu trả trước + hoàn khi hủy, COD tính cho người thu khi giao (văn phòng nhận), lệch không ghi chú 400, số âm 422, chốt lệch có ghi chú, **đơn tạo sau mốc xem trước không lọt vào ca**, bấm 2 lần cùng mốc 400; ca 2 nối tiếp đúng mốc, khớp tiền không cần ghi chú, sau khi chốt phải có 0; 4 mốc sai; lịch sử (nhân viên chỉ thấy của mình, quản lý lọc văn phòng + chỉ ca lệch), chi tiết (403 với người khác, 404); 3 ràng buộc CHECK của DB.
+- Giao diện (Playwright, dữ liệu tạm đã xóa): **17/17 PASS** — nút chỉ hiện với nhân viên, số tiền xem trước, từng khoản, chênh lệch tính ngay + ghi chú thành bắt buộc, chặn lệch không ghi chú, phiếu chốt ca đủ thông tin + chữ ký, lịch sử tô đỏ ca lệch, mở lại ngay sau chốt → 0, in lại phiếu, lọc ca lệch, quản lý chỉ xem, không lỗi JavaScript. Đã xem ảnh chụp modal và phiếu.
+- Chạy lại toàn bộ sau khi thêm: E2E gửi hàng 148/148 — không ảnh hưởng.
+
+**Tài liệu:** `NGHIEP_VU_GUI_HANG.md` thêm việc thứ 7 của nhân viên + mục 6.1 (⏳ chờ nhóm xác nhận, đã thêm vào bảng 9.2); `DATABASE.md` mục 5.2d.
+
+### 7.3. Trạng thái role gửi hàng sau đợt C
+
+Đã xong toàn bộ việc trong kế hoạch của role. Còn lại chỉ là việc **phối hợp** (mục 2, P1–P6) và **xác nhận tài liệu** với nhóm (bảng 9.2 của `NGHIEP_VU_GUI_HANG.md`).

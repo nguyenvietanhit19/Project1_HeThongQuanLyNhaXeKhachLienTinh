@@ -141,6 +141,7 @@ function ganSuKien() {
   });
   $("btnXuatCsvDoiSoat").addEventListener("click", xuatCsvDoiSoat);
   $("btnInDoiSoat").addEventListener("click", () => inPhanTu($("tbodyDoiSoat").closest(".card-panel")));
+  khoiTaoChotCa();
 
   // Nút trong các dòng bảng/modal (event delegation)
   document.addEventListener("click", e => {

@@ -35,6 +35,7 @@ Dịch vụ gửi hàng là hàng hóa **độc lập**: người gửi mang hà
 4. 🆕 **Hủy đơn tại điểm gửi** khi hàng còn trong kho, hoàn cước trả trước bằng tiền mặt (mục 5.4, UC-54).
 5. ⏳ **Sửa tên/SĐT người gửi, người nhận** khi đơn chưa giao (mục 5.5).
 6. **Xem thống kê và đối soát tiền mặt** của văn phòng mình (mục 6, UC-39).
+7. ⏳ **Chốt ca tiền mặt** cuối mỗi ca: đếm két, đối chiếu với số hệ thống tính, chốt và in phiếu nộp tiền (mục 6.1).
 
 ---
 
@@ -157,6 +158,24 @@ Hỗ trợ tại quầy (đã có trong code): gợi ý tên khách quen theo S�
 - 🆕 **Tiền hoàn khi hủy đơn** chi ở văn phòng gửi, ghi vào người hủy, theo ngày hủy. Không đi qua kế toán.
 - **Doanh thu** gửi hàng trong kỳ = trả trước đã thu + COD đã thu − tiền đã hoàn. Mỗi khoản tính theo đúng ngày của nó, nên ngày chỉ có hoàn (thu từ hôm trước) có thể có doanh thu **âm** — đúng tiền mặt thực tế.
 - ⏳ **Đối soát két cuối ca** theo từng nhân viên: tiền đã thu − tiền đã hoàn trong kỳ; xuất CSV / in được.
+
+### 6.1. ⏳ Chốt ca tiền mặt
+
+*(Bổ sung 12/10/2026 — có trong code, chờ nhóm xác nhận; KE_HOACH_SUA_GUI_HANG.md mục 7)*
+
+Nhân viên cầm tiền mặt của nhà xe trong ca (thu trả trước, thu COD, chi hoàn khi hủy đơn). Cuối ca phải đối chiếu **số lẽ ra phải có** với **số đếm thực tế** rồi nộp tiền.
+
+1. Bấm **"Chốt ca"** (tab Thống kê & Đối soát). Hệ thống tính từ **lần chốt trước của chính nhân viên đó** tới lúc mở màn (lần đầu: từ trước tới nay):
+   - thu trả trước + thu COD do **chính nhân viên đó** xác nhận thu, trừ tiền hoàn khi hủy đơn do chính họ chi;
+   - kèm danh sách từng khoản để đối chiếu.
+2. Nhân viên đếm két, **nhập số tiền đếm được**. Hệ thống hiện chênh lệch (khớp / thiếu / thừa).
+3. Lệch tiền thì **bắt buộc ghi chú** lý do.
+4. Xác nhận → lưu lần chốt (ai, văn phòng, từ lúc / đến lúc, các khoản, phải có, đếm được, chênh lệch, ghi chú) và **in phiếu chốt ca** có chỗ ký người nộp / người nhận tiền.
+
+- Mốc "đến lúc" là lúc mở màn chốt ca: số nhân viên đã xem đúng bằng số được lưu; tiền phát sinh sau mốc đó **tự tính vào ca sau**, không bao giờ tính 2 lần hay bị sót. Màn mở quá 2 tiếng phải tải lại.
+- Mỗi nhân viên tính riêng — 2 người cùng văn phòng, hoặc 1 người làm 2 ca trong ngày, không bị cộng lẫn.
+- Bấm chốt 2 lần / mở 2 cửa sổ: chỉ lần đầu được lưu. Đã chốt thì **không sửa** được.
+- Nhân viên xem / in lại phiếu các ca của mình; **quản lý chỉ xem** lịch sử chốt ca của mọi nhân viên (lọc theo văn phòng, khoảng ngày, chỉ ca bị lệch), **không chốt hộ**.
 - **Thống kê (UC-39)** — nhân viên chỉ xem văn phòng mình, `quan_ly` / `quan_ly_nhan_su` xem toàn hệ thống; chọn khoảng ngày:
   - Hàng gửi đi: đơn tiếp nhận trong kỳ, đang chờ xếp xe, đang trên xe, 🆕 hủy trong kỳ.
   - Hàng nhận về: tới văn phòng trong kỳ, đã giao, sắp đến, chờ lấy, chưa gọi báo được, chờ quá 7 ngày, hàng tồn.
@@ -313,3 +332,4 @@ Hỗ trợ tại quầy (đã có trong code): gợi ý tên khách quen theo S�
 | Giao hàng tồn (S2.11) | Giao được cả đơn `qua_han_luu_kho` theo thỏa thuận UC-25 | "Chỉ cho giao nếu `cho_lay`" (10.4.2 bước 3) |
 | Sửa tên/SĐT | Sửa được khi chưa giao/chưa hủy, có nhật ký | Chưa có |
 | Đối soát tiền theo nhân viên | Thu − hoàn theo người thu/người hoàn | Chưa có |
+| Chốt ca tiền mặt (mục 6.1) | Chốt theo từng nhân viên từ lần chốt trước, nhập số đếm, lưu chênh lệch, in phiếu | Chưa có |

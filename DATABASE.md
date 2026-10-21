@@ -455,6 +455,28 @@ Nhật ký mỗi lần nhân viên sửa **tên / SĐT người gửi, người 
 
 Index: `(don_hang_id, thoi_gian)`. Chặn sửa khi `trang_thai = 'da_giao'` (kiểm tra sau khi khóa dòng `FOR UPDATE`).
 
+### 5.2d. `chot_ca_gui_hang` *(bảng bổ sung — migration `20261012_0900`, nghiệp vụ ở `NGHIEP_VU_GUI_HANG.md` mục 6.1)*
+
+Mỗi lần nhân viên gửi hàng chốt ca tiền mặt. Kỳ của ca = (`tu_luc`, `den_luc`], `tu_luc` = `den_luc` của lần chốt trước của **chính nhân viên đó** (`NULL` = lần đầu, từ trước tới nay). Tiền trong ca = khoản tự tay thu (`don_hang.nhan_vien_thu_id`, `thoi_gian_thu`, cả trả trước lẫn COD) − khoản tự tay hoàn khi hủy đơn (`nhan_vien_huy_id`, `thoi_gian_huy`, `so_tien_hoan`) — cùng quy tắc với đối soát tiền theo nhân viên. Bảng chỉ INSERT; chốt trong 1 transaction có khóa theo nhân viên (`pg_advisory_xact_lock`) nên bấm 2 lần không tạo 2 ca chồng nhau.
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `id` | UUID PK | |
+| `nhan_vien_id` | UUID NOT NULL, FK → `nguoi_dung(id)` | |
+| `van_phong_id` | UUID NULLABLE, FK → `diem_don_tra(id)` | Văn phòng của nhân viên lúc chốt — để quản lý lọc |
+| `tu_luc` | TIMESTAMPTZ NULLABLE | |
+| `den_luc` | TIMESTAMPTZ NOT NULL | Mốc của màn xem trước — số đã xem = số được lưu |
+| `so_don_tra_truoc`, `tien_tra_truoc` | INTEGER / NUMERIC(14,0) NOT NULL | |
+| `so_don_cod`, `tien_cod` | INTEGER / NUMERIC(14,0) NOT NULL | |
+| `so_don_hoan`, `tien_hoan` | INTEGER / NUMERIC(14,0) NOT NULL | |
+| `tien_phai_co` | NUMERIC(14,0) NOT NULL | CHECK = `tien_tra_truoc + tien_cod − tien_hoan` |
+| `tien_thuc_dem` | NUMERIC(14,0) NOT NULL, CHECK ≥ 0 | Nhân viên nhập |
+| `chenh_lech` | NUMERIC(14,0) NOT NULL | CHECK = `tien_thuc_dem − tien_phai_co` (âm = thiếu) |
+| `ghi_chu` | TEXT NULLABLE | CHECK: bắt buộc khi `chenh_lech ≠ 0` |
+| `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+
+CHECK `tu_luc < den_luc`; UNIQUE `(nhan_vien_id, den_luc)`. Index `(nhan_vien_id, den_luc DESC)`, `(van_phong_id, den_luc DESC)`.
+
 ### 5.3. `bao_cao_su_co_hang` *(bảng bổ sung — không có tên tường minh trong `NGHIEP_VU.md`, giống tiền lệ `thong_bao` mục 6.1)*
 
 Lưu vết báo cáo thất lạc/hư hỏng của phụ xe (UC-28) — nếu chỉ đẩy real-time cho nhân viên gửi hàng/`quan_ly` rồi không lưu gì, thông tin sẽ mất nếu người nhận đang offline, và không xem lại được lịch sử báo cáo của 1 đơn hàng.

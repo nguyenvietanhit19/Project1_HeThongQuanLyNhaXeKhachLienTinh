@@ -18,6 +18,8 @@ async function taiThongKe() {
   }
   const khoang = { tu_ngay: tu, den_ngay: den, ...phamViQuery() };
   taiBieuDo(); // biểu đồ độc lập với khoảng ngày — tải song song, tự báo lỗi riêng
+  chotCa.offset = 0;
+  taiLichSuChotCa(); // lịch sử chốt ca theo cùng khoảng ngày — tải song song, tự báo lỗi riêng
   try {
     const [tk, doiSoat] = await Promise.all([
       apiGet(`/gui-hang/thong-ke${taoQuery(khoang)}`),

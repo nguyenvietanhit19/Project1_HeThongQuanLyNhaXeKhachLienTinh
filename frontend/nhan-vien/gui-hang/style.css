@@ -2681,3 +2681,14 @@ body.nhan-vien-shell {
 #hdHoanTien { margin: 0.6rem 0 0.9rem; }
 
 #tbodyDonGui td:nth-child(4) { min-width: 125px; }
+
+/* Chốt ca tiền mặt */
+.chot-ca-panel { margin-top: 1.5rem; }
+.cc-loc-lech { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; color: var(--color-text-muted); cursor: pointer; }
+.cc-chenh-lech { font-weight: 800; }
+.cc-khop { color: #15803D; }
+.cc-lech { color: #B91C1C; font-weight: 700; }
+.cc-khoan { margin: 0.5rem 0 1rem; }
+.cc-khoan summary { cursor: pointer; font-weight: 600; color: var(--color-secondary, #5B3E96); }
+#tbodyChotCa td { white-space: nowrap; }
+#tbodyChotCa td:nth-child(7) { white-space: normal; min-width: 160px; }

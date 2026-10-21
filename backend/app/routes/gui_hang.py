@@ -23,6 +23,10 @@ from app.middleware.auth_middleware import NguoiDungHienTai, yeu_cau_vai_tro
 from app.schemas.don_hang_schema import (
     BaoCaoSuCoHangResponse,
     CapNhatLienHeRequest,
+    ChiTietChotCaResponse,
+    ChotCaRequest,
+    ChotCaResponse,
+    DanhSachChotCaResponse,
     DanhSachDonHangResponse,
     DonHangResponse,
     DonHangTraCuuCongKhaiResponse,
@@ -37,8 +41,9 @@ from app.schemas.don_hang_schema import (
     SuaThongTinLienHeRequest,
     TaoDonHangRequest,
     TrangThaiDonHang,
+    XemTruocChotCaResponse,
 )
-from app.services import gui_hang_service
+from app.services import chot_ca_service, gui_hang_service
 from app.utils.loi import CamTruyCap
 
 router = APIRouter(prefix="/gui-hang", tags=["gui-hang"])
@@ -277,6 +282,43 @@ def thong_ke_hang_theo_ngay(
     diem_id: UUID | None = Query(None),
 ):
     return gui_hang_service.thong_ke_hang_theo_ngay(_pham_vi_van_phong(nguoi_dung, diem_id), so_ngay)
+
+
+@router.get("/chot-ca/xem-truoc", response_model=XemTruocChotCaResponse)
+def xem_truoc_chot_ca(nguoi_dung: QuyenThaoTacQuay):
+    """Số tiền mặt trong két lẽ ra phải có từ lần chốt trước tới bây giờ, kèm từng khoản."""
+    _pham_vi_van_phong(nguoi_dung)  # chưa gán văn phòng thì không thao tác quầy
+    return chot_ca_service.xem_truoc(nguoi_dung.id)
+
+
+@router.post("/chot-ca", response_model=ChotCaResponse, status_code=status.HTTP_201_CREATED)
+def chot_ca(du_lieu: ChotCaRequest, nguoi_dung: QuyenThaoTacQuay):
+    """Xác nhận chốt ca với số tiền đếm thực tế; lệch thì bắt buộc ghi chú."""
+    return chot_ca_service.chot_ca(
+        nguoi_dung.id, _pham_vi_van_phong(nguoi_dung), du_lieu.den_luc, du_lieu.tien_thuc_dem, du_lieu.ghi_chu
+    )
+
+
+@router.get("/chot-ca", response_model=DanhSachChotCaResponse)
+def lay_lich_su_chot_ca(
+    nguoi_dung: QuyenXemGuiHang,
+    diem_id: UUID | None = Query(None, description="Chỉ quản lý: lọc theo văn phòng"),
+    tu_ngay: date | None = Query(None),
+    den_ngay: date | None = Query(None),
+    chi_lech: bool = Query(False, description="Chỉ các ca bị lệch tiền"),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+):
+    """Lịch sử chốt ca: nhân viên chỉ thấy ca của mình, quản lý thấy mọi ca."""
+    la_quan_ly = nguoi_dung.vai_tro in VAI_TRO_TOAN_HE_THONG
+    van_phong = str(diem_id) if (la_quan_ly and diem_id) else None
+    return chot_ca_service.lay_lich_su(nguoi_dung.id, la_quan_ly, van_phong, tu_ngay, den_ngay, chi_lech, limit, offset)
+
+
+@router.get("/chot-ca/{chot_ca_id}", response_model=ChiTietChotCaResponse)
+def lay_chi_tiet_chot_ca(chot_ca_id: UUID, nguoi_dung: QuyenXemGuiHang):
+    """Chi tiết 1 lần chốt kèm từng khoản — để in lại phiếu."""
+    return chot_ca_service.lay_chi_tiet(str(chot_ca_id), nguoi_dung.id, nguoi_dung.vai_tro in VAI_TRO_TOAN_HE_THONG)
 
 
 @router.get("/doi-soat")
