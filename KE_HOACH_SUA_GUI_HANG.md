@@ -510,6 +510,8 @@ Code hủy đơn đang nằm ở working tree, chưa commit. Base `integration/g
 > Nhánh `feature/Trinh-chot-ca` — **chưa commit**. Đợt B (hủy đơn) đã vào base qua PR #31.
 >
 > **13/10/2026:** ban đầu làm chung nhánh với phần kế toán (`feature/Trinh-hoan-thien-ke-toan`). Người 5 **không làm kế toán nữa** nên đã tách ra: phần kế toán (hoàn tiền UC-22, job 3 tiếng, tra cứu cho quầy vé, thống kê hoàn tiền, giao diện `/nhan-vien/ke-toan/`, migration `20261011_1000_lien_he_hoan_tien`, `KE_HOACH_KE_TOAN.md`, `NGHIEP_VU_KE_TOAN.md`) được cất ở nhánh local `feature/Trinh-ke-toan-luu` (commit `aa33fdf`, không push, không merge) để người nhận phần kế toán dùng lại nếu cần. Nhánh này chỉ còn chốt ca. Chốt ca không phụ thuộc gì vào phần kế toán. Chạy lại sau khi tách: unit **439/439**, E2E gửi hàng **148/148**, E2E chốt ca **31/31**; DB local đã gỡ bảng `lich_su_lien_he_hoan_tien` và bản ghi yoyo của migration `20261011_1000`.
+>
+> **21/10/2026:** đã commit chốt ca (`7311d20`) rồi gộp base mới (#33 phụ xe, #34 sửa quản lý, #35 hệ số loại xe) vào nhánh. Conflict duy nhất ở cuối `don_hang_schema.py`: giữ cả dòng `loai` của `BaoThatLacRequest` (#33) lẫn khối schema chốt ca. Sau khi `yoyo apply` 6 migration mới: unit **706/710** — 4 ca fail có sẵn trên base, không do chốt ca (2 test gửi hàng của #33 thiếu mock `dem_bao_cao_theo_loai` nên gọi DB thật; 2 test no-show fail vì #33 bỏ mất thông báo "không đến" cho khách trong `quet_no_show.py` — cần báo tuanhdung); E2E gửi hàng **148/148** (script thêm xe + biên chế phụ xe tạm vì #33 bắt buộc phụ xe có chuyến cùng tuyến mới được báo sự cố đơn chưa lên xe); E2E chốt ca **31/31**.
 
 ### 7.1. Quyết định
 
