@@ -852,14 +852,16 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
 - **Actor**: Quản lý nhân sự, hoặc Quản lý.
 - **Tiền điều kiện**: Hồ sơ đang `dang_lam`. Chỉ áp dụng cho nhân sự vận hành (tài xế, phụ xe); tài khoản quầy vé/gửi hàng/điều độ viên nghỉ việc thì dùng UC-37 (khóa tài khoản).
 - **Luồng chính** (mục 8.9 điểm 6, mục 3.2):
-  1. Chọn hồ sơ cần cho nghỉ việc, nhập ngày nghỉ và lý do.
+  1. Chọn hồ sơ cần cho nghỉ việc, nhập ngày nghỉ và lý do. Ngày nghỉ mặc định là hôm nay, **không được ở tương lai** và không được trước ngày vào làm; lý do **bắt buộc**.
   2. Hệ thống liệt kê các dòng biên chế `xe_nhan_su` mà người này đang thuộc, kèm xe nào sẽ **thiếu người** sau khi họ nghỉ (so với quy tắc 2 tài xế + ≥1 phụ xe cố định mỗi xe).
   3. Người thao tác xem cảnh báo và xác nhận.
   4. Hệ thống: đặt hồ sơ `da_nghi_viec` (kèm ngày, lý do); nếu là phụ xe thì khóa tài khoản (đặt `dang_hoat_dong = false`, như UC-37); chuyển mọi dòng `xe_nhan_su` của người này sang `tam_nghi` để hệ thống ngừng suy ra chuyến cho họ ngay.
   5. Hệ thống gửi thông báo tới `quan_ly` (để gỡ hẳn/biên chế người mới, UC-35) và tới các điều độ viên (để dùng nguồn dự phòng tạm thời, mục 3.2), nêu rõ xe nào đang thiếu tài xế/phụ xe.
   6. Ghi nhật ký thao tác (UC-52).
 - **Luồng rẽ nhánh**:
+  - Tại bước 1: hồ sơ đã `da_nghi_viec` rồi → chặn, báo "hồ sơ này đã nghỉ việc" → kết thúc.
   - Tại bước 1: xe mà người này thuộc biên chế đang có chuyến `dang_chay` → chặn, báo "chờ chuyến kết thúc rồi thực hiện lại" → kết thúc.
+  - Tại bước 2: xe chỉ bị coi là **thiếu người** khi biên chế **cố định** đang hoạt động của xe, không tính người này, còn dưới 2 tài xế hoặc không còn phụ xe nào. Dòng biên chế tạm thời của người này vẫn chuyển sang `tam_nghi` nhưng không tạo cảnh báo thiếu người.
   - Tại bước 2: người này không thuộc biên chế xe nào → bỏ qua bước 2 và bước 5, chuyển thẳng sang bước 4 (không khóa thêm gì nếu là tài xế).
   - Hệ thống **không xóa cứng** hồ sơ và **không tự gỡ** dòng biên chế cố định — việc gỡ hẳn và biên chế người mới thuộc `quan_ly` (UC-35, mục 8.7), giữ đúng ranh giới ở mục 8.9.
 - **Hậu điều kiện**: Hồ sơ `da_nghi_viec` (giữ lịch sử); tài khoản phụ xe (nếu có) không đăng nhập được; các xe bị ảnh hưởng đã được báo cho `quan_ly` và điều độ viên.
@@ -870,7 +872,7 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
 - **Luồng chính** (mục 8.9 điểm 7):
   1. Mở màn hình nhật ký.
   2. Lọc theo khoảng thời gian, loại hành động (tạo/khóa/mở khóa tài khoản, tạo/sửa hồ sơ, cho nghỉ việc, …), đối tượng bị tác động; riêng `quan_ly` lọc thêm được theo người thực hiện.
-  3. Hệ thống hiển thị danh sách, dòng mới nhất trước.
+  3. Hệ thống hiển thị danh sách, dòng mới nhất trước, chia trang (mặc định 50 dòng mỗi lần, tối đa 200).
 - **Luồng rẽ nhánh**: Nhật ký **chỉ xem** — không có thao tác sửa hay xóa dòng nào (bảng chỉ thêm mới).
 - **Hậu điều kiện**: Không thay đổi dữ liệu.
 
@@ -1192,12 +1194,14 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
 
 - **Actor**: Quản lý (bất kỳ, gốc hay không), hoặc Quản lý nhân sự (phạm vi hẹp hơn).
 - **Luồng chính** (mục 8.7 điểm 2, mục 8.9):
-  1. Nhập email + vai trò muốn tạo (nhân viên vận hành/quầy vé/gửi hàng/điều độ viên/kế toán/quản lý/quản lý nhân sự) + văn phòng phụ trách (bắt buộc trừ `ke_toan`/`quan_ly`/`quan_ly_nhan_su` — không gắn văn phòng, mục 2).
+  1. Nhập email + họ tên + số điện thoại + vai trò muốn tạo (nhân viên vận hành/quầy vé/gửi hàng/điều độ viên/kế toán/quản lý/quản lý nhân sự) + văn phòng phụ trách. Họ tên và số điện thoại bắt buộc vì `nguoi_dung.ho_ten`/`so_dien_thoai` là cột `NOT NULL` (DATABASE.md mục 1.1); cán bộ tự sửa lại sau khi đăng nhập (UC-53). Văn phòng **chỉ bắt buộc với `nhan_vien_quay_ve`/`nhan_vien_gui_hang`/`dieu_do_vien`** — `phu_xe`, `ke_toan`, `quan_ly`, `quan_ly_nhan_su` không gắn văn phòng (mục 2).
   2. Hệ thống kiểm tra actor đang đăng nhập có quyền tạo đúng vai trò vừa chọn hay không (xem luồng rẽ nhánh).
-  3. Hệ thống tạo tài khoản trạng thái "chưa đặt mật khẩu", gửi email mời.
-  4. Cán bộ nhận email, bấm liên kết, tự đặt mật khẩu lần đầu.
+  3. Hệ thống tạo tài khoản trạng thái "chưa đặt mật khẩu" (`mat_khau = NULL`, đã xác nhận email) rồi gửi email chứa mã xác nhận (OTP) — cùng cơ chế với "Quên mật khẩu" (mục 2.1).
+  4. Cán bộ nhận email, vào trang "Quên mật khẩu" nhập email + mã để tự đặt mật khẩu lần đầu. Mã chỉ có hiệu lực 1 phút (mục 2.1) — hết hạn thì cán bộ tự yêu cầu mã mới ngay tại trang đó, người tạo không cần tạo lại.
 - **Luồng rẽ nhánh**:
   - Tại bước 1: email đã tồn tại → báo lỗi → nhập lại.
+  - Tại bước 1: số điện thoại sai định dạng, hoặc vai trò cần văn phòng nhưng chưa chọn / chọn điểm không phải văn phòng → báo lỗi → nhập lại.
+  - Tại bước 3: gửi email thất bại → tài khoản **vẫn được tạo**, hệ thống báo cho người tạo biết chưa gửi được thư; cán bộ tự lấy mã tại "Quên mật khẩu".
   - Tại bước 2: actor là `quan_ly_nhan_su` nhưng vai trò muốn tạo là `ke_toan`/`quan_ly`/`quan_ly_nhan_su` → chặn, báo "không đủ quyền" → kết thúc.
   - Tại bước 2: actor là `quan_ly` **không phải tài khoản gốc** nhưng vai trò muốn tạo là `quan_ly` hoặc `quan_ly_nhan_su` → chặn, báo "chỉ tài khoản quản lý gốc mới tạo được" → kết thúc.
   - Tại bước 2: các trường hợp còn lại (đúng quyền) → tiếp tục bước 3.
@@ -1215,6 +1219,7 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
   4. Đặt `dang_hoat_dong = false` (hoặc `bi_khoa = true` với khách hàng no-show, mục 9).
 - **Luồng rẽ nhánh**:
   - Tại bước 2: tài khoản mục tiêu là `quan_ly` gốc (`la_tai_khoan_goc = true`) → chặn tuyệt đối, không ai khóa được, kể cả `quan_ly` khác → kết thúc.
+  - Tại bước 2: người thao tác chọn đúng tài khoản của chính mình → chặn, báo "không thể tự khóa chính mình" → kết thúc (tránh tự mất quyền truy cập).
   - Tại bước 2: actor là `quan_ly_nhan_su` nhưng mục tiêu là `ke_toan`/`quan_ly`/`quan_ly_nhan_su` khác → chặn, báo "không đủ quyền" → kết thúc.
   - Tại bước 2: các trường hợp còn lại → tiếp tục bước 3.
 - **Hậu điều kiện**: Tài khoản không đăng nhập được nữa; lịch sử vẫn được giữ (không xóa cứng).

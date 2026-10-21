@@ -1248,7 +1248,7 @@ stop
 ```plantuml
 @startuml AD_UC36_TaoTaiKhoanNhanVien
 start
-:Nhập email, chọn vai trò muốn tạo và văn phòng phụ trách (nếu cần);
+:Nhập email, họ tên, số điện thoại, chọn vai trò muốn tạo\nvà văn phòng phụ trách (chỉ quầy vé/gửi hàng/điều độ viên);
 if (Email này đã có tài khoản chưa?) then (có rồi)
   :Báo lỗi email đã tồn tại;
   stop
@@ -1264,8 +1264,8 @@ else (Quản lý)
     stop
   endif
 endif
-:Tạo tài khoản và gửi thư mời qua email;
-:Nhân viên bấm liên kết trong thư và tự đặt mật khẩu lần đầu;
+:Tạo tài khoản (chưa có mật khẩu) và gửi mã xác nhận qua email;
+:Nhân viên vào trang "Quên mật khẩu", nhập email + mã\nđể tự đặt mật khẩu lần đầu;
 :Tài khoản bắt đầu dùng được;
 stop
 @enduml
@@ -1282,6 +1282,10 @@ if (Khóa hay mở khóa?) then (khóa)
   :Tìm tài khoản cần khóa;
   if (Tài khoản này có phải quản lý gốc\n(tài khoản khởi tạo hệ thống) không?) then (phải)
     :Từ chối tuyệt đối — không ai khóa được tài khoản này;
+    stop
+  endif
+  if (Người thao tác chọn đúng tài khoản của chính mình?) then (đúng)
+    :Từ chối — không thể tự khóa chính mình;
     stop
   endif
 else (mở khóa)
