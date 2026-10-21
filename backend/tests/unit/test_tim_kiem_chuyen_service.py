@@ -12,7 +12,8 @@ VN = svc.MUI_GIO_VN
 A, B, C = "kv-a", "kv-b", "kv-c"
 
 
-def _gia(di, den, gia_goc, tu=None, den_ngay=None, tuyen="t1"):
+def _gia(di, den, gia_goc, tu=datetime.date(2026, 1, 1), den_ngay=datetime.date(2099, 12, 31), tuyen="t1"):
+    """1 bộ giá của tuyến: khoảng ngày áp dụng + giá của cặp khu vực đang xét (di/den/gia_goc = None nếu bộ không có giá cặp này)."""
     return {"tuyen_id": tuyen, "diem_di_id": di, "diem_den_id": den, "gia_goc": gia_goc, "ap_dung_tu": tu, "ap_dung_den": den_ngay}
 
 
@@ -35,26 +36,44 @@ def test_gia_chuyen_nguoc_khong_nham_voi_cap_xuoi_cung_chieu_khach_tim():
     assert svc.chon_gia([_gia(C, A, 200000)], "nguoc", C, A, datetime.date(2026, 10, 5), Decimal("1")) is None
 
 
-def test_gia_mua_dang_ap_dung_uu_tien_hon_gia_thuong():
-    dong = [_gia(A, C, 200000), _gia(A, C, 260000, tu=datetime.date(2026, 12, 20), den_ngay=datetime.date(2027, 1, 5))]
-    assert svc.chon_gia(dong, "xuoi", A, C, datetime.date(2026, 12, 25), Decimal("1")) == 260000
-    assert svc.chon_gia(dong, "xuoi", A, C, datetime.date(2026, 10, 5), Decimal("1")) == 200000  # ngoài mùa
+def test_bo_gia_sau_noi_tiep_bo_gia_truoc_tai_ngay_ap_dung():
+    dong = [
+        _gia(A, C, 200000, tu=datetime.date(2026, 10, 1), den_ngay=datetime.date(2026, 12, 19)),
+        _gia(A, C, 260000, tu=datetime.date(2026, 12, 20), den_ngay=datetime.date(2027, 3, 31)),
+    ]
+    assert svc.chon_gia(dong, "xuoi", A, C, datetime.date(2026, 12, 19), Decimal("1")) == 200000  # ngày kết thúc tính luôn
+    assert svc.chon_gia(dong, "xuoi", A, C, datetime.date(2026, 12, 20), Decimal("1")) == 260000  # ngày áp dụng tính luôn
 
 
-def test_gia_mua_ngay_dau_va_cuoi_deu_tinh():
-    dong = [_gia(A, C, 100, tu=datetime.date(2026, 12, 20), den_ngay=datetime.date(2027, 1, 5)), _gia(A, C, 50)]
-    assert svc.chon_gia(dong, "xuoi", A, C, datetime.date(2026, 12, 20), Decimal("1")) == 100
-    assert svc.chon_gia(dong, "xuoi", A, C, datetime.date(2027, 1, 5), Decimal("1")) == 100
-    assert svc.chon_gia(dong, "xuoi", A, C, datetime.date(2027, 1, 6), Decimal("1")) == 50
+def test_ngay_ngoai_moi_bo_gia_thi_khong_co_gia():
+    dong = [_gia(A, C, 100, tu=datetime.date(2026, 12, 20), den_ngay=datetime.date(2027, 1, 31))]
+    assert svc.chon_gia(dong, "xuoi", A, C, datetime.date(2026, 10, 5), Decimal("1")) is None  # trước bộ đầu tiên
+    assert svc.chon_gia(dong, "xuoi", A, C, datetime.date(2027, 2, 1), Decimal("1")) is None  # sau ngày kết thúc bộ cuối
 
 
-def test_gia_chi_co_gia_mua_ngoai_mua_thi_khong_co_gia():
-    dong = [_gia(A, C, 100, tu=datetime.date(2026, 12, 20), den_ngay=datetime.date(2027, 1, 5))]
-    assert svc.chon_gia(dong, "xuoi", A, C, datetime.date(2026, 10, 5), Decimal("1")) is None
+def test_bo_gia_ap_dung_thieu_cap_thi_khong_co_gia_chu_khong_roi_ve_bo_cu():
+    dong = [
+        _gia(A, C, 100_000, tu=datetime.date(2026, 1, 1), den_ngay=datetime.date(2026, 5, 31)),
+        _gia(None, None, None, tu=datetime.date(2026, 6, 1), den_ngay=datetime.date(2026, 12, 31)),
+    ]
+    assert svc.chon_gia(dong, "xuoi", A, C, datetime.date(2026, 7, 1), Decimal("1")) is None
+    assert svc.chon_gia(dong, "xuoi", A, C, datetime.date(2026, 5, 1), Decimal("1")) == 100_000
 
 
-def test_gia_lam_tron_len_dong():
-    assert svc.chon_gia([_gia(A, C, 100001)], "xuoi", A, C, datetime.date(2026, 10, 5), Decimal("1.25")) == 125001
+def test_gia_chuyen_ve_cua_chu_ky_lech_ngay_lay_bo_gia_theo_ngay_khoi_hanh_chuyen_ve():
+    # Bộ mới áp dụng từ 16/10: chuyến đi 15/10 giá cũ, chuyến về của cùng chu kỳ khởi hành 16/10 giá mới
+    dong = [
+        _gia(A, C, 300000, tu=datetime.date(2026, 1, 1), den_ngay=datetime.date(2026, 10, 15)),
+        _gia(A, C, 400000, tu=datetime.date(2026, 10, 16), den_ngay=datetime.date(2026, 12, 31)),
+    ]
+    assert svc.chon_gia(dong, "xuoi", A, C, datetime.date(2026, 10, 15), Decimal("1")) == 300000
+    assert svc.chon_gia(dong, "nguoc", C, A, datetime.date(2026, 10, 16), Decimal("1")) == 400000
+
+
+def test_gia_lam_tron_toi_boi_so_cua_10000():
+    # 130.000 × 1,15 = 149.500 → 150.000; 130.000 × 1,1 = 143.000 → 140.000
+    assert svc.chon_gia([_gia(A, C, 130000)], "xuoi", A, C, datetime.date(2026, 10, 5), Decimal("1.15")) == 150000
+    assert svc.chon_gia([_gia(A, C, 130000)], "xuoi", A, C, datetime.date(2026, 10, 5), Decimal("1.1")) == 140000
 
 
 # ---------------------------------------------------------
@@ -169,3 +188,18 @@ def test_so_do_ghe_chuyen_khong_con_mo_ban(monkeypatch):
     _gia_lap(monkeypatch, [], [])
     with pytest.raises(GiaTriLoi, match="không còn mở bán"):
         svc.so_do_ghe_chuyen("c1", A, C)
+
+
+def test_the_chuyen_gia_thap_nhat_cao_nhat_theo_he_so_ghe(monkeypatch):
+    # chặng 100.000, hệ số chuyến 1,5: ghế thường 150.000; A1 ×1,2 → 180.000; A2 ×0,8 → 120.000
+    hang = _hang(_ngay_mai(), he_so_gia=Decimal("1.50"), he_so_ghe={"A1": 1.2, "A2": 0.8})
+    _gia_lap(monkeypatch, [hang], [_gia(A, C, 100000, tu=datetime.date(2000, 1, 1), den_ngay=datetime.date(2100, 1, 1))])
+    the = svc.tim_chuyen(A, C, _ngay_mai())
+    assert the[0]["gia"] == 120000 and the[0]["gia_cao_nhat"] == 180000
+
+
+def test_the_chuyen_khong_co_he_so_ghe_thi_moi_ghe_cung_gia(monkeypatch):
+    hang = _hang(_ngay_mai(), he_so_gia=Decimal("1.50"))
+    _gia_lap(monkeypatch, [hang], [_gia(A, C, 100000, tu=datetime.date(2000, 1, 1), den_ngay=datetime.date(2100, 1, 1))])
+    the = svc.tim_chuyen(A, C, _ngay_mai())
+    assert the[0]["gia"] == the[0]["gia_cao_nhat"] == 150000

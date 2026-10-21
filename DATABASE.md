@@ -175,21 +175,37 @@ Chuỗi điểm có thứ tự của 1 tuyến — chứa **mọi** điểm xe t
 
 UNIQUE: (`tuyen_id`, `thu_tu`) và (`tuyen_id`, `diem_don_tra_id`) — 1 điểm không xuất hiện 2 lần trong cùng 1 tuyến. Điểm có `thu_tu` nhỏ nhất và lớn nhất của mỗi tuyến bắt buộc `loai = 'van_phong'` (kiểm tra ở Service). Không còn ràng buộc nào đối chiếu với bảng khác (khác thiết kế trước dùng `nhom_tuyen_khu_vuc`) — quản lý tự nhập đúng thứ tự thực tế xe đi qua.
 
-### 2.5. `gia_ve`
+### 2.5. `bo_gia_ve` và `gia_ve`
 
-**Giá gốc** — chỉ phụ thuộc `(tuyến, cặp điểm đi/điểm đến)`, không phụ thuộc điểm đón/trả cụ thể (mục 3.1) và **không phụ thuộc loại xe** — nhập tay, không tính tự động theo km. Loại xe được nhân vào **lúc tính giá thực tế** qua `loai_xe.he_so_gia` (mục 3.1 file này), không lưu thành cột/dòng riêng ở đây — tránh phải nhập `(số tuyến) × (số cặp điểm) × (số loại xe)` dòng.
+Giá vé theo **bộ** (`NGHIEP_VU.md` mục 3.1, UC-33): mỗi tuyến có nhiều bộ giá nối liền nhau (mỗi bộ có ngày bắt đầu và ngày kết thúc), mỗi bộ gồm giá gốc của **mọi** cặp khu vực trên tuyến. **Giá gốc** chỉ phụ thuộc `(tuyến, cặp khu vực điểm đi/điểm đến)`, không phụ thuộc điểm đón/trả cụ thể và **không phụ thuộc loại xe** — nhập tay, không tính tự động theo km. Không có giá theo mùa/dịp lễ.
+
+**`bo_gia_ve`**
 
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | UUID PK | |
 | `tuyen_id` | UUID NOT NULL, FK → `tuyen(id)` | |
-| `diem_di_id` | UUID NOT NULL, FK → `khu_vuc(id)` | |
-| `diem_den_id` | UUID NOT NULL, FK → `khu_vuc(id)` | |
-| `gia_goc` | NUMERIC(12,0) NOT NULL | Giá ứng với `loai_xe.he_so_gia = 1` (hệ số chuẩn) — giá thực tế bán ra = `gia_goc × he_so_gia` của xe đang chạy chuyến đó (mục 7) |
-| `ap_dung_tu` | DATE NULLABLE | Cho giá theo mùa/dịp lễ; `NULL` = áp dụng vô thời hạn |
-| `ap_dung_den` | DATE NULLABLE | |
+| `ap_dung_tu` | DATE NOT NULL | Ngày bắt đầu áp dụng |
+| `ap_dung_den` | DATE NOT NULL, CHECK ≥ `ap_dung_tu` | Ngày kết thúc (bắt buộc). Các bộ của 1 tuyến **nối liền**: bộ sau có `ap_dung_tu` = `ap_dung_den` của bộ trước + 1 ngày (Service đảm bảo, không ép ở DB) — nên không chồng, không hở |
+| `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
 
-UNIQUE: (`tuyen_id`, `diem_di_id`, `diem_den_id`, `ap_dung_tu`).
+UNIQUE (`tuyen_id`, `ap_dung_tu`). Chuyến khởi hành ngày D (giờ Việt Nam) dùng bộ có `ap_dung_tu` ≤ D ≤ `ap_dung_den`; D ngoài khoảng của mọi bộ thì chuyến không có giá (khách không thấy) — nên **sinh chuyến chỉ được trong khoảng các bộ** (`NGHIEP_VU.md` UC-47). Chỉ **bộ cuối cùng** của tuyến được đổi `ap_dung_den` hoặc xóa; chỉ **bộ đầu tiên** được đổi `ap_dung_tu`.
+
+**`gia_ve`** (giá của 1 chặng trong 1 bộ)
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `id` | UUID PK | |
+| `bo_gia_id` | UUID NOT NULL, FK → `bo_gia_ve(id)` ON DELETE CASCADE | Xóa bộ thì xóa luôn giá các chặng |
+| `diem_di_id` | UUID NOT NULL, FK → `khu_vuc(id)` | Điểm đi đứng trước điểm đến theo chiều đi của tuyến |
+| `diem_den_id` | UUID NOT NULL, FK → `khu_vuc(id)` | |
+| `gia_goc` | NUMERIC(12,0) NOT NULL | Giá ứng với hệ số giá = 1 — giá thực tế bán ra = `gia_goc × chuyen_xe.he_so_gia` làm tròn tới bội số của 10.000đ (hệ số nhập ở lịch chạy, chốt vào chuyến lúc sinh chuyến; mục 7) |
+
+UNIQUE (`bo_gia_id`, `diem_di_id`, `diem_den_id`). **Bộ phải đủ mọi chặng** của tuyến (Service kiểm tra lúc tạo/sửa; không ép ở DB vì tuyến có thể đổi khu vực sau đó).
+
+**Khóa bộ đã dùng để sinh chuyến**: bộ bị khóa (không sửa giá/`ap_dung_tu`, không xóa) khi tuyến có `chuyen_xe` với ngày khởi hành (giờ Việt Nam) nằm trong [`ap_dung_tu`, `ap_dung_den`] của bộ đó, bất kể chuyến đã có vé hay chưa; riêng bộ cuối vẫn kéo dài/rút ngắn `ap_dung_den` được (không rút ngắn trước ngày chuyến xa nhất đã sinh). Tính theo tuyến chứ không theo từng cặp khu vực vì mọi chuyến của tuyến dùng chung các cặp giá của tuyến.
+
+**Không có cột liên kết `ve` → `gia_ve`**: vé tự lưu giá của mình (`ve.gia`, chốt lúc khách giữ ghế) nên đổi/xóa giá không làm đổi tiền vé đã đặt, thanh toán hay hoàn tiền.
 
 ---
 
@@ -197,14 +213,15 @@ UNIQUE: (`tuyen_id`, `diem_di_id`, `diem_den_id`, `ap_dung_tu`).
 
 ### 3.1. `loai_xe`
 
-Danh mục loại xe — **`quan_ly` tự thêm/sửa tùy ý** (VD "Ghế ngồi", "Giường đơn", "Giường cabin đôi", "Limousine phòng đơn"...), không giới hạn số lượng, không hard-code như bản trước (`xe.loai` cũ). **2 xe cùng `loai_xe` phải giống hệt nhau về mọi mặt** — sơ đồ ghế, hệ số giá — chỉ khác biển số (mục 3.3 `NGHIEP_VU.md`, phục vụ đổi xe khi hỏng mà không ảnh hưởng gì tới vé đã đặt). Vì vậy sơ đồ ghế đặt ở **`loai_xe`**, không phải ở `xe`. **Không có cột sức chứa khoang hàng** — đã bỏ hẳn cơ chế tính sức chứa tự động (`NGHIEP_VU.md` mục 10.2): việc xe còn chỗ chứa hàng hay không do phụ xe tự đánh giá trực tiếp lúc chất hàng, không thể tính đúng chỉ bằng 1 con số kg (khác ghế, vốn là vị trí rời rạc đếm được).
+Danh mục loại xe — **`quan_ly` tự thêm/sửa tùy ý** (VD "Ghế ngồi", "Giường đơn", "Giường cabin đôi", "Limousine phòng đơn"...), không giới hạn số lượng, không hard-code như bản trước (`xe.loai` cũ). **2 xe cùng `loai_xe` phải giống hệt nhau về mọi mặt** — sơ đồ ghế — chỉ khác biển số (mục 3.3 `NGHIEP_VU.md`, phục vụ đổi xe khi hỏng mà không ảnh hưởng gì tới vé đã đặt). Vì vậy sơ đồ ghế đặt ở **`loai_xe`**, không phải ở `xe`. **Không có cột sức chứa khoang hàng** — đã bỏ hẳn cơ chế tính sức chứa tự động (`NGHIEP_VU.md` mục 10.2): việc xe còn chỗ chứa hàng hay không do phụ xe tự đánh giá trực tiếp lúc chất hàng, không thể tính đúng chỉ bằng 1 con số kg (khác ghế, vốn là vị trí rời rạc đếm được).
 
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | UUID PK | |
 | `ma` | TEXT NOT NULL UNIQUE | Mã tự sinh dạng `LX001` (sequence `seq_ma_loai_xe`, mục 10) |
 | `ten` | TEXT NOT NULL UNIQUE | |
-| `he_so_gia` | NUMERIC(4,2) NOT NULL DEFAULT 1.0 | Hệ số nhân với `gia_ve.gia_goc` để ra giá bán thực tế — cấu hình **1 lần cho toàn hệ thống**, dùng chung cho mọi tuyến |
+| `he_so_ghe` | JSONB NOT NULL DEFAULT `{}` | Hệ số giá từng ghế `{"A1-1": 1.1}`; ghế vắng mặt = 1. **Luôn sửa được** (kể cả khi `so_do_ghe` đã khóa); mỗi khóa phải là `ma_ghe` có trong sơ đồ (Service kiểm tra), giá trị > 0, tối đa 99,99, 2 chữ số thập phân. Chỉ ảnh hưởng chuyến sinh SAU — chuyến đã sinh giữ bản chốt `chuyen_xe.he_so_ghe` |
+| `phien_ban` | INTEGER NOT NULL DEFAULT 1 | Khóa lạc quan: tăng 1 mỗi lần sửa; form gửi kèm phiên bản đang xem, lệch → báo xung đột (HTTP 409). Sửa loại xe còn khóa dòng (`FOR UPDATE`), tạo/sửa `xe` và sinh chuyến lấy `FOR SHARE` trên cùng dòng này |
 | `so_do_ghe` | JSONB NOT NULL | Sơ đồ ghế thật (số ghế + cách bố trí) — dùng JSON thay vì bảng `ghe_xe` riêng, đơn giản hơn cho quy mô BTL. Mọi xe cùng `loai_xe` dùng chung đúng 1 sơ đồ này |
 
 ### 3.2. `xe`
@@ -213,7 +230,7 @@ Danh mục loại xe — **`quan_ly` tự thêm/sửa tùy ý** (VD "Ghế ngồ
 |---|---|---|
 | `id` | UUID PK | |
 | `bien_so` | TEXT NOT NULL UNIQUE | |
-| `loai_xe_id` | UUID NOT NULL, FK → `loai_xe(id)` | Quyết định sơ đồ ghế, hệ số giá (mục 3.1 file này) — **đây là thuộc tính duy nhất phân biệt "loại" của 1 xe** |
+| `loai_xe_id` | UUID NOT NULL, FK → `loai_xe(id)` | Quyết định sơ đồ ghế (mục 3.1 file này) — **đây là thuộc tính duy nhất phân biệt "loại" của 1 xe** |
 | `trang_thai` | TEXT NOT NULL DEFAULT `'hoat_dong'`, CHECK IN (`hoat_dong`, `bao_tri`, `ngung_su_dung`) | Xe `bao_tri`/`ngung_su_dung` không được gán chuyến mới (Service kiểm tra) |
 | `diem_goc_id` | UUID NOT NULL, FK → `diem_don_tra(id)` | Phải `loai = 'van_phong'` — vị trí khởi điểm khi chưa chạy chuyến nào (mục 3.3 `NGHIEP_VU.md`) |
 | `tuyen_id` | UUID NULLABLE, FK → `tuyen(id)` | `NULL` = xe dự phòng, dùng linh hoạt cho mọi tuyến. Có giá trị = xe cố định đúng tuyến này (**cả 2 chiều**, mục 3.1/3.2 `NGHIEP_VU.md`) |
@@ -233,9 +250,13 @@ Danh mục loại xe — **`quan_ly` tự thêm/sửa tùy ý** (VD "Ghế ngồ
 | `lich_chay_dinh_ky_id` | UUID NULLABLE, FK → `lich_chay_dinh_ky(id)` | Lịch chạy định kỳ đã sinh ra chuyến này (mục 3.5) — `NULL` nếu chuyến được tạo cách khác (không bắt buộc phải qua lịch định kỳ, dự phòng cho các trường hợp đặc biệt) |
 | `xe_thuc_te_id` | UUID NULLABLE, FK → `xe(id)` | Phương tiện vật lý thực sự chạy chuyến này, nếu khác `xe_id` (mục 3.3 — đổi xe khi hỏng đột xuất). `NULL` = đúng xe gốc đang chạy. Bắt buộc cùng `loai_xe` với `xe_id` khi có giá trị (Service kiểm tra) |
 | `gio_khoi_hanh` | TIMESTAMPTZ NOT NULL | |
+| `he_so_ghe` | JSONB NOT NULL DEFAULT `{}` | Hệ số từng ghế **chốt lúc sinh chuyến** (copy từ `loai_xe.he_so_ghe`, đọc 1 lần cho cả lô sinh chuyến với `FOR SHARE`) — giá ghế = `gia_goc × he_so_gia × he_so_ghe[ma_ghe]` làm tròn 1 lần ở cuối |
+| `he_so_gia` | NUMERIC(4,2) NOT NULL DEFAULT 1.0, CHECK > 0 | Hệ số giá **chốt lúc sinh chuyến** (copy từ `lich_chay_dinh_ky.he_so_gia`) — giá vé = `gia_ve.gia_goc × he_so_gia`; sửa lịch sau đó không đổi giá chuyến đã sinh |
 | `trang_thai` | TEXT NOT NULL DEFAULT `'chua_khoi_hanh'`, CHECK IN (`chua_khoi_hanh`, `dang_chay`, `gap_su_co`, `hoan_thanh`, `da_huy`) | Không có trạng thái "hủy vì ít khách" **và không có trạng thái riêng cho "hoãn"** — chuyến luôn chạy (mục 1, mục 4); khi hoãn trước giờ chạy do hết xe thay thế (mục 3.3), chuyến vẫn ở `chua_khoi_hanh`, chỉ đổi `gio_khoi_hanh` + bật cờ `dang_hoan` dưới đây. `da_huy` **không dùng** cho hết xe thay thế trước giờ chạy, và **không dùng** cho `gap_su_co` do `loai_su_co = 'loi_nha_xe'` (luôn tìm được xe thay thế) — chỉ dùng cho `gap_su_co` do `loai_su_co = 'loi_khach_quan'` khi điều độ viên xác nhận thực sự không thể tiếp tục |
 | `dang_hoan` | BOOLEAN NOT NULL DEFAULT false | `true` khi chuyến đang chờ tìm xe trước giờ khởi hành — 2 nguồn gốc dùng chung cờ này (mục 3.3): (a) xe đã gán (`xe_id` có giá trị) hỏng đột xuất, chưa tìm được xe thay thế kịp (lệch >30 phút, điều độ viên bật thủ công qua UC-20); (b) chưa từng gán được xe (`xe_id` vẫn `NULL`), tới đúng `gio_khoi_hanh` mà vẫn chưa có (job tự động bật qua UC-44 ⏱). Cả 2 đều mở quyền hủy nhận hoàn 100% cho vé `da_thanh_toan` (UC-41, ngoại lệ duy nhất). Tắt lại khi điều độ viên tìm được xe (gán `xe_id` nếu trường hợp (b), hoặc `xe_thuc_te_id` nếu trường hợp (a)) và cập nhật `gio_khoi_hanh` chính thức |
-| `gio_xac_nhan_xuat_phat` | TIMESTAMPTZ NULLABLE | Phụ xe xác nhận (mục 8.2 điểm 2) |
+| `gio_xac_nhan_xuat_phat` | TIMESTAMPTZ NULLABLE | Giờ xe thực sự xuất phát: phụ xe bấm "Xuất phát" ở điểm đầu từ đúng `gio_khoi_hanh` (mục 8.2 điểm 2) |
+| `dang_di_chuyen` | BOOLEAN NOT NULL DEFAULT false | Chuyến `dang_chay` có 2 pha: **đang dừng** tại điểm (`false` — cho khách lên/xuống, chất/dỡ hàng) và **đang di chuyển** tới điểm kế tiếp (`true` — không lên/xuống/chất/dỡ được). Bật khi phụ xe bấm "Bắt đầu di chuyển" (kể cả lúc xuất phát), tắt khi xác nhận đến điểm kế tiếp hoặc chuyến `hoan_thanh`. Migration `20261011_0900` |
+| `gio_roi_diem` | TIMESTAMPTZ NULLABLE | Giờ xe rời điểm dừng gần nhất (chỉ có giá trị khi `dang_di_chuyen = true`) |
 | `gio_hoan_thanh` | TIMESTAMPTZ NULLABLE | |
 | `loai_su_co` | TEXT NULLABLE, CHECK IN (`loi_nha_xe`, `loi_khach_quan`) | Set khi chuyển `gap_su_co` (UC-17) — quyết định toàn bộ cách xử lý và quyền hoàn tiền của khách trong lúc chờ (mục 3.3/4/7). `loi_nha_xe` luôn tìm được xe thay thế cuối cùng (không có nhánh hủy); chỉ `loi_khach_quan` mới có thể dẫn tới `da_huy` |
 | `ly_do_su_co` | TEXT NULLABLE | Mô tả chi tiết sự cố (VD "nổ lốp", "sạt lở km 45") khi chuyển `gap_su_co`/`da_huy`, hoặc lý do đang `dang_hoan` |
@@ -270,12 +291,15 @@ Do `quan_ly` thiết lập (mục 3.5/8.7 `NGHIEP_VU.md`, UC-18) và chủ độ
 | `chieu` | TEXT NOT NULL, CHECK IN (`xuoi`, `nguoc`) | Tuyến giờ chạy được cả 2 chiều (mục 2.3) nên phải chọn rõ dòng lịch này chạy chiều nào — copy sang `chuyen_xe.chieu` mỗi lần sinh chuyến |
 | `gio_khoi_hanh` | TIME NOT NULL | Giờ khởi hành trong ngày (không phải ngày cụ thể) — dùng làm mẫu để `quan_ly` sinh `chuyen_xe.gio_khoi_hanh` (kèm ngày cụ thể) khi bấm "Sinh chuyến" (UC-47) |
 | `loai_xe_id` | UUID NOT NULL, FK → `loai_xe(id)` | Loại xe dự kiến phục vụ khung giờ này — copy sang `chuyen_xe.loai_xe_id` mỗi lần sinh chuyến |
-| `dang_ap_dung` | BOOLEAN NOT NULL DEFAULT true | `false` = ngừng sinh chuyến mới từ lịch này — **không xóa/ảnh hưởng** các `chuyen_xe` đã sinh sẵn trước đó |
+| `he_so_gia` | NUMERIC(4,2) NOT NULL DEFAULT 1.0, CHECK > 0 | Hệ số nhân với `gia_ve.gia_goc` để ra giá bán; 2 lịch của 1 cặp luôn cùng giá trị. **Luôn sửa được kể cả khi cặp đã sinh chuyến** (khác giờ/loại xe) vì mỗi chuyến đã chốt hệ số riêng lúc sinh — hệ số mới chỉ áp dụng cho chuyến sinh sau |
+| `dang_ap_dung` | BOOLEAN NOT NULL DEFAULT true | `false` = ngừng sinh chuyến mới từ lịch này — **không xóa/ảnh hưởng** các `chuyen_xe` đã sinh sẵn trước đó. Luôn đổi cùng lúc cho cả 2 lịch của 1 cặp |
+| `cap_id` | UUID NOT NULL | Mã chung của 1 **cặp lịch** (đúng 1 lịch `xuoi` + 1 lịch `nguoc` cùng tuyến) — không có bảng riêng cho cặp. `UNIQUE (cap_id, chieu)` đảm bảo mỗi cặp tối đa 1 lịch mỗi chiều; Service tạo/ngừng/xóa cả cặp trong 1 giao dịch nên không có lịch lẻ |
+| `ngay_lech` | SMALLINT NOT NULL DEFAULT 0, CHECK ≥ 0 | Chỉ có ý nghĩa ở lịch `nguoc` (lịch `xuoi` luôn 0, có CHECK): chuyến về của 1 chu kỳ chạy sau chuyến đi bao nhiêu ngày. Tính lúc tạo/sửa cặp = số ngày nhỏ nhất để xe đi xong (giờ đi + thời gian chạy cả tuyến = mốc muộn nhất của `tuyen_diem_don_tra.thoi_gian_du_kien_phut`) và nghỉ ≥ 30 phút trước giờ khởi hành chiều về. **Lưu cố định** để sửa thời gian chạy của tuyến sau này không làm lệch các cặp đã có |
 | `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
 
-**Sinh chuyến thủ công** (UC-47, `NGHIEP_VU.md` mục 3.5) — **không còn job nền, không còn tham số "N ngày tới"**: `quan_ly` chọn 1 lịch `dang_ap_dung = true` và khoảng ngày (không quá khứ, tối đa 180 ngày/lần); Service lặp từng ngày, ghép ngày + `gio_khoi_hanh` thành `TIMESTAMPTZ` **kèm múi giờ `Asia/Ho_Chi_Minh` tường minh** (session Postgres mặc định UTC, thiếu bước này giờ lệch 7 tiếng), **bỏ qua ngày lịch này đã có chuyến** (truy vấn `EXISTS chuyen_xe WHERE lich_chay_dinh_ky_id = ? AND ngày(gio_khoi_hanh theo giờ VN) = ?`) — nên bấm lại/khoảng chồng lấn không sinh trùng. Không có `UNIQUE` DB cho cặp (lịch, ngày); chống trùng ở Service.
+**Sinh chuyến thủ công theo cặp** (UC-47, `NGHIEP_VU.md` mục 3.5) — **không còn job nền, không còn tham số "N ngày tới"**: `quan_ly` chọn các cặp `dang_ap_dung = true` của 1 tuyến và 1 khoảng ngày chung (không quá khứ, tối đa 180 ngày/lần); với mỗi ngày D trong khoảng, Service sinh chuyến lịch `xuoi` vào ngày D và chuyến lịch `nguoc` vào ngày D + `ngay_lech`, ghép ngày + `gio_khoi_hanh` thành `TIMESTAMPTZ` **kèm múi giờ `Asia/Ho_Chi_Minh` tường minh** (session Postgres mặc định UTC, thiếu bước này giờ lệch 7 tiếng), **bỏ qua (lịch, ngày) đã có chuyến** (truy vấn `EXISTS chuyen_xe WHERE lich_chay_dinh_ky_id = ? AND ngày(gio_khoi_hanh theo giờ VN) = ?`) — nên bấm lại/khoảng chồng lấn không sinh trùng, và 2 lần sinh liền kề nối khít nhau. Toàn bộ trong 1 giao dịch (lỗi ở đâu thì không chuyến nào được tạo). Không có `UNIQUE` DB cho (lịch, ngày); chống trùng ở Service.
 
-**Lịch đã sinh chuyến thì khóa sửa** (UC-18): nếu có ít nhất 1 `chuyen_xe.lich_chay_dinh_ky_id` trỏ tới lịch này thì Service từ chối sửa `chieu`/`gio_khoi_hanh`/`loai_xe_id` (và xóa lịch bị FK chặn) — vì chuyến cũ giữ giá trị lúc sinh, sửa lịch sẽ làm 2 bên lệch nhau và các ngày đã có chuyến không bao giờ được sinh lại theo lịch mới. Muốn đổi: `dang_ap_dung = false` rồi tạo lịch mới. `tuyen_id` của lịch không bao giờ đổi được.
+**Cặp đã sinh chuyến thì khóa sửa** (UC-18): nếu có ít nhất 1 `chuyen_xe.lich_chay_dinh_ky_id` trỏ tới 1 trong 2 lịch của cặp thì Service từ chối sửa giờ/`loai_xe_id` của cả 2 lịch (và xóa cặp bị FK chặn) — vì chuyến cũ giữ giá trị lúc sinh, sửa lịch sẽ làm 2 bên lệch nhau và các ngày đã có chuyến không bao giờ được sinh lại theo lịch mới. Muốn đổi: `dang_ap_dung = false` rồi tạo lịch mới. `tuyen_id` của lịch không bao giờ đổi được.
 
 **Index nên đánh thêm**: `chuyen_xe(xe_id) WHERE xe_id IS NULL` — dùng cho danh sách "chuyến cần gán xe" của điều độ viên (UC-44), đặc biệt lọc thêm theo ngưỡng cảnh báo 48 tiếng (mục 3.5 `NGHIEP_VU.md`).
 
@@ -560,7 +584,7 @@ Nhất quán với nguyên tắc "tính động qua query, không cache số li�
 | Ghế còn trống cho 1 đoạn `[don, tra)` (mục 6) | Không tồn tại `ve` nào cùng `(chuyen_id, so_ghe)`, trạng thái `giu_cho`/`da_thanh_toan`, có khoảng `[thu_tu(diem_don), thu_tu(diem_tra))` giao với đoạn đang xét — **`thu_tu` dùng ở đây là `thu_tu` hiệu lực theo `chieu` của chuyến** (đảo dấu nếu `chieu = nguoc`, mục 2.4) — dùng `chuyen_xe.loai_xe_id.so_do_ghe` để biết tổng số ghế, không cần `xe_id` đã gán hay chưa |
 | Số lần vi phạm no-show của 1 khách hàng (mục 9) | Đếm `ve` của khách có `trang_thai = 'khong_den'` — nhóm theo `khach_hang_id`, lọc theo khoảng thời gian gần nhất (không còn cần xét `het_han`, vì "thanh toán tại quầy" không có `het_han` do hết hạn nữa, mục 3.4/6 `NGHIEP_VU.md`) |
 | Tỷ lệ lấp đầy ghế của 1 chuyến (mục 8.6 điểm 2) | `COUNT(ve active)` / tổng số ghế trong `loai_xe.so_do_ghe` của `chuyen_xe.loai_xe_id` — chỉ để thống kê, **không** dùng để hủy chuyến |
-| Giá vé thực tế của 1 chuyến cho 1 cặp điểm (mục 2.5, mục 3.1 file này) | `gia_ve.gia_goc × loai_xe.he_so_gia` của **`chuyen_xe.loai_xe_id`** (loại xe cam kết, mục 3.5 `NGHIEP_VU.md`) — nhân lúc truy vấn, **không lưu thành cột riêng** cho từng tổ hợp (tuyến × cặp điểm × loại xe), tránh bùng nổ số dòng cần nhập tay khi có nhiều loại xe. Tính được **ngay từ khi chuyến được sinh ra**, không cần đợi gán `xe_id` |
+| Giá vé thực tế của 1 chuyến cho 1 cặp điểm (mục 2.5, mục 3.1 file này) | `gia_ve.gia_goc` của bộ giá áp dụng cho ngày khởi hành của chuyến `× chuyen_xe.he_so_gia` (hệ số chốt lúc sinh chuyến từ lịch chạy, mục 3.5 `NGHIEP_VU.md`) — nhân lúc truy vấn, **không lưu thành cột riêng** cho từng tổ hợp (tuyến × cặp điểm × loại xe), tránh bùng nổ số dòng cần nhập tay khi có nhiều loại xe. Tính được **ngay từ khi chuyến được sinh ra**, không cần đợi gán `xe_id` |
 | Còn được tự hủy giữ chỗ hay không (mục 7/8.1/9 `NGHIEP_VU.md`) | `now() < (chuyen_xe.gio_khoi_hanh + tuyen_diem_don_tra.thoi_gian_du_kien_phut của diem_don_id − X phút cấu hình)` — **dùng chung đúng 1 mốc** với việc xác định no-show (không phải 2 mốc riêng); qua mốc này API hủy trả lỗi, không xóa/sửa DB |
 | Hoàn tiền tự động qua cổng hay do kế toán xử lý thủ công (mục 7 `NGHIEP_VU.md`, UC-19/41) | `ve.ma_giao_dich_cong_thanh_toan IS NOT NULL` → gọi API hoàn tiền của VNPay (kèm `gio_thanh_toan` làm ngày giao dịch gốc) — thành công thì tạo `lich_su_hoan_tien` với `trang_thai = 'da_hoan_tu_dong'` luôn. `NULL` (trả tiền mặt), hoặc API hoàn tiền gọi thất bại → tạo `lich_su_hoan_tien` với `trang_thai = 'cho_xu_ly'`, chờ `ke_toan` xử lý (UC-22) |
 | Danh sách hoàn tiền đang chờ `ke_toan` xử lý (mục 8.8 `NGHIEP_VU.md`) | `lich_su_hoan_tien` có `trang_thai = 'cho_xu_ly'` — phạm vi **toàn hệ thống**, không lọc theo văn phòng (vì `ke_toan` không gắn văn phòng nào, mục 2) |
@@ -582,7 +606,8 @@ xe 1──N xe_nhan_su
 khu_vuc 1──N diem_don_tra
 tuyen 1──N tuyen_diem_don_tra N──1 diem_don_tra
 khu_vuc 1──N gia_ve (diem_di_id), khu_vuc 1──N gia_ve (diem_den_id)
-tuyen 1──N gia_ve
+tuyen 1──N bo_gia_ve
+bo_gia_ve 1──N gia_ve (mỗi bộ có giá của mọi chặng của tuyến)
 
 diem_don_tra 1──1 xe (diem_goc_id)
 tuyen 0──N xe

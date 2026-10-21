@@ -18,7 +18,11 @@ class GheXe(BaseModel):
 
 class LoaiXeRequest(BaseModel):
     ten: str = Field(..., min_length=1)
-    he_so_gia: Decimal = Field(..., gt=0, description="Hệ số nhân với gia_ve.gia_goc để ra giá bán thực tế")
+    he_so_ghe: dict[str, Decimal] = Field(
+        default_factory=dict,
+        description='Hệ số giá từng ghế {"A1-1": 1.1}; ghế vắng mặt = 1. Luôn sửa được (kể cả khi sơ đồ đã khóa), chỉ áp dụng cho chuyến sinh sau',
+    )
+    phien_ban: int | None = Field(None, description="Phiên bản đang xem (bắt buộc khi sửa) — lệch nghĩa là đã có người khác sửa")
     so_do_ghe: list[GheXe] = Field(..., min_length=1, description="Sơ đồ ghế thật — dùng chung cho mọi xe cùng loại này")
 
 
@@ -26,8 +30,10 @@ class LoaiXeResponse(BaseModel):
     id: UUID
     ma: str
     ten: str
-    he_so_gia: Decimal
     so_do_ghe: list[GheXe]
+    he_so_ghe: dict[str, Decimal] = Field(default_factory=dict)
+    phien_ban: int = 1
+    khoa_so_do_ghe: bool = Field(False, description="True khi đã có xe/chuyến dùng loại này — không sửa sơ đồ ghế được nữa")
 
 
 # ---------------------------------------------------------

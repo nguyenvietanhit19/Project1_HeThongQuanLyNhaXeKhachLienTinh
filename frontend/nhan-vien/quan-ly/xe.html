@@ -15,14 +15,6 @@
     <div class="nv-main">
       <header class="nv-topbar">
         <h1>Xe</h1>
-        <div class="nv-topbar__user">
-          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
-          <div class="nv-topbar__identity">
-            <span class="ho-ten" id="topbar-ho-ten"></span>
-            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
-          </div>
-          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
-        </div>
       </header>
 
       <main class="nv-content">
@@ -148,13 +140,12 @@
   <script src="/nhan-vien/quan-ly/api-client.js"></script>
   <script src="/nhan-vien/quan-ly/auth-check.js"></script>
   <script src="/nhan-vien/quan-ly/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/tai-khoan.js"></script>
   <script>
     const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
     if (nguoiDung) {
       renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-ly/xe.html");
-      renderTopbarUser();
     }
-    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
 
     const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -167,7 +158,7 @@
 
     const boDau = (s) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
 
-    let boLocTrangThai = "tat_ca"; // tat_ca | hoat_dong | bao_tri | ngung_su_dung
+    let boLocTrangThai = TrangThaiTrang.doc().trangThai || "tat_ca"; // tat_ca | hoat_dong | bao_tri | ngung_su_dung
     let dsXe = [];
     let dsLoaiXe = [];
     let dsVanPhong = [];
@@ -220,6 +211,7 @@
       const tk = boDau(document.getElementById("xe-tim").value.trim());
       const locLoai = document.getElementById("xe-loc-loai").value;
       const locTuyen = document.getElementById("xe-loc-tuyen").value; // "" | "__du_phong" | tuyen_id
+      TrangThaiTrang.luu({ tim: document.getElementById("xe-tim").value, loai: locLoai, tuyen: locTuyen, trangThai: boLocTrangThai });
 
       const loc = dsXe.filter((x) => {
         if (boLocTrangThai !== "tat_ca" && x.trang_thai !== boLocTrangThai) return false;
@@ -275,6 +267,7 @@
       });
     }
 
+    document.getElementById("xe-tim").value = TrangThaiTrang.doc().tim || "";
     ["xe-tim"].forEach((id) => document.getElementById(id).addEventListener("input", renderDanhSach));
     ["xe-loc-loai", "xe-loc-tuyen"].forEach((id) => document.getElementById(id).addEventListener("change", renderDanhSach));
 
@@ -311,6 +304,10 @@
         dsTuyen.map((t) => `<option value="${t.id}">${esc(t.ma)} · ${esc(t.ten)}</option>`).join("");
       document.getElementById("tuyen_id").innerHTML =
         '<option value="">— Xe dự phòng (chạy mọi tuyến) —</option>' + dsTuyen.map((t) => `<option value="${t.id}">${esc(t.ma)} · ${esc(t.ten)}</option>`).join("");
+      // Khôi phục bộ lọc đã nhớ (option vừa nạp xong)
+      const ttXe = TrangThaiTrang.doc();
+      TrangThaiTrang.chonLaiSelect(document.getElementById("xe-loc-loai"), ttXe.loai);
+      TrangThaiTrang.chonLaiSelect(document.getElementById("xe-loc-tuyen"), ttXe.tuyen);
     }
 
     (async () => {

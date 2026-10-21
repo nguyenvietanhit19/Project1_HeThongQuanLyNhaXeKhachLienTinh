@@ -250,17 +250,27 @@ Table tuyen_diem_don_tra [headercolor: #F5A623] {
   }
 }
 
-Table gia_ve [headercolor: #F5A623] {
+Table bo_gia_ve [headercolor: #F5A623] {
   id uuid [pk, default: `gen_random_uuid()`]
   tuyen_id uuid [not null, ref: > tuyen.id]
-  diem_di_id uuid [not null, ref: > khu_vuc.id]
-  diem_den_id uuid [not null, ref: > khu_vuc.id]
-  gia_goc numeric(12,0) [not null, note: 'Giá ứng với he_so_gia = 1']
-  ap_dung_tu date [note: 'Giá theo mùa; NULL = vô thời hạn']
-  ap_dung_den date
+  ap_dung_tu date [not null]
+  ap_dung_den date [not null, note: 'Bắt buộc; bộ sau của tuyến bắt đầu ngày liền sau ngày này (nối liền, không chồng/hở)']
+  ngay_tao timestamptz [not null, default: `now()`]
 
   indexes {
-    (tuyen_id, diem_di_id, diem_den_id, ap_dung_tu) [unique]
+    (tuyen_id, ap_dung_tu) [unique]
+  }
+}
+
+Table gia_ve [headercolor: #F5A623] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  bo_gia_id uuid [not null, ref: > bo_gia_ve.id, note: 'ON DELETE CASCADE']
+  diem_di_id uuid [not null, ref: > khu_vuc.id]
+  diem_den_id uuid [not null, ref: > khu_vuc.id]
+  gia_goc numeric(12,0) [not null, note: 'Giá ứng với hệ số giá = 1 (nhân với chuyen_xe.he_so_gia)']
+
+  indexes {
+    (bo_gia_id, diem_di_id, diem_den_id) [unique]
   }
 }
 
@@ -269,8 +279,9 @@ Table loai_xe [headercolor: #1A1A1E] {
   id uuid [pk, default: `gen_random_uuid()`]
   ma text [not null, unique, note: 'Tự sinh LX001...']
   ten text [not null, unique]
-  he_so_gia numeric(4,2) [not null, default: 1.0]
   so_do_ghe jsonb [not null, note: 'Sơ đồ ghế dùng chung cho mọi xe cùng loại']
+  he_so_ghe jsonb [not null, default: `'{}'`, note: 'Hệ số giá từng ghế {ma_ghe: he_so}; luôn sửa được']
+  phien_ban int [not null, default: 1, note: 'Khóa lạc quan']
 }
 
 Table xe [headercolor: #1A1A1E] {
@@ -288,6 +299,7 @@ Table lich_chay_dinh_ky [headercolor: #1A1A1E] {
   chieu chieu_chay [not null]
   gio_khoi_hanh time [not null, note: 'Giờ trong ngày, không phải ngày cụ thể']
   loai_xe_id uuid [not null, ref: > loai_xe.id]
+  he_so_gia numeric(4,2) [not null, default: 1.0, note: 'Nhân với gia_goc; sửa được bất cứ lúc nào, chỉ ảnh hưởng chuyến sinh sau']
   dang_ap_dung boolean [not null, default: true]
   ngay_tao timestamptz [not null, default: `now()`]
 }
@@ -302,6 +314,8 @@ Table chuyen_xe [headercolor: #1A1A1E] {
   lich_chay_dinh_ky_id uuid [ref: > lich_chay_dinh_ky.id]
   xe_thuc_te_id uuid [ref: > xe.id, note: 'Xe chạy thay nếu khác xe gốc']
   gio_khoi_hanh timestamptz [not null]
+  he_so_gia numeric(4,2) [not null, default: 1.0, note: 'Chốt lúc sinh chuyến từ lịch chạy']
+  he_so_ghe jsonb [not null, default: `'{}'`, note: 'Hệ số từng ghế, chốt lúc sinh chuyến từ loai_xe']
   trang_thai trang_thai_chuyen [not null, default: 'chua_khoi_hanh']
   dang_hoan boolean [not null, default: false]
   gio_xac_nhan_xuat_phat timestamptz

@@ -15,14 +15,6 @@
     <div class="nv-main">
       <header class="nv-topbar">
         <h1>Tuyến</h1>
-        <div class="nv-topbar__user">
-          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
-          <div class="nv-topbar__identity">
-            <span class="ho-ten" id="topbar-ho-ten"></span>
-            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
-          </div>
-          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
-        </div>
       </header>
 
       <main class="nv-content">
@@ -104,13 +96,12 @@
   <script src="/nhan-vien/quan-ly/api-client.js"></script>
   <script src="/nhan-vien/quan-ly/auth-check.js"></script>
   <script src="/nhan-vien/quan-ly/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/tai-khoan.js"></script>
   <script>
     const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
     if (nguoiDung) {
       renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-ly/tuyen.html");
-      renderTopbarUser();
     }
-    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
 
     let dsKhuVuc = [];
     let dsDiemDonTra = [];
@@ -491,7 +482,11 @@
       });
     }
 
-    document.getElementById("tu-tim").addEventListener("input", renderDanhSach);
+    document.getElementById("tu-tim").value = TrangThaiTrang.doc().tim || "";
+    document.getElementById("tu-tim").addEventListener("input", (e) => {
+      TrangThaiTrang.luu({ tim: e.target.value });
+      renderDanhSach();
+    });
 
     async function xoaTuyen(tuyen) {
       try {

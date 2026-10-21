@@ -377,9 +377,11 @@ def test_bao_that_lac_phu_xe():
          patch("app.repositories.don_hang_repository.luu_bao_cao_su_co_hang") as mock_luu, \
          patch("app.repositories.don_hang_repository.danh_sach_nhan_vien_gui_hang_tai_diem", return_value=["nv-gui"]) as mock_nv, \
          patch("app.repositories.nguoi_dung_repository.danh_sach_id_theo_vai_tro", return_value=["ql-1"]), \
+         patch("app.services.chuyen_xe_service.danh_sach_chuyen_cua_toi", return_value=[{"tuyen_id": "tuyen-1"}]), \
          patch("app.services.gui_hang_service._gui_thong_bao") as mock_thong_bao:
+        # Đơn còn chờ chất: phụ xe phải có chuyến cùng tuyến mới được báo (UC-28)
         mock_tim.return_value = {
-            "id": don_id, "ma_van_don": "DH-03", "chuyen_id": None,
+            "id": don_id, "ma_van_don": "DH-03", "chuyen_id": None, "trang_thai": "cho_van_chuyen", "tuyen_id": "tuyen-1",
             "diem_gui_id": diem_gui_id, "diem_nhan_id": str(uuid4()),
         }
         mock_luu.return_value = {"id": str(uuid4()), "don_hang_id": don_id, "mo_ta": "Thùng hàng bị rách"}

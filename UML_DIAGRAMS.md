@@ -207,10 +207,10 @@ rectangle "Hệ thống" {
   usecase "Quản lý khu vực\n(điểm đi, điểm đến)" as UC29
   usecase "Quản lý điểm đón, điểm trả" as UC30
   usecase "Tạo tuyến đường" as UC31
-  usecase "Quản lý loại xe\n(sơ đồ ghế, sức chứa, hệ số giá)" as UC32
+  usecase "Quản lý loại xe\n(sơ đồ ghế, sức chứa)" as UC32
   usecase "Đặt giá vé cho\ntừng cặp điểm" as UC33
-  usecase "Thiết lập lịch chạy định kỳ\n(tuyến, chiều, giờ, loại xe)" as UC18
-  usecase "Sinh chuyến từ lịch chạy\n(chọn khoảng ngày)" as UC47
+  usecase "Thiết lập lịch chạy định kỳ\n(cặp chiều đi + chiều về)" as UC18
+  usecase "Sinh chuyến từ lịch chạy\n(cả cặp, chọn khoảng ngày)" as UC47
   usecase "Quản lý chuyến đã sinh\n(xem, sửa giờ, xóa)" as UC48
   usecase "Quản lý xe" as UC34
   usecase "Phân tài xế và phụ xe\ncố định cho từng xe" as UC35
@@ -641,31 +641,36 @@ stop
 
 ### UC-18. Thiết lập lịch chạy định kỳ
 
-*Khách đặt được vé cho chuyến tận nhiều tuần/tháng sau, nhưng biển số xe cụ thể chỉ xuất hiện gần ngày chạy (giống cách các app đặt vé xe khách thật hoạt động) — vì vậy quản lý chỉ cần quyết định tuyến/giờ/loại xe từ trước, còn xe cụ thể do điều độ viên gán sau (xem use case riêng). Lịch chạy chỉ là "khuôn mẫu"; chuyến thật được sinh ra ở use case kế tiếp.*
+*Khách đặt được vé cho chuyến tận nhiều tuần/tháng sau, nhưng biển số xe cụ thể chỉ xuất hiện gần ngày chạy (giống cách các app đặt vé xe khách thật hoạt động) — vì vậy quản lý chỉ cần quyết định tuyến/giờ/loại xe từ trước, còn xe cụ thể do điều độ viên gán sau (xem use case riêng). Lịch chạy chỉ là "khuôn mẫu"; chuyến thật được sinh ra ở use case kế tiếp. Lịch luôn đi theo cặp chiều đi + chiều về nên không bao giờ có chuyến một chiều mà thiếu chiều còn lại.*
 
 ```plantuml
 @startuml AD_UC18_LichDinhKy
 start
 :Chọn một tuyến đã có sẵn;
-if (Tuyến này đã có giá vé chưa?) then (chưa)
-  :Báo phải đặt giá vé cho tuyến trước;
+:Chọn loại xe dự kiến — dùng chung\ncho cả chiều đi và chiều về;
+:Nhập giờ khởi hành của chiều đi\nvà của chiều về;
+:Hệ thống tính xe tới nơi lúc mấy giờ;
+if (Chiều đi kết thúc trong ngày mà chiều về\nkhởi hành sớm hơn giờ đó + 30 phút?) then (có)
+  :Báo chiều về phải cùng ngày\nvà khởi hành muộn hơn ít nhất 30 phút;
   stop
 endif
-:Chọn chiều chạy (chiều đi hoặc chiều về —\ntuyến giờ chạy được cả 2 chiều);
-:Nhập giờ khởi hành trong ngày;
-:Chọn loại xe dự kiến phục vụ khung giờ này;
-if (Đã có lịch y hệt (cùng tuyến, chiều, giờ, loại xe)?) then (có)
-  :Báo trùng lịch;
+:Nếu chiều đi qua nửa đêm, tính chuyến về\nchạy sau chuyến đi mấy ngày;
+note right
+  Ví dụ tuyến chạy 6 tiếng: đi 23h00 thì tới 5h00 hôm sau,
+  chiều về 7h00 chạy sau chuyến đi 1 ngày.
+end note
+if (Chiều đi hoặc chiều về đã có lịch y hệt\n(cùng tuyến, giờ, loại xe)?) then (có)
+  :Báo trùng lịch, không lưu gì cả;
   stop
 endif
-:Lưu lại thành lịch chạy định kỳ —\nlúc này chưa có chuyến nào được tạo;
-if (Sau này muốn thay đổi lịch này?) then (ngừng áp dụng)
-  :Chỉ ngừng tạo chuyến mới từ lịch này —\ncác chuyến đã tạo (có thể đã bán vé)\nvẫn giữ nguyên, không bị hủy;
+:Lưu cả hai chiều cùng lúc thành một cặp lịch —\nlúc này chưa có chuyến nào được tạo;
+if (Sau này muốn thay đổi cặp lịch này?) then (ngừng áp dụng)
+  :Chỉ ngừng tạo chuyến mới cho cả hai chiều —\ncác chuyến đã tạo (có thể đã bán vé)\nvẫn giữ nguyên, không bị hủy;
 else (sửa hoặc xóa)
-  if (Lịch này đã từng tạo chuyến chưa?) then (đã tạo)
-    :Không cho sửa hay xóa —\nbáo hãy ngừng lịch này rồi lập lịch mới;
+  if (Cặp lịch này đã từng tạo chuyến chưa?) then (đã tạo)
+    :Không cho sửa hay xóa —\nbáo hãy ngừng cặp lịch này rồi lập cặp mới;
   else (chưa)
-    :Cho sửa hoặc xóa tự do;
+    :Cho sửa giờ từng chiều, đổi loại xe cả cặp\nhoặc xóa cả cặp;
   endif
 endif
 stop
@@ -674,30 +679,41 @@ stop
 
 ### UC-47. Sinh chuyến từ lịch chạy định kỳ
 
-*Không có công việc chạy nền tự tạo chuyến: quản lý tự quyết định mở bán tới ngày nào bằng cách chọn hẳn khoảng ngày. Bấm lại cho khoảng ngày chồng lên lần trước vẫn an toàn — ngày nào đã có chuyến thì bỏ qua.*
+*Không có công việc chạy nền tự tạo chuyến: quản lý tự quyết định mở bán tới ngày nào bằng cách chọn hẳn khoảng ngày. Mỗi cặp lịch được sinh trọn cả hai chiều. Bấm lại cho khoảng ngày chồng lên lần trước vẫn an toàn — chuyến nào đã có thì bỏ qua.*
 
 ```plantuml
 @startuml AD_UC47_SinhChuyen
 start
-:Chọn một lịch chạy và bấm "Sinh chuyến";
-if (Lịch này còn đang áp dụng?) then (đã ngừng)
-  :Báo hãy bật lại lịch trước khi sinh chuyến;
+:Chọn một tuyến, bấm "Sinh chuyến"\nvà tick các cặp lịch cần sinh;
+if (Có chọn ít nhất một cặp,\ncặp nào cũng còn đang áp dụng?) then (không)
+  :Báo chọn lại hoặc bật lại cặp đã ngừng;
   stop
 endif
-:Chọn ngày bắt đầu và ngày kết thúc;
+if (Khoảng ngày chọn nằm trong các bộ giá vé của tuyến?\n(chuyến đi tối đa = ngày cuối bộ giá mới nhất\ntrừ số ngày lệch của chuyến về)) then (vượt ngoài)
+  :Báo ngày muộn nhất sinh được, không tạo chuyến nào\n(vẫn lập lịch được, chỉ chưa sinh chuyến);
+  stop
+endif
+:Chọn ngày bắt đầu và ngày kết thúc chung;
 if (Khoảng ngày hợp lệ?\n(không có ngày đã qua, không quá 180 ngày)) then (không)
   :Báo lỗi, yêu cầu chọn lại;
   stop
 endif
 repeat
-  if (Ngày này lịch đã có chuyến rồi?) then (rồi)
-    :Bỏ qua ngày này;
+  if (Chuyến chiều đi của ngày này\nđã quá giờ hiện tại?) then (rồi)
+    :Bỏ cả ngày này — không tạo chuyến đi lẫn\nchuyến về đi kèm, để không thừa chuyến về lẻ;
   else (chưa)
-    :Tạo một chuyến cho ngày này\n(chưa gán xe cụ thể nào, có mã chuyến riêng);
+    :Với mỗi cặp: chuyến chiều đi chạy đúng ngày này,\nchuyến chiều về chạy sau đó đúng số ngày lệch của cặp;
+    if (Chuyến đó đã có rồi?) then (rồi)
+      :Bỏ qua;
+    else (chưa)
+      :Tạo chuyến (chưa gán xe cụ thể nào,\ncó mã chuyến riêng);
+    endif
   endif
 repeat while (Còn ngày nào trong khoảng?) is (còn)
-:Báo kết quả: tạo mới bao nhiêu chuyến,\nbỏ qua bao nhiêu ngày đã có sẵn;
+:Báo kết quả: tạo mới bao nhiêu chuyến đi, bao nhiêu chuyến về,\nbỏ qua bao nhiêu chuyến đã có và bao nhiêu ngày đã quá giờ;
 note right
+  Tất cả được làm trong một lượt: nếu có lỗi
+  thì không chuyến nào được tạo.
   Các chuyến mới đã có thể cho khách tìm và
   đặt vé ngay, dựa theo đúng loại xe của lịch.
 end note
@@ -713,7 +729,7 @@ stop
 @startuml AD_UC48_QuanLyChuyen
 start
 :Xem danh sách chuyến, lọc theo tuyến, chiều,\nkhoảng ngày, tình trạng hoặc tìm theo mã chuyến;
-:Chọn một chuyến để xem chi tiết\n(mã chuyến, loại xe, xe, số vé, lộ trình và giờ đến từng điểm);
+:Chọn một chuyến để xem chi tiết\n(mã chuyến, loại xe, xe, số vé, giá vé từng chặng,\nlộ trình và giờ đến từng điểm);
 if (Chuyến còn "sạch"?\n(chưa gán xe, chưa chạy, chưa có vé)) then (không)
   :Hiện rõ lý do không sửa hay xóa được\n(đã gán xe / đã chạy / đã có khách đặt);
   stop
@@ -1179,14 +1195,13 @@ endif
 
 ### UC-32. Quản lý loại xe
 
-*Mọi xe cùng loại phải giống hệt nhau — cùng sơ đồ ghế, cùng hệ số giá — chỉ khác biển số. Nhờ vậy khi 1 xe hỏng, đổi sang xe khác cùng loại luôn an toàn tuyệt đối, không ai bị ảnh hưởng.*
+*Mọi xe cùng loại phải giống hệt nhau — cùng sơ đồ ghế — chỉ khác biển số. Nhờ vậy khi 1 xe hỏng, đổi sang xe khác cùng loại luôn an toàn tuyệt đối, không ai bị ảnh hưởng.*
 
 ```plantuml
 @startuml AD_UC32_QuanLyLoaiXe
 start
 :Chọn thêm mới hoặc sửa một loại xe;
 :Nhập tên loại xe (ghế ngồi, giường đơn, cabin đôi...);
-:Nhập hệ số giá của loại xe đó so với giá gốc;
 :Nhập sơ đồ ghế ngồi áp dụng chung cho mọi xe thuộc loại này;
 :Lưu lại;
 stop
@@ -1198,10 +1213,39 @@ stop
 ```plantuml
 @startuml AD_UC33_DatGiaVe
 start
-:Chọn một tuyến;
-:Chọn cặp điểm đi và điểm đến muốn bán vé;
-:Nhập giá gốc cho cặp điểm đó;
-:Lưu lại — giá bán thực tế sẽ bằng giá gốc\nnhân với hệ số của loại xe chạy chuyến;
+:Chọn một tuyến và bấm "Tạo bộ giá mới";
+if (Tuyến đã có bộ giá nào chưa?) then (chưa)
+  :Chọn ngày bắt đầu (mặc định ngày mai);
+else (rồi)
+  :Ngày bắt đầu tự là ngày liền sau\nngày kết thúc của bộ giá cuối cùng;
+endif
+:Chọn ngày kết thúc (bắt buộc);
+:Nhập giá cho từng chặng của tuyến\n(điền sẵn từ bộ đang áp dụng, hiện số tiền có dấu chấm);
+if (Bộ có đủ giá cho mọi chặng?) then (thiếu)
+  :Báo chặng còn thiếu;
+  stop
+endif
+:Hệ thống xem trước: nối tiếp bộ nào,\nchặng nào đổi giá, cảnh báo giá bất thường;
+if (Có cảnh báo giá bất thường?\n(quá thấp/quá cao, lệch nhiều so với bộ trước,\nchặng ngắn đắt hơn chặng dài)) then (có)
+  if (Quản lý kiểm tra lại, vẫn muốn lưu?) then (không)
+    :Quay lại sửa giá;
+    stop
+  endif
+endif
+:Lưu bộ mới nối liền ngay sau bộ cuối cùng;
+note right
+  Vé đã đặt luôn giữ giá lúc khách giữ ghế
+  nên không bị ảnh hưởng. Chuyến chưa ai đặt
+  nằm trong khoảng bộ mới sẽ dùng giá mới.
+  Sinh chuyến chỉ được trong khoảng các bộ giá.
+end note
+if (Sau này muốn sửa hoặc xóa bộ giá?) then (sửa/xóa)
+  if (Đã có chuyến được sinh ra\ntrong khoảng ngày của bộ này?) then (đã có)
+    :Không sửa giá, không xóa (kể cả chưa có khách đặt);\nriêng bộ cuối vẫn kéo dài hoặc rút ngắn\nngày kết thúc được (gia hạn);
+  else (chưa)
+    :Sửa giá tự do; đổi ngày kết thúc và xóa\nchỉ với bộ cuối cùng\n(bộ ở giữa đổi ngày sẽ làm hở/chồng bộ bên cạnh);
+  endif
+endif
 stop
 @enduml
 ```
