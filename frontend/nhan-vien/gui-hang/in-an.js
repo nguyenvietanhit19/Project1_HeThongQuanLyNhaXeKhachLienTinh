@@ -16,7 +16,7 @@ function hienThiBienNhan(don) {
   datText("bnNguoiGui", `${don.ten_nguoi_gui} (${don.sdt_nguoi_gui})`);
   datText("bnNguoiNhan", `${don.ten_nguoi_nhan} (${don.sdt_nguoi_nhan})`);
   datText("bnHang", moTaHang(don));
-  datText("bnThanhToan", cod ? "COD — người nhận trả khi lấy hàng" : "Người gửi trả trước");
+  datText("bnThanhToan", cod ? "Người nhận trả cước khi lấy hàng" : "Người gửi trả trước");
   datText("bnTienNhan", cod ? "NGƯỜI NHẬN TRẢ KHI LẤY:" : "ĐÃ THU CỦA NGƯỜI GỬI:");
   datText("bnTien", dinhDangTien(don.gia_cuoc));
   moModal("modalBienNhan");
@@ -37,7 +37,7 @@ function hienThiNhanDan(don) {
   const cod = laCod(don);
   banner.className = `label-payment-banner${cod ? " is-cod" : ""}`;
   banner.innerHTML = '<div class="label-payment-badge"></div><div class="label-cod-highlight"></div>';
-  banner.firstElementChild.textContent = cod ? "🚚 THU COD KHI GIAO:" : "💵 ĐÃ THANH TOÁN CƯỚC TRƯỚC";
+  banner.firstElementChild.textContent = cod ? "🚚 THU CƯỚC KHI GIAO:" : "💵 ĐÃ THANH TOÁN CƯỚC TRƯỚC";
   banner.lastElementChild.textContent = cod ? dinhDangTien(don.gia_cuoc) : "Không thu thêm";
   moModal("modalNhanDan");
 }
@@ -49,7 +49,7 @@ function hienThiPhieuBanGiao(don) {
   datText("pxThoiGian", dinhDangThoiGian(don.ngay_giao));
   datText("pxVanPhong", don.ten_diem_nhan || "--");
   datText("pxNguoiNhan", `${don.ten_nguoi_nhan} (${don.sdt_nguoi_nhan})`);
-  datText("pxThanhToan", cod ? "COD — thu tại quầy khi giao" : "Người gửi đã trả trước");
+  datText("pxThanhToan", cod ? "Người nhận trả cước — thu tại quầy khi giao" : "Người gửi đã trả trước");
   datText("pxTienThu", cod ? dinhDangTien(don.gia_cuoc) : "0 đ");
   moModal("modalPhieuXuatKho");
 }

@@ -229,7 +229,7 @@ function xuLyGuiFormTaoDon(e) {
     ${dong("Văn phòng nhận:", duLieu.hienThi.vanPhongNhan)}
     ${dong("Tuyến:", duLieu.hienThi.tuyen)}
     ${dong("Hàng hóa:", `${duLieu.hienThi.loaiHang} — ${dinhDangKg(b.can_nang_kg)}`)}
-    ${dong("Hình thức:", laCod(b) ? "COD — người nhận trả khi lấy hàng" : "Người gửi trả trước (đã thu tại quầy)")}
+    ${dong("Hình thức:", laCod(b) ? "Người nhận trả cước khi lấy hàng (COD)" : "Người gửi trả trước (đã thu tại quầy)")}
     <div class="receipt-row total"><span>CƯỚC VẬN CHUYỂN:</span><span>${escapeHtml(dinhDangTien(b.gia_cuoc))}</span></div>
     <p class="card-desc">Đọc lại thông tin và cước cho khách. Chỉ bấm tạo đơn khi khách đã đồng ý.</p>`;
   moModal("modalXacNhanTaoDon");
@@ -273,6 +273,24 @@ function datLaiFormTaoDon() {
   xuLyChonLoaiHang();
   capNhatXacNhanThuTruoc();
 }
+
+// Các ô cho biết nhân viên đã bắt đầu nhập 1 đơn (ô chọn sẵn mặc định như hình thức thanh toán không tính)
+const O_NHAP_TAO_DON = [
+  "ten_nguoi_gui", "sdt_nguoi_gui", "ten_nguoi_nhan", "sdt_nguoi_nhan",
+  "khu_vuc_den", "loai_hang_id", "can_nang_kg", "dai_cm", "rong_cm", "cao_cm", "gia_cuoc",
+];
+
+function formTaoDonDangNhapDo() {
+  return O_NHAP_TAO_DON.some(id => String($(id)?.value ?? "").trim() !== "");
+}
+
+/** Tải lại / đóng tab / bấm Đăng xuất khi đơn đang nhập dở → trình duyệt hỏi lại, tránh mất dữ liệu khách đang đứng chờ.
+ * Bị buộc đăng xuất (hết phiên) thì không hỏi — dữ liệu cũng không gửi được nữa. */
+window.addEventListener("beforeunload", e => {
+  if (window.boQuaCanhBaoRoiTrang || laQuanLyXem() || !formTaoDonDangNhapDo()) return;
+  e.preventDefault();
+  e.returnValue = "";
+});
 
 async function capNhatSoDonHomNay() {
   if (laQuanLyXem()) return;
