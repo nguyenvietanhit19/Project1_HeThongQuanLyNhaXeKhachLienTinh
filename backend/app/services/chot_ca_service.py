@@ -34,10 +34,18 @@ def xem_truoc(nhan_vien_id: str) -> dict:
 
 
 def chot_ca(
-    nhan_vien_id: str, van_phong_id: str | None, den_luc: datetime, tien_thuc_dem: int, ghi_chu: str | None
+    nhan_vien_id: str,
+    van_phong_id: str | None,
+    tu_luc_da_xem: datetime | None,
+    den_luc: datetime,
+    tien_thuc_dem: int,
+    ghi_chu: str | None,
 ) -> dict:
-    """Xác nhận chốt ca với đúng mốc `den_luc` của màn xem trước. Lệch tiền thì bắt buộc ghi chú."""
-    if den_luc.tzinfo is None:
+    """Xác nhận chốt ca với đúng khoảng (tu_luc, den_luc] của màn xem trước. Lệch tiền thì bắt buộc ghi chú.
+
+    `tu_luc_da_xem` phải còn là mốc lần chốt cuối: mở 2 cửa sổ, cửa sổ kia chốt trước thì khoảng của ca đã đổi,
+    số tiền nhân viên vừa đếm theo màn hình này không còn đúng → bắt tải lại thay vì lưu chênh lệch sai."""
+    if den_luc.tzinfo is None or (tu_luc_da_xem is not None and tu_luc_da_xem.tzinfo is None):
         raise GiaTriLoi("Mốc chốt ca phải kèm múi giờ")
     bay_gio = datetime.now(timezone.utc)
     if den_luc > bay_gio + DO_LECH_DONG_HO_CHO_PHEP:
@@ -48,11 +56,13 @@ def chot_ca(
     tu_luc = chot_ca_repo.lay_moc_chot_cuoi(nhan_vien_id)
     if tu_luc is not None and den_luc <= tu_luc:
         raise GiaTriLoi("Ca này đã được chốt rồi, vui lòng tải lại")
+    if tu_luc != tu_luc_da_xem:
+        raise GiaTriLoi("Đã có lần chốt ca khác sau khi bạn mở màn này (mở 2 cửa sổ?) — tải lại để xem đúng số tiền của ca")
     if tien_thuc_dem - _phai_co(chot_ca_repo.tinh_tong(nhan_vien_id, tu_luc, den_luc)) != 0 and not ghi_chu:
         raise GiaTriLoi("Số tiền đếm được lệch với số phải có — bắt buộc ghi chú lý do")
 
     try:
-        return chot_ca_repo.tao_chot_ca(nhan_vien_id, van_phong_id, den_luc, tien_thuc_dem, ghi_chu)
+        return chot_ca_repo.tao_chot_ca(nhan_vien_id, van_phong_id, tu_luc_da_xem, den_luc, tien_thuc_dem, ghi_chu)
     except chot_ca_repo.DaChotSauMocNay:
         raise GiaTriLoi("Ca này vừa được chốt (bấm 2 lần hoặc mở 2 cửa sổ), vui lòng tải lại") from None
 

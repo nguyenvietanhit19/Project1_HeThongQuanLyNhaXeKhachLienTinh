@@ -40,8 +40,8 @@ def test_chot_ca_khop_tien_khong_can_ghi_chu():
     with patch(f"{REPO}.lay_moc_chot_cuoi", return_value=None), \
          patch(f"{REPO}.tinh_tong", return_value=TONG), \
          patch(f"{REPO}.tao_chot_ca", return_value={"id": "x"}) as mock_tao:
-        chot_ca_service.chot_ca("nv", "vp", den, 140000, None)
-    mock_tao.assert_called_once_with("nv", "vp", den, 140000, None)
+        chot_ca_service.chot_ca("nv", "vp", None, den, 140000, None)
+    mock_tao.assert_called_once_with("nv", "vp", None, den, 140000, None)
 
 
 def test_chot_ca_lech_tien_bat_buoc_ghi_chu():
@@ -50,9 +50,9 @@ def test_chot_ca_lech_tien_bat_buoc_ghi_chu():
          patch(f"{REPO}.tinh_tong", return_value=TONG), \
          patch(f"{REPO}.tao_chot_ca") as mock_tao:
         with pytest.raises(GiaTriLoi, match="ghi chú"):
-            chot_ca_service.chot_ca("nv", "vp", den, 130000, None)
+            chot_ca_service.chot_ca("nv", "vp", None, den, 130000, None)
         mock_tao.assert_not_called()
-        chot_ca_service.chot_ca("nv", "vp", den, 130000, "trả nhầm tiền thừa")
+        chot_ca_service.chot_ca("nv", "vp", None, den, 130000, "trả nhầm tiền thừa")
         mock_tao.assert_called_once()
 
 
@@ -60,21 +60,55 @@ def test_chot_ca_lech_tien_bat_buoc_ghi_chu():
 def test_chot_ca_chan_moc_tuong_lai_va_moc_qua_cu(lech):
     with patch(f"{REPO}.tao_chot_ca") as mock_tao:
         with pytest.raises(GiaTriLoi):
-            chot_ca_service.chot_ca("nv", "vp", BAY_GIO() + lech, 0, None)
+            chot_ca_service.chot_ca("nv", "vp", None, BAY_GIO() + lech, 0, None)
         mock_tao.assert_not_called()
 
 
 def test_chot_ca_chan_moc_khong_mui_gio():
     with pytest.raises(GiaTriLoi, match="múi giờ"):
-        chot_ca_service.chot_ca("nv", "vp", datetime.now(), 0, None)
+        chot_ca_service.chot_ca("nv", "vp", None, datetime.now(), 0, None)
 
 
 def test_chot_ca_chan_khi_da_chot_toi_moc_nay():
     den = BAY_GIO() - timedelta(minutes=10)
     with patch(f"{REPO}.lay_moc_chot_cuoi", return_value=den), patch(f"{REPO}.tao_chot_ca") as mock_tao:
         with pytest.raises(GiaTriLoi, match="đã được chốt"):
-            chot_ca_service.chot_ca("nv", "vp", den, 0, None)
+            chot_ca_service.chot_ca("nv", "vp", None, den, 0, None)
         mock_tao.assert_not_called()
+
+
+def test_chot_ca_chan_khi_cua_so_khac_vua_chot():
+    """2 cửa sổ cùng xem trước từ mốc X; cửa sổ 1 chốt trước → khoảng của ca ở cửa sổ 2 không còn là (X, den]."""
+    moc_da_xem = BAY_GIO() - timedelta(hours=8)
+    moc_moi = BAY_GIO() - timedelta(minutes=10)
+    den = BAY_GIO() - timedelta(minutes=1)
+    with patch(f"{REPO}.lay_moc_chot_cuoi", return_value=moc_moi), \
+         patch(f"{REPO}.tinh_tong", return_value=TONG), \
+         patch(f"{REPO}.tao_chot_ca") as mock_tao:
+        with pytest.raises(GiaTriLoi, match="lần chốt ca khác"):
+            chot_ca_service.chot_ca("nv", "vp", moc_da_xem, den, 140000, None)
+        mock_tao.assert_not_called()
+    # Lần chốt đầu tiên ở cửa sổ này (tu_luc = None) nhưng cửa sổ kia đã chốt → cũng chặn
+    with patch(f"{REPO}.lay_moc_chot_cuoi", return_value=moc_moi), patch(f"{REPO}.tao_chot_ca") as mock_tao:
+        with pytest.raises(GiaTriLoi, match="lần chốt ca khác"):
+            chot_ca_service.chot_ca("nv", "vp", None, den, 140000, None)
+        mock_tao.assert_not_called()
+
+
+def test_chot_ca_dung_moc_da_xem_thi_luu():
+    moc = BAY_GIO() - timedelta(hours=8)
+    den = BAY_GIO() - timedelta(minutes=1)
+    with patch(f"{REPO}.lay_moc_chot_cuoi", return_value=moc), \
+         patch(f"{REPO}.tinh_tong", return_value=TONG), \
+         patch(f"{REPO}.tao_chot_ca", return_value={"id": "x"}) as mock_tao:
+        chot_ca_service.chot_ca("nv", "vp", moc, den, 140000, None)
+    mock_tao.assert_called_once_with("nv", "vp", moc, den, 140000, None)
+
+
+def test_schema_chot_ca_bat_buoc_gui_tu_luc():
+    """Phải gửi lại tu_luc của màn xem trước (null cho lần chốt đầu) — thiếu hẳn thì 422."""
+    with pytest.raises(ValidationError):
+        ChotCaRequest(den_luc=BAY_GIO().isoformat(), tien_thuc_dem=0)
 
 
 def test_chot_ca_bam_2_lan_cung_luc():
@@ -83,7 +117,7 @@ def test_chot_ca_bam_2_lan_cung_luc():
          patch(f"{REPO}.tinh_tong", return_value=TONG), \
          patch(f"{REPO}.tao_chot_ca", side_effect=chot_ca_repository.DaChotSauMocNay()):
         with pytest.raises(GiaTriLoi, match="vừa được chốt"):
-            chot_ca_service.chot_ca("nv", "vp", den, 140000, None)
+            chot_ca_service.chot_ca("nv", "vp", None, den, 140000, None)
 
 
 def test_lich_su_nhan_vien_chi_thay_ca_cua_minh_quan_ly_thay_het():
@@ -113,7 +147,7 @@ def test_chi_tiet_nhan_vien_khac_bi_chan_quan_ly_xem_duoc():
 
 def test_schema_chot_ca():
     den = BAY_GIO().isoformat()
-    assert ChotCaRequest(den_luc=den, tien_thuc_dem=0, ghi_chu="  ").ghi_chu is None
+    assert ChotCaRequest(tu_luc=None, den_luc=den, tien_thuc_dem=0, ghi_chu="  ").ghi_chu is None
     for sai in [{"tien_thuc_dem": -1}, {"ghi_chu": "x" * 501}, {"tien_thuc_dem": "abc"}]:
         with pytest.raises(ValidationError):
-            ChotCaRequest(**{"den_luc": den, "tien_thuc_dem": 0, **sai})
+            ChotCaRequest(**{"tu_luc": None, "den_luc": den, "tien_thuc_dem": 0, **sai})

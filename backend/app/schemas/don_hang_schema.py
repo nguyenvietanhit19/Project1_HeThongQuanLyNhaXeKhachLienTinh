@@ -239,6 +239,11 @@ class DonHangResponse(BaseModel):
     ma_chuyen: str | None = None
     bien_so_xe: str | None = None
     gio_khoi_hanh: datetime | None = None
+    # Tình trạng chuyến đang chở — để văn phòng nhận biết hàng sẽ tới trễ (chuyến gặp sự cố / đang hoãn / bị hủy)
+    trang_thai_chuyen: str | None = None
+    chuyen_dang_hoan: bool | None = None
+    loai_su_co_chuyen: str | None = None
+    ly_do_su_co_chuyen: str | None = None
 
     ngay_tao: datetime
     ngay_giao: datetime | None = None
@@ -322,6 +327,9 @@ class BaoThatLacRequest(BaseModel):
 # 7. Chốt ca tiền mặt (KE_HOACH_SUA_GUI_HANG.md mục 7)
 # ---------------------------------------------------------
 class ChotCaRequest(BaseModel):
+    tu_luc: datetime | None = Field(
+        ..., description="Mốc 'tu_luc' nhận từ màn xem trước — gửi lại nguyên văn (null = lần chốt đầu tiên)"
+    )
     den_luc: datetime = Field(..., description="Mốc 'den_luc' nhận từ màn xem trước — gửi lại nguyên văn")
     tien_thuc_dem: int = Field(..., ge=0, le=CUOC_TOI_DA, description="Số tiền mặt nhân viên đếm được trong két (VNĐ)")
     ghi_chu: Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)] | None = Field(

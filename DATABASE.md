@@ -404,8 +404,9 @@ UNIQUE: (`ve_id`) — 1 vé chỉ hoàn tiền đúng 1 lần (không có cơ ch
 | `nhan_vien_gui_id` | UUID NOT NULL, FK → `nguoi_dung(id)` | Người tạo đơn (mục 10.4.1) |
 | `nhan_vien_nhan_id` | UUID NULLABLE, FK → `nguoi_dung(id)` | Người xác nhận giao (mục 10.4.2), `NULL` cho tới khi `da_giao` |
 | `thoi_gian_den_diem_nhan` | TIMESTAMPTZ NULLABLE | Set khi phụ xe xác nhận dỡ hàng, chuyển `cho_lay` (UC-27) — mốc để tính 7/14 ngày cho UC-25 (mục 10.3.1). `NULL` trước đó |
-| `da_thong_bao_nguoi_nhan` | BOOLEAN NOT NULL DEFAULT false | Nhân viên gửi hàng tích khi gọi điện báo người nhận **thành công** (mục 10.3.1/10.4.2) — hệ thống chỉ lưu đúng 1 cờ này, không đếm số cuộc gọi. `false` khi tới mốc 7 ngày (UC-25) nghĩa là chưa từng liên lạc được, cần gọi thẳng người gửi thay vì tiếp tục thử người nhận |
-| `co_canh_bao_cho_lau` | BOOLEAN NOT NULL DEFAULT false | Tự động bật bởi job khi `cho_lay` đủ 7 ngày mà chưa `da_giao` (UC-25 ⏱) — nhắc nhân viên gửi hàng xử lý (UC-25). Không liên quan tới việc hủy/thanh lý, chỉ để nhắc |
+| `da_thong_bao_nguoi_nhan` | BOOLEAN NOT NULL DEFAULT false | Nhân viên gửi hàng tích khi gọi điện báo người nhận **thành công** (mục 10.3.1/10.4.2) — hệ thống chỉ lưu đúng 1 cờ này, không đếm số cuộc gọi. `false` khi tới mốc 7 ngày (UC-25) nghĩa là chưa từng liên lạc được, cần gọi thẳng người gửi thay vì tiếp tục thử người nhận. Về `false` khi **SĐT người nhận bị sửa** (số mới chưa được báo; lịch sử liên hệ cũ vẫn ở `lich_su_lien_he_don_hang`) |
+| `co_canh_bao_cho_lau` | BOOLEAN NOT NULL DEFAULT false | Tự động bật bởi job khi `cho_lay` đủ 7 ngày mà chưa `da_giao` (UC-25 ⏱) — nhắc nhân viên gửi hàng xử lý (UC-25). Không liên quan tới việc hủy/thanh lý, chỉ để nhắc. Về `false` khi phụ xe dỡ hàng (mốc `thoi_gian_den_diem_nhan` tính lại từ đầu) |
+| `da_nhac_goi_bao` | BOOLEAN NOT NULL DEFAULT false | *(migration `20261021_0900`)* Job bật khi hàng đã `cho_lay` ≥ 24 giờ mà `da_thong_bao_nguoi_nhan` vẫn `false` (trước mốc 7 ngày) và đã gửi 1 lời nhắc cho nhân viên văn phòng nhận — bảo đảm mỗi đơn chỉ được nhắc đúng 1 lần (`NGHIEP_VU_GUI_HANG.md` mục 5.2). Về `false` khi phụ xe dỡ hàng (hoàn tác dỡ rồi dỡ lại thì được nhắc lại theo mốc mới) hoặc khi SĐT người nhận bị sửa |
 | `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
 | `ngay_giao` | TIMESTAMPTZ NULLABLE | |
 

@@ -91,18 +91,24 @@ def lay_khoan(nhan_vien_id: str, tu_luc: datetime | None, den_luc: datetime) -> 
 
 
 def tao_chot_ca(
-    nhan_vien_id: str, van_phong_id: str | None, den_luc: datetime, tien_thuc_dem: int, ghi_chu: str | None
+    nhan_vien_id: str,
+    van_phong_id: str | None,
+    tu_luc_da_xem: datetime | None,
+    den_luc: datetime,
+    tien_thuc_dem: int,
+    ghi_chu: str | None,
 ) -> dict:
     """Chốt ca trong 1 transaction: khóa theo nhân viên (2 lần bấm cùng lúc thì lần sau chờ), lấy mốc lần chốt
     trước làm tu_luc, tính tổng đúng khoảng (tu_luc, den_luc] rồi INSERT. CHECK của bảng bảo đảm phải có /
-    chênh lệch tính đúng và lệch thì phải có ghi chú. Ném DaChotSauMocNay nếu đã chốt tới mốc này rồi."""
+    chênh lệch tính đúng và lệch thì phải có ghi chú. Ném DaChotSauMocNay nếu đã chốt tới mốc này rồi, hoặc
+    mốc lần chốt trước không còn là `tu_luc_da_xem` (cửa sổ khác vừa chốt — khoảng của ca đã đổi)."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (f"chot_ca:{nhan_vien_id}",))
             cur.execute("SELECT max(den_luc) FROM chot_ca_gui_hang WHERE nhan_vien_id = %s", (nhan_vien_id,))
             tu_luc = cur.fetchone()[0]
-            if tu_luc is not None and den_luc <= tu_luc:
+            if (tu_luc is not None and den_luc <= tu_luc) or tu_luc != tu_luc_da_xem:
                 conn.rollback()
                 raise DaChotSauMocNay()
             cur.execute(_SQL_TONG, {"nv": nhan_vien_id, "tu": tu_luc, "den": den_luc})

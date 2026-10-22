@@ -282,6 +282,8 @@ Mỗi đợt nên là **1 commit/PR riêng** để dễ review. Thứ tự đợ
 
 ## 2. Cần phối hợp với thành viên khác (ngoài phạm vi role)
 
+> Trạng thái mới nhất của P1–P6 (21/10/2026): xem mục 7.4 phần D — P4 và P6 đã xong.
+
 | # | Việc | Ai | Ghi chú |
 |---|---|---|---|
 | P1 | Tạo tài khoản `nhan_vien_gui_hang` **kèm** `van_phong_id` (UC-36), cho cả `quan_ly_nhan_su` gán | Người làm tài khoản cán bộ | Hiện chỉ có `PUT /quan-ly/ho-so-can-bo-diem` không có UI. Nhân viên chưa được gán văn phòng thì bị khóa hoàn toàn. Bạn có thể đưa sẵn hàm `gan_van_phong_can_bo` để họ gọi. |
@@ -512,6 +514,40 @@ Code hủy đơn đang nằm ở working tree, chưa commit. Base `integration/g
 > **13/10/2026:** ban đầu làm chung nhánh với phần kế toán (`feature/Trinh-hoan-thien-ke-toan`). Người 5 **không làm kế toán nữa** nên đã tách ra: phần kế toán (hoàn tiền UC-22, job 3 tiếng, tra cứu cho quầy vé, thống kê hoàn tiền, giao diện `/nhan-vien/ke-toan/`, migration `20261011_1000_lien_he_hoan_tien`, `KE_HOACH_KE_TOAN.md`, `NGHIEP_VU_KE_TOAN.md`) được cất ở nhánh local `feature/Trinh-ke-toan-luu` (commit `aa33fdf`, không push, không merge) để người nhận phần kế toán dùng lại nếu cần. Nhánh này chỉ còn chốt ca. Chốt ca không phụ thuộc gì vào phần kế toán. Chạy lại sau khi tách: unit **439/439**, E2E gửi hàng **148/148**, E2E chốt ca **31/31**; DB local đã gỡ bảng `lich_su_lien_he_hoan_tien` và bản ghi yoyo của migration `20261011_1000`.
 >
 > **21/10/2026:** đã commit chốt ca (`7311d20`) rồi gộp base mới (#33 phụ xe, #34 sửa quản lý, #35 hệ số loại xe) vào nhánh. Conflict duy nhất ở cuối `don_hang_schema.py`: giữ cả dòng `loai` của `BaoThatLacRequest` (#33) lẫn khối schema chốt ca. Sau khi `yoyo apply` 6 migration mới: unit **706/710** — 4 ca fail có sẵn trên base, không do chốt ca (2 test gửi hàng của #33 thiếu mock `dem_bao_cao_theo_loai` nên gọi DB thật; 2 test no-show fail vì #33 bỏ mất thông báo "không đến" cho khách trong `quet_no_show.py` — cần báo tuanhdung); E2E gửi hàng **148/148** (script thêm xe + biên chế phụ xe tạm vì #33 bắt buộc phụ xe có chuyến cùng tuyến mới được báo sự cố đơn chưa lên xe); E2E chốt ca **31/31**.
+>
+> **21/10/2026 — font chữ:** giao diện gửi hàng dùng chung font với trang khách hàng — `style.css` bỏ font hệ thống ở `body.nhan-vien-shell` và nhãn dán hàng, dùng `var(--font-body)` (Lexend) của `shared/design-tokens.css`; tiêu đề `h1–h6` tự nhận `--font-heading` (Be Vietnam Pro) từ file đó. Giữ monospace cho mã vận đơn / mã vạch / số trên phiếu.
+>
+> **21/10/2026 — thiết kế lại CSS + responsive đầy đủ:** viết lại `frontend/nhan-vien/gui-hang/style.css` từ đầu (bản cũ chồng nhiều lớp vá: 2 mục cùng số, "khôi phục style bị mất", nhiều khối `@media 880px` ghi đè nhau). **Chỉ đổi CSS, không sửa HTML/JS.** Dùng token chung của `shared/design-tokens.css` + vài token cục bộ `--gh-*` (viền, nền phụ, khoảng cách, chiều cao ô nhập 44px).
+> - 4 mốc màn hình: ≥1280 thanh bên đầy đủ, bảng dạng cột; 900–1279 thanh bên thu gọn (icon + nhãn nhỏ); <900 điều hướng chuyển xuống **đáy màn hình**; <640 điện thoại (modal trượt từ dưới lên, nút giãn đều dễ bấm).
+> - Bảng Hàng đến / Đơn gửi đi / Hàng chờ lâu ≤1279px chuyển thành **thẻ có nhãn từng ô** — trước đây ở 1024px bị mất cột Việc cần làm + Thao tác (không thấy nút Giao), điện thoại chỉ còn 2 cột. Bảng chốt ca ≤1279 và đối soát <640 cũng thành thẻ.
+> - Sửa: thanh trên tràn ngang ở 1024px; biểu đồ tràn ở điện thoại; ô quét mã; tiêu đề lặp ở tab Tiếp nhận (ẩn bằng CSS); KPI hàng nhận về lưới không kín; cột phải form Tiếp nhận dính khi cuộn (nút "Báo giá & Tạo đơn" luôn trong tầm); hàng nút modal luôn ở đáy khi nội dung dài.
+> - In ấn: vùng in bám đầu trang giấy, bỏ các trang trắng phía sau (bản cũ cũng in thừa trang trắng).
+> - Kiểm tra bằng Playwright: 5 tab × 13 khổ (360–1920px) không tràn ngang, không bảng nào bị che, không lỗi JS; chụp modal giao hàng, chốt ca, bản in biên nhận / nhãn dán / phiếu chốt ca.
+> - **Biểu đồ sản lượng (sửa `thong-ke.js`):** bản cũ vẽ SVG cố định 650×250 rồi kéo giãn (`preserveAspectRatio="none"`) — khung rộng thì chữ bè ngang, cột lùn; trục dọc làm tròn bước 1,25 nên mất số (0, 1, 3, 4, 5); ngày 0 đơn vẫn vẽ vạch 1px. Nay vẽ theo đúng chiều rộng khung (`ResizeObserver` vẽ lại khi đổi cỡ), bước trục là số tròn 1/2/5/10…, bỏ cột 0, ghi số trên đầu cột, nhãn ngày giãn cách ≥ 48px, cả kỳ không có đơn thì hiện chú thích. Thêm: số tiền 3 ô tiền mặt thẳng hàng; đầu thẻ thống kê không còn bóp dòng mô tả.
+>
+> **21/10/2026 — rà soát cảnh báo / thông báo của role, làm 3 mục trong phạm vi role** (A1, B, C chờ nhóm — xem dưới):
+> - **A2 — Hàng trên chuyến có vấn đề:** `SELECT_DON_HANG_FULL` lấy thêm `trang_thai_chuyen`, `chuyen_dang_hoan`, `loai_su_co_chuyen`, `ly_do_su_co_chuyen` (thêm vào `DonHangResponse`, không có trong response tra cứu công khai). Màn "Hàng đến": đơn *Sắp đến* trên chuyến gặp sự cố / đang hoãn / bị hủy có nhãn cảnh báo + lý do, việc cần làm "Hàng sẽ tới trễ", vạch đỏ, xếp sau hàng tồn và trước hàng đang trên xe bình thường.
+> - **D — Nhắc lại sau 24 giờ:** migration `20261021_0900_nhac_goi_bao_24h.sql` (cột `don_hang.da_nhac_goi_bao`); `don_hang_repository.quet_nhac_goi_bao_24h` + gắn vào job `quet_hang_ton` (mỗi giờ): đơn `cho_lay` ≥ 24 giờ, chưa báo được người nhận, chưa cờ 7 ngày → nhắc văn phòng nhận 1 lần, kèm tên + SĐT người nhận. Màn "Hàng đến" đổi việc cần làm thành "Gọi lại người nhận".
+> - **E — Cảnh báo rời trang:** form Tiếp nhận đang nhập dở mà tải lại / đóng tab / đăng xuất → trình duyệt hỏi lại; tạo đơn xong (form reset) hoặc bị buộc đăng xuất vì hết phiên thì không hỏi.
+> - Kiểm thử: unit 707/711 (thêm test lời nhắc 24 giờ; 4 ca fail có sẵn của #33); kiểm thử API thật D 9/9 (đúng 1 trong 4 tình huống được nhắc, chạy lần 2 không nhắc trùng), A2 5/5 (kể cả tra cứu công khai không lộ lý do sự cố); giao diện 10/10 (nhãn, thứ tự, cảnh báo rời trang); E2E gửi hàng 148/148, chốt ca 31/31.
+> - **Xác nhận đăng xuất:** bấm "Đăng xuất" mở hộp xác nhận (`modalDangXuat`, cùng kiểu modal của trang — điện thoại trượt từ dưới lên), con trỏ đặt sẵn ở "Ở lại", Esc đóng; có đơn đang nhập dở ở tab Tiếp nhận thì hộp cảnh báo sẽ mất thông tin. Xác nhận thì thoát luôn, không để trình duyệt hỏi "rời trang?" thêm lần nữa. Kiểm thử giao diện 18/18 (1280px + 390px).
+> - **Chờ nhóm:** A1 — tự gửi thông báo cho văn phòng nhận khi chuyến chở hàng báo sự cố (gọi từ `chuyen_xe_service.bao_su_co`, code của tuanhdung); B — hàng đã lên xe khi chuyến bị hủy (UC-19, người 4) xử lý thế nào; C — nhắc văn phòng gửi khi đơn chờ xếp xe quá lâu (mốc nghiệp vụ mới).
+>
+> **21/10/2026 — rà soát toàn bộ code role, sửa 6 lỗi tìm được:**
+> - **Hộp xác nhận đăng xuất không đóng được khi trang khởi tạo lỗi** (`/auth/me` lỗi mạng, hoặc tài khoản chưa gán văn phòng): lúc đó `ganSuKien` / `khoiTaoPhimTat` không chạy nên "Ở lại" và Esc không có tác dụng. `nav.js` (`renderTopbar`) tự gắn sự kiện đóng cho "Ở lại" và Esc của chính hộp này.
+> - **Dỡ lại hàng không reset cờ nhắc:** `cap_nhat_do_hang_tai_diem` nay đặt `da_nhac_goi_bao = false`, `co_canh_bao_cho_lau = false` cùng lúc đặt lại `thoi_gian_den_diem_nhan`. Trước đây phụ xe hoàn tác dỡ hàng ở điểm cuối của chuyến `hoan_thanh` (vẫn làm được sau nhiều ngày) rồi dỡ lại thì đơn không được nhắc 24 giờ nữa, có thể hiện ngay nhãn "quá 7 ngày".
+> - **Ghi liên hệ cho đơn vừa được giao:** `don_hang_repository.ghi_lien_he` khóa dòng đơn (`FOR UPDATE`) và kiểm tra lại trạng thái trong cùng transaction; không còn `cho_lay` / `qua_han_luu_kho` thì ném `DonKhongConChoLay`, service trả 400 "vừa được giao… vui lòng tải lại", không ghi lịch sử, không báo quản lý.
+> - **Tìm kiếm "Đơn gửi đi":** `%` và `_` người dùng gõ được coi là chữ thường (hàm `mau_tim_ilike`); trước đây gõ `%` ra mọi đơn.
+> - **Hàng đến chạm giới hạn 500 đơn:** BE đặt tên hằng `SO_HANG_DEN_TOI_DA`; FE (`GIOI_HAN_HANG_DEN`) hiện ghi chú "Chỉ hiện 500 đơn đầu tiên… số đếm và nhóm Sắp đến có thể thiếu" (quản lý xem toàn hệ thống thì gợi ý chọn 1 văn phòng) thay vì đếm thiếu mà không báo.
+> - Dọn import trùng trong `gui_hang_service.py` (sót lại từ lần gộp base); thêm mock `dem_bao_cao_theo_loai` cho 2 test `danh_sach_cho_chat/cho_do` (trước gọi DB thật nên fail).
+> - Kiểm thử: unit **711/713** (thêm 2 test: đơn vừa giao khi ghi liên hệ, `mau_tim_ilike`; 2 ca fail còn lại là test no-show của #33, ngoài role); chạy thử SQL trên DB local (rollback): `%`/`_` khớp đúng chữ, UPDATE dỡ hàng + `FOR UPDATE` hợp lệ; E2E gửi hàng **148/148**, chốt ca **31/31**; giao diện 15/15 (đăng xuất khi `/auth/me` lỗi và khi chưa gán văn phòng: "Ở lại", Esc, xác nhận; ghi chú 500 đơn hiện/ẩn đúng) + hồi quy đăng xuất 18/18.
+>
+> **21/10/2026 — xử lý góp ý rà soát nghiệp vụ (nhóm "làm ngay")** — các điểm còn lại của góp ý (kết thúc xử lý hàng tồn, mô hình tiền trong két khi ca chỉ có hoàn, quy trình xử lý sự cố, chống tạo trùng khi tải lại trang) chưa làm, chờ quyết định:
+> - **Đổi SĐT người nhận:** BE bắt buộc `ly_do` khi SĐT người nhận thật sự đổi (400 nếu thiếu); `don_hang_repository.sua_thong_tin_lien_he` hạ `da_thong_bao_nguoi_nhan` và `da_nhac_goi_bao` về `false` trong cùng UPDATE — đơn quay về "Cần gọi báo", job nhắc 24 giờ chạy lại theo cờ mới, lịch sử liên hệ giữ nguyên. Văn phòng gửi đổi số khi hàng đã tới văn phòng nhận → thông báo cho văn phòng nhận thêm câu "gọi báo lại người nhận theo số mới …". Sửa tên thì không cần lý do, giữ cờ. FE (`sua-don.js`): chặn lưu khi đổi SĐT người nhận mà trống lý do, nhãn ô lý do ghi rõ bắt buộc, toast nhắc gọi số mới.
+> - **Chốt ca ở 2 cửa sổ:** `ChotCaRequest` thêm `tu_luc` bắt buộc (null = lần chốt đầu; thiếu hẳn → 422); `chot_ca_service.chot_ca` và `chot_ca_repository.tao_chot_ca` (trong khóa advisory) so `tu_luc` gửi lên với mốc lần chốt cuối, khác thì từ chối "Đã có lần chốt ca khác sau khi bạn mở màn này… tải lại" — trước đây cửa sổ thứ 2 vẫn lưu được ca với khoảng khác hẳn số nhân viên đã đếm. `chot-ca.js` gửi lại `tu_luc` của màn xem trước.
+> - **Giới hạn 500 đơn hàng đến:** thứ tự cắt ở BE đổi thành hàng tồn → chờ quá 7 ngày → chờ lấy → sắp đến (trước đây chờ lấy đứng trước nên văn phòng > 500 đơn chờ lấy sẽ mất cả hàng tồn ở tab Hàng chờ lâu và CSV). Câu ghi chú trên giao diện sửa theo đúng thứ tự này.
+> - **Nhãn "COD":** giao diện ghi "Người nhận trả cước (COD)" ở form tiếp nhận (kèm "nhà xe không thu hộ tiền hàng"), "Người nhận trả" trên huy hiệu, "Thu cước khi giao" ở chốt ca / đối soát / CSV, "THU CƯỚC CỦA NGƯỜI NHẬN TRƯỚC KHI GIAO" ở modal giao hàng, biên nhận, nhãn dán, phiếu bàn giao. Giá trị lưu trong DB (`cod_nguoi_nhan_tra`) không đổi.
+> - Kiểm thử: unit **718/720** (thêm 7 test: đổi SĐT thiếu lý do, gõ lại SĐT cũ, nội dung thông báo theo văn phòng sửa, chốt ca khi cửa sổ khác vừa chốt / đúng mốc, schema thiếu `tu_luc`; 2 ca fail còn lại là no-show của #33); E2E gửi hàng **151/151** (thêm: đổi SĐT không lý do → 400, đổi SĐT hạ 2 cờ, sửa tên giữ cờ), chốt ca **33/33** (thêm: cửa sổ thứ 2 → 400, thiếu `tu_luc` → 422); giao diện 25/25 + hồi quy đăng xuất 18/18.
 
 ### 7.1. Quyết định
 
@@ -529,7 +565,7 @@ Code hủy đơn đang nằm ở working tree, chưa commit. Base `integration/g
 | Method | Đường dẫn | Quyền | Việc |
 |---|---|---|---|
 | GET | `/gui-hang/chot-ca/xem-truoc` | nhan_vien_gui_hang | Từ lần chốt trước tới bây giờ: thu trả trước, thu COD, hoàn (số khoản + tiền), phải có, từng khoản; trả mốc `den_luc` |
-| POST | `/gui-hang/chot-ca` | nhan_vien_gui_hang | `{den_luc, tien_thuc_dem, ghi_chu}` — chốt đúng mốc đã xem; mốc tương lai / quá 2 tiếng / không múi giờ / không sau lần chốt trước → 400; lệch không ghi chú → 400; khóa theo nhân viên nên bấm 2 lần chỉ lưu 1 |
+| POST | `/gui-hang/chot-ca` | nhan_vien_gui_hang | `{tu_luc, den_luc, tien_thuc_dem, ghi_chu}` — chốt đúng khoảng đã xem (`tu_luc` thêm 21/10: khác mốc lần chốt cuối → 400, thiếu → 422); mốc tương lai / quá 2 tiếng / không múi giờ / không sau lần chốt trước → 400; lệch không ghi chú → 400; khóa theo nhân viên nên bấm 2 lần chỉ lưu 1 |
 | GET | `/gui-hang/chot-ca` | nhan_vien_gui_hang, quan_ly | Lịch sử (nhân viên: chỉ của mình; quản lý: tất cả, lọc văn phòng), lọc khoảng ngày, chỉ ca lệch, phân trang |
 | GET | `/gui-hang/chot-ca/{id}` | nhan_vien_gui_hang (của mình), quan_ly | Chi tiết + từng khoản để in lại phiếu |
 
@@ -547,4 +583,95 @@ Quy tắc tiền giống đối soát: thu theo `nhan_vien_thu_id` + `thoi_gian_
 
 ### 7.3. Trạng thái role gửi hàng sau đợt C
 
-Đã xong toàn bộ việc trong kế hoạch của role. Còn lại chỉ là việc **phối hợp** (mục 2, P1–P6) và **xác nhận tài liệu** với nhóm (bảng 9.2 của `NGHIEP_VU_GUI_HANG.md`).
+Đã xong toàn bộ việc trong kế hoạch của role (12/10/2026). Sau rà soát + góp ý nghiệp vụ ngày 21/10/2026 còn một số việc mới — xem **mục 7.4**.
+
+### 7.4. Việc còn lại (cập nhật 21/10/2026)
+
+Ký hiệu: 🟢 tự làm được ngay · 🟡 cần bạn quyết trước · 🔵 cần chốt với nhóm / thành viên khác. Công: S ≈ dưới 2 giờ, M ≈ nửa ngày, L ≈ 1 ngày trở lên.
+
+#### A. Việc phải làm trên nhánh hiện tại
+
+| # | Việc | Công | Chi tiết |
+|---|---|---|---|
+| A1 🟢 | **Commit + mở PR** nhánh `feature/Trinh-chot-ca` | S | Working tree đang chưa commit: nhắc 24 giờ (migration `20261021_0900`), hàng trên chuyến có vấn đề, cảnh báo rời trang, xác nhận đăng xuất, CSS mới, biểu đồ, 6 sửa lỗi rà soát, nhóm "làm ngay" (đổi SĐT, chốt ca 2 cửa sổ, giới hạn 500, nhãn COD). Gợi ý tách 3 commit: (1) cảnh báo/thông báo + migration, (2) giao diện (CSS, biểu đồ, đăng xuất, nhãn), (3) sửa lỗi + góp ý. PR vào `integration/gop-nhanh-thanh-vien`, squash-merge. Trong mô tả PR ghi rõ: **thành viên khác phải `yoyo apply`** migration `20261021_0900`; **API đổi**: `POST /gui-hang/chot-ca` bắt buộc `tu_luc`, `PUT …/thong-tin-lien-he` bắt buộc `ly_do` khi đổi SĐT người nhận. Chạy lại trước khi đẩy: unit, E2E gửi hàng, E2E chốt ca (bản script đã cập nhật nằm ở scratchpad phiên 21/10, bản cũ không còn đúng). |
+| A2 🔵 | Báo **tuanhdung**: 2 test no-show fail | S | `tests/unit/test_thong_bao_khach.py::test_job_khong_den_*` — #33 bỏ mất thông báo "không đến" cho khách trong `quet_no_show.py`. Không thuộc role, nhưng làm CI đỏ. |
+| A3 🟢 | Kiểm thử **đồng thời** trên PostgreSQL thật | M | Góp ý nêu: test hiện tại chưa chứng minh các tình huống tranh chấp. Viết 1 script chạy 2 luồng cùng lúc cho: 2 nhân viên cùng giao 1 đơn; hủy đơn đúng lúc phụ xe chất hàng; 2 lần chốt ca cùng lúc; ghi liên hệ đúng lúc giao. Kỳ vọng: mỗi cặp chỉ 1 bên thành công, bên kia nhận 400. Không cần sửa code nếu pass. |
+
+#### B. Trong role, cần bạn quyết trước
+
+**B1 🟡 — Tiền "phải có" của ca có thể âm (góp ý điểm 4)** · Công S–M
+
+- Hiện tại: phải có = thu trả trước + thu cước khi giao − hoàn, của chính nhân viên đó từ lần chốt trước. Ví dụ A thu 100.000 hôm qua và đã chốt; hôm nay B hủy đơn đó, hoàn 100.000, không thu gì → ca B phải có **−100.000**. DB bắt `tien_thuc_dem >= 0` nên B đếm 0 đ vẫn bị tính "THỪA 100.000" và phải ghi chú.
+- Phương án:
+  - **(a) Ghi "tiền được cấp để hoàn"** *(khuyên dùng)*: thêm cột `tien_duoc_cap` vào `chot_ca_gui_hang` (migration mới, sửa CHECK `chot_ca_phai_co_dung` thành `phai_co = tra_truoc + cod − hoan + duoc_cap`). Màn chốt ca: khi số phải có âm thì hiện ô "Tiền quản lý/két chung đã cấp để hoàn". Đổi nhãn "Trong két lẽ ra phải có" → "Thu ròng trong ca" khi âm. Sửa: `chot_ca_repository`, `chot_ca_service`, schema, `chot-ca.js`, phiếu in, test + E2E.
+  - **(b) Quản lý két đầy đủ**: tiền đầu ca, cấp thêm, nộp/rút, người nhận bàn giao — bảng mới, nhiều màn hình. Đúng thực tế hơn nhưng to so với đồ án.
+  - **(c) Chỉ đổi nhãn**: "Thu ròng trong ca", cho phép số âm và giải thích trên phiếu. Ít công nhất nhưng chênh lệch vẫn sai khi ca chỉ có hoàn.
+
+**B2 🟡 — Chống tạo trùng khi tải lại trang (góp ý điểm 6)** · Công S–M
+
+- Hiện tại: khóa chống trùng chỉ nằm trong bộ nhớ (`state.khoaTaoDon`). Server đã tạo đơn nhưng mất phản hồi, nhân viên tải lại trang và nhập lại → khóa mới → đơn thứ 2. Cảnh báo "rời trang?" chỉ giảm bớt, không chặn được.
+- Làm: lưu `{khoa, noi_dung, nguoi_dung_id}` vào `sessionStorage` lúc bấm tạo; tạo xong thì xóa. Mở lại trang thấy còn khóa → gửi lại đúng nội dung đó với khóa cũ (BE trả lại đơn đã tạo nếu có) hoặc hỏi nhân viên. Tùy chọn phía BE: lưu băm nội dung kèm khóa, cùng khóa khác nội dung → 409 (cần thêm cột).
+
+**B3 🟡 — Khoản thu commit sau khi chốt ca (góp ý điểm 3, phần còn lại)** · Công S · ưu tiên thấp
+
+- Khoản thu/hoàn dùng `now()` = lúc **bắt đầu** transaction. Nếu transaction bắt đầu trước mốc `den_luc` nhưng commit sau khi ca đã tính tổng thì khoản đó bị sót khỏi cả 2 ca. Chỉ xảy ra khi chính nhân viên đó vừa thu tiền vừa chốt ca trong vài mili-giây.
+- Làm nếu muốn chặn hẳn: trong `tao_don_hang` (trả trước), `cap_nhat_giao_hang` (thu khi giao), `huy_don` (hoàn) lấy cùng khóa `pg_advisory_xact_lock(hashtext('chot_ca:' || nhan_vien_id))` với chốt ca.
+
+**B4 🟡 — Phân trang hàng đến phía server (góp ý điểm 5, phần đầy đủ)** · Công M–L · để sau
+
+- Đã giảm rủi ro bằng thứ tự cắt (hàng tồn → quá 7 ngày → chờ lấy → sắp đến) + ghi chú. Làm đầy đủ: API nhận bộ lọc/nhóm/từ khóa/limit/offset, trả `items`, `total` và số đếm từng nhóm tính trên toàn bộ dữ liệu; tab Hàng chờ lâu và CSV dùng API riêng. Chỉ cần nếu có văn phòng thực sự > 500 đơn đang mở.
+
+#### C. Cần chốt với nhóm (đụng phần của thành viên khác)
+
+**C1 🔵 — Bước kết thúc xử lý hàng tồn (góp ý điểm 1, ưu tiên cao)** · Công L
+
+- Hiện tại: không liên hệ được ai thì báo quản lý "xử lý thủ công (thanh lý)" — đơn ở `qua_han_luu_kho` mãi, số tồn kho và việc cần làm sai sau khi đã xử lý ngoài thực tế.
+- Cần nhóm trả lời:
+  1. Ai bấm "hoàn tất xử lý": quản lý (hiện chỉ xem — phần quản lý là của người khác) hay nhân viên gửi hàng sau khi quản lý duyệt?
+  2. Các kết quả: đã trả người gửi tại quầy / gửi trả về bằng xe / đã thanh lý / mất hàng (bồi thường?).
+  3. Gửi trả bằng xe có tạo **đơn chiều về** liên kết đơn gốc không, ai trả cước chiều về?
+- Phần code khi đã chốt: thêm trạng thái kết thúc (vd `da_xu_ly_ton`) vào CHECK `don_hang.trang_thai` + `TrangThaiDonHang`; cột `ket_qua_xu_ly_ton`, `ghi_chu_xu_ly_ton`, `nguoi_xu_ly_ton_id`, `thoi_gian_xu_ly_ton` (và `don_goc_id` nếu có đơn chiều về); endpoint + nút trên màn Hàng chờ lâu; loại khỏi `lay_hang_den`, cập nhật thống kê tồn kho, tra cứu công khai, timeline trạng thái, trigger lịch sử. Sửa `NGHIEP_VU_GUI_HANG.md` UC-25 (hậu điều kiện).
+
+**C2 🔵 — Quy trình xử lý báo cáo hư hỏng / thất lạc khi giao (góp ý điểm 7)** · Công M
+
+- Hiện tại: modal giao hàng hiện báo cáo của phụ xe để kiểm hàng, nhưng backend giao hàng không xét báo cáo; không có "đã xử lý".
+- Đề xuất: bảng `bao_cao_su_co_hang` (phần phụ xe, #33) thêm `trang_thai_xu_ly` (`chua_xu_ly` / `nguoi_nhan_dong_y_nhan` / `da_tim_thay` / `xac_nhan_mat`), `nguoi_xu_ly_id`, `thoi_gian_xu_ly`, `ghi_chu`. Giao đơn có báo **hư hỏng** chưa xử lý → bắt nhân viên ghi "người nhận đồng ý nhận"; có báo **thất lạc** chưa xử lý → chặn giao cho tới khi xác nhận đã tìm thấy. Cần đồng ý của tuanhdung vì đụng bảng của #33.
+
+**C3 🔵 — Tự báo văn phòng nhận khi chuyến chở hàng gặp sự cố** (A1 cũ) · Công S
+
+- Màn Hàng đến đã có nhãn, nhưng không có thông báo chủ động. Bạn viết sẵn hàm `gui_hang_service.thong_bao_hang_tren_chuyen_su_co(chuyen_id, ly_do)` (gom đơn `da_len_xe` của chuyến theo văn phòng nhận, gửi 1 thông báo/nhân viên); tuanhdung gọi nó trong `chuyen_xe_service.bao_su_co`.
+
+**C4 🔵 — Hàng đã lên xe khi chuyến bị hủy** (B cũ, UC-19 của người 4) · Công M
+
+- Đơn `da_len_xe` trên chuyến `da_huy` hiện chỉ có nhãn "Chuyến đã hủy". Cần chốt: hàng được dỡ lại ở đâu, đơn trả về `cho_van_chuyen` (gỡ `chuyen_id`) để chuyến khác chất, ai thao tác, có báo văn phòng gửi/nhận không.
+
+**C5 🔵 — Nhắc văn phòng gửi khi đơn chờ xếp xe quá lâu** (C cũ) · Công S
+
+- Cần nhóm chốt mốc (vd 24 giờ / 48 giờ chưa có chuyến nào chất). Sau đó làm giống nhắc 24 giờ: cột cờ + hàm quét trong job `quet_hang_ton` + nội dung thông báo cho nhân viên văn phòng gửi.
+
+**C6 🔵 — Xác nhận tài liệu** · Công S
+
+- Bảng 9.2 của `NGHIEP_VU_GUI_HANG.md`: 10 điểm code đã làm nhưng `NGHIEP_VU.md` chưa ghi — lịch sử liên hệ, giao hàng tồn, sửa tên/SĐT, đối soát, chốt ca, nhắc 24 giờ, hàng trên chuyến có vấn đề, và 3 điểm thêm ngày 21/10 (đổi SĐT người nhận đưa đơn về "cần gọi báo" + bắt lý do; chốt ca từ chối cửa sổ cũ; COD = người nhận trả cước, không thu hộ). `NGHIEP_VU.md` là file chung → báo người giữ file sửa, **không tự sửa**.
+
+**C7 🔵 — Mô tả kiện / số kiện** (góp ý nhỏ) · Công S–M
+
+- Chưa có quy ước 1 đơn = 1 kiện hay nhiều kiện, chưa có mô tả bề ngoài kiện để đối chiếu khi giao. Nếu nhóm đồng ý: thêm `so_kien` (mặc định 1) + `mo_ta_kien` vào form tiếp nhận, nhãn dán ("Kiện 1/2"), modal giao hàng.
+
+#### D. Phối hợp còn mở từ mục 2
+
+| # | Trạng thái 21/10 | Việc còn lại |
+|---|---|---|
+| P1 | 🔵 BE có `PUT /quan-ly/ho-so-can-bo-diem/{id}`, **chưa có giao diện** | Người làm tài khoản cán bộ thêm ô chọn văn phòng khi tạo/sửa tài khoản `nhan_vien_gui_hang`. Chưa gán thì nhân viên bị khóa hoàn toàn. |
+| P2 | 🔵 Chưa có | CRUD loại hàng / hàng cấm cho quản lý; không cho xóa loại đã có đơn. |
+| P3 | 🔵 BE `/gui-hang/tra-cuu/{ma}` có, **chưa có trang** | Trang tra cứu mã vận đơn cho khách + rate-limit endpoint công khai. |
+| P4 | ✅ Đã có (`dang-nhap.html` điều hướng `phu_xe`) | — |
+| P5 | 🔵 Chưa có | Chặn sửa tuyến khi còn đơn `cho_van_chuyen` / `da_len_xe` mà điểm gửi/nhận bị bỏ hoặc đảo thứ tự. Bạn viết `dem_don_dang_xu_ly_theo_tuyen` cho người làm UC-31 gọi. |
+| P6 | ✅ Đã có (`diem_don_tra.sdt_lien_he`, in lên biên nhận) | — |
+
+#### Thứ tự đề xuất
+
+1. A1 (commit + PR) → A2 (báo tuanhdung) — để code hiện tại vào base sớm.
+2. C1, C2, C4, C5, C6, C7 mang ra **1 buổi họp nhóm** (gom câu hỏi ở trên).
+3. Trong lúc chờ: B1 (chọn phương án a/b/c), A3 (kiểm thử đồng thời), B2.
+4. Sau khi nhóm chốt: C1 → C3 → C2 → C5 → C4.
+5. B3, B4: chỉ làm nếu còn thời gian.

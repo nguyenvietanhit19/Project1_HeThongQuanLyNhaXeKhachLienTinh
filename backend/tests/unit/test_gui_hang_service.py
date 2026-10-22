@@ -297,6 +297,7 @@ def test_danh_sach_cho_chat_chi_lay_don_tai_diem_dang_dung():
 
     with patch("app.services.gui_hang_service.lay_chuyen_cua_phu_xe", return_value=chuyen), \
          patch("app.services.gui_hang_service.diem_hien_tai", return_value={"diem_don_tra_id": diem_dang_dung}), \
+         patch("app.repositories.don_hang_repository.dem_bao_cao_theo_loai", return_value={}), \
          patch("app.repositories.don_hang_repository.lay_danh_sach_cho_xep_xe") as mock_ds:
         mock_ds.return_value = [_don("DH-01", diem_dang_dung), _don("DH-KHAC-DIEM", str(uuid4()))]
 
@@ -312,6 +313,7 @@ def test_danh_sach_cho_do_chi_lay_don_tai_diem_dang_dung():
     diem_dang_dung = str(uuid4())
     with patch("app.services.gui_hang_service.lay_chuyen_cua_phu_xe", return_value=chuyen), \
          patch("app.services.gui_hang_service.diem_hien_tai", return_value={"diem_don_tra_id": diem_dang_dung}), \
+         patch("app.repositories.don_hang_repository.dem_bao_cao_theo_loai", return_value={}), \
          patch("app.repositories.don_hang_repository.tim_don_can_do_tai_diem") as mock_ds:
         mock_ds.return_value = [
             {"id": str(uuid4()), "ma_van_don": "DH-02", "ten_nguoi_nhan": "Nam", "can_nang_kg": Decimal("10.0")}
@@ -568,6 +570,50 @@ def test_sua_lien_he_thanh_cong_ghi_nhat_ky_va_bao_van_phong_con_lai():
     assert nguoi == "nv-nhan" and "SĐT người nhận" in noi_dung and don_id == don["id"]
 
 
+def test_sua_lien_he_doi_sdt_nguoi_nhan_phai_co_ly_do():
+    gui = str(uuid4())
+    don = _don_sua(gui=gui)
+    with patch("app.repositories.don_hang_repository.tim_theo_id", return_value=don), \
+         patch("app.repositories.don_hang_repository.sua_thong_tin_lien_he") as mock_sua:
+        with pytest.raises(GiaTriLoi, match="lý do"):
+            gui_hang_service.sua_thong_tin_lien_he(don["id"], "nv", gui, SuaThongTinLienHeRequest(sdt_nguoi_nhan="0933333333"))
+        mock_sua.assert_not_called()
+
+
+def test_sua_lien_he_go_lai_dung_sdt_cu_khong_bat_ly_do():
+    """Gửi lại đúng SĐT người nhận hiện tại (không đổi gì) thì không bắt ghi lý do."""
+    gui = str(uuid4())
+    don = _don_sua(gui=gui)
+    with patch("app.repositories.don_hang_repository.tim_theo_id", return_value=don), \
+         patch("app.repositories.don_hang_repository.sua_thong_tin_lien_he", return_value=dict(don)) as mock_sua:
+        gui_hang_service.sua_thong_tin_lien_he(don["id"], "nv", gui, SuaThongTinLienHeRequest(sdt_nguoi_nhan=don["sdt_nguoi_nhan"]))
+        mock_sua.assert_called_once()
+
+
+def test_sua_lien_he_van_phong_gui_doi_sdt_nhan_khi_hang_da_toi_nhac_goi_lai():
+    gui, nhan = str(uuid4()), str(uuid4())
+    don = _don_sua(gui=gui, nhan=nhan, trang_thai="cho_lay")
+    with patch("app.repositories.don_hang_repository.tim_theo_id", return_value=don), \
+         patch("app.repositories.don_hang_repository.sua_thong_tin_lien_he", return_value={**don, "sdt_nguoi_nhan": "0933333333"}), \
+         patch("app.repositories.don_hang_repository.danh_sach_nhan_vien_gui_hang_tai_diem", return_value=["nv-nhan"]), \
+         patch("app.services.gui_hang_service._gui_thong_bao") as mock_tb:
+        gui_hang_service.sua_thong_tin_lien_he(
+            don["id"], "nv-gui", gui, SuaThongTinLienHeRequest(sdt_nguoi_nhan="0933333333", ly_do="người gửi báo số mới"))
+    assert "gọi báo lại người nhận theo số mới 0933333333" in mock_tb.call_args.args[1]
+
+
+def test_sua_lien_he_van_phong_nhan_doi_sdt_khong_nhac_van_phong_gui_goi_lai():
+    gui, nhan = str(uuid4()), str(uuid4())
+    don = _don_sua(gui=gui, nhan=nhan, trang_thai="cho_lay")
+    with patch("app.repositories.don_hang_repository.tim_theo_id", return_value=don), \
+         patch("app.repositories.don_hang_repository.sua_thong_tin_lien_he", return_value={**don, "sdt_nguoi_nhan": "0933333333"}), \
+         patch("app.repositories.don_hang_repository.danh_sach_nhan_vien_gui_hang_tai_diem", return_value=["nv-gui"]), \
+         patch("app.services.gui_hang_service._gui_thong_bao") as mock_tb:
+        gui_hang_service.sua_thong_tin_lien_he(
+            don["id"], "nv-nhan", nhan, SuaThongTinLienHeRequest(sdt_nguoi_nhan="0933333333", ly_do="người nhận đổi số"))
+    assert "gọi báo lại" not in mock_tb.call_args.args[1]
+
+
 def test_sua_lien_he_van_phong_nhan_sua_thi_bao_van_phong_gui():
     gui, nhan = str(uuid4()), str(uuid4())
     don = _don_sua(gui=gui, nhan=nhan)
@@ -742,6 +788,30 @@ def test_ghi_lien_he_chan_don_chua_toi():
             )
 
 
+def test_ghi_lien_he_don_vua_duoc_giao_bao_tai_lai():
+    """Đơn còn chờ lấy lúc đọc nhưng người khác giao xong trước khi ghi → repo ném lỗi sau khi khóa dòng."""
+    van_phong_id = str(uuid4())
+    don = _don_cho_lay(van_phong_id, trang_thai="qua_han_luu_kho", co_canh_bao_cho_lau=True)
+    with patch("app.repositories.don_hang_repository.tim_theo_id", return_value=don), \
+         patch("app.repositories.nguoi_dung_repository.danh_sach_id_theo_vai_tro", return_value=["ql-1"]), \
+         patch("app.repositories.don_hang_repository.ghi_lien_he",
+               side_effect=gui_hang_service.don_hang_repo.DonKhongConChoLay()), \
+         patch("app.services.gui_hang_service.broadcast_sync") as mock_ws:
+        with pytest.raises(GiaTriLoi, match="vừa được giao"):
+            gui_hang_service.ghi_ket_qua_lien_he(
+                don["id"], str(uuid4()), van_phong_id, doi_tuong="quan_ly", ket_qua="da_bao_quan_ly"
+            )
+        mock_ws.assert_not_called()  # thông báo quản lý đã rollback cùng transaction thì không đẩy real-time
+
+
+def test_mau_tim_ilike_coi_ky_tu_dai_dien_la_chu():
+    from app.repositories.don_hang_repository import mau_tim_ilike
+    assert mau_tim_ilike("  DH-2026  ") == "%DH-2026%"
+    assert mau_tim_ilike("100%") == "%100\\%%"
+    assert mau_tim_ilike("a_b") == "%a\\_b%"
+    assert mau_tim_ilike("c:\\x") == "%c:\\\\x%"
+
+
 def test_lich_su_lien_he_chi_van_phong_nhan_xem_duoc():
     don = {"id": str(uuid4()), "diem_gui_id": str(uuid4()), "diem_nhan_id": str(uuid4())}
     with patch("app.repositories.don_hang_repository.tim_theo_id", return_value=don):
@@ -754,7 +824,9 @@ def test_lich_su_lien_he_chi_van_phong_nhan_xem_duoc():
 # ---------------------------------------------------------------------
 
 def test_quet_canh_bao_va_chuyen_hang_ton():
-    with patch("app.repositories.don_hang_repository.quet_canh_bao_7_ngay",
+    with patch("app.repositories.don_hang_repository.quet_nhac_goi_bao_24h",
+               return_value=(1, [("nv-2", "nhắc 24h")])) as mock_24h, \
+         patch("app.repositories.don_hang_repository.quet_canh_bao_7_ngay",
                return_value=(2, [("nv-1", "nhắc 1"), ("nv-1", "nhắc 2")])) as mock_7, \
          patch("app.repositories.don_hang_repository.quet_chuyen_hang_ton_14_ngay",
                return_value=(1, [("nv-1", "hàng tồn")])) as mock_14, \
@@ -762,10 +834,19 @@ def test_quet_canh_bao_va_chuyen_hang_ton():
 
         res = gui_hang_service.quet_canh_bao_va_chuyen_hang_ton()
 
-        assert res == {"so_don_canh_bao_7_ngay": 2, "so_don_chuyen_ton_14_ngay": 1}
+        assert res == {"so_don_nhac_goi_bao_24h": 1, "so_don_canh_bao_7_ngay": 2, "so_don_chuyen_ton_14_ngay": 1}
+        mock_24h.assert_called_once()
         mock_7.assert_called_once()
         mock_14.assert_called_once()
-        assert mock_ws.call_count == 3
+        assert mock_ws.call_count == 4  # thông báo đã ghi trong repo được đẩy real-time sau khi commit
+
+
+def test_noi_dung_nhac_goi_bao_24h_co_ten_va_sdt_nguoi_nhan():
+    """Nhắc lại sau 24 giờ: ghi rõ người cần gọi để nhân viên bấm gọi ngay từ thông báo."""
+    nd = gui_hang_service._noi_dung_nhac_goi_bao_24h(
+        {"ma_van_don": "DH-C", "ten_nguoi_nhan": "Trần Thị Bích", "sdt_nguoi_nhan": "0987654321"})
+    assert "DH-C" in nd and "hơn 1 ngày" in nd
+    assert "Trần Thị Bích" in nd and "0987654321" in nd
 
 
 def test_noi_dung_canh_bao_7_ngay_theo_da_thong_bao():

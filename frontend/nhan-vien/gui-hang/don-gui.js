@@ -79,7 +79,7 @@ async function xuatCsvDonGui() {
       tatCa.map(d => [
         d.ma_van_don, dinhDangThoiGian(d.ngay_tao), d.ten_nguoi_gui, d.sdt_nguoi_gui, d.ten_nguoi_nhan, d.sdt_nguoi_nhan,
         d.ten_diem_nhan || "", d.ten_loai_hang || "", d.can_nang_kg, d.gia_cuoc,
-        laCod(d) ? "COD" : "Trả trước",
+        laCod(d) ? "Người nhận trả cước" : "Trả trước",
         TRANG_THAI[d.trang_thai]?.ten || d.trang_thai,
         d.ly_do_huy ? LY_DO_HUY[d.ly_do_huy] + (d.ghi_chu_huy ? ` (${d.ghi_chu_huy})` : "") : "",
         d.so_tien_hoan ?? "",

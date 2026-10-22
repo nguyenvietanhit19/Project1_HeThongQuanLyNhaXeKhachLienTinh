@@ -295,7 +295,8 @@ def xem_truoc_chot_ca(nguoi_dung: QuyenThaoTacQuay):
 def chot_ca(du_lieu: ChotCaRequest, nguoi_dung: QuyenThaoTacQuay):
     """Xác nhận chốt ca với số tiền đếm thực tế; lệch thì bắt buộc ghi chú."""
     return chot_ca_service.chot_ca(
-        nguoi_dung.id, _pham_vi_van_phong(nguoi_dung), du_lieu.den_luc, du_lieu.tien_thuc_dem, du_lieu.ghi_chu
+        nguoi_dung.id, _pham_vi_van_phong(nguoi_dung), du_lieu.tu_luc, du_lieu.den_luc,
+        du_lieu.tien_thuc_dem, du_lieu.ghi_chu,
     )
 
 

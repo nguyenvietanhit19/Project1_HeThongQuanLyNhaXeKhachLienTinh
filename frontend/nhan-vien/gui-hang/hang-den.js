@@ -23,14 +23,50 @@ const CACH_XU_LY = {
   sap_den: { thuTu: 4, viec: "Đang trên xe", cls: "viec--cho", doiTuong: null },
 };
 
+/** Chuyến đang chở đơn có vấn đề (sự cố / hoãn / hủy) → hàng sẽ tới trễ. null = chuyến bình thường. */
+function vanDeChuyen(d) {
+  if (d.trang_thai !== "da_len_xe") return null;
+  if (d.trang_thai_chuyen === "gap_su_co") {
+    return {
+      tag: '<span class="tag-danger" title="Chuyến chở đơn này đang gặp sự cố">⚠️ Chuyến gặp sự cố</span>',
+      viec: "⚠️ Hàng sẽ tới trễ",
+      sub: d.ly_do_su_co_chuyen || "Chuyến gặp sự cố dọc đường",
+      goiY: "Chuyến chở đơn này gặp sự cố dọc đường — nếu đã hẹn người nhận thì gọi báo hàng sẽ tới trễ.",
+    };
+  }
+  if (d.trang_thai_chuyen === "da_huy") {
+    return {
+      tag: '<span class="tag-danger">⛔ Chuyến đã hủy</span>',
+      viec: "⛔ Chuyến chở hàng đã hủy",
+      sub: "Hỏi điều độ / quản lý hướng xử lý",
+      goiY: "Chuyến chở đơn này đã bị hủy — hỏi điều độ viên hoặc quản lý hàng sẽ được chở bằng chuyến nào.",
+    };
+  }
+  if (d.chuyen_dang_hoan) {
+    return {
+      tag: '<span class="tag-warn">⏸ Chuyến đang hoãn</span>',
+      viec: "⏸ Hàng sẽ tới trễ",
+      sub: "Chuyến đang hoãn chưa xuất phát",
+      goiY: "Chuyến chở đơn này đang hoãn — nếu đã hẹn người nhận thì gọi báo hàng sẽ tới trễ.",
+    };
+  }
+  return null;
+}
+
 function xuLyCuaDon(d) {
   const nhom = nhomCuaDon(d);
   if (nhom === "sap_den") {
+    const vanDe = vanDeChuyen(d);
+    // Sau các việc phải làm ngay (gọi báo, hàng tồn) nhưng trước hàng đang trên xe bình thường
+    if (vanDe) return { thuTu: 3.5, cls: "viec--gap", doiTuong: null, viec: vanDe.viec, sub: vanDe.sub, goiY: vanDe.goiY };
     return {
       ...CACH_XU_LY.sap_den,
       sub: d.bien_so_xe || "Chưa tới văn phòng",
       goiY: `Đang trên xe${d.bien_so_xe ? ` ${d.bien_so_xe}` : ""} — chưa tới văn phòng.`,
     };
+  }
+  if (nhom === "can_goi" && quaMotNgayChuaBao(d)) {
+    return { ...CACH_XU_LY.can_goi, viec: "📞 Gọi lại người nhận", sub: "Hàng tới hơn 1 ngày, vẫn chưa báo được" };
   }
   if (nhom === "qua_7_ngay") return CACH_XU_LY[d.da_thong_bao_nguoi_nhan ? "qua_7_ngay_da_bao" : "qua_7_ngay_chua_bao"];
   return CACH_XU_LY[nhom];
@@ -43,6 +79,10 @@ function demTheoNhom(ds) {
   return dem;
 }
 
+// BE trả tối đa ngần này đơn (SO_HANG_DEN_TOI_DA ở don_hang_repository.py); quá giới hạn thì BE giữ lại theo thứ tự
+// hàng tồn → quá 7 ngày → chờ lấy → sắp đến.
+const GIOI_HAN_HANG_DEN = 500;
+
 async function taiHangDen() {
   const tbodyId = state.tab === "hang-ton" ? "tbodyHangTon" : "tbodyHangDen";
   try {
@@ -50,6 +90,13 @@ async function taiHangDen() {
   } catch (err) {
     hienTrangThaiBang(tbodyId, 6, `Lỗi tải dữ liệu: ${err.message}`, "table-empty table-error");
     return;
+  }
+  // Chạm giới hạn: số đếm các nhóm và danh sách có thể thiếu — nói rõ thay vì im lặng.
+  const biCat = state.hangDen.length >= GIOI_HAN_HANG_DEN;
+  $("hdGioiHan").hidden = !biCat;
+  if (biCat) {
+    datText("hdGioiHan", `⚠️ Chỉ hiện ${GIOI_HAN_HANG_DEN} đơn (ưu tiên hàng tồn, hàng chờ quá 7 ngày, rồi hàng chờ lấy) — đơn mới tới và hàng sắp đến có thể bị thiếu trong danh sách và số đếm.`
+      + (laQuanLyXem() && !state.vanPhongXemId ? " Chọn 1 văn phòng ở thanh trên để xem đủ." : ""));
   }
   const dem = demTheoNhom(state.hangDen);
   datText("stat-hang-den-count", dem[""] - dem.sap_den);
@@ -123,10 +170,18 @@ function dongDemNguoc(d) {
   return dn ? `<div class="cell-sub${dn.gan ? " cell-sub--warn" : ""}">⏳ ${escapeHtml(dn.text)}</div>` : "";
 }
 
+/** Hàng đã tới văn phòng hơn 24 giờ mà chưa gọi báo được người nhận (trước mốc cảnh báo 7 ngày). */
+function quaMotNgayChuaBao(d) {
+  return d.trang_thai === "cho_lay" && !d.da_thong_bao_nguoi_nhan && !d.co_canh_bao_cho_lau
+    && d.thoi_gian_den_diem_nhan && Date.now() - new Date(d.thoi_gian_den_diem_nhan).getTime() >= 86400000;
+}
+
 function moTaTinhTrang(d) {
   if (d.trang_thai === "da_len_xe") {
     const chuyen = [d.ma_chuyen, d.bien_so_xe].filter(Boolean).join(" · ");
-    return `${badgeTrangThai(d.trang_thai)}<div class="cell-sub">${escapeHtml(chuyen || "Đã xếp lên xe")}${d.gio_khoi_hanh ? ` — xuất phát ${escapeHtml(dinhDangThoiGian(d.gio_khoi_hanh))}` : ""}</div>`;
+    const vanDe = vanDeChuyen(d);
+    return `<div class="hd-trang-thai">${badgeTrangThai(d.trang_thai)}${vanDe ? vanDe.tag : ""}</div>
+      <div class="cell-sub">${escapeHtml(chuyen || "Đã xếp lên xe")}${d.gio_khoi_hanh ? ` — xuất phát ${escapeHtml(dinhDangThoiGian(d.gio_khoi_hanh))}` : ""}</div>`;
   }
   const soNgay = soNgayTu(d.thoi_gian_den_diem_nhan);
   const thongBao = d.da_thong_bao_nguoi_nhan
@@ -157,7 +212,7 @@ function oNguoi(ten, sdt, phu = "") {
 function dongHangDen(d, cacORieng) {
   const x = xuLyCuaDon(d);
   return `
-    <tr class="hd-row hd-row--${nhomCuaDon(d)}">
+    <tr class="hd-row hd-row--${nhomCuaDon(d)}${vanDeChuyen(d) ? " hd-row--tre" : ""}">
       ${cacORieng}
       <td title="${escapeHtml(x.goiY)}"><div class="viec ${x.cls}">${escapeHtml(x.viec)}</div>${x.sub ? `<span class="viec__sub">${escapeHtml(x.sub)}</span>` : ""}</td>
       <td class="text-center"><div class="table-actions-cell">${nutThaoTacDon(d)}</div></td>
@@ -299,7 +354,7 @@ async function moChiTietDon(ma, { uuTienGiao = false } = {}) {
     ${dong("Người gửi:", `${don.ten_nguoi_gui} (${don.sdt_nguoi_gui})`)}
     ${dong("Người nhận:", `${don.ten_nguoi_nhan} (${don.sdt_nguoi_nhan})`)}
     ${dong("Hàng hóa:", moTaHang(don))}
-    ${dong("Cước:", `${dinhDangTien(don.gia_cuoc)} — ${laCod(don) ? "COD" : "trả trước"}`)}
+    ${dong("Cước:", `${dinhDangTien(don.gia_cuoc)} — ${laCod(don) ? "người nhận trả" : "trả trước"}`)}
     ${dong("Tạo lúc:", dinhDangThoiGian(don.ngay_tao))}
     ${don.thoi_gian_den_diem_nhan ? dong("Tới văn phòng nhận:", dinhDangThoiGian(don.thoi_gian_den_diem_nhan)) : ""}
     ${dongThongTinHuy(don)}`;
@@ -372,7 +427,7 @@ function xuatCsvHangTon() {
       d.ten_nguoi_nhan, d.sdt_nguoi_nhan, d.ten_nguoi_gui, d.sdt_nguoi_gui, d.ten_diem_gui || "",
       dinhDangThoiGian(d.thoi_gian_den_diem_nhan), soNgayTu(d.thoi_gian_den_diem_nhan) ?? "",
       d.da_thong_bao_nguoi_nhan ? "Có" : "Chưa", d.gia_cuoc,
-      laCod(d) ? "COD" : "Trả trước",
+      laCod(d) ? "Người nhận trả cước" : "Trả trước",
     ]));
 }
 
@@ -392,7 +447,7 @@ async function moModalGiaoHang(don) {
   const hop = $("ghThanhToan");
   hop.className = `modal-cod-alert ${cod ? "is-cod" : "is-prepaid"}`;
   hop.innerHTML = '<div class="cod-alert-badge"></div><div class="cod-alert-amount"></div><div class="cod-alert-subtext"></div>';
-  hop.children[0].textContent = cod ? "💵 THU COD TRƯỚC KHI GIAO" : "✅ NGƯỜI GỬI ĐÃ TRẢ CƯỚC";
+  hop.children[0].textContent = cod ? "💵 THU CƯỚC CỦA NGƯỜI NHẬN TRƯỚC KHI GIAO" : "✅ NGƯỜI GỬI ĐÃ TRẢ CƯỚC";
   hop.children[1].textContent = cod ? dinhDangTien(don.gia_cuoc) : "0 đ";
   hop.children[2].textContent = cod ? "Thu đủ tiền mặt từ người nhận rồi mới bàn giao." : "Không thu thêm tiền của người nhận.";
 
@@ -430,7 +485,7 @@ async function xacNhanGiaoHang() {
     return;
   }
   if (cod && !$("chkXacNhanThuCOD").checked) {
-    showToast("warning", "Chưa xác nhận thu COD", "Thu đủ cước COD và tích xác nhận trước khi giao.");
+    showToast("warning", "Chưa xác nhận thu cước", "Thu đủ cước của người nhận và tích xác nhận trước khi giao.");
     return;
   }
   const btn = $("btnXacNhanGiaoHang");

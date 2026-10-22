@@ -4,7 +4,7 @@
  * được, chốt và in phiếu. Mốc `den_luc` của màn xem trước được gửi lại khi xác nhận: số đã xem = số được lưu, tiền
  * phát sinh sau mốc sang ca sau. Quản lý chỉ xem lịch sử (không chốt hộ). */
 
-const NHAN_KHOAN_CA = { nguoi_gui_tra_truoc: "Thu trả trước", cod_nguoi_nhan_tra: "Thu COD", hoan: "Hoàn khi hủy đơn" };
+const NHAN_KHOAN_CA = { nguoi_gui_tra_truoc: "Thu trả trước", cod_nguoi_nhan_tra: "Thu cước khi giao", hoan: "Hoàn khi hủy đơn" };
 const chotCa = { offset: 0, xemTruoc: null, dangChot: false };
 
 /** "140.000" / "140000" / "140 000" → 140000; rỗng hoặc sai → null. */
@@ -16,7 +16,7 @@ function docSoTien(chuoi) {
 function dongTongCa(ca) {
   const dong = (nhan, so, giaTri) => `<div class="receipt-row"><span>${nhan} <span class="cell-sub">(${escapeHtml(so)} khoản)</span></span><strong>${escapeHtml(giaTri)}</strong></div>`;
   return dong("Thu trả trước", ca.so_don_tra_truoc, `+ ${dinhDangTien(ca.tien_tra_truoc)}`)
-    + dong("Thu COD", ca.so_don_cod, `+ ${dinhDangTien(ca.tien_cod)}`)
+    + dong("Thu cước khi giao", ca.so_don_cod, `+ ${dinhDangTien(ca.tien_cod)}`)
     + dong("Hoàn khi hủy đơn", ca.so_don_hoan, `− ${dinhDangTien(ca.tien_hoan)}`)
     + `<div class="receipt-row total"><span>TRONG KÉT LẼ RA PHẢI CÓ:</span><span>${escapeHtml(dinhDangTien(ca.tien_phai_co))}</span></div>`;
 }
@@ -103,7 +103,10 @@ async function xacNhanChotCa(e) {
   chotCa.dangChot = true;
   btn.disabled = true;
   try {
-    const ca = await apiPost("/gui-hang/chot-ca", { den_luc: xt.den_luc, tien_thuc_dem: dem, ghi_chu: ghiChu || null });
+    // Gửi lại cả 2 mốc của màn xem trước: cửa sổ khác vừa chốt (tu_luc đã đổi) thì BE bắt tải lại.
+    const ca = await apiPost("/gui-hang/chot-ca", {
+      tu_luc: xt.tu_luc, den_luc: xt.den_luc, tien_thuc_dem: dem, ghi_chu: ghiChu || null,
+    });
     dongModal("modalChotCa");
     showToast("success", "Đã chốt ca", `Nộp ${dinhDangTien(ca.tien_thuc_dem)} — ${text}.`);
     hienThiPhieuChotCa({ ...ca, khoan: xt.khoan });
