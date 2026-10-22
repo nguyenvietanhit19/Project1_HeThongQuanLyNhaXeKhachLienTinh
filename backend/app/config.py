@@ -53,3 +53,6 @@ VNPAY_URL = os.getenv("VNPAY_URL") or "https://sandbox.vnpayment.vn/paymentv2/vp
 VNPAY_API_URL = os.getenv("VNPAY_API_URL") or "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction"
 # Chế độ giả lập không có khóa thật: sinh khóa từ JWT_SECRET để không phải đặt thêm biến và không có khóa cố định trong code.
 VNPAY_HASH_SECRET = os.getenv("VNPAY_HASH_SECRET") or hashlib.sha256(((JWT_SECRET or "") + "|vnpay-gia-lap").encode()).hexdigest()
+
+# Hồ sơ nhân sự vận hành (UC-49, NGHIEP_VU.md mục 8.9) — chưa có bảng cấu hình tham số nên để hằng số (DATABASE.md mục 9)
+NGUONG_CANH_BAO_GIAY_TO_NGAY = 30  # nhắc khi giấy tờ (bằng lái, giấy khám sức khỏe) còn <= ngần này ngày tới hạn

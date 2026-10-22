@@ -185,3 +185,132 @@ def xoa_bien_che(xe_nhan_su_id: str) -> None:
         raise
     finally:
         release_connection(conn)
+
+
+# ---------------------------------------------------------
+# Hồ sơ nhân sự vận hành (UC-49, quan_ly_nhan_su/quan_ly) — chỉ THÊM hàm mới
+# bên dưới đây, không sửa bất kỳ hàm nào ở trên (tim_theo_id ở trên vẫn giữ
+# nguyên, chỉ phục vụ UC-35; hồ sơ đầy đủ dùng tim_ho_so_day_du riêng).
+# ---------------------------------------------------------
+def tim_ho_so_day_du(nhan_su_id: str) -> dict | None:
+    """Toàn bộ cột hồ sơ, kể cả cột nhạy cảm (so_cccd, ngay_sinh) —
+    Service/Schema ở tầng trên tự quyết định có trả ra API hay không
+    (DATABASE.md mục 9, "Phân quyền đọc hồ sơ nhân sự")."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, ho_ten, so_dien_thoai, chuc_danh, nguoi_dung_id, so_cccd, ngay_sinh,
+                       anh_ho_so, ngay_vao_lam, trang_thai, ngay_nghi_viec, ly_do_nghi_viec
+                FROM nhan_su_van_hanh
+                WHERE id = %s
+                """,
+                (nhan_su_id,),
+            )
+            return _thanh_dict(cur, cur.fetchone())
+    finally:
+        release_connection(conn)
+
+
+def danh_sach_ho_so(chi_dang_lam: bool = False) -> list[dict]:
+    """Danh sách tóm tắt (không lấy CCCD/ngày sinh). Sắp theo chức danh rồi tên.
+    Chuỗi SQL chỉ nối thêm điều kiện cố định, không nối dữ liệu người dùng
+    -> không có nguy cơ SQL injection."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, ho_ten, so_dien_thoai, chuc_danh, nguoi_dung_id, trang_thai FROM nhan_su_van_hanh"
+                + (" WHERE trang_thai = 'dang_lam'" if chi_dang_lam else "")
+                + " ORDER BY chuc_danh, ho_ten"
+            )
+            return _thanh_list(cur, cur.fetchall())
+    finally:
+        release_connection(conn)
+
+
+def tao_ho_so(
+    ho_ten: str,
+    so_dien_thoai: str,
+    chuc_danh: str,
+    nguoi_dung_id: str | None,
+    so_cccd: str | None,
+    ngay_sinh,
+    ngay_vao_lam,
+) -> str:
+    # COALESCE(%s, current_date): không truyền ngay_vao_lam thì lấy ngày hôm nay.
+    # RETURNING id: lấy luôn id vừa tạo, khỏi phải SELECT lại.
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO nhan_su_van_hanh (ho_ten, so_dien_thoai, chuc_danh, nguoi_dung_id, so_cccd, ngay_sinh, ngay_vao_lam)
+                VALUES (%s, %s, %s, %s, %s, %s, COALESCE(%s, current_date))
+                RETURNING id
+                """,
+                (ho_ten, so_dien_thoai, chuc_danh, nguoi_dung_id, so_cccd, ngay_sinh, ngay_vao_lam),
+            )
+            nhan_su_id = cur.fetchone()[0]
+        conn.commit()
+        return nhan_su_id
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
+def cap_nhat_ho_so(nhan_su_id: str, ho_ten: str, so_dien_thoai: str, so_cccd: str | None, ngay_sinh, ngay_vao_lam) -> None:
+    """Không sửa `chuc_danh`/`nguoi_dung_id` — "không đổi chức danh sau khi
+    tạo" (NGHIEP_VU.md UC-49)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE nhan_su_van_hanh
+                SET ho_ten = %s, so_dien_thoai = %s, so_cccd = %s, ngay_sinh = %s, ngay_vao_lam = %s
+                WHERE id = %s
+                """,
+                (ho_ten, so_dien_thoai, so_cccd, ngay_sinh, ngay_vao_lam, nhan_su_id),
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
+def cap_nhat_anh_ho_so(nhan_su_id: str, anh_ho_so: str) -> None:
+    """Lưu public_id ảnh Cloudinary (không phải URL) vào hồ sơ."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE nhan_su_van_hanh SET anh_ho_so = %s WHERE id = %s", (anh_ho_so, nhan_su_id))
+        conn.commit()
+    finally:
+        release_connection(conn)
+
+
+def danh_sach_tai_khoan_phu_xe_chua_gan() -> list[dict]:
+    """Tài khoản vai trò phu_xe đang hoạt động mà CHƯA gắn với hồ sơ nào —
+    để frontend cho chọn thay vì phải dán UUID khi tạo hồ sơ phụ xe."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT nd.id, nd.ho_ten, nd.email, nd.so_dien_thoai
+                FROM nguoi_dung nd
+                WHERE nd.vai_tro = 'phu_xe'
+                  AND nd.dang_hoat_dong = true
+                  AND NOT EXISTS (SELECT 1 FROM nhan_su_van_hanh n WHERE n.nguoi_dung_id = nd.id)
+                ORDER BY nd.ho_ten
+                """
+            )
+            return _thanh_list(cur, cur.fetchall())
+    finally:
+        release_connection(conn)
