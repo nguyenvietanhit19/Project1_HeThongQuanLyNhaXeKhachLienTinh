@@ -13,7 +13,7 @@
  *
  * Mục lục: 1. Token cục bộ · 2. Khung trang · 3. Thanh bên · 4. Thanh trên & chuông · 5. Banner, tab
  *          6. Thẻ & đầu thẻ · 7. Nút · 8. Form · 9. Bộ lọc & ô quét · 10. Bảng, nhãn trạng thái
- *          11. Thống kê & chốt ca · 12. Modal · 13. Biên nhận / nhãn dán / phiếu · 14. Toast
+ *          11. Thống kê & đối soát · 12. Modal · 13. Biên nhận / nhãn dán / phiếu · 14. Toast
  *          15. Tiện ích · 16. Responsive · 17. In ấn
  */
 
@@ -1823,7 +1823,7 @@ textarea.form-input {
   cursor: not-allowed;
 }
 
-/* ===== 11. Thống kê, dòng tiền, biểu đồ, chốt ca ===== */
+/* ===== 11. Thống kê, dòng tiền, biểu đồ ===== */
 
 .stats-header-card .card-desc {
   margin-top: 4px;
@@ -2124,8 +2124,7 @@ g:hover > .chart-vung {
   color: var(--gh-text-2);
 }
 
-#tbodyDoiSoat td,
-#tbodyChotCa td {
+#tbodyDoiSoat td {
   font-variant-numeric: tabular-nums;
 }
 
@@ -2134,61 +2133,6 @@ g:hover > .chart-vung {
 #tkDoiSoatHoan,
 #tkDoiSoatTong {
   white-space: nowrap;
-}
-
-.chot-ca-panel .data-table-wrapper {
-  border-radius: 18px 18px 0 0;
-}
-
-.chot-ca-panel .pagination-bar {
-  border: 1px solid var(--gh-border);
-  border-top: none;
-  border-radius: 0 0 18px 18px;
-}
-
-#tbodyChotCa td {
-  white-space: nowrap;
-}
-
-#tbodyChotCa td:nth-child(2),
-#tbodyChotCa td:nth-child(3) {
-  white-space: normal;
-}
-
-#tbodyChotCa td:nth-child(7) {
-  min-width: 160px;
-  white-space: normal;
-}
-
-.cc-loc-lech {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  padding: 0 4px;
-  font-size: 13px;
-  color: var(--gh-text-2);
-  cursor: pointer;
-}
-
-.cc-loc-lech input {
-  width: 17px;
-  height: 17px;
-  accent-color: var(--color-secondary);
-}
-
-.cc-chenh-lech { font-weight: 800; }
-.cc-khop { color: #15803D; }
-.cc-lech { color: #B91C1C; font-weight: 700; }
-
-.cc-khoan {
-  margin: 8px 0 16px;
-}
-
-.cc-khoan summary {
-  cursor: pointer;
-  font-weight: 600;
-  color: var(--color-secondary);
 }
 
 /* ===== 12. Modal ===== */
@@ -3241,74 +3185,6 @@ g:hover > .chart-vung {
     border-top: 1px solid var(--gh-border);
   }
 
-  /* Bảng chốt ca (8 cột) → thẻ có nhãn: hàng 1 bốn ô, hàng 2 hai ô số + ghi chú, nút in lại ở chân */
-  .chot-ca-panel .data-table--compact {
-    display: block;
-  }
-
-  .chot-ca-panel .data-table--compact thead {
-    display: none;
-  }
-
-  .chot-ca-panel .data-table--compact tbody {
-    display: block;
-  }
-
-  .chot-ca-panel .data-table--compact tbody tr {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px 16px;
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--gh-border);
-  }
-
-  #tbodyChotCa td {
-    display: block;
-    min-width: 0 !important;
-    padding: 0;
-    border: none;
-    text-align: left !important;
-    white-space: normal !important;
-  }
-
-  #tbodyChotCa td.table-empty {
-    grid-column: 1 / -1;
-    text-align: center !important;
-  }
-
-  #tbodyChotCa td:not(:last-child):not(.table-empty)::before {
-    display: block;
-    margin-bottom: 2px;
-    font-family: var(--font-heading);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--color-text-muted);
-  }
-
-  #tbodyChotCa td:nth-child(1)::before { content: "Chốt lúc"; }
-  #tbodyChotCa td:nth-child(2)::before { content: "Nhân viên"; }
-  #tbodyChotCa td:nth-child(3)::before { content: "Ca từ"; }
-  #tbodyChotCa td:nth-child(4)::before { content: "Phải có"; }
-  #tbodyChotCa td:nth-child(5)::before { content: "Đếm được"; }
-  #tbodyChotCa td:nth-child(6)::before { content: "Chênh lệch"; }
-  #tbodyChotCa td:nth-child(7)::before { content: "Ghi chú"; }
-
-  #tbodyChotCa td:nth-child(7) {
-    grid-column: span 2;
-  }
-
-  #tbodyChotCa td:nth-child(7):empty {
-    display: none;
-  }
-
-  #tbodyChotCa td:last-child:not(.table-empty) {
-    grid-column: 1 / -1;
-    display: flex;
-    justify-content: flex-end;
-  }
-
   .data-table-wrapper:has(.data-table--hang-den) {
     background: var(--gh-surface-2);
   }
@@ -3731,7 +3607,7 @@ g:hover > .chart-vung {
     text-align: center;
   }
 
-  /* Bảng số liệu nhỏ (đối soát, chốt ca) → thẻ 2 cột có nhãn */
+  /* Bảng số liệu nhỏ (đối soát) → thẻ 2 cột có nhãn */
   .data-table--compact {
     display: block;
   }
@@ -3797,19 +3673,11 @@ g:hover > .chart-vung {
   }
 
   #tbodyDoiSoat td:nth-child(2)::before { content: "Trả trước"; }
-  #tbodyDoiSoat td:nth-child(3)::before { content: "COD"; }
+  #tbodyDoiSoat td:nth-child(3)::before { content: "Thu khi giao"; }
   #tbodyDoiSoat td:nth-child(4)::before { content: "Hoàn"; }
   #tbodyDoiSoat td:nth-child(5)::before { content: "Còn trong két"; }
   #tkDoiSoatHoan::before { content: "Hoàn"; }
   #tkDoiSoatTong::before { content: "Còn trong két"; }
-
-  .chot-ca-panel .data-table--compact tbody tr {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .chot-ca-panel .toolbar-actions {
-    justify-content: space-between;
-  }
 
   .mini-kpi-grid,
   .stats-two-col > .card-panel .mini-kpi-grid,

@@ -549,12 +549,21 @@ Code hủy đơn đang nằm ở working tree, chưa commit. Base `integration/g
 > - **Nhãn "COD":** giao diện ghi "Người nhận trả cước (COD)" ở form tiếp nhận (kèm "nhà xe không thu hộ tiền hàng"), "Người nhận trả" trên huy hiệu, "Thu cước khi giao" ở chốt ca / đối soát / CSV, "THU CƯỚC CỦA NGƯỜI NHẬN TRƯỚC KHI GIAO" ở modal giao hàng, biên nhận, nhãn dán, phiếu bàn giao. Giá trị lưu trong DB (`cod_nguoi_nhan_tra`) không đổi.
 > - Kiểm thử: unit **718/720** (thêm 7 test: đổi SĐT thiếu lý do, gõ lại SĐT cũ, nội dung thông báo theo văn phòng sửa, chốt ca khi cửa sổ khác vừa chốt / đúng mốc, schema thiếu `tu_luc`; 2 ca fail còn lại là no-show của #33); E2E gửi hàng **151/151** (thêm: đổi SĐT không lý do → 400, đổi SĐT hạ 2 cờ, sửa tên giữ cờ), chốt ca **33/33** (thêm: cửa sổ thứ 2 → 400, thiếu `tu_luc` → 422); giao diện 25/25 + hồi quy đăng xuất 18/18.
 
+> **22/10/2026 — tạm bỏ chốt ca tiền mặt** (người 5 chưa cần): toàn bộ chốt ca được cất ở nhánh local **`feature/Trinh-chot-ca-luu`** (commit `ccaf2e0`, không push, không merge — cùng cách cất phần kế toán), rồi gỡ khỏi nhánh này:
+> - Xóa `chot_ca_service.py`, `chot_ca_repository.py`, `test_chot_ca_service.py`, migration `20261012_0900_chot_ca_gui_hang.sql`, `frontend/nhan-vien/gui-hang/chot-ca.js`.
+> - Gỡ 4 route `/gui-hang/chot-ca*` (`routes/gui_hang.py`), khối schema chốt ca (`don_hang_schema.py` mục 7), thẻ chốt ca ở tab Thống kê + 2 modal (chốt ca, phiếu chốt ca) + thẻ `<script>` (`index.html`), lời gọi `khoiTaoChotCa` / `taiLichSuChotCa` (`khoi-tao.js`, `thong-ke.js`), CSS chốt ca (`style.css`).
+> - Tài liệu: bỏ việc thứ 7 + mục 6.1 + 2 dòng bảng 9.2 ở `NGHIEP_VU_GUI_HANG.md`, mục 5.2d ở `DATABASE.md`.
+> - **Giữ nguyên** đối soát tiền theo nhân viên (`/gui-hang/doi-soat`) — tính năng riêng, không phụ thuộc chốt ca. Sửa luôn nhãn "COD" còn sót ở bảng đối soát trên điện thoại.
+> - **DB local:** bảng `chot_ca_gui_hang` và bản ghi yoyo của migration `20261012_0900` vẫn còn (không xóa để khỏi mất dữ liệu); code không dùng tới nên vô hại. Muốn dọn: `DROP TABLE chot_ca_gui_hang;` + xóa dòng `20261012_0900_chot_ca_gui_hang` trong bảng `_yoyo_migration`. Migration này chưa từng vào base nên máy thành viên khác không có.
+> - Lấy lại sau này: `git checkout feature/Trinh-chot-ca-luu -- <các file trên>` hoặc cherry-pick, rồi gộp lại phần sửa route / schema / `index.html`.
+> - Kiểm thử sau khi gỡ: xem mục 7.4 phần A.
+
 ### 7.1. Quyết định
 
 | Việc | Quyết định |
 |---|---|
 | Hàng đợi khi mất mạng | **Bỏ** — đơn tạo lúc mất mạng chưa có mã vận đơn nên không in được biên nhận / nhãn cho khách, vẫn phải chờ có mạng; lợi ích thấp, dễ sinh lỗi |
-| Chốt ca | **Cách A**: chốt theo từng nhân viên **từ lần chốt trước**, nhập số tiền đếm thực tế, lưu chênh lệch + ghi chú, in phiếu, quản lý xem lịch sử. (Cách B — in tổng trong ngày, không lưu — bị loại vì gộp lẫn ca và không phát hiện được thiếu tiền) |
+| Chốt ca | ⏸ **Tạm bỏ 22/10/2026** (cất ở `feature/Trinh-chot-ca-luu`). Trước đó chọn **Cách A**: chốt theo từng nhân viên **từ lần chốt trước**, nhập số tiền đếm thực tế, lưu chênh lệch + ghi chú, in phiếu, quản lý xem lịch sử. (Cách B — in tổng trong ngày, không lưu — bị loại vì gộp lẫn ca và không phát hiện được thiếu tiền) |
 
 ### 7.2. ✅ Chốt ca tiền mặt
 
@@ -593,11 +602,13 @@ Ký hiệu: 🟢 tự làm được ngay · 🟡 cần bạn quyết trước ·
 
 | # | Việc | Công | Chi tiết |
 |---|---|---|---|
-| A1 🟢 | **Commit + mở PR** nhánh `feature/Trinh-chot-ca` | S | Working tree đang chưa commit: nhắc 24 giờ (migration `20261021_0900`), hàng trên chuyến có vấn đề, cảnh báo rời trang, xác nhận đăng xuất, CSS mới, biểu đồ, 6 sửa lỗi rà soát, nhóm "làm ngay" (đổi SĐT, chốt ca 2 cửa sổ, giới hạn 500, nhãn COD). Gợi ý tách 3 commit: (1) cảnh báo/thông báo + migration, (2) giao diện (CSS, biểu đồ, đăng xuất, nhãn), (3) sửa lỗi + góp ý. PR vào `integration/gop-nhanh-thanh-vien`, squash-merge. Trong mô tả PR ghi rõ: **thành viên khác phải `yoyo apply`** migration `20261021_0900`; **API đổi**: `POST /gui-hang/chot-ca` bắt buộc `tu_luc`, `PUT …/thong-tin-lien-he` bắt buộc `ly_do` khi đổi SĐT người nhận. Chạy lại trước khi đẩy: unit, E2E gửi hàng, E2E chốt ca (bản script đã cập nhật nằm ở scratchpad phiên 21/10, bản cũ không còn đúng). |
+| A1 🟢 | **Commit + mở PR** nhánh `feature/Trinh-chot-ca` | S | Working tree đang chưa commit: nhắc 24 giờ (migration `20261021_0900`), hàng trên chuyến có vấn đề, cảnh báo rời trang, xác nhận đăng xuất, CSS mới, biểu đồ, 6 sửa lỗi rà soát, nhóm "làm ngay" (đổi SĐT, chốt ca 2 cửa sổ, giới hạn 500, nhãn COD). Gợi ý tách 3 commit: (1) cảnh báo/thông báo + migration, (2) giao diện (CSS, biểu đồ, đăng xuất, nhãn), (3) sửa lỗi + góp ý. PR vào `integration/gop-nhanh-thanh-vien`, squash-merge. Trong mô tả PR ghi rõ: **thành viên khác phải `yoyo apply`** migration `20261021_0900`; **API đổi**: `PUT …/thong-tin-lien-he` bắt buộc `ly_do` khi đổi SĐT người nhận (chốt ca đã tạm bỏ 22/10 nên không còn trong PR). Chạy lại trước khi đẩy: unit, E2E gửi hàng, E2E chốt ca (bản script đã cập nhật nằm ở scratchpad phiên 21/10, bản cũ không còn đúng). |
 | A2 🔵 | Báo **tuanhdung**: 2 test no-show fail | S | `tests/unit/test_thong_bao_khach.py::test_job_khong_den_*` — #33 bỏ mất thông báo "không đến" cho khách trong `quet_no_show.py`. Không thuộc role, nhưng làm CI đỏ. |
 | A3 🟢 | Kiểm thử **đồng thời** trên PostgreSQL thật | M | Góp ý nêu: test hiện tại chưa chứng minh các tình huống tranh chấp. Viết 1 script chạy 2 luồng cùng lúc cho: 2 nhân viên cùng giao 1 đơn; hủy đơn đúng lúc phụ xe chất hàng; 2 lần chốt ca cùng lúc; ghi liên hệ đúng lúc giao. Kỳ vọng: mỗi cặp chỉ 1 bên thành công, bên kia nhận 400. Không cần sửa code nếu pass. |
 
 #### B. Trong role, cần bạn quyết trước
+
+> ⏸ **22/10/2026:** chốt ca đã tạm bỏ (cất ở `feature/Trinh-chot-ca-luu`) nên **B1 và B3 hoãn theo** — chỉ cần xem lại khi lấy chốt ca trở lại.
 
 **B1 🟡 — Tiền "phải có" của ca có thể âm (góp ý điểm 4)** · Công S–M
 

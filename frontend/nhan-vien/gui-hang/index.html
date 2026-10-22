@@ -446,38 +446,6 @@
               </div>
             </div>
           </div>
-
-          <!-- Chốt ca tiền mặt (KE_HOACH_SUA_GUI_HANG.md mục 7) -->
-          <div class="card-panel chot-ca-panel">
-            <div class="chart-header">
-              <div>
-                <h3 class="panel-title">🔐 Chốt ca tiền mặt</h3>
-                <p class="card-desc" id="ccMoTa">Cuối ca: đếm tiền trong két, đối chiếu với số hệ thống tính (thu trả trước + thu cước khi giao − hoàn khi hủy đơn, từ lần chốt trước của bạn), rồi chốt và in phiếu nộp tiền.</p>
-              </div>
-              <div class="toolbar-actions">
-                <label class="cc-loc-lech"><input type="checkbox" id="ccChiLech"> Chỉ ca bị lệch</label>
-                <button type="button" class="btn-print" id="btnChotCa">🔐 Chốt ca</button>
-              </div>
-            </div>
-            <div class="data-table-wrapper">
-              <table class="data-table data-table--compact">
-                <thead>
-                  <tr>
-                    <th>Chốt lúc</th>
-                    <th>Nhân viên</th>
-                    <th>Ca từ</th>
-                    <th class="text-right">Phải có</th>
-                    <th class="text-right">Đếm được</th>
-                    <th class="text-right">Chênh lệch</th>
-                    <th>Ghi chú</th>
-                    <th class="text-center"></th>
-                  </tr>
-                </thead>
-                <tbody id="tbodyChotCa"><tr><td colspan="8" class="table-empty">Đang tải...</td></tr></tbody>
-              </table>
-            </div>
-            <div id="phanTrangChotCa" class="pagination-bar"></div>
-          </div>
         </section>
 
       </main>
@@ -850,76 +818,6 @@
   </div>
 
   <!-- ========================================================== -->
-  <!-- MODAL: CHỐT CA TIỀN MẶT                                     -->
-  <!-- ========================================================== -->
-  <div id="modalChotCa" class="modal-overlay" role="dialog" aria-modal="true">
-    <div class="modal-box modal-box--wide">
-      <h3 class="modal-heading">Chốt ca tiền mặt</h3>
-      <p class="card-desc" id="ccKhoang">--</p>
-      <div id="ccTong"></div>
-      <details class="cc-khoan">
-        <summary id="ccSoKhoan">Xem từng khoản</summary>
-        <ul class="timeline" id="ccDanhSachKhoan"></ul>
-      </details>
-      <form id="formChotCa" novalidate>
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label class="form-label required" for="ccTienDem">Số tiền mặt đếm được trong két</label>
-            <input type="text" id="ccTienDem" class="form-input" inputmode="numeric" autocomplete="off" placeholder="VD: 140000">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Chênh lệch</label>
-            <div class="form-static cc-chenh-lech" id="ccChenhLech">—</div>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" id="ccGhiChuNhan" for="ccGhiChu">Ghi chú</label>
-          <input type="text" id="ccGhiChu" class="form-input" maxlength="500" autocomplete="off" placeholder="Bắt buộc nếu tiền đếm được lệch — VD: trả nhầm tiền thừa cho khách">
-        </div>
-        <p class="card-desc">Tiền phát sinh sau lúc mở màn này sẽ tự tính vào ca sau.</p>
-        <div class="receipt-actions">
-          <button type="button" class="btn-close-modal" data-dong="modalChotCa">Đóng</button>
-          <button type="submit" class="btn-print" id="btnXacNhanChotCa">✔️ Xác nhận chốt ca</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ========================================================== -->
-  <!-- MODAL: PHIẾU CHỐT CA                                        -->
-  <!-- ========================================================== -->
-  <div id="modalPhieuChotCa" class="modal-overlay" role="dialog" aria-modal="true">
-    <div class="modal-box delivery-slip-box">
-      <div class="print-area">
-        <div class="receipt-header">
-          <img src="../../shared/assets/logo-full.png" alt="Logo Nhà Xe" class="receipt-logo-img" onerror="this.src='/shared/assets/logo-full.png'" />
-          <div class="receipt-title">PHIẾU CHỐT CA TIỀN MẶT</div>
-        </div>
-        <div class="receipt-row"><span>Nhân viên:</span><strong id="pcNhanVien">--</strong></div>
-        <div class="receipt-row"><span>Văn phòng:</span><strong id="pcVanPhong">--</strong></div>
-        <div class="receipt-row"><span>Ca từ:</span><strong id="pcTuLuc">--</strong></div>
-        <div class="receipt-row"><span>Đến:</span><strong id="pcDenLuc">--</strong></div>
-        <div id="pcTong"></div>
-        <div class="receipt-row total"><span>ĐẾM ĐƯỢC / NỘP:</span><span id="pcThucDem">0 đ</span></div>
-        <div class="receipt-row"><span>Chênh lệch:</span><strong id="pcChenhLech">0 đ</strong></div>
-        <div class="receipt-row" id="pcGhiChuDong"><span>Ghi chú:</span><strong id="pcGhiChu">--</strong></div>
-        <details class="cc-khoan" open>
-          <summary>Chi tiết các khoản</summary>
-          <ul class="timeline" id="pcDanhSachKhoan"></ul>
-        </details>
-        <div class="signature-grid">
-          <div class="sig-box"><div class="sig-title">NHÂN VIÊN NỘP</div><div class="sig-sub">(Ký, ghi rõ họ tên)</div><div class="sig-space"></div></div>
-          <div class="sig-box"><div class="sig-title">NGƯỜI NHẬN TIỀN</div><div class="sig-sub">(Ký, ghi rõ họ tên)</div><div class="sig-space"></div></div>
-        </div>
-      </div>
-      <div class="receipt-actions">
-        <button type="button" class="btn-print" data-in="modalPhieuChotCa">📄 In phiếu</button>
-        <button type="button" class="btn-close-modal" data-dong="modalPhieuChotCa">Đóng</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========================================================== -->
   <!-- MODAL: XÁC NHẬN ĐĂNG XUẤT                                   -->
   <!-- ========================================================== -->
   <div id="modalDangXuat" class="modal-overlay" role="alertdialog" aria-modal="true" aria-labelledby="dxTieuDe" aria-describedby="dxNoiDung">
@@ -950,7 +848,6 @@
   <script src="phim-tat.js"></script>
   <script src="sua-don.js"></script>
   <script src="huy-don.js"></script>
-  <script src="chot-ca.js"></script>
   <script src="khoi-tao.js"></script>
 </body>
 </html>
