@@ -6,7 +6,7 @@
 <title>Chuyến đang chạy — Phụ xe</title>
 <link rel="stylesheet" href="/shared/design-tokens.css?v=2" />
 <link rel="stylesheet" href="phu-xe.css?v=21" />
-<link rel="stylesheet" href="phu-xe-pro.css?v=3" />
+<link rel="stylesheet" href="phu-xe-pro.css?v=5" />
 <link rel="manifest" href="manifest.webmanifest" />
 <script src="phu-xe-theme.js?v=1"></script>
 </head>
@@ -165,8 +165,8 @@
   <script src="../shared/auth-check.js"></script>
   <script src="tai-khoan-menu.js?v=3"></script>
   <script src="thong-bao.js?v=2"></script>
-  <script src="khach-chi-tiet.js?v=3"></script>
-  <script src="hang-chi-tiet.js?v=5"></script>
+  <script src="khach-chi-tiet.js?v=4"></script>
+  <script src="hang-chi-tiet.js?v=6"></script>
   <script>
     requireRole("phu_xe");
 
@@ -445,7 +445,8 @@
         <div class="list-item" data-tim="${esc(chuanHoa([v.so_ghe, v.ho_ten, v.so_dien_thoai, v.ma_dat_cho].join(" ")))}">
           <button type="button" class="info info--bam" data-ve="${esc(v.ve_id)}" data-phia="${phia}" data-diem="${esc(diem.diem_don_tra_id)}" aria-label="Xem chi tiết ${esc(v.ho_ten)}">
             <div class="name"><span class="seat-code">${esc(v.so_ghe)}</span>${esc(v.ho_ten)}</div>
-            <div class="sub">${esc(v.so_dien_thoai)} · ${veNhanTrangThai(nhan, v.trang_thai)}</div>
+            <div class="sub sub--sdt">${esc(v.so_dien_thoai)}</div>
+            <div class="sub sub--tt">${veNhanTrangThai(nhan, v.trang_thai)}</div>
             ${lyDo ? `<div class="sub ly-do-an">${esc(lyDo)}</div>` : ""}
           </button>
           ${hd ? `<button class="btn-confirm" data-xac-nhan="${esc(v.ve_id)}" data-phia="${phia}" data-diem="${esc(diem.diem_don_tra_id)}">${hd.nhan}</button>` : ""}
@@ -994,11 +995,14 @@
       // không có nút "chọn tất cả" để không bấm lướt qua.
       const dongKhach = khachChuaLen.map((v) => `
         <label class="xn-dong"><input type="checkbox" />
-          <span><b>${esc(v.so_ghe)}</b> ${esc(v.ho_ten)} · ${esc(v.so_dien_thoai)}
-          <small>${v.trang_thai === "giu_cho" ? "Chưa trả tiền · " : ""}Xác nhận khách KHÔNG ĐẾN (sẽ bị đánh dấu "Không đến")</small></span></label>`).join("");
+          <span><b>${esc(v.so_ghe)}</b> ${esc(v.ho_ten)}
+          <small class="xn-phu">SĐT ${esc(v.so_dien_thoai)}</small>
+          ${v.trang_thai === "giu_cho" ? '<small class="xn-phu xn-phu--tien">Chưa trả tiền</small>' : ""}
+          <small>Xác nhận khách KHÔNG ĐẾN (sẽ bị đánh dấu "Không đến")</small></span></label>`).join("");
       const dongHang = dsHangChoChat.map((d) => `
         <label class="xn-dong"><input type="checkbox" data-nhom="hang" />
-          <span><b>${esc(d.ma_van_don)}</b> → ${esc(d.ten_diem_nhan)} · ${esc(d.can_nang_kg)}kg
+          <span><b>${esc(d.ma_van_don)}</b> → ${esc(d.ten_diem_nhan)}
+          <small class="xn-phu">Khối lượng ${esc(d.can_nang_kg)}kg</small>
           <small>Xác nhận ĐỂ LẠI hàng này, chờ chuyến sau</small></span></label>`).join("");
       document.getElementById("noi-dung-canh-bao-di-chuyen").innerHTML =
         (dongKhach ? `<h3 class="muc-nho">Khách chưa lên xe (${khachChuaLen.length})</h3>${dongKhach}` : "") +

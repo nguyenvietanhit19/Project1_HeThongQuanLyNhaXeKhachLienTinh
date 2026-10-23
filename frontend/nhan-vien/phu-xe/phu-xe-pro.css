@@ -407,3 +407,47 @@ button[aria-busy="true"]::after {
 :root[data-theme="dark"] .sd-dem--xuong { color: #F87171; }
 :root[data-theme="dark"] .sd-ghe--da-xuong { color: #F87171; border-color: rgba(248,113,113,.5); }
 :root[data-theme="dark"] .hint, :root[data-theme="dark"] .topbar-sub, :root[data-theme="dark"] .trip-meta, :root[data-theme="dark"] .info .sub { color: var(--color-text-muted); }
+
+/* ============ 6. Chữ nhỏ dễ đọc: tách dòng, số liệu thành ô, cỡ chữ tối thiểu 14px ============ */
+.sub, .list-item .info .sub, .hint, .xn-dong small, .diem-nhom__ten small, .hang-o__den, .hang-o__chan { font-size: 14px; line-height: 1.45; }
+.sub { display: block; margin-top: 2px; }
+.sub b, .trip-gio b { color: var(--color-text-primary); font-weight: 700; }
+.sub--gio { font-size: 15px; }
+.sub--ma { font-size: 13px; letter-spacing: 0.02em; opacity: 0.9; word-break: break-all; }
+.sub--sdt { font-variant-numeric: tabular-nums; }
+.sub--tt { font-weight: 600; }
+.sub--phu { margin-top: 4px; }
+
+/* Danh sách chuyến */
+.trip-gio { margin: 2px 0 8px; font-size: 15px; color: var(--color-text-muted); }
+.trip-gio b { font-size: 17px; }
+.chip-bien {
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(120, 120, 140, 0.16);
+  color: var(--color-text-primary);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* Thống kê: 3 ô số liệu dưới mỗi chuyến — số to, nhãn nhỏ phía dưới */
+.so-hang { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.so-o {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(120, 120, 140, 0.12);
+  flex: 1 1 auto;
+}
+.so-o b { font-size: 16px; font-weight: 800; color: var(--color-text-primary); white-space: nowrap; }
+.so-o i { font-style: normal; font-size: 13px; color: var(--color-text-muted); }
+
+/* Hộp xác nhận rời điểm: mỗi thông tin một dòng */
+.xn-dong small { display: block; margin-top: 3px; }
+.xn-phu { color: var(--color-text-muted) !important; font-weight: 500 !important; }
+.xn-phu--tien { color: #b26a00 !important; font-weight: 700 !important; }
+
+/* Mốc trạng thái / báo cáo: giờ đậm một dòng, người thực hiện dòng dưới */
+.info-list dd { line-height: 1.5; }

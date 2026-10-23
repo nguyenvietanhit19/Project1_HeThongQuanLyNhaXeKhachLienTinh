@@ -78,7 +78,7 @@
         <dt>Điểm trả</dt><dd>${esc(v.ten_diem_tra)}</dd>
         <dt>Lên xe lúc</dt><dd>${gio(v.gio_len_xe)}</dd>
         <dt>Xuống xe lúc</dt><dd>${gio(v.gio_xuong_xe)}</dd>
-        <dt>Giá vé</dt><dd>${Number(v.gia || 0).toLocaleString("vi-VN")}đ · ${thanhToan}</dd>
+        <dt>Giá vé</dt><dd>${Number(v.gia || 0).toLocaleString("vi-VN")}đ<br>${thanhToan}</dd>
       </dl>
       ${tuyChon.ghiChu ? `<p class="hint">${esc(tuyChon.ghiChu)}</p>` : ""}
       ${tuyChon.hanhDong ? `<button class="btn-primary" type="button" id="kct-hanh-dong" style="margin-bottom:8px;">${esc(tuyChon.hanhDong.nhan)}</button>` : ""}`;

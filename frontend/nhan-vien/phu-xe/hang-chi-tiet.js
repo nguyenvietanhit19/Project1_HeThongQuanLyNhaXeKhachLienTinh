@@ -72,13 +72,13 @@
       const lichSu = d.lich_su_trang_thai.length
         ? d.lich_su_trang_thai
             .map((m) => `<li><b>${esc((NHAN_HANG[m.den_trang_thai] || [m.den_trang_thai])[0])}</b>
-              <span class="sub">${gio(m.thoi_gian)} · ${esc(m.ten_nguoi_thuc_hien || "Hệ thống tự chuyển")}</span></li>`)
+              <span class="sub sub--gio"><b>${gio(m.thoi_gian)}</b></span> <span class="sub">${esc(m.ten_nguoi_thuc_hien || "Hệ thống tự chuyển")}</span></li>`)
             .join("")
         : '<li class="sub">Chưa có mốc nào.</li>';
       const baoCao = d.bao_cao_su_co.length
         ? d.bao_cao_su_co
             .map((b) => `<li class="bao-cao"><b>⚠ ${b.loai === "that_lac" ? "THẤT LẠC" : "Hư hỏng"}: ${esc(b.mo_ta)}</b>
-              <span class="sub">${gio(b.ngay_tao)} · ${esc(b.ten_nguoi_bao_cao || "")}</span></li>`)
+              <span class="sub sub--gio"><b>${gio(b.ngay_tao)}</b></span> <span class="sub">${esc(b.ten_nguoi_bao_cao || "")}</span></li>`)
             .join("")
         : '<li class="sub">Chưa có báo cáo thất lạc/hư hỏng.</li>';
       const lienKetBao = chuyenId
@@ -92,8 +92,8 @@
           <dt>Người gửi</dt><dd>${esc(d.ten_nguoi_gui)}<br>${goi(d.sdt_nguoi_gui)}</dd>
           <dt>Người nhận</dt><dd>${esc(d.ten_nguoi_nhan)}<br>${goi(d.sdt_nguoi_nhan)}</dd>
           <dt>Tuyến</dt><dd>${esc(d.ten_tuyen || `${d.ten_diem_gui} → ${d.ten_diem_nhan}`)}</dd>
-          <dt>Hàng</dt><dd>${esc(d.ten_loai_hang || "—")} · ${esc(d.can_nang_kg)}kg</dd>
-          <dt>Cước</dt><dd>${Number(d.gia_cuoc || 0).toLocaleString("vi-VN")}đ · ${d.phuong_thuc_thanh_toan === "cod_nguoi_nhan_tra" ? "người nhận trả (COD)" : "người gửi đã trả"}</dd>
+          <dt>Hàng</dt><dd>${esc(d.ten_loai_hang || "—")}<br>${esc(d.can_nang_kg)}kg</dd>
+          <dt>Cước</dt><dd>${Number(d.gia_cuoc || 0).toLocaleString("vi-VN")}đ<br>${d.phuong_thuc_thanh_toan === "cod_nguoi_nhan_tra" ? "Người nhận trả (COD)" : "Người gửi đã trả"}</dd>
           ${d.thoi_gian_den_diem_nhan ? `<dt>Dỡ xuống lúc</dt><dd>${gio(d.thoi_gian_den_diem_nhan)}</dd>` : ""}
         </dl>
         <h3 class="muc-nho">Lịch sử trạng thái</h3>
