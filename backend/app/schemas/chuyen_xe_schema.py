@@ -12,6 +12,8 @@ class HanhTrinhDiemResponse(BaseModel):
     da_toi: bool
     gio_thuc_te: datetime | None = None
     gio_du_kien: datetime | None = None
+    loai: str | None = None  # van_phong | diem_dung
+    ten_khu_vuc: str | None = None
 
 
 class ChuyenPhuXeResponse(BaseModel):
@@ -110,6 +112,8 @@ class HangHoaResponse(BaseModel):
     ten_diem_gui: str
     ten_diem_nhan: str
     ten_loai_hang: str | None = None
+    ngay_tao: datetime | None = None
+    diem_nhan_id: str | None = None
     so_bao_cao_su_co: int = 0
     so_bao_hu_hong: int = 0
     so_bao_that_lac: int = 0
@@ -132,11 +136,21 @@ class ThongTinChuyenResponse(BaseModel):
     ly_do_su_co: str | None = None
 
 
+class GheSoDoResponse(BaseModel):
+    """1 ghế trên sơ đồ xe: vị trí tự do (px) trên tầng 1/2 — dùng vẽ sơ đồ cho phụ xe."""
+
+    ma_ghe: str
+    tang: int
+    x: float
+    y: float
+
+
 class TongQuanChuyenResponse(BaseModel):
     chuyen: ThongTinChuyenResponse
     hanh_trinh: list[HanhTrinhDiemResponse]
     hanh_khach: list[HanhKhachResponse]
     hang_hoa: list[HangHoaResponse]
+    so_do_ghe: list[GheSoDoResponse] = []
 
 
 class ChuyenDaChayResponse(BaseModel):

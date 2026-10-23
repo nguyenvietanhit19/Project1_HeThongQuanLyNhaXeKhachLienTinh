@@ -382,6 +382,7 @@ def danh_sach_cho_chat(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
             "ma_van_don": d["ma_van_don"],
             "ten_nguoi_nhan": d["ten_nguoi_nhan"],
             "ten_diem_nhan": d.get("ten_diem_nhan") or "",
+            "diem_nhan_id": str(d["diem_nhan_id"]) if d.get("diem_nhan_id") else None,
             "can_nang_kg": float(d["can_nang_kg"]),
             "ngay_tao": d["ngay_tao"],
         }
@@ -405,6 +406,7 @@ def danh_sach_cho_do(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
             "ma_van_don": d["ma_van_don"],
             "ten_nguoi_nhan": d["ten_nguoi_nhan"],
             "can_nang_kg": float(d["can_nang_kg"]),
+            "ngay_tao": d.get("ngay_tao"),
         }
         for d in don_hang_list
     ])
@@ -514,6 +516,8 @@ def do_tat_ca(chuyen_id: str, nguoi_dung_id: str) -> dict:
 def danh_sach_hoan_tac(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
     """Đơn vừa chất/dỡ tại ĐÚNG điểm xe đang đứng — phụ xe có thể hoàn tác nếu bấm nhầm."""
     chuyen = _chuyen_cua_phu_xe_dang_hoat_dong(chuyen_id, nguoi_dung_id, TRANG_THAI_CHUYEN_DUOC_DO)
+    if chuyen["trang_thai"] == "hoan_thanh":
+        return []  # chuyến đã hoàn thành: không hoàn tác gì nữa
     try:
         diem = diem_hien_tai(chuyen)
     except XeDangDiChuyen:
@@ -546,6 +550,8 @@ def hoan_tac_do_hang(don_hang_id: str, chuyen_id: str, nguoi_dung_id: str) -> No
     """Bấm nhầm "đã dỡ": đưa đơn về trên xe, nhắn lại nhân viên văn phòng nhận đừng báo người nhận.
     Không làm được nếu văn phòng đã gọi báo người nhận (khách có thể đang đến lấy)."""
     chuyen = _chuyen_cua_phu_xe_dang_hoat_dong(chuyen_id, nguoi_dung_id, TRANG_THAI_CHUYEN_DUOC_DO)
+    if chuyen["trang_thai"] == "hoan_thanh":
+        raise GiaTriLoi("Chuyến đã hoàn thành, không thể hoàn tác")
     don = don_hang_repo.tim_theo_id(don_hang_id)
     if not don or str(don.get("chuyen_id")) != str(chuyen_id) or don["trang_thai"] != "cho_lay":
         raise GiaTriLoi("Đơn hàng không ở trạng thái đã dỡ trên chuyến này, không có gì để hoàn tác")

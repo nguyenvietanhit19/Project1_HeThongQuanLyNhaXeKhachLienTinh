@@ -1,6 +1,6 @@
 /*
  * Khung "Chi tiết đơn hàng" cho màn thao tác của phụ xe (chuyen-dang-chay.html): bấm "Xem chi tiết" ở
- * 1 đơn hàng → hiện người gửi/nhận (có nút gọi), lộ trình, loại + cân nặng, cước, lịch sử trạng thái và
+ * 1 đơn hàng → hiện người gửi/nhận (có nút sao chép SĐT), tuyến, loại + cân nặng, cước, lịch sử trạng thái và
  * các báo cáo thất lạc/hư hỏng, kèm đường dẫn sang màn báo thất lạc/hư hỏng.
  *
  *   moChiTietHang(donHangId, chuyenId)
@@ -11,7 +11,7 @@
   const NHAN_HANG = {
     cho_van_chuyen: ["Chờ chất", "badge--cho"],
     da_len_xe: ["Đang trên xe", "badge--tren"],
-    cho_lay: ["Chờ người nhận lấy", "badge--cho"],
+    cho_lay: ["Đã dỡ hàng xuống", "badge--xong"],
     da_giao: ["Đã giao", "badge--xong"],
     qua_han_luu_kho: ["Hàng tồn", "badge--loi"],
   };
@@ -25,7 +25,7 @@
   }
 
   function goi(sdt) {
-    return sdt ? `<a class="text-link" href="tel:${esc(sdt)}">${esc(sdt)} · Gọi</a>` : "—";
+    return window.sdtSaoChep(sdt);
   }
 
   function badge(trangThai) {
@@ -61,7 +61,9 @@
     if (overlay) overlay.hidden = true;
   }
 
-  window.moChiTietHang = async function (donHangId, chuyenId) {
+  // tuyChon.hanhDong = { nhan, hoi?, canhBao?, chay: () => Promise } → nút xác nhận (chất/dỡ) ngay trong khung chi tiết;
+  // lỗi từ chay() hiện ngay trên nút, thành công thì đóng khung.
+  window.moChiTietHang = async function (donHangId, chuyenId, tuyChon = {}) {
     dung();
     noiDung.innerHTML = '<p class="empty-state">Đang tải...</p>';
     overlay.hidden = false;
@@ -89,7 +91,7 @@
         <dl class="info-list">
           <dt>Người gửi</dt><dd>${esc(d.ten_nguoi_gui)}<br>${goi(d.sdt_nguoi_gui)}</dd>
           <dt>Người nhận</dt><dd>${esc(d.ten_nguoi_nhan)}<br>${goi(d.sdt_nguoi_nhan)}</dd>
-          <dt>Lộ trình</dt><dd>${esc(d.ten_diem_gui)} → ${esc(d.ten_diem_nhan)}</dd>
+          <dt>Tuyến</dt><dd>${esc(d.ten_tuyen || `${d.ten_diem_gui} → ${d.ten_diem_nhan}`)}</dd>
           <dt>Hàng</dt><dd>${esc(d.ten_loai_hang || "—")} · ${esc(d.can_nang_kg)}kg</dd>
           <dt>Cước</dt><dd>${Number(d.gia_cuoc || 0).toLocaleString("vi-VN")}đ · ${d.phuong_thuc_thanh_toan === "cod_nguoi_nhan_tra" ? "người nhận trả (COD)" : "người gửi đã trả"}</dd>
           ${d.thoi_gian_den_diem_nhan ? `<dt>Dỡ xuống lúc</dt><dd>${gio(d.thoi_gian_den_diem_nhan)}</dd>` : ""}
@@ -98,8 +100,29 @@
         <ul class="timeline-list">${lichSu}</ul>
         <h3 class="muc-nho">Báo cáo thất lạc / hư hỏng</h3>
         <ul class="timeline-list">${baoCao}</ul>
+        ${tuyChon.hanhDong ? `<button class="btn-primary" type="button" id="hct-hanh-dong" style="margin-bottom:8px;">${esc(tuyChon.hanhDong.nhan)}</button>` : ""}
         <a class="btn-confirm btn-confirm--block" style="display:flex;align-items:center;justify-content:center;text-decoration:none;"
            href="bao-that-lac.html?don_hang_id=${encodeURIComponent(d.id)}&ma_van_don=${encodeURIComponent(d.ma_van_don)}${lienKetBao}">Báo thất lạc / hư hỏng đơn này</a>`;
+      const nut = noiDung.querySelector("#hct-hanh-dong");
+      if (nut) {
+        nut.addEventListener("click", async () => {
+          const hd = tuyChon.hanhDong;
+          if (hd.hoi && window.thongBao) {
+            const dongY = await window.thongBao.xacNhan({ tieuDe: hd.tieuDe || "Xác nhận", noiDung: hd.canhBao ? `${hd.canhBao}
+
+${hd.hoi}` : hd.hoi, nhan: hd.nhan, loai: hd.canhBao ? "canh-bao" : "thuong" });
+            if (!dongY) return;
+          }
+          nut.disabled = true;
+          try {
+            await hd.chay();
+            dong();
+          } catch (err) {
+            nut.disabled = false;
+            nut.insertAdjacentHTML("beforebegin", `<div class="text-error">${esc(err.message)}</div>`);
+          }
+        });
+      }
     } catch (err) {
       noiDung.innerHTML = `<p class="text-error">${esc(err.message)}</p>`;
     }
