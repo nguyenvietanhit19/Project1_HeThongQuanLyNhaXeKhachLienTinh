@@ -430,20 +430,6 @@ button[aria-busy="true"]::after {
   font-size: 14px;
 }
 
-/* Thống kê: 3 ô số liệu dưới mỗi chuyến — số to, nhãn nhỏ phía dưới */
-.so-hang { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.so-o {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px 10px;
-  border-radius: 12px;
-  background: rgba(120, 120, 140, 0.12);
-  flex: 1 1 auto;
-}
-.so-o b { font-size: 16px; font-weight: 800; color: var(--color-text-primary); white-space: nowrap; }
-.so-o i { font-style: normal; font-size: 13px; color: var(--color-text-muted); }
-
 /* Hộp xác nhận rời điểm: mỗi thông tin một dòng */
 .xn-dong small { display: block; margin-top: 3px; }
 .xn-phu { color: var(--color-text-muted) !important; font-weight: 500 !important; }
@@ -451,3 +437,66 @@ button[aria-busy="true"]::after {
 
 /* Mốc trạng thái / báo cáo: giờ đậm một dòng, người thực hiện dòng dưới */
 .info-list dd { line-height: 1.5; }
+
+/* ============ 7. Trang Thống kê: bộ lọc gọn + thẻ chuyến ============ */
+.tk-loc { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 16px; }
+.tk-loc__tim { flex: 1 1 100%; }
+.tk-loc .input-field { margin: 0; min-width: 0; min-height: 46px; font-size: 15px; padding-top: 0; padding-bottom: 0; }
+.tk-loc select.input-field {
+  flex: 1 1 140px;
+  padding-right: 34px;
+  background: var(--color-bg-surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center / 16px;
+}
+@media (min-width: 720px) { .tk-loc__tim { flex: 2 1 200px; } .tk-loc select.input-field { flex: 1 1 128px; } }
+
+#ds-chuyen-da-chay { display: grid; gap: 12px; }
+.chuyen-the {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1.5px solid rgba(120, 120, 140, 0.22);
+  border-radius: 20px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  text-decoration: none;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+.chuyen-the:hover { border-color: var(--color-secondary); box-shadow: var(--shadow-soft); }
+.chuyen-the:active { transform: scale(0.99); }
+.chuyen-the__dau { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.chuyen-the__ten { font-family: var(--font-heading); font-size: 17px; font-weight: 800; line-height: 1.3; overflow-wrap: anywhere; }
+.chuyen-the__gio { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; font-size: 15px; }
+.chuyen-the__ngay { font-weight: 700; }
+.chuyen-the__luc { font-weight: 800; color: var(--color-primary-dark); }
+.chip-chieu { padding: 3px 10px; border-radius: var(--radius-pill); font-size: 13px; font-weight: 700; background: rgba(91, 62, 150, 0.12); color: var(--color-secondary); }
+.chip-chieu--nguoc { background: rgba(245, 166, 35, 0.16); color: #B26A00; }
+.chuyen-the__ma { font-size: 12.5px; letter-spacing: 0.02em; color: var(--color-text-muted); overflow-wrap: anywhere; }
+
+.so-hang { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.so-o { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 14px; min-width: 0; }
+.so-o i { font-style: normal; font-size: 12.5px; font-weight: 600; color: var(--color-text-muted); }
+.so-o b { font-size: 18px; font-weight: 800; line-height: 1.1; white-space: nowrap; }
+.so-o b small { font-size: 13px; font-weight: 600; color: var(--color-text-muted); margin-left: 1px; }
+.so-o--ve { background: rgba(91, 62, 150, 0.10); }
+.so-o--ve b { color: var(--color-secondary); }
+.so-o--tien { background: rgba(34, 197, 94, 0.12); }
+.so-o--tien b { color: #15803D; }
+.so-o--hang { background: rgba(245, 166, 35, 0.14); }
+.so-o--hang b { color: #B26A00; }
+@media (max-width: 400px) { .so-o b { font-size: 16px; } .so-o { padding: 8px 10px; } }
+
+:root[data-theme="dark"] .chip-chieu { color: #C4B5FD; }
+:root[data-theme="dark"] .chip-chieu--nguoc { color: #FBBF5C; }
+:root[data-theme="dark"] .so-o--ve b { color: #C4B5FD; }
+:root[data-theme="dark"] .so-o--tien b { color: #4ADE80; }
+:root[data-theme="dark"] .so-o--hang b { color: #FBBF5C; }
+:root[data-theme="dark"] .chuyen-the__luc { color: #FBBF5C; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .chip-chieu { color: #C4B5FD; }
+  :root:not([data-theme="light"]) .chip-chieu--nguoc { color: #FBBF5C; }
+  :root:not([data-theme="light"]) .so-o--ve b { color: #C4B5FD; }
+  :root:not([data-theme="light"]) .so-o--tien b { color: #4ADE80; }
+  :root:not([data-theme="light"]) .so-o--hang b { color: #FBBF5C; }
+  :root:not([data-theme="light"]) .chuyen-the__luc { color: #FBBF5C; }
+}
