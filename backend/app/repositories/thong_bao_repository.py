@@ -16,16 +16,37 @@ def _thanh_danh_sach_dict(cur, rows) -> list[dict]:
 
 
 def tao(
-    nguoi_nhan_id: str, noi_dung: str, ve_id: str | None = None, don_hang_id: str | None = None
+    nguoi_nhan_id: str, noi_dung: str, ve_id: str | None = None, don_hang_id: str | None = None,
+    duong_dan: str | None = None,
 ) -> None:
+    """`duong_dan`: trang frontend để mở khi bấm vào thông báo (VD /nhan-vien/quan-ly/lich-chay.html); None = chỉ có chữ."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO thong_bao (nguoi_nhan_id, noi_dung, ve_id, don_hang_id) VALUES (%s, %s, %s, %s)",
-                (nguoi_nhan_id, noi_dung, ve_id, don_hang_id),
+                "INSERT INTO thong_bao (nguoi_nhan_id, noi_dung, ve_id, don_hang_id, duong_dan) VALUES (%s, %s, %s, %s, %s)",
+                (nguoi_nhan_id, noi_dung, ve_id, don_hang_id, duong_dan),
             )
         conn.commit()
+    finally:
+        release_connection(conn)
+
+
+def da_co_thong_bao_giong(nguoi_nhan_id: str, noi_dung: str, trong_ngay: int = 30) -> bool:
+    """True nếu người này đã nhận đúng nội dung này trong `trong_ngay` ngày gần đây — để các thông báo nhắc định kỳ
+    (cùng một tình trạng) chỉ gửi một lần, không báo lặp mỗi lần job chạy."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT 1 FROM thong_bao
+                WHERE nguoi_nhan_id = %s AND noi_dung = %s AND ngay_tao > now() - make_interval(days => %s)
+                LIMIT 1
+                """,
+                (nguoi_nhan_id, noi_dung, trong_ngay),
+            )
+            return cur.fetchone() is not None
     finally:
         release_connection(conn)
 
@@ -36,7 +57,7 @@ def danh_sach_cua_toi(nguoi_nhan_id: str, chi_chua_doc: bool = False, limit: int
         with conn.cursor() as cur:
             cur.execute(
                 f"""
-                SELECT tb.id, tb.noi_dung, tb.da_doc, tb.ngay_tao, tb.ve_id, tb.don_hang_id,
+                SELECT tb.id, tb.noi_dung, tb.da_doc, tb.ngay_tao, tb.ve_id, tb.don_hang_id, tb.duong_dan,
                        dh.ma_van_don, v.ma_dat_cho
                 FROM thong_bao tb
                 LEFT JOIN don_hang dh ON dh.id = tb.don_hang_id

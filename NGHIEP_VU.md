@@ -358,6 +358,7 @@ Chỉ thao tác chuyến **xuất phát từ** văn phòng mình được gán.
 4. Xem thống kê toàn hệ thống: doanh thu theo tuyến/điểm/ngày, tỷ lệ lấp đầy trung bình, chuyến bị hủy/sự cố, hiệu suất tài xế, **tổng tiền đã/đang chờ hoàn theo lý do** (từ `lich_su_hoan_tien`, mục 7) — biết được có bao nhiêu khoản còn tồn đọng chưa xử lý.
 5. Xử lý khiếu nại nghiêm trọng, khóa/mở khóa tài khoản (khách hàng lẫn cán bộ) — không xóa vĩnh viễn, giữ lịch sử. **Tài khoản `quan_ly` gốc không thể bị khóa bởi bất kỳ ai, kể cả `quan_ly` khác** — tránh trường hợp toàn bộ `quan_ly` lỡ khóa lẫn nhau, không còn ai vào được hệ thống.
 6. Xem xét gỡ hạn chế đặt vé cho khách hàng bị khóa do no-show (mục 9) — thao tác thủ công, tương tự cơ chế "xem xét gỡ cấm" ở bản trước.
+7. **Nhận thông báo qua chuông ở thanh trên cùng** (huy hiệu số chưa đọc, bảng thả xuống, toast khi có tin mới; bấm vào thông báo mở đúng trang liên quan nếu có): hàng tồn cần xử lý (UC-25), hàng thất lạc/hư hỏng do phụ xe báo, và hai nhắc việc hằng ngày — **sinh thêm chuyến** khi cặp lịch đang áp dụng chỉ còn chuyến trong 7 ngày tới (hoặc đã hết, chưa sinh chuyến nào) và **tạo bộ giá nối tiếp** khi bộ giá cuối kết thúc trong 14 ngày (hoặc đã hết, chưa có bộ giá). Chỉ nhắc, quản lý tự quyết định bấm "Sinh chuyến"/tạo bộ giá.
 
 ### 8.8. Kế toán (`ke_toan`)
 

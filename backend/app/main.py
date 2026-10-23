@@ -1,3 +1,4 @@
+import datetime
 from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -6,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import CORS_ORIGINS
-from app.jobs import canh_bao_giay_to, quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han
+from app.jobs import canh_bao_giay_to, nhac_quan_ly, quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han
 from app.routes.auth import router as auth_router
 from app.routes.chuyen import router as chuyen_router
 from app.routes.phu_xe import router as phu_xe_router
@@ -37,6 +38,12 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(quet_nhac_sap_di.chay, "interval", minutes=5, id="quet_nhac_sap_di")
     # Nhánh kèm theo UC-49 (trước đây UC-50, ⏱) — cảnh báo giấy tờ nhân sự vận hành sắp/đã hết hạn, mốc tính theo ngày nên quét 1 lần/ngày là đủ
     scheduler.add_job(canh_bao_giay_to.chay, "interval", hours=24, id="canh_bao_giay_to")
+    # Nhắc quản lý sinh thêm chuyến / tạo bộ giá nối tiếp (jobs/nhac_quan_ly.py) — mỗi sáng 07:00 giờ Việt Nam, và chạy thêm 1 lần
+    # ngay sau khi khởi động (dịch vụ có thể ngủ/khởi động lại nên lỡ mốc 07:00; thông báo trùng nội dung đã được bỏ qua)
+    scheduler.add_job(
+        nhac_quan_ly.chay, "cron", hour=7, minute=0, timezone="Asia/Ho_Chi_Minh", id="nhac_quan_ly",
+        next_run_time=datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=45),
+    )
     scheduler.start()
     yield
     scheduler.shutdown()

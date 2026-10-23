@@ -20,12 +20,13 @@ logger = logging.getLogger(__name__)
 MUI_GIO_VN = ZoneInfo("Asia/Ho_Chi_Minh")
 
 
-def gui(nguoi_nhan_id: str | None, noi_dung: str, ve_id: str | None = None) -> None:
-    """Lưu rồi đẩy real-time cho 1 khách. Bỏ qua nếu không có người nhận (vé bán cho khách vãng lai). Nuốt mọi lỗi."""
+def gui(nguoi_nhan_id: str | None, noi_dung: str, ve_id: str | None = None, duong_dan: str | None = None) -> None:
+    """Lưu rồi đẩy real-time cho 1 người. Bỏ qua nếu không có người nhận (vé bán cho khách vãng lai). Nuốt mọi lỗi.
+    `duong_dan`: trang mở ra khi bấm vào thông báo (dùng cho cán bộ, VD chuông của Quản lý); None = chỉ có chữ."""
     if not nguoi_nhan_id:
         return
     try:
-        thong_bao_repo.tao(str(nguoi_nhan_id), noi_dung, ve_id=str(ve_id) if ve_id else None)
+        thong_bao_repo.tao(str(nguoi_nhan_id), noi_dung, ve_id=str(ve_id) if ve_id else None, duong_dan=duong_dan)
         broadcast_sync(str(nguoi_nhan_id), noi_dung)
     except Exception:  # noqa: BLE001 — xem docstring đầu file
         logger.exception("Không gửi được thông báo cho khách %s", nguoi_nhan_id)
