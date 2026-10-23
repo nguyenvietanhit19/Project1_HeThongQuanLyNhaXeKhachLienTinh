@@ -409,9 +409,9 @@ def test_xac_nhan_toi_diem_danh_dau_khong_den_khach_chua_len_o_diem_vua_roi(monk
     monkeypatch.setattr(svc.chuyen_xe_repo, "them_lich_su_diem_dung", lambda cid, did: True)
     monkeypatch.setattr(svc.ve_repo, "tim_khach_cho_don_sau_diem", lambda cid, thu_tu: [])
     hoi = []
-    monkeypatch.setattr(svc.ve_repo, "tim_ve_chua_len_tai_diem", lambda cid, did: hoi.append(did) or [{"ve_id": "v1", "khach_hang_id": "k1"}])
+    monkeypatch.setattr(svc.ve_repo, "tim_ve_chua_len_tai_diem", lambda cid, did: hoi.append(did) or [{"id": "v1", "ve_id": "v1", "khach_hang_id": "k1"}])
     danh_dau = []
-    monkeypatch.setattr(svc.quet_no_show, "danh_dau_khong_den", lambda ve_id, khach: danh_dau.append((ve_id, khach)))
+    monkeypatch.setattr(svc.quet_no_show, "danh_dau_khong_den", lambda ve: danh_dau.append((ve["id"], ve["khach_hang_id"])))
     svc.xac_nhan_toi_diem("chuyen-1", "d2", "nguoi-dung-1")
     assert hoi == ["d1"] and danh_dau == [("v1", "k1")]
 

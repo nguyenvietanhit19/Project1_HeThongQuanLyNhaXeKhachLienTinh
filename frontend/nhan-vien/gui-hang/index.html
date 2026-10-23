@@ -139,8 +139,8 @@
                         <label class="payment-card">
                           <input type="radio" name="phuong_thuc_thanh_toan" value="cod_nguoi_nhan_tra">
                           <div class="payment-label">
-                            <div>🚚 COD — người nhận trả</div>
-                            <div class="payment-sub">Không thu, người nhận trả khi lấy hàng</div>
+                            <div>🚚 Người nhận trả cước (COD)</div>
+                            <div class="payment-sub">Không thu, người nhận trả cước khi lấy hàng — nhà xe không thu hộ tiền hàng</div>
                           </div>
                         </label>
                       </div>
@@ -175,7 +175,7 @@
                   <select id="selectThanhToanHangDen" class="filter-select" aria-label="Lọc theo hình thức thanh toán">
                     <option value="">Mọi hình thức</option>
                     <option value="nguoi_gui_tra_truoc">Trả trước</option>
-                    <option value="cod_nguoi_nhan_tra">COD</option>
+                    <option value="cod_nguoi_nhan_tra">Người nhận trả cước</option>
                   </select>
                   <select id="selectBaoNguoiNhanHangDen" class="filter-select" aria-label="Lọc theo tình trạng báo người nhận">
                     <option value="">Mọi tình trạng báo</option>
@@ -203,6 +203,7 @@
                 <button type="button" class="quick-filter-chip" data-nhom="hang_ton">Hàng tồn <span class="chip-count" data-dem="hang_ton">0</span></button>
                 <button type="button" class="quick-filter-chip" data-nhom="sap_den">Sắp đến <span class="chip-count" data-dem="sap_den">0</span></button>
               </div>
+              <p class="hd-gioi-han" id="hdGioiHan" role="status" hidden></p>
             </div>
 
             <div class="data-table-wrapper">
@@ -260,7 +261,7 @@
                 <select id="selectThanhToanDonGui" class="filter-select">
                   <option value="">💳 Tất cả hình thức</option>
                   <option value="nguoi_gui_tra_truoc">💵 Người gửi trả trước</option>
-                  <option value="cod_nguoi_nhan_tra">🚚 COD người nhận trả</option>
+                  <option value="cod_nguoi_nhan_tra">🚚 Người nhận trả cước</option>
                 </select>
                 <button type="button" class="btn-filter-reset" id="btnDatLaiDonGui"><span>🔄</span> Đặt lại</button>
               </div>
@@ -379,7 +380,7 @@
             <div class="cashflow-left">
               <div class="cashflow-tag">💰 TIỀN MẶT THU TẠI QUẦY TRONG KỲ</div>
               <div class="cashflow-total" id="tkDoanhThu">0 đ</div>
-              <div class="cashflow-desc">Cước trả trước thu ở văn phòng gửi + cước COD thu ở văn phòng nhận − tiền hoàn khi hủy đơn, tính theo thời điểm thu / hoàn tiền.</div>
+              <div class="cashflow-desc">Cước trả trước thu ở văn phòng gửi + cước người nhận trả thu ở văn phòng nhận − tiền hoàn khi hủy đơn, tính theo thời điểm thu / hoàn tiền.</div>
             </div>
             <div class="cashflow-right">
               <div class="cashflow-chip">
@@ -387,7 +388,7 @@
                 <div class="cashflow-chip-value" id="tkTienTraTruoc">0 đ</div>
               </div>
               <div class="cashflow-chip">
-                <div class="cashflow-chip-title">🚚 Cước COD thu khi giao</div>
+                <div class="cashflow-chip-title">🚚 Cước người nhận trả (thu khi giao)</div>
                 <div class="cashflow-chip-value" id="tkTienCod">0 đ</div>
               </div>
               <div class="cashflow-chip">
@@ -434,7 +435,7 @@
                     <tr>
                       <th>Nhân viên</th>
                       <th class="text-right">Trả trước</th>
-                      <th class="text-right">COD</th>
+                      <th class="text-right">Thu khi giao</th>
                       <th class="text-right">Hoàn</th>
                       <th class="text-right">Còn trong két</th>
                     </tr>
@@ -588,7 +589,7 @@
           <div class="modal-delivery-icon">📦</div>
           <div>
             <h3 class="modal-delivery-title">BÀN GIAO HÀNG CHO NGƯỜI NHẬN</h3>
-            <p class="modal-delivery-subtitle">Kiểm tra đúng người nhận, thu COD (nếu có) rồi xác nhận giao</p>
+            <p class="modal-delivery-subtitle">Kiểm tra đúng người nhận, thu cước (nếu người nhận trả) rồi xác nhận giao</p>
           </div>
         </div>
         <button type="button" class="btn-close-icon" data-dong="modalGiaoHangCOD" title="Đóng">✕</button>
@@ -633,7 +634,7 @@
         <div class="delivery-check-rule" id="ghXacNhanCodWrap" hidden>
           <label class="delivery-checkbox-label">
             <input type="checkbox" id="chkXacNhanThuCOD">
-            <span>Tôi xác nhận <strong>đã thu đủ cước COD</strong> từ người nhận.</span>
+            <span>Tôi xác nhận <strong>đã thu đủ cước vận chuyển</strong> từ người nhận.</span>
           </label>
         </div>
       </div>
@@ -710,7 +711,7 @@
   <div id="modalSuaLienHe" class="modal-overlay" role="dialog" aria-modal="true">
     <div class="modal-box modal-box--wide">
       <h3 class="modal-heading">Sửa thông tin liên hệ đơn <span id="slMaVanDon"></span></h3>
-      <p class="card-desc">Chỉ sửa được tên và SĐT khi đơn chưa giao. Muốn đổi tuyến, điểm nhận, loại hàng hoặc cước thì hủy đơn và tạo lại. Mọi lần sửa đều được ghi nhật ký.</p>
+      <p class="card-desc">Chỉ sửa được tên và SĐT khi đơn chưa giao. Muốn đổi tuyến, điểm nhận, loại hàng hoặc cước thì hủy đơn và tạo lại. Mọi lần sửa đều được ghi nhật ký. Đổi SĐT người nhận thì đơn quay về "Cần gọi báo" để gọi số mới.</p>
 
       <form id="formSuaLienHe" novalidate>
         <div class="form-grid-2">
@@ -738,8 +739,8 @@
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label" for="slLyDo">Lý do sửa <span class="section-hint">(tùy chọn)</span></label>
-          <input type="text" id="slLyDo" class="form-input" maxlength="200" placeholder="VD: Khách đọc nhầm số điện thoại" autocomplete="off">
+          <label class="form-label" for="slLyDo">Lý do sửa <span class="section-hint">(bắt buộc khi đổi SĐT người nhận — ghi căn cứ xác minh)</span></label>
+          <input type="text" id="slLyDo" class="form-input" maxlength="200" placeholder="VD: Người gửi gọi báo số mới của người nhận" autocomplete="off">
         </div>
         <div class="receipt-actions">
           <button type="button" class="btn-close-modal" data-dong="modalSuaLienHe">Đóng</button>
@@ -812,6 +813,21 @@
         <button type="button" class="btn-action-sm" id="btnTaoLaiDon" hidden>➕ Tạo lại đơn</button>
         <button type="button" class="btn-print" data-in="modalPhieuHuy">📄 In phiếu</button>
         <button type="button" class="btn-close-modal" data-dong="modalPhieuHuy">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================== -->
+  <!-- MODAL: XÁC NHẬN ĐĂNG XUẤT                                   -->
+  <!-- ========================================================== -->
+  <div id="modalDangXuat" class="modal-overlay" role="alertdialog" aria-modal="true" aria-labelledby="dxTieuDe" aria-describedby="dxNoiDung">
+    <div class="modal-box modal-box--nho">
+      <h3 class="modal-heading" id="dxTieuDe">Đăng xuất khỏi tài khoản?</h3>
+      <p class="card-desc" id="dxNoiDung">Bạn sẽ cần đăng nhập lại để tiếp tục làm việc tại quầy.</p>
+      <div class="dx-canh-bao" id="dxCanhBao" hidden>⚠️ Đơn đang nhập dở ở tab <strong>Tiếp nhận gửi hàng</strong> chưa được tạo — đăng xuất bây giờ sẽ mất thông tin đã nhập.</div>
+      <div class="receipt-actions">
+        <button type="button" class="btn-close-modal" data-dong="modalDangXuat" id="btnODaiDangXuat">Ở lại</button>
+        <button type="button" class="btn-danger-modal" id="btnXacNhanDangXuat">Đăng xuất</button>
       </div>
     </div>
   </div>

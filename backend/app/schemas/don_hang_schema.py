@@ -239,6 +239,11 @@ class DonHangResponse(BaseModel):
     ma_chuyen: str | None = None
     bien_so_xe: str | None = None
     gio_khoi_hanh: datetime | None = None
+    # Tình trạng chuyến đang chở — để văn phòng nhận biết hàng sẽ tới trễ (chuyến gặp sự cố / đang hoãn / bị hủy)
+    trang_thai_chuyen: str | None = None
+    chuyen_dang_hoan: bool | None = None
+    loai_su_co_chuyen: str | None = None
+    ly_do_su_co_chuyen: str | None = None
 
     ngay_tao: datetime
     ngay_giao: datetime | None = None
@@ -280,6 +285,7 @@ class DonHangChoChatResponse(BaseModel):
     ma_van_don: str
     ten_nguoi_nhan: str
     ten_diem_nhan: str
+    diem_nhan_id: str | None = None
     can_nang_kg: float
     ngay_tao: datetime
     so_bao_hu_hong: int = 0
@@ -293,6 +299,7 @@ class DonHangChoDoResponse(BaseModel):
     ma_van_don: str
     ten_nguoi_nhan: str
     can_nang_kg: float
+    ngay_tao: datetime | None = None
     so_bao_hu_hong: int = 0
     so_bao_that_lac: int = 0
 

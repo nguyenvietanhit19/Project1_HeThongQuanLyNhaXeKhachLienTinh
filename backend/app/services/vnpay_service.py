@@ -174,3 +174,71 @@ def truy_van_giao_dich(ma_giao_dich: str) -> dict | None:
         logger.warning("Phản hồi truy vấn VNPay %s sai chữ ký hoặc sai định dạng", ma_giao_dich)
         return None
     return phan_hoi
+
+
+def hoan_tien_toan_phan(
+    ma_tham_chieu: str,
+    so_tien: int,
+    ma_giao_dich_cong: str,
+    nguoi_tao: str,
+    ip: str = "127.0.0.1",
+) -> dict | None:
+    """Gửi yêu cầu hoàn toàn phần qua Merchant API VNPay; None nếu không xác minh được phản hồi."""
+    bay_gio = datetime.datetime.now(datetime.timezone.utc)
+    params = {
+        "vnp_RequestId": uuid.uuid4().hex,
+        "vnp_Version": "2.1.0",
+        "vnp_Command": "refund",
+        "vnp_TmnCode": VNPAY_TMN_CODE,
+        "vnp_TransactionType": "02",
+        "vnp_TxnRef": ma_tham_chieu,
+        "vnp_Amount": int(so_tien) * 100,
+        "vnp_TransactionNo": ma_giao_dich_cong or "0",
+        "vnp_TransactionDate": ngay_tao_tu_ma_giao_dich(ma_tham_chieu),
+        "vnp_CreateBy": str(nguoi_tao)[:100],
+        "vnp_CreateDate": dinh_dang_gio_vn(bay_gio),
+        "vnp_IpAddr": ip,
+        "vnp_OrderInfo": f"Hoan tien ve {ma_tham_chieu}",
+    }
+    du_lieu_ky = "|".join(str(params[k]) for k in (
+        "vnp_RequestId", "vnp_Version", "vnp_Command", "vnp_TmnCode", "vnp_TransactionType",
+        "vnp_TxnRef", "vnp_Amount", "vnp_TransactionNo", "vnp_TransactionDate", "vnp_CreateBy",
+        "vnp_CreateDate", "vnp_IpAddr", "vnp_OrderInfo",
+    ))
+    params["vnp_SecureHash"] = _ky_chuoi(du_lieu_ky)
+    request = urllib.request.Request(
+        VNPAY_API_URL,
+        data=json.dumps(params).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            result = json.loads(response.read().decode("utf-8"))
+    except (OSError, ValueError, urllib.error.URLError):
+        logger.exception("VNPay refund request failed for reference %s", ma_tham_chieu)
+        return None
+
+    if not isinstance(result, dict):
+        logger.error("VNPay refund response has an invalid format for reference %s", ma_tham_chieu)
+        return None
+
+    fields = (
+        "vnp_ResponseId", "vnp_Command", "vnp_ResponseCode", "vnp_Message", "vnp_TmnCode",
+        "vnp_TxnRef", "vnp_Amount", "vnp_BankCode", "vnp_PayDate", "vnp_TransactionNo",
+        "vnp_TransactionType", "vnp_TransactionStatus", "vnp_OrderInfo",
+    )
+    raw = "|".join(str(result.get(k, "")) for k in fields)
+    expected = _ky_chuoi(raw)
+    actual = str(result.get("vnp_SecureHash", ""))
+    if not actual or not hmac.compare_digest(expected.lower(), actual.lower()):
+        logger.error("VNPay refund response signature mismatch for reference %s", ma_tham_chieu)
+        return None
+    try:
+        amount = int(result.get("vnp_Amount", 0))
+    except (TypeError, ValueError):
+        amount = -1
+    if result.get("vnp_TxnRef") != ma_tham_chieu or amount != int(so_tien) * 100:
+        logger.error("VNPay refund response does not match request for reference %s", ma_tham_chieu)
+        return None
+    return result

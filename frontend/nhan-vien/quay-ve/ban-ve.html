@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+    <title>Bán vé</title>
+    <link rel="stylesheet" href="/shared/design-tokens.css" />
+    <link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+    <link rel="stylesheet" href="/nhan-vien/quay-ve/style.css" />
+  </head>
+  <body class="nhan-vien-shell">
+    <div class="nv-layout">
+      <aside class="nv-sidebar" id="qv-nav"></aside>
+      <div class="nv-main">
+        <header class="nv-topbar" id="qv-header"><h1>Bán vé</h1></header>
+        <main class="nv-content">
+          <div class="nv-page-intro">
+            <div class="nv-page-intro__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M7 15h4" />
+              </svg>
+            </div>
+            <div class="nv-page-intro__body">
+              <p class="nv-page-intro__title">Bán vé</p>
+              <p class="nv-page-intro__desc">Tìm chuyến, chọn ghế và lập vé cho khách tại quầy hoặc qua hotline.</p>
+            </div>
+          </div>
+          <article class="nv-card qv-card">
+            <div class="qv-toolbar">
+              <div>
+                <h2>1. Tìm chuyến</h2>
+                <span class="qv-muted" id="office-label">Đang tải văn phòng…</span>
+              </div>
+            </div>
+            <form id="search-form" class="qv-row">
+              <div class="qv-field">
+                <label for="origin-name">Điểm đi</label>
+                <input id="origin-name" readonly />
+              </div>
+              <div class="qv-field">
+                <label for="destination">Điểm đến</label>
+                <select id="destination" required>
+                  <option value="">Chọn khu vực đến</option>
+                </select>
+              </div>
+              <div class="qv-field">
+                <label for="travel-date">Ngày khởi hành</label>
+                <input id="travel-date" type="date" required />
+              </div>
+              <button class="qv-btn" type="submit">Tìm chuyến</button>
+            </form>
+            <div id="search-error" class="qv-alert error qv-hidden"></div>
+            <div id="trip-results" class="qv-trip-list"></div>
+          </article>
+
+          <article class="nv-card qv-card qv-hidden" id="seat-card">
+            <div class="qv-toolbar">
+              <div>
+                <h2>2. Chọn điểm trả và ghế</h2>
+                <span id="selected-trip-note" class="qv-muted"></span>
+              </div>
+              <span class="qv-badge">Điểm đón cố định: văn phòng của bạn</span>
+            </div>
+            <div class="qv-form-grid">
+              <div class="qv-field">
+                <label for="pickup-name">Điểm đón</label>
+                <input id="pickup-name" readonly />
+              </div>
+              <div class="qv-field">
+                <label for="dropoff">Điểm trả</label>
+                <select id="dropoff" required></select>
+              </div>
+            </div>
+            <div id="seat-map" class="qv-seat-map"></div>
+            <div class="qv-toolbar">
+              <span id="seat-summary" class="qv-muted">Chưa chọn ghế</span>
+              <span id="seat-total" class="qv-total">0 ₫</span>
+            </div>
+          </article>
+
+          <article class="nv-card qv-card qv-hidden" id="customer-card">
+            <h2>3. Thông tin khách và thanh toán</h2>
+            <div class="qv-form-grid">
+              <div class="qv-field">
+                <label for="customer-phone">Số điện thoại</label>
+                <input id="customer-phone" type="tel" inputmode="numeric" autocomplete="tel-national"
+                  minlength="10" maxlength="10" pattern="0[35789][0-9]{8}"
+                  placeholder="VD: 0912345678" aria-describedby="customer-phone-rule" required />
+                <small id="customer-phone-rule" class="qv-muted">Nhập 10 chữ số để kiểm tra tên khách đã lưu.</small>
+              </div>
+              <div class="qv-field qv-hidden" id="customer-name-field">
+                <label for="customer-name">Họ tên khách</label>
+                <input id="customer-name" maxlength="120" autocomplete="name" />
+              </div>
+              <div class="qv-field">
+                <label for="sales-channel">Kênh bán</label>
+                <select id="sales-channel">
+                  <option value="tai_quay">Khách tại quầy</option>
+                  <option value="hotline">Hotline</option>
+                </select>
+              </div>
+              <div class="qv-field">
+                <label for="payment-method">Thanh toán</label>
+                <select id="payment-method">
+                  <option value="tien_mat">Tiền mặt tại quầy</option>
+                  <option value="chuyen_khoan">VNPay QR / link</option>
+                </select>
+              </div>
+            </div>
+            <div class="qv-row qv-account-row">
+              <button type="button" class="qv-btn secondary" id="find-account">
+                Kiểm tra số điện thoại
+              </button>
+              <span id="account-note" class="qv-muted"></span>
+            </div>
+            <div id="sale-error" class="qv-alert error qv-hidden"></div>
+            <div class="qv-row qv-submit-row">
+              <button id="submit-sale" class="qv-btn" type="button" disabled>
+                Tạo vé
+              </button>
+            </div>
+          </article>
+
+          <article class="nv-card qv-card qv-hidden" id="sale-result"></article>
+        </main>
+      </div>
+    </div>
+    <script src="api-client.js"></script>
+    <script src="auth-check.js"></script>
+    <script src="nav.js"></script>
+    <script>
+let qvOffice=null, qvTrip=null, qvDetail=null, qvSeatSelection=new Set(), qvAccountId=null, qvOriginArea=null, qvDestinationArea=null;
+const $=s=>document.querySelector(s);
+function localDate(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
+function showError(el,msg){el.textContent=msg;el.classList.toggle("qv-hidden",!msg);}
+function updateTotal(){let total=0;for(const seat of qvSeatSelection){const g=qvDetail.so_do_ghe.find(x=>x.ma_ghe===seat);total+=Number(g?.gia||0);}$("#seat-summary").textContent=qvSeatSelection.size?`Đã chọn ${qvSeatSelection.size} ghế: ${[...qvSeatSelection].join(", ")}`:"Chưa chọn ghế";$("#seat-total").textContent=dinhDangTien(total);$("#customer-card").classList.toggle("qv-hidden",!qvSeatSelection.size);$("#submit-sale").disabled=!qvSeatSelection.size;}
+let qvSeatMapRequest = 0;
+let qvTripStopsRequest = 0;
+let qvSearchRequest = 0;
+
+function renderSeatMap(detail) {
+  const seats = detail.so_do_ghe || [];
+  const map = $("#seat-map");
+  if (!seats.length) {
+    map.innerHTML = '<div class="qv-empty">Loại xe này chưa có sơ đồ ghế.</div>';
+    return;
+  }
+
+  // x/y là tọa độ ghế trên mô hình loại xe; cùng một khung tọa độ cho mọi tầng.
+  const minX = Math.min(...seats.map(seat => Number(seat.x)));
+  const minY = Math.min(...seats.map(seat => Number(seat.y)));
+  const maxX = Math.max(...seats.map(seat => Number(seat.x)));
+  const maxY = Math.max(...seats.map(seat => Number(seat.y)));
+  const width = Math.max(132, Math.ceil(maxX - minX + 80));
+  const height = Math.ceil(maxY - minY + 88);
+  const floors = [...new Set(seats.map(seat => Number(seat.tang)))].sort((a, b) => a - b);
+  const available = seats.filter(seat => seat.trang_thai === "trong").length;
+
+  map.innerHTML = `
+    <div class="qv-seat-legend" aria-label="Chú thích sơ đồ ghế">
+      <span><i class="qv-seat-swatch"></i>Ghế trống</span>
+      <span><i class="qv-seat-swatch selected"></i>Đang chọn</span>
+      <span><i class="qv-seat-swatch taken"></i>Đã có người</span>
+      <strong>${available}/${seats.length} ghế trống</strong>
+    </div>
+    <div class="qv-seat-decks">
+      ${floors.map(floor => `
+        <section class="qv-seat-deck" aria-label="Tầng ${floor}">
+          <div class="qv-seat-deck__title">Tầng ${floor}</div>
+          <div class="qv-seat-car" style="width:${width}px;height:${height}px">
+            <span class="qv-seat-car__front">▲ Đầu xe</span>
+            ${seats.filter(seat => Number(seat.tang) === floor).map(seat => {
+              const available = seat.trang_thai === "trong";
+              const label = `Ghế ${seat.ma_ghe}, tầng ${floor}, ${available ? "còn trống" : "đã có người"}, giá ${dinhDangTien(seat.gia)}`;
+              const left = Math.round((Number(seat.x) - minX + 20) * 10) / 10;
+              const top = Math.round((Number(seat.y) - minY + 38) * 10) / 10;
+              return `<button type="button" class="qv-seat${available ? "" : " taken"}" data-seat="${escapeHtml(seat.ma_ghe)}"
+                style="left:${left}px;top:${top}px"
+                title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}"${available ? ' aria-pressed="false"' : " disabled"}>${escapeHtml(seat.ma_ghe)}</button>`;
+            }).join("")}
+          </div>
+        </section>`).join("")}
+    </div>`;
+
+  map.querySelectorAll(".qv-seat:not(.taken)").forEach(button => {
+    button.addEventListener("click", () => {
+      const seat = button.dataset.seat;
+      if (qvSeatSelection.has(seat)) qvSeatSelection.delete(seat);
+      else qvSeatSelection.add(seat);
+      const selected = qvSeatSelection.has(seat);
+      button.classList.toggle("selected", selected);
+      button.setAttribute("aria-pressed", String(selected));
+      updateTotal();
+    });
+  });
+}
+
+async function loadSeatMap(trip, destinationArea, dropoffId) {
+  const requestId = ++qvSeatMapRequest;
+  qvSeatSelection.clear();
+  qvDetail = null;
+  $("#seat-card").classList.add("qv-hidden");
+  $("#customer-card").classList.add("qv-hidden");
+  $("#submit-sale").disabled = true;
+  const params = queryString({ diem_den_id: destinationArea, diem_tra_id: dropoffId });
+  const detail = await apiGet(`/quay-ve/chuyen/${trip.id}/so-do-ghe?${params}`);
+  if (requestId !== qvSeatMapRequest) return;
+  qvTrip = trip;
+  qvDestinationArea = destinationArea;
+  qvDetail = detail;
+  updateTotal();
+  $("#selected-trip-note").textContent = `${trip.ma} · ${dinhDangNgay(trip.gio_khoi_hanh)} · ${trip.ten_loai_xe} · ${dinhDangTien(trip.gia)}–${dinhDangTien(trip.gia_cao_nhat)}`;
+  $("#pickup-name").value = qvOffice.ten;
+  renderSeatMap(detail);
+  $("#seat-card").classList.remove("qv-hidden");
+  $("#seat-card").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+if(quayVeKiemTraQuyen()){renderQuayVeNav(location.pathname);qvPageHeader("Bán vé","Tạo vé trực tiếp cho khách tại quầy hoặc hỗ trợ qua hotline.");$("#travel-date").value=localDate();(async()=>{try{qvOffice=await apiGet("/quay-ve/van-phong-cua-toi");qvOriginArea=qvOffice.khu_vuc_id;$("#office-label").textContent=`Văn phòng: ${qvOffice.ten} · ${qvOffice.dia_chi}`;$("#origin-name").value=qvOffice.ten_khu_vuc;const areas=await apiGet("/chuyen/khu-vuc");$("#destination").innerHTML='<option value="">Chọn khu vực đến</option>'+areas.filter(a=>a.id!==qvOriginArea).map(a=>`<option value="${a.id}">${escapeHtml(a.ten)} · ${escapeHtml(a.tinh_thanh)}</option>`).join("");}catch(e){showError($("#search-error"),e.message);}})();
+$("#search-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const searchId = ++qvSearchRequest;
+  ++qvTripStopsRequest;
+  ++qvSeatMapRequest;
+  qvTrip = null;
+  qvDetail = null;
+  qvSeatSelection.clear();
+  $("#seat-card").classList.add("qv-hidden");
+  $("#customer-card").classList.add("qv-hidden");
+  $("#submit-sale").disabled = true;
+  showError($("#search-error"), "");
+  $("#trip-results").innerHTML = '<div class="qv-empty">Đang tìm chuyến…</div>';
+  const destinationArea = $("#destination").value;
+  try {
+    const trips = await apiGet(`/quay-ve/tim-chuyen?${queryString({diem_di_id: qvOriginArea, diem_den_id: destinationArea, ngay: $("#travel-date").value})}`);
+    if (searchId !== qvSearchRequest) return;
+    if (!trips.length) {
+      $("#trip-results").innerHTML = '<div class="qv-empty">Không có chuyến phù hợp trong ngày đã chọn.</div>';
+      return;
+    }
+    $("#trip-results").innerHTML = trips.map(trip => `
+      <div class="qv-trip">
+        <div><strong>${escapeHtml(trip.ma)} · ${escapeHtml(trip.ten_loai_xe)}</strong>
+          <small>${dinhDangNgay(trip.gio_khoi_hanh)} · ${trip.so_ghe_trong}/${trip.tong_ghe} ghế trống · ${dinhDangTien(trip.gia)}–${dinhDangTien(trip.gia_cao_nhat)}</small></div>
+        <button class="qv-btn secondary choose-trip" type="button" data-trip="${trip.id}">Chọn chuyến</button>
+      </div>`).join("");
+    $("#trip-results").querySelectorAll(".choose-trip").forEach(button => {
+      button.addEventListener("click", async () => {
+        const trip = trips.find(item => item.id === button.dataset.trip);
+        const stopsId = ++qvTripStopsRequest;
+        ++qvSeatMapRequest;
+        qvSeatSelection.clear();
+        $("#seat-card").classList.add("qv-hidden");
+        $("#customer-card").classList.add("qv-hidden");
+        $("#submit-sale").disabled = true;
+        showError($("#search-error"), "");
+        try {
+          const stops = await apiGet(`/quay-ve/chuyen/${trip.id}/diem-tra?${queryString({diem_den_id: destinationArea})}`);
+          if (stopsId !== qvTripStopsRequest) return;
+          if (!stops.length) throw new Error("Chuyến không có điểm trả phù hợp.");
+          $("#dropoff").innerHTML = stops.map(stop => `<option value="${stop.diem_id}">${escapeHtml(stop.ten)}</option>`).join("");
+          $("#dropoff").onchange = () => loadSeatMap(trip, destinationArea, $("#dropoff").value)
+            .catch(error => showError($("#search-error"), error.message));
+          await loadSeatMap(trip, destinationArea, stops[0].diem_id);
+        } catch (error) {
+          if (stopsId === qvTripStopsRequest) showError($("#search-error"), error.message);
+        }
+      });
+    });
+  } catch (error) {
+    if (searchId !== qvSearchRequest) return;
+    $("#trip-results").innerHTML = "";
+    showError($("#search-error"), error.message);
+  }
+});
+$("#sales-channel").addEventListener("change",()=>{$("#payment-method").innerHTML=$("#sales-channel").value==="tai_quay"?'<option value="tien_mat">Tiền mặt tại quầy</option><option value="chuyen_khoan">VNPay QR</option>':'<option value="chuyen_khoan">Gửi link VNPay cho khách</option><option value="thanh_toan_tai_quay">Khách trả khi đến quầy</option>';});
+const customerPhone=$("#customer-phone");
+const customerName=$("#customer-name");
+const phoneError="Số điện thoại phải đủ 10 chữ số, bắt đầu bằng 03, 05, 07, 08 hoặc 09.";
+const phoneIsValid=()=>/^0[35789][0-9]{8}$/.test(customerPhone.value);
+let qvCustomerRequest=0, qvCustomerTimer=null, qvResolvedPhone="";
+customerPhone.addEventListener("beforeinput",event=>{
+  if(event.inputType==="insertText" && event.data && /[^0-9]/.test(event.data))event.preventDefault();
+});
+customerPhone.addEventListener("input",()=>{
+  customerPhone.value=customerPhone.value.replace(/[^0-9]/g,"").slice(0,10);
+  ++qvCustomerRequest;
+  clearTimeout(qvCustomerTimer);
+  qvResolvedPhone="";
+  qvAccountId=null;
+  customerName.value="";
+  customerName.readOnly=false;
+  customerName.required=false;
+  $("#customer-name-field").classList.add("qv-hidden");
+  $("#account-note").textContent="";
+  showError($("#sale-error"),"");
+  if(phoneIsValid())qvCustomerTimer=setTimeout(lookupCustomer,250);
+});
+async function lookupCustomer(){
+  clearTimeout(qvCustomerTimer);
+  const note=$("#account-note");
+  if(!phoneIsValid()){
+    showError($("#sale-error"),phoneError);
+    customerPhone.focus();
+    return false;
+  }
+  const phone=customerPhone.value;
+  const guestName=qvResolvedPhone===phone?customerName.value:"";
+  const requestId=++qvCustomerRequest;
+  note.textContent="Đang kiểm tra số điện thoại…";
+  showError($("#sale-error"),"");
+  try{
+    const customer=await apiGet(`/quay-ve/khach-hang?${queryString({sdt:phone})}`);
+    if(requestId!==qvCustomerRequest||phone!==customerPhone.value)return false;
+    qvResolvedPhone=phone;
+    qvAccountId=customer?.id||null;
+    customerName.value=customer?.ho_ten||guestName;
+    customerName.readOnly=!!customer;
+    customerName.required=!customer;
+    $("#customer-name-field").classList.remove("qv-hidden");
+    note.textContent=customer
+      ? `Đã tìm thấy ${customer.ho_ten} (${customer.nguon==="tai_khoan"?"tài khoản khách hàng":"lịch sử mua vé"}). Tên được lấy từ lần trước.`
+      : "Khách mới: nhập họ tên để lưu cùng số điện thoại cho lần mua sau.";
+    return true;
+  }catch(error){
+    if(requestId!==qvCustomerRequest)return false;
+    qvResolvedPhone="";
+    qvAccountId=null;
+    note.textContent="";
+    showError($("#sale-error"),`Không thể kiểm tra số điện thoại: ${error.message}`);
+    return false;
+  }
+}
+$("#find-account").addEventListener("click",lookupCustomer);
+customerPhone.addEventListener("blur",()=>{if(phoneIsValid()&&qvResolvedPhone!==customerPhone.value)lookupCustomer();});
+$("#submit-sale").addEventListener("click",async()=>{
+  const error=$("#sale-error");
+  showError(error,"");
+  if(!phoneIsValid()){
+    showError(error,phoneError);
+    customerPhone.focus();
+    return;
+  }
+  if(qvResolvedPhone!==customerPhone.value&&!(await lookupCustomer()))return;
+  const tenKhach=customerName.value.trim().split(/\s+/).join(" ");
+  if(tenKhach.length<2){
+    showError(error,"Khách mới cần nhập họ tên ít nhất 2 ký tự.");
+    customerName.focus();
+    return;
+  }
+  try{
+    const payload={
+      kenh_ban:$("#sales-channel").value,
+      chuyen_id:qvTrip.id,
+      diem_di_id:qvOriginArea,
+      diem_den_id:qvDestinationArea,
+      diem_don_id:qvOffice.id,
+      diem_tra_id:$("#dropoff").value,
+      danh_sach_ghe:[...qvSeatSelection],
+      ten_khach:tenKhach,
+      sdt_khach:$("#customer-phone").value.trim(),
+      khach_hang_id:qvAccountId,
+      phuong_thuc:$("#payment-method").value
+    };
+    const tienMatDaThu=payload.kenh_ban==="tai_quay"&&payload.phuong_thuc==="tien_mat";
+    const tongTien=[...qvSeatSelection].reduce((sum,seat)=>sum+Number(qvDetail.so_do_ghe.find(g=>g.ma_ghe===seat)?.gia||0),0);
+    const xacNhan=await qvConfirm(
+      tienMatDaThu
+        ? `Bạn đã nhận đủ ${dinhDangTien(tongTien)} từ khách cho ${payload.danh_sach_ghe.length} vé? Xác nhận sẽ tạo vé ở trạng thái đã thanh toán.`
+        : `Tạo ${payload.danh_sach_ghe.length} vé chờ thanh toán cho khách ${payload.ten_khach}? Vé sẽ tự hủy nếu chưa thanh toán khi chuyến đã chạy.`,
+      tienMatDaThu?"Xác nhận đã thanh toán":"Xác nhận tạo vé",
+      "Tạo vé"
+    );
+    if(!xacNhan)return;
+    $("#submit-sale").disabled=true;
+    const result=await apiPost("/quay-ve/ban-ve",payload);
+    const tatCaDaThanhToan=result.ve.every(ve=>ve.trang_thai==="da_thanh_toan");
+    const veChoThanhToan=result.ve.filter(ve=>ve.trang_thai==="giu_cho");
+    const rows=result.ve.map(ve=>`<tr>
+      <td>${escapeHtml(ve.ma_ve)}</td>
+      <td>${escapeHtml(ve.so_ghe)}</td>
+      <td>${dinhDangTien(ve.gia)}</td>
+      <td>${ve.trang_thai==="giu_cho"?'<span class="qv-badge orange">Chờ thanh toán</span>':escapeHtml(ve.trang_thai)}</td>
+      <td>${ve.trang_thai==="da_thanh_toan"
+        ? `<button class="qv-btn secondary print-ticket" type="button" data-id="${escapeHtml(ve.id)}">In vé</button>`
+        : `<button class="qv-btn secondary pay-link" type="button" data-id="${escapeHtml(ve.id)}">Mở link thanh toán</button>`}</td>
+    </tr>`).join("");
+    $("#sale-result").innerHTML=`
+      <div class="qv-toolbar">
+        <div>
+          <h2>Đã tạo lượt vé ${escapeHtml(result.ma_dat_cho)}</h2>
+          <p class="qv-muted">Khách: ${escapeHtml(result.ten_khach||payload.ten_khach)}</p>
+          <p class="qv-muted">Tổng tiền ${dinhDangTien(result.tong_tien)} · ${escapeHtml(result.trang_thai)}</p>
+        </div>
+        <div class="qv-actions-inline">
+          ${tatCaDaThanhToan && result.ve.length>1
+            ? '<button class="qv-btn" id="print-all-sold-tickets" type="button">In tất cả vé</button>'
+            : !tatCaDaThanhToan
+              ? '<button class="qv-btn secondary" id="view-sold-booking" type="button">Tra cứu / thanh toán</button>'
+              : ""}
+          <button class="qv-btn secondary" id="new-sale" type="button">Bán lượt mới</button>
+        </div>
+      </div>
+      ${veChoThanhToan.length?`<div class="qv-pending-summary">
+        <strong>${veChoThanhToan.length} vé chờ thanh toán trong lượt này</strong>
+        <ul>${veChoThanhToan.map(ve=>`<li><b>${escapeHtml(ve.ma_ve)}</b> · Ghế ${escapeHtml(ve.so_ghe)} · ${dinhDangTien(ve.gia)}</li>`).join("")}</ul>
+      </div>`:""}
+      <div class="qv-table-wrap"><table class="qv-table">
+        <thead><tr><th>Mã vé</th><th>Ghế</th><th>Giá</th><th>Trạng thái</th><th>Tác vụ</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+    $("#sale-result").classList.remove("qv-hidden");
+    $("#sale-result").scrollIntoView({behavior:"smooth"});
+    const urlInLuot=`/nhan-vien/quay-ve/tra-cuu-ve.html?in-dat-cho=${encodeURIComponent(result.ma_dat_cho)}`;
+    const urlTraCuu=`/nhan-vien/quay-ve/tra-cuu-ve.html?ma_dat_cho=${encodeURIComponent(result.ma_dat_cho)}`;
+    $("#print-all-sold-tickets")?.addEventListener("click",()=>window.open(urlInLuot,"_blank","noopener"));
+    $("#view-sold-booking")?.addEventListener("click",()=>window.open(urlTraCuu,"_blank","noopener"));
+    $("#new-sale").addEventListener("click",()=>location.reload());
+    $("#sale-result").querySelectorAll(".pay-link").forEach(button=>button.onclick=async()=>{
+      try{
+        const data=await apiPost(`/quay-ve/ve/${encodeURIComponent(button.dataset.id)}/duong-dan-thanh-toan`,{frontend_origin:location.origin});
+        window.open(data.duong_dan_thanh_toan,"_blank","noopener");
+      }catch(e){showError(error,e.message);}
+    });
+    $("#sale-result").querySelectorAll(".print-ticket").forEach(button=>button.onclick=()=>
+      window.open(`/nhan-vien/quay-ve/tra-cuu-ve.html?in=${encodeURIComponent(button.dataset.id)}`,"_blank","noopener")
+    );
+    await qvAlert(
+      tatCaDaThanhToan
+        ? `Đã tạo ${result.ve.length} vé và ghi nhận khách đã thanh toán ${dinhDangTien(result.tong_tien)}. Mã đặt chỗ: ${result.ma_dat_cho}.`
+        : `Đã tạo ${result.ve.length} vé chờ thanh toán. Mã đặt chỗ: ${result.ma_dat_cho}. Vé sẽ tự hủy nếu quá giờ khởi hành mà chưa thanh toán.`,
+      tatCaDaThanhToan?"Bán vé thành công":"Đã tạo vé chờ thanh toán",
+      tatCaDaThanhToan?"success":"warning"
+    );
+  }catch(e){showError(error,e.message);$("#submit-sale").disabled=false;}
+});
+}
+    </script>
+  </body>
+</html>

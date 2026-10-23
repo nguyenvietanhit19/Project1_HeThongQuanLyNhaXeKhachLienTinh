@@ -18,11 +18,9 @@ from app.repositories import dia_diem_repository as dia_diem_repo
 from app.repositories import don_hang_repository as don_hang_repo
 from app.repositories import nguoi_dung_repository as nguoi_dung_repo
 from app.repositories import thong_bao_repository as thong_bao_repo
-from app.schemas.don_hang_schema import TRUONG_LIEN_HE, SuaThongTinLienHeRequest, TaoDonHangRequest
+from app.schemas.don_hang_schema import TRUONG_LIEN_HE, HuyDonRequest, SuaThongTinLienHeRequest, TaoDonHangRequest
 from app.services import chuyen_xe_service
 from app.services.chuyen_xe_service import XeDangDiChuyen, diem_hien_tai, kiem_tra_ben_da_mo, lay_chuyen_cua_phu_xe
-from app.schemas.don_hang_schema import TRUONG_LIEN_HE, HuyDonRequest, SuaThongTinLienHeRequest, TaoDonHangRequest
-from app.services.chuyen_xe_service import diem_hien_tai, lay_chuyen_cua_phu_xe
 from app.services.websocket_manager import broadcast_sync
 from app.utils.loi import CamTruyCap, GiaTriLoi, KhongTimThay, LoiHeThong
 
@@ -384,6 +382,7 @@ def danh_sach_cho_chat(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
             "ma_van_don": d["ma_van_don"],
             "ten_nguoi_nhan": d["ten_nguoi_nhan"],
             "ten_diem_nhan": d.get("ten_diem_nhan") or "",
+            "diem_nhan_id": str(d["diem_nhan_id"]) if d.get("diem_nhan_id") else None,
             "can_nang_kg": float(d["can_nang_kg"]),
             "ngay_tao": d["ngay_tao"],
         }
@@ -407,6 +406,7 @@ def danh_sach_cho_do(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
             "ma_van_don": d["ma_van_don"],
             "ten_nguoi_nhan": d["ten_nguoi_nhan"],
             "can_nang_kg": float(d["can_nang_kg"]),
+            "ngay_tao": d.get("ngay_tao"),
         }
         for d in don_hang_list
     ])
@@ -516,6 +516,8 @@ def do_tat_ca(chuyen_id: str, nguoi_dung_id: str) -> dict:
 def danh_sach_hoan_tac(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
     """Đơn vừa chất/dỡ tại ĐÚNG điểm xe đang đứng — phụ xe có thể hoàn tác nếu bấm nhầm."""
     chuyen = _chuyen_cua_phu_xe_dang_hoat_dong(chuyen_id, nguoi_dung_id, TRANG_THAI_CHUYEN_DUOC_DO)
+    if chuyen["trang_thai"] == "hoan_thanh":
+        return []  # chuyến đã hoàn thành: không hoàn tác gì nữa
     try:
         diem = diem_hien_tai(chuyen)
     except XeDangDiChuyen:
@@ -548,6 +550,8 @@ def hoan_tac_do_hang(don_hang_id: str, chuyen_id: str, nguoi_dung_id: str) -> No
     """Bấm nhầm "đã dỡ": đưa đơn về trên xe, nhắn lại nhân viên văn phòng nhận đừng báo người nhận.
     Không làm được nếu văn phòng đã gọi báo người nhận (khách có thể đang đến lấy)."""
     chuyen = _chuyen_cua_phu_xe_dang_hoat_dong(chuyen_id, nguoi_dung_id, TRANG_THAI_CHUYEN_DUOC_DO)
+    if chuyen["trang_thai"] == "hoan_thanh":
+        raise GiaTriLoi("Chuyến đã hoàn thành, không thể hoàn tác")
     don = don_hang_repo.tim_theo_id(don_hang_id)
     if not don or str(don.get("chuyen_id")) != str(chuyen_id) or don["trang_thai"] != "cho_lay":
         raise GiaTriLoi("Đơn hàng không ở trạng thái đã dỡ trên chuyến này, không có gì để hoàn tác")
@@ -661,6 +665,10 @@ def sua_thong_tin_lien_he(
         raise GiaTriLoi("Đơn đã giao xong, không thể sửa thông tin")
     if don["trang_thai"] == "da_huy":
         raise GiaTriLoi("Đơn đã bị hủy, không thể sửa thông tin")
+    # Đổi SĐT người nhận = đổi người được giao hàng → phải có căn cứ, không chỉ sửa lỗi gõ tên.
+    doi_sdt_nhan = du_lieu.sdt_nguoi_nhan is not None and du_lieu.sdt_nguoi_nhan != don["sdt_nguoi_nhan"]
+    if doi_sdt_nhan and not du_lieu.ly_do:
+        raise GiaTriLoi("Đổi SĐT người nhận phải ghi lý do / căn cứ xác minh (vd: người gửi gọi báo số mới)")
 
     thay_doi = {t: getattr(du_lieu, t) for t in TRUONG_LIEN_HE if getattr(du_lieu, t) is not None}
     try:
@@ -682,6 +690,9 @@ def sua_thong_tin_lien_he(
             f"Đơn {don['ma_van_don']} vừa được sửa {', '.join(NHAN_TRUONG_LIEN_HE[t] for t in cac_truong_doi)}"
             " — kiểm tra lại thông tin trước khi gọi/bàn giao."
         )
+        if ("sdt_nguoi_nhan" in cac_truong_doi and diem_con_lai == str(don["diem_nhan_id"])
+                and don["trang_thai"] in ("cho_lay", "qua_han_luu_kho")):
+            noi_dung += f" Hàng đang ở văn phòng nhận: gọi báo lại người nhận theo số mới {don_moi['sdt_nguoi_nhan']}."
         _gui_thong_bao_an_toan(don_hang_repo.danh_sach_nhan_vien_gui_hang_tai_diem(diem_con_lai), noi_dung, don_hang_id)
     return don_moi
 
@@ -710,7 +721,7 @@ def ghi_ket_qua_lien_he(
     """Mục 10.3.1 & UC-25: lưu kết quả gọi người nhận / người gửi, hoặc báo quản lý.
 
     - Chỉ văn phòng NHẬN của đơn, đơn đang `cho_lay` hoặc `qua_han_luu_kho`.
-    - Gọi người nhận thành công → bật cờ `da_thong_bao_nguoi_nhan` (chỉ bật, không tắt).
+    - Gọi người nhận thành công → bật cờ `da_thong_bao_nguoi_nhan` (ở đây chỉ bật; cờ chỉ tắt khi đổi SĐT người nhận).
     - Báo quản lý chỉ khi đơn đã có cảnh báo 7 ngày hoặc đã là hàng tồn (UC-25:
       không liên hệ được ai) — tạo thông báo cho các quản lý đang hoạt động.
     """
@@ -734,16 +745,19 @@ def ghi_ket_qua_lien_he(
             + (f" Ghi chú: {ghi_chu}" if ghi_chu else "")
         )
 
-    don_hang_repo.ghi_lien_he(
-        don_hang_id,
-        nguoi_dung_id,
-        doi_tuong,
-        ket_qua,
-        ghi_chu,
-        danh_dau_da_thong_bao=(doi_tuong == "nguoi_nhan" and ket_qua == "da_lien_he"),
-        thong_bao_cho=thong_bao_cho,
-        noi_dung_thong_bao=noi_dung,
-    )
+    try:
+        don_hang_repo.ghi_lien_he(
+            don_hang_id,
+            nguoi_dung_id,
+            doi_tuong,
+            ket_qua,
+            ghi_chu,
+            danh_dau_da_thong_bao=(doi_tuong == "nguoi_nhan" and ket_qua == "da_lien_he"),
+            thong_bao_cho=thong_bao_cho,
+            noi_dung_thong_bao=noi_dung,
+        )
+    except don_hang_repo.DonKhongConChoLay:
+        raise GiaTriLoi("Đơn vừa được giao hoặc đổi trạng thái bởi người khác, vui lòng tải lại") from None
     for quan_ly_id in thong_bao_cho:
         broadcast_sync(quan_ly_id, noi_dung)
     return don_hang_repo.tim_theo_id(don_hang_id)
@@ -758,6 +772,13 @@ def _noi_dung_canh_bao_7_ngay(don: dict) -> str:
     )
 
 
+def _noi_dung_nhac_goi_bao_24h(don: dict) -> str:
+    return (
+        f"Đơn {don['ma_van_don']} đã tới văn phòng hơn 1 ngày nhưng chưa báo được người nhận — "
+        f"gọi lại {don['ten_nguoi_nhan']} ({don['sdt_nguoi_nhan']})."
+    )
+
+
 def _noi_dung_hang_ton_14_ngay(don: dict) -> str:
     return (
         f"Đơn {don['ma_van_don']} đã chuyển hàng tồn (14 ngày chưa ai lấy) — liên hệ người gửi xử lý; "
@@ -768,14 +789,20 @@ def _noi_dung_hang_ton_14_ngay(don: dict) -> str:
 def quet_canh_bao_va_chuyen_hang_ton() -> dict:
     """UC-46: Cronjob chạy định kỳ — không tự hủy/thanh lý, chỉ đổi cờ/trạng thái để nhắc người xử lý.
 
+    - Mốc >= 24 giờ chưa báo được người nhận: nhắc lại 1 lần (NGHIEP_VU_GUI_HANG.md mục 5.2).
     - Mốc >= 7 ngày: bật co_canh_bao_cho_lau, nhắc gọi đúng đối tượng (mục 10.3.1 điểm 3).
     - Mốc >= 14 ngày: chuyển qua_han_luu_kho, nhắc liên hệ người gửi (điểm 4).
     """
+    so_nhac_24h, can_day_24h = don_hang_repo.quet_nhac_goi_bao_24h(_noi_dung_nhac_goi_bao_24h)
     so_canh_bao, can_day_7 = don_hang_repo.quet_canh_bao_7_ngay(_noi_dung_canh_bao_7_ngay)
     so_hang_ton, can_day_14 = don_hang_repo.quet_chuyen_hang_ton_14_ngay(_noi_dung_hang_ton_14_ngay)
-    for nguoi_nhan_id, noi_dung in can_day_7 + can_day_14:
+    for nguoi_nhan_id, noi_dung in can_day_24h + can_day_7 + can_day_14:
         broadcast_sync(nguoi_nhan_id, noi_dung)
-    return {"so_don_canh_bao_7_ngay": so_canh_bao, "so_don_chuyen_ton_14_ngay": so_hang_ton}
+    return {
+        "so_don_nhac_goi_bao_24h": so_nhac_24h,
+        "so_don_canh_bao_7_ngay": so_canh_bao,
+        "so_don_chuyen_ton_14_ngay": so_hang_ton,
+    }
 
 
 # ====================================================================

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Tài khoản cán bộ — Quản lý nhân sự</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<!-- Dùng chung bộ khung "nv-*" với frontend/nhan-vien/quan-ly/ — xem ghi chú ở nav.js -->
+<link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+</head>
+<body class="nhan-vien-shell">
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
+
+    <div class="nv-main">
+      <header class="nv-topbar">
+        <h1>Tài khoản cán bộ</h1>
+        <div class="nv-topbar__user">
+          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
+          <div class="nv-topbar__identity">
+            <span class="ho-ten" id="topbar-ho-ten"></span>
+            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
+          </div>
+          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
+        </div>
+      </header>
+
+      <main class="nv-content">
+        <div class="nv-page-intro">
+          <div class="nv-page-intro__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M19 8v6M16 11h6"/>
+            </svg>
+          </div>
+          <div class="nv-page-intro__body">
+            <p class="nv-page-intro__title">Tài khoản cán bộ</p>
+            <p class="nv-page-intro__desc">Tạo tài khoản đăng nhập cho nhân viên. Email do công ty cấp; tài khoản mới có mật khẩu ban đầu mặc định, cán bộ nên đổi ngay sau khi đăng nhập. Quầy vé và gửi hàng phải chọn văn phòng phụ trách.</p>
+          </div>
+          <div class="nv-page-intro__stat">
+            <span class="nv-page-intro__stat-num" id="stat-so-luong">—</span>
+            <span class="nv-page-intro__stat-label">tài khoản</span>
+          </div>
+        </div>
+
+        <div class="kv-thanh-cong">
+          <div class="kv-tim">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input type="search" id="tk-tim" placeholder="Tìm theo họ tên, email hoặc số điện thoại..." autocomplete="off" />
+          </div>
+          <div class="dd-chips" id="tk-chips"></div>
+          <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Tạo tài khoản</button>
+        </div>
+        <div id="bang-tai-khoan">Đang tải...</div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal tạo tài khoản -->
+  <div class="nv-modal-overlay" id="modal-overlay" hidden>
+    <div class="nv-modal" style="max-width:560px;">
+      <form id="form-tai-khoan" novalidate>
+        <div class="nv-modal__header">
+          <div class="nv-modal__header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M19 8v6M16 11h6"/>
+            </svg>
+          </div>
+          <h2>Tạo tài khoản cán bộ</h2>
+        </div>
+        <div class="nv-modal__body">
+          <label class="nv-label" for="email">Email (do công ty cấp)</label>
+          <input class="input-field" type="email" id="email" autocomplete="off" required />
+
+          <div class="nv-form-row">
+            <div>
+              <label class="nv-label" for="ho_ten">Họ tên</label>
+              <input class="input-field" type="text" id="ho_ten" required />
+            </div>
+            <div>
+              <label class="nv-label" for="so_dien_thoai">Số điện thoại</label>
+              <input class="input-field" type="text" id="so_dien_thoai" required />
+            </div>
+          </div>
+
+          <label class="nv-label" for="vai_tro">Vai trò</label>
+          <select class="input-field" id="vai_tro" required></select>
+
+          <div id="khoi-van-phong" hidden>
+            <label class="nv-label" for="van_phong_id">Văn phòng phụ trách</label>
+            <select class="input-field" id="van_phong_id"></select>
+            <p class="nv-text-phu" id="ghi-chu-van-phong" style="margin-top:4px;"></p>
+          </div>
+
+          <p class="nv-text-phu" style="margin-top:12px;">Tài khoản được tạo với mật khẩu ban đầu mặc định. Sau khi tạo, hãy báo mật khẩu cho cán bộ và nhắc đổi ngay khi đăng nhập.</p>
+
+          <div id="loi-form" class="text-error" hidden style="margin-top:12px;"></div>
+          <div class="nv-modal__actions">
+            <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
+            <button type="submit" class="btn-primary">Tạo tài khoản</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Hộp thoại kết quả: hiện mật khẩu ban đầu để người tạo báo cho cán bộ -->
+  <div class="nv-modal-overlay" id="modal-ket-qua" hidden>
+    <div class="nv-modal" style="max-width:480px;">
+      <div class="nv-modal__header">
+        <div class="nv-modal__header-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m5 12 4 4 10-10"/>
+          </svg>
+        </div>
+        <h2>Đã tạo tài khoản</h2>
+      </div>
+      <div class="nv-modal__body">
+        <p class="nv-text-phu" style="margin-top:0;">Báo thông tin đăng nhập dưới đây cho cán bộ và nhắc đổi mật khẩu ngay khi đăng nhập lần đầu.</p>
+        <div id="ket-qua-noi-dung" style="background:#F6F6F8; border-radius:10px; padding:12px 14px; line-height:1.9;"></div>
+        <div class="nv-modal__actions">
+          <button type="button" class="nv-btn-secondary" id="btn-sao-chep">Sao chép thông tin</button>
+          <button type="button" class="btn-primary" id="btn-dong-ket-qua">Xong</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/shared/so-dien-thoai.js"></script>
+  <script src="/nhan-vien/quan-li-nhan-su/api-client.js"></script>
+  <script src="/nhan-vien/quan-li-nhan-su/auth-check.js"></script>
+  <script src="/nhan-vien/quan-li-nhan-su/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/data-table.js"></script>
+  <script>
+    const nguoiDung = yeuCauVaiTro("quan_ly_nhan_su", "quan_ly");
+    if (nguoiDung) {
+      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-li-nhan-su/tai-khoan.html");
+      renderTopbarUser();
+    }
+    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const boDau = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+
+    const NHAN_VAI_TRO = {
+      phu_xe: "Phụ xe",
+      nhan_vien_quay_ve: "Nhân viên quầy vé",
+      nhan_vien_gui_hang: "Nhân viên gửi hàng",
+      dieu_do_vien: "Điều độ viên",
+      ke_toan: "Kế toán",
+      quan_ly: "Quản lý",
+      quan_ly_nhan_su: "Quản lý nhân sự",
+    };
+    const htmlPill = (lop, nhan) => `<span class="pill ${lop}">${esc(nhan)}</span>`;
+
+    let boLocVaiTro = "tat_ca";
+    let dsTaiKhoan = [];
+    let vaiTroDuocTao = { vai_tro: [], vai_tro_can_van_phong: [] };
+
+    const bang = document.getElementById("bang-tai-khoan");
+    const oTim = document.getElementById("tk-tim");
+
+    // ---------- Danh sách ----------
+    function renderChips() {
+      const dem = { tat_ca: dsTaiKhoan.length };
+      dsTaiKhoan.forEach((t) => { dem[t.vai_tro] = (dem[t.vai_tro] || 0) + 1; });
+      // Chỉ hiện chip cho vai trò thật sự có trong danh sách, giữ chip đang chọn kể cả khi về 0
+      const cacChip = [["tat_ca", "Tất cả"], ...Object.entries(NHAN_VAI_TRO).filter(([gt]) => dem[gt] || gt === boLocVaiTro)];
+      const o = document.getElementById("tk-chips");
+      o.innerHTML = cacChip
+        .map(([gt, nhan]) => `<button type="button" class="dd-chip${boLocVaiTro === gt ? " is-active" : ""}" data-vt="${gt}">${esc(nhan)} <span>${dem[gt] || 0}</span></button>`)
+        .join("");
+      o.querySelectorAll("[data-vt]").forEach((b) =>
+        b.addEventListener("click", () => {
+          boLocVaiTro = b.dataset.vt;
+          renderDanhSach();
+        })
+      );
+    }
+
+    async function taiDanhSach() {
+      try {
+        dsTaiKhoan = await apiGet("/quan-ly-nhan-su/tai-khoan");
+        document.getElementById("stat-so-luong").textContent = dsTaiKhoan.length;
+        renderDanhSach();
+      } catch (err) {
+        bang.innerHTML = `<div class="text-error">${esc(err.message)}</div>`;
+      }
+    }
+
+    function renderDanhSach() {
+      renderChips();
+      const tk = boDau(oTim.value.trim());
+      const loc = dsTaiKhoan.filter((t) => {
+        if (boLocVaiTro !== "tat_ca" && t.vai_tro !== boLocVaiTro) return false;
+        if (!tk) return true;
+        return boDau(`${t.ho_ten} ${t.email} ${t.so_dien_thoai}`).includes(tk);
+      });
+
+      renderDataTable(bang, [
+        { key: "ho_ten", label: "Họ tên", render: (r) => esc(r.ho_ten) },
+        { key: "email", label: "Email", render: (r) => esc(r.email) },
+        { key: "so_dien_thoai", label: "Số điện thoại", render: (r) => esc(r.so_dien_thoai) },
+        { key: "vai_tro", label: "Vai trò", render: (r) => htmlPill("pill--khu-vuc", NHAN_VAI_TRO[r.vai_tro] || r.vai_tro) },
+        { key: "ten_van_phong", label: "Văn phòng", render: (r) => (r.ten_van_phong ? esc(r.ten_van_phong) : "—") },
+        {
+          key: "dang_hoat_dong",
+          label: "Trạng thái",
+          render: (r) => (r.dang_hoat_dong ? htmlPill("pill--success", "Hoạt động") : htmlPill("pill--xam", "Đã khóa")),
+        },
+      ], loc);
+    }
+
+    oTim.addEventListener("input", renderDanhSach);
+    taiDanhSach();
+
+    // ---------- Modal tạo ----------
+    const modalOverlay = document.getElementById("modal-overlay");
+    const form = document.getElementById("form-tai-khoan");
+    const loiForm = document.getElementById("loi-form");
+    const oVaiTro = document.getElementById("vai_tro");
+    const oVanPhong = document.getElementById("van_phong_id");
+    const khoiVanPhong = document.getElementById("khoi-van-phong");
+    let dsVanPhong = null; // null = chưa tải
+
+    function hienLoi(thongBao) {
+      loiForm.textContent = thongBao;
+      loiForm.hidden = false;
+    }
+
+    // Chỉ liệt kê vai trò người đang đăng nhập được tạo (quản lý gốc mới có quản lý / QLNS);
+    // quyền thật vẫn do backend kiểm tra lại.
+    async function taiVaiTroDuocTao() {
+      try {
+        vaiTroDuocTao = await apiGet("/quan-ly-nhan-su/tai-khoan/vai-tro-duoc-tao");
+        oVaiTro.innerHTML = vaiTroDuocTao.vai_tro
+          .map((v) => `<option value="${v}">${esc(NHAN_VAI_TRO[v] || v)}</option>`)
+          .join("");
+      } catch (err) {
+        oVaiTro.innerHTML = "";
+        hienLoi(err.message);
+      }
+    }
+
+    async function taiVanPhong() {
+      if (dsVanPhong) return;
+      oVanPhong.innerHTML = '<option value="">Đang tải...</option>';
+      try {
+        dsVanPhong = await apiGet("/quan-ly-nhan-su/tai-khoan/van-phong");
+        oVanPhong.innerHTML =
+          `<option value="">${dsVanPhong.length ? "— Chọn văn phòng —" : "Chưa có văn phòng nào"}</option>` +
+          dsVanPhong.map((v) => `<option value="${esc(v.id)}">${esc(v.ten)}${v.dia_chi ? " — " + esc(v.dia_chi) : ""}</option>`).join("");
+        document.getElementById("ghi-chu-van-phong").textContent = dsVanPhong.length
+          ? "Quầy vé và gửi hàng chỉ thao tác tại văn phòng được gán."
+          : "Cần tạo văn phòng ở mục Điểm đón/trả (quản lý) trước khi tạo quầy vé / gửi hàng.";
+      } catch (err) {
+        oVanPhong.innerHTML = `<option value="">${esc(err.message)}</option>`;
+      }
+    }
+
+    function capNhatTheoVaiTro() {
+      const canVanPhong = vaiTroDuocTao.vai_tro_can_van_phong.includes(oVaiTro.value);
+      khoiVanPhong.hidden = !canVanPhong;
+      if (canVanPhong) taiVanPhong();
+    }
+    oVaiTro.addEventListener("change", capNhatTheoVaiTro);
+
+    async function moModalTao() {
+      form.reset();
+      loiForm.hidden = true;
+      modalOverlay.hidden = false;
+      await taiVaiTroDuocTao();
+      capNhatTheoVaiTro();
+      document.getElementById("email").focus();
+    }
+
+    document.getElementById("btn-them").addEventListener("click", moModalTao);
+    document.getElementById("btn-huy").addEventListener("click", () => { modalOverlay.hidden = true; });
+
+    // Kiểm tra trước khi gửi: lỗi 422 của backend là mảng chi tiết nên api-client hiển thị không rõ chữ.
+    const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loiForm.hidden = true;
+
+      const email = document.getElementById("email").value.trim();
+      const hoTen = document.getElementById("ho_ten").value.trim();
+      const vaiTro = oVaiTro.value;
+      const canVanPhong = vaiTroDuocTao.vai_tro_can_van_phong.includes(vaiTro);
+      const vanPhongId = oVanPhong.value;
+
+      if (!REGEX_EMAIL.test(email)) return hienLoi("Email không hợp lệ.");
+      if (!hoTen) return hienLoi("Vui lòng nhập họ tên.");
+      const sdt = kiemTraSoDienThoai(document.getElementById("so_dien_thoai").value);
+      if (!sdt.hopLe) return hienLoi(sdt.loi);
+      if (!vaiTro) return hienLoi("Vui lòng chọn vai trò.");
+      if (canVanPhong && !vanPhongId) return hienLoi("Vai trò này bắt buộc chọn văn phòng phụ trách.");
+
+      const btnSubmit = form.querySelector("button[type=submit]");
+      btnSubmit.classList.add("is-loading");
+      try {
+        const kq = await apiPost("/quan-ly-nhan-su/tai-khoan", {
+          email,
+          ho_ten: hoTen,
+          so_dien_thoai: sdt.soChuan,
+          vai_tro: vaiTro,
+          van_phong_id: canVanPhong ? vanPhongId : null,
+        });
+        modalOverlay.hidden = true;
+        hienKetQua(kq);
+        taiDanhSach();
+      } catch (err) {
+        hienLoi(err.message);
+      } finally {
+        btnSubmit.classList.remove("is-loading");
+      }
+    });
+
+    // ---------- Kết quả: mật khẩu ban đầu ----------
+    const modalKetQua = document.getElementById("modal-ket-qua");
+    let thongTinSaoChep = "";
+
+    function hienKetQua(kq) {
+      const tenVaiTro = NHAN_VAI_TRO[kq.vai_tro] || kq.vai_tro;
+      thongTinSaoChep = `Email đăng nhập: ${kq.email}\nMật khẩu ban đầu: ${kq.mat_khau_ban_dau}`;
+      document.getElementById("ket-qua-noi-dung").innerHTML = `
+        <div><span class="nv-text-phu">Họ tên:</span> <strong>${esc(kq.ho_ten)}</strong> (${esc(tenVaiTro)})</div>
+        <div><span class="nv-text-phu">Email đăng nhập:</span> <strong>${esc(kq.email)}</strong></div>
+        <div><span class="nv-text-phu">Mật khẩu ban đầu:</span> <strong style="font-family:monospace; font-size:16px;">${esc(kq.mat_khau_ban_dau)}</strong></div>`;
+      document.getElementById("btn-sao-chep").textContent = "Sao chép thông tin";
+      modalKetQua.hidden = false;
+    }
+
+    document.getElementById("btn-sao-chep").addEventListener("click", async (e) => {
+      try {
+        await navigator.clipboard.writeText(thongTinSaoChep);
+        e.target.textContent = "Đã sao chép";
+      } catch {
+        e.target.textContent = "Không sao chép được — hãy chép tay";
+      }
+    });
+    document.getElementById("btn-dong-ket-qua").addEventListener("click", () => { modalKetQua.hidden = true; });
+  </script>
+</body>
+</html>

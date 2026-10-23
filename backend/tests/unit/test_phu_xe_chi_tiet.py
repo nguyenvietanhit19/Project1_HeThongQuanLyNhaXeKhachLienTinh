@@ -40,6 +40,17 @@ def test_tong_quan_chuyen_gom_khach_hang_hoa_va_hanh_trinh(monkeypatch):
     assert kq["hanh_trinh"] == [{"diem_don_tra_id": "a"}]
 
 
+def test_tong_quan_chuyen_kem_so_do_ghe_cua_loai_xe(monkeypatch):
+    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen(loai_xe_id="lx-1"))
+    monkeypatch.setattr(svc.chuyen_xe_repo, "lay_ten_tuyen_va_bien_so", lambda tid, xid: {"tuyen_ten": "T", "bien_so": "B"})
+    monkeypatch.setattr(svc.chuyen_xe_service, "hanh_trinh", lambda cid, nid: [])
+    monkeypatch.setattr(svc.ve_repo, "tim_hanh_khach_cua_chuyen", lambda cid: [])
+    monkeypatch.setattr(svc.don_hang_repo, "tim_hang_hoa_cua_chuyen", lambda cid: [])
+    monkeypatch.setattr(svc.xe_repo, "tim_loai_xe_theo_id", lambda _id: {"so_do_ghe": [{"ma_ghe": "A1-1", "tang": 1, "x": 10, "y": 20, "thua": 1}]})
+    kq = svc.tong_quan_chuyen("c1", "nd")
+    assert kq["so_do_ghe"] == [{"ma_ghe": "A1-1", "tang": 1, "x": 10, "y": 20}]
+
+
 def test_tong_quan_chuyen_hien_bien_so_xe_chay_thay(monkeypatch):
     monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen(xe_thuc_te_id="xe-thay"))
     hoi = []

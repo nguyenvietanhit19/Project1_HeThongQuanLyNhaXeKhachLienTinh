@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Chuyến đang chạy — Phụ xe</title>
 <link rel="stylesheet" href="/shared/design-tokens.css?v=2" />
-<link rel="stylesheet" href="phu-xe.css?v=14" />
+<link rel="stylesheet" href="phu-xe.css?v=21" />
 </head>
 <body class="phu-xe-page">
   <div class="app-shell">
@@ -63,25 +63,22 @@
           <div id="noi-dung-tom-tat"></div>
         </div>
 
-        <div class="card section" id="khu-tim-kiem" hidden>
-          <div class="search-box" style="position:static;padding:0;">
-            <input class="input-field" type="search" id="o-tim-kiem" inputmode="search" autocomplete="off"
-                   placeholder="Tìm ghế, tên, SĐT, mã..." aria-label="Tìm khách hoặc hàng" />
-          </div>
-        </div>
-
-        <!-- UC-12 + UC-13: TẤT CẢ hành khách của chuyến, nhóm theo điểm. Điểm xe đang đứng tự mở sẵn để
-             xác nhận lên/xuống; các điểm khác thu gọn, bấm vào tên điểm để xem. Bấm tên khách để xem chi tiết. -->
-        <div class="card section" id="khu-hanh-khach" hidden>
-          <h2>Hành khách theo điểm <span class="count-badge" id="dem-hanh-khach">0</span></h2>
-          <p class="hint" id="goi-y-hanh-khach" hidden></p>
-          <div id="danh-sach-hanh-khach"></div>
+        <!-- Việc tại điểm xe đang đứng (hoặc điểm sắp tới khi xe đang chạy): khách xuống, khách lên, còn thiếu bao nhiêu.
+             Đây là khối thao tác chính; danh sách cả chuyến bên dưới chỉ để tra cứu. -->
+        <div class="card section viec-board" id="khu-viec-diem" hidden>
+          <h2 id="viec-diem-tieu"></h2>
+          <div class="viec-board__tom" id="viec-diem-tom"></div>
+          <div id="viec-diem-than"></div>
         </div>
 
         <!-- Hàng tại điểm xe đang đứng, gộp 1 thẻ: cần chất (UC-26) / cần dỡ (UC-27) / vừa xử lý (hoàn tác nếu bấm nhầm).
              Mục nào trống thì ẩn; cả 3 trống thì chỉ còn 1 dòng thông báo. -->
         <div class="card section" id="khu-hang-tai-diem" hidden>
           <h2>Hàng tại điểm này <span class="count-badge" id="dem-hang-tai-diem">0</span></h2>
+          <div class="search-box" id="khu-tim-hang" style="position:static;padding:0 0 8px;" hidden>
+            <input class="input-field" type="search" id="o-tim-hang" inputmode="search" autocomplete="off"
+                   placeholder="Tìm mã đơn, người nhận, điểm đến..." aria-label="Tìm hàng tại điểm này" />
+          </div>
           <section class="hang-muc" id="khu-hang-chat" hidden>
             <h3 class="hang-muc__tieu">📦 Cần chất lên xe <span class="count-badge" id="dem-hang-chat">0</span></h3>
             <div id="danh-sach-hang-chat"></div>
@@ -90,38 +87,42 @@
             <h3 class="hang-muc__tieu">📤 Cần dỡ xuống <span class="count-badge" id="dem-hang-do">0</span></h3>
             <div id="danh-sach-hang-do"></div>
           </section>
-          <section class="hang-muc" id="khu-hoan-tac-hang" hidden>
-            <h3 class="hang-muc__tieu">↩ Vừa chất / dỡ <span class="count-badge" id="dem-hoan-tac-hang">0</span></h3>
-            <p class="hint">Bấm nhầm? Hoàn tác được khi xe còn đứng ở điểm này.</p>
-            <div id="danh-sach-hoan-tac-hang"></div>
-          </section>
           <p class="hint" id="hang-tai-diem-trong" hidden>Không có hàng nào cần chất hay dỡ tại điểm này.</p>
         </div>
 
-        <!-- Đang trên xe: hàng (đã chất, chưa dỡ — kể cả chưa tới điểm nhận) và khách (đã lên, chưa xuống) -->
-        <div class="card section" id="khu-hang-tren-xe" hidden>
-          <h2>Đang trên xe</h2>
-          <div class="tab-tren-xe" role="tablist">
-            <button type="button" role="tab" class="tab-tren-xe__nut" data-tab-tren-xe="hang">📦 Hàng <span class="count-badge" id="dem-hang-tren-xe">0</span></button>
-            <button type="button" role="tab" class="tab-tren-xe__nut" data-tab-tren-xe="khach">🧑‍🤝‍🧑 Khách <span class="count-badge" id="dem-khach-tren-xe">0</span></button>
+        <div class="card section" id="khu-tim-kiem" hidden>
+          <div class="search-box" style="position:static;padding:0;">
+            <input class="input-field" type="search" id="o-tim-kiem" inputmode="search" autocomplete="off"
+                   placeholder="Tìm ghế, tên, SĐT, mã..." aria-label="Tìm khách hoặc hàng" />
           </div>
+        </div>
+
+        <!-- UC-12 + UC-13: TẤT CẢ hành khách của chuyến, nhóm theo điểm — để tra cứu, mặc định thu gọn.
+             Thao tác lên/xuống ở điểm xe đang đứng làm ngay ở khối "Việc tại điểm này" phía trên. -->
+        <details class="card section viec-tat-ca" id="khu-hanh-khach" hidden>
+          <summary><h2>Tất cả hành khách theo điểm <span class="count-badge" id="dem-hanh-khach">0</span></h2></summary>
+          <p class="hint" id="goi-y-hanh-khach" hidden></p>
+          <div id="danh-sach-hanh-khach"></div>
+        </details>
+
+        <!-- Hàng đang trên xe (đã chất, chưa dỡ — kể cả chưa tới điểm nhận). Khách trên xe xem ở sơ đồ ghế. -->
+        <div class="card section" id="khu-hang-tren-xe" hidden>
+          <h2>Hàng đang trên xe <span class="count-badge" id="dem-hang-tren-xe">0</span></h2>
           <div class="search-box" style="position:static;padding:0 0 8px;">
             <input class="input-field" type="search" id="o-tim-tren-xe" inputmode="search" autocomplete="off"
-                   placeholder="Tìm trong danh sách đang mở..." aria-label="Tìm trong danh sách trên xe" />
+                   placeholder="Tìm mã đơn, người nhận, điểm đến..." aria-label="Tìm hàng trên xe" />
           </div>
-          <div id="pane-hang-tren-xe">
-            <p class="hint" id="tong-kg-hang-tren-xe"></p>
-            <div id="danh-sach-hang-tren-xe"></div>
-          </div>
-          <div id="pane-khach-tren-xe" hidden>
-            <div id="danh-sach-khach-tren-xe"></div>
-          </div>
+          <p class="hint" id="tong-kg-hang-tren-xe"></p>
+          <div id="danh-sach-hang-tren-xe"></div>
         </div>
 
       </div>
     </div>
   </div>
   </div>
+
+  <!-- Thanh nhắc việc cố định ở đáy: còn việc chưa làm thì luôn thấy, bấm để nhảy tới khối "Việc tại điểm này" -->
+  <button type="button" class="viec-thanh" id="viec-thanh" hidden></button>
 
   <div class="toast" id="toast" role="alert" hidden></div>
 
@@ -148,7 +149,8 @@
   <div class="modal-overlay" id="modal-di-chuyen" hidden>
     <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="tieu-de-di-chuyen">
       <h2 id="tieu-de-di-chuyen">Rời điểm khi còn việc chưa xong?</h2>
-      <ul class="danh-sach-canh-bao" id="noi-dung-canh-bao-di-chuyen"></ul>
+      <p class="hint">Tick từng mục để xác nhận trước khi rời điểm.</p>
+      <div class="xn-roi-diem" id="noi-dung-canh-bao-di-chuyen"></div>
       <button class="btn-primary" type="button" id="nut-xac-nhan-di-chuyen">Vẫn bắt đầu di chuyển</button>
       <button class="btn-confirm btn-confirm--outline btn-confirm--block" type="button" onclick="dongModalDiChuyen()">Ở lại xử lý tiếp</button>
     </div>
@@ -157,8 +159,9 @@
   <script src="/shared/api-client.js"></script>
   <script src="../shared/auth-check.js"></script>
   <script src="tai-khoan-menu.js?v=2"></script>
-  <script src="khach-chi-tiet.js?v=1"></script>
-  <script src="hang-chi-tiet.js?v=1"></script>
+  <script src="thong-bao.js?v=2"></script>
+  <script src="khach-chi-tiet.js?v=2"></script>
+  <script src="hang-chi-tiet.js?v=4"></script>
   <script>
     requireRole("phu_xe");
 
@@ -188,16 +191,23 @@
       return String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
     }
 
-    let timerToast = null;
-    function hienLoi(thongDiep) {
-      const el = document.getElementById("toast");
-      el.textContent = thongDiep;
-      el.hidden = false;
-      clearTimeout(timerToast);
-      timerToast = setTimeout(() => (el.hidden = true), 5000);
+    // Thông báo (lỗi / kết quả) hiện ở giữa màn hình — xem thong-bao.js; loại tự đoán theo nội dung
+    function hienLoi(thongDiep, loai) {
+      return window.thongBao.hien(thongDiep, loai ? { loai } : {});
+    }
+
+    // Hỏi xác nhận bằng hộp thoại giữa màn hình rồi mới chạy hành động (thay confirm() + hanhDong ở onclick)
+    async function hoiRoiChay(nut, thucHien) {
+      const { hoi, tieuDe, nhan, loai, canhBao } = nut.dataset;
+      const dongY = await window.thongBao.xacNhan({
+        tieuDe, nhan, loai: canhBao ? "canh-bao" : loai || "thuong",
+        noiDung: canhBao ? `${canhBao}\n\n${hoi}` : hoi,
+      });
+      if (dongY) hanhDong(thucHien, nut);
     }
 
     let dangXuLy = false;
+    let daXongHetTruocDo = null;   // null = chưa tải lần nào; dùng để chỉ báo hoàn thành đúng lúc chuyển từ chưa xong → xong
 
     // Bọc mọi hành động ghi (bấm nút): khóa nút trong lúc gửi để bấm đúp không gửi
     // 2 lần, báo lỗi nghiệp vụ bằng thông báo nổi (không chặn màn hình như alert()),
@@ -209,13 +219,13 @@
       try {
         await thucHien();
       } catch (err) {
-        hienLoi(err.message);
+        hienLoi(err.message, "loi");
       } finally {
         dangXuLy = false;
         try {
           await taiDuLieu();
         } catch (err) {
-          hienLoi(err.message);
+          hienLoi(err.message, "loi");
         }
         if (nut && document.body.contains(nut)) nut.disabled = false;
       }
@@ -225,7 +235,7 @@
       const nut = document.getElementById("nut-tai-lai");
       nut.disabled = true;
       taiDuLieu()
-        .catch((err) => hienLoi(err.message))
+        .catch((err) => hienLoi(err.message, "loi"))
         .finally(() => (nut.disabled = false));
     }
 
@@ -288,6 +298,7 @@
 
     document.getElementById("form-su-co").addEventListener("submit", async (e) => {
       e.preventDefault();
+      if (!(await window.thongBao.xacNhan({ tieuDe: "Báo xe gặp sự cố?", noiDung: "Báo cáo sẽ được gửi ngay cho điều độ viên.", nhan: "Gửi báo cáo", loai: "nguy-hiem" }))) return;
       const loiEl = document.getElementById("loi-su-co");
       const nutGui = e.submitter;
       loiEl.hidden = true;
@@ -345,6 +356,7 @@
     let dangDiChuyen = false;   // xe đã rời điểm dừng, chưa xác nhận tới điểm kế tiếp
     let gioRoiDiem = null;
     let gioKhoiHanh = null, gioMoBen = null, dangHoan = false;
+    let dsHangChoChat = [];   // chi tiết các đơn chờ chất — để xác nhận từng đơn khi rời điểm
     let soHangChoChat = 0, soHangChoDo = 0;   // hàng chờ chất/dỡ tại điểm xe đứng (từ API hàng)
 
     function veNhanTrangThai(bang, trangThai) {
@@ -371,7 +383,7 @@
       if (phia === "len" && benDaMo() && v.trang_thai === "da_len_xe") {
         return { nhan: "Hoàn tác lên xe", hoi: `Hoàn tác: ${v.ho_ten} CHƯA lên xe?`, chay: () => hoanTacLenXe(v.ve_id) };
       }
-      if (phia === "xuong" && ["dang_chay", "hoan_thanh"].includes(trangThaiChuyen) && v.trang_thai === "da_xuong_xe") {
+      if (phia === "xuong" && trangThaiChuyen === "dang_chay" && v.trang_thai === "da_xuong_xe") {   // chuyến đã hoàn thành → không hoàn tác nữa
         return { nhan: "Hoàn tác xuống xe", hoi: `Hoàn tác: ${v.ho_ten} CHƯA xuống xe?`, chay: () => hoanTacXuongXe(v.ve_id) };
       }
       return null;
@@ -429,7 +441,7 @@
       const xuongCuaDiem = (id) => duLieuKhach.filter((v) => v.diem_tra_id === id && v.trang_thai !== "khong_den");
 
       const html = hanhTrinh
-        .map((diem) => {
+        .map((diem, idx) => {
           const len = lenCuaDiem(diem.diem_don_tra_id);
           const xuong = xuongCuaDiem(diem.diem_don_tra_id);
           if (len.length === 0 && xuong.length === 0) return "";
@@ -440,9 +452,16 @@
           const choLen = len.filter((v) => v.trang_thai === "da_thanh_toan").length;
           const choXuong = xuong.filter((v) => v.trang_thai === "da_len_xe").length;
           const viec = (diem.da_toi || laHienTai) && (choXuong > 0 || (laHienTai && choLen > 0 && !dangDiChuyen));
-          const nhanDiem = laHienTai ? (dangDiChuyen ? "Xe vừa rời" : "Xe đang ở đây") : diem.da_toi ? "Đã qua" : "Chưa tới";
+          // Điểm xuất phát không có mốc "đã đến" (xe vốn ở đó) → coi là đã qua ngay khi xe rời đi. Chuyến hoàn thành → mọi điểm đã qua,
+          // điểm cuối ghi "Đã đến điểm cuối" thay vì "Xe đang ở đây" mãi.
+          const xeDaXuatPhat = ["dang_chay", "gap_su_co", "hoan_thanh"].includes(trangThaiChuyen);
+          const xongChuyen = trangThaiChuyen === "hoan_thanh";
+          const daQua = diem.da_toi || xongChuyen || (idx === 0 && xeDaXuatPhat);
+          const nhanDiem = laHienTai && xongChuyen ? "Đã đến điểm cuối"
+            : laHienTai ? (dangDiChuyen ? "Xe vừa rời" : "Xe đang ở đây")
+            : daQua ? "Đã qua" : "Chưa tới";
           return `
-          <section class="diem-nhom${laHienTai ? " diem-nhom--hien-tai" : ""}${diem.da_toi && !laHienTai ? " diem-nhom--da-qua" : ""}${mo ? " is-mo" : ""}" data-diem="${esc(diem.diem_don_tra_id)}">
+          <section class="diem-nhom${laHienTai ? " diem-nhom--hien-tai" : ""}${daQua && !laHienTai ? " diem-nhom--da-qua" : ""}${mo ? " is-mo" : ""}" data-diem="${esc(diem.diem_don_tra_id)}">
             <button type="button" class="diem-nhom__dau" aria-expanded="${mo}">
               <span class="diem-nhom__ten">${esc(diem.ten_diem)}<small>${nhanDiem}${viec ? " · có việc cần xác nhận" : ""}</small></span>
               <span class="diem-nhom__so">
@@ -452,8 +471,8 @@
               <span class="diem-nhom__mui" aria-hidden="true">▾</span>
             </button>
             <div class="diem-nhom__than"><div class="diem-nhom__trong">
-              ${len.length ? `<h3 class="muc-nho">Lên xe tại đây (${len.length})</h3>${laHienTai && benDaMo() && !dangDiChuyen && choLen > 1 ? `<button type="button" class="btn-confirm btn-confirm--outline btn-hang-loat" data-len-tat-ca="${esc(diem.diem_don_tra_id)}">Cho lên tất cả (${choLen})</button>` : ""}${len.map((v) => veDongKhach(v, "len", diem)).join("")}` : ""}
-              ${xuong.length ? `<h3 class="muc-nho">Xuống xe tại đây (${xuong.length})</h3>${laHienTai && !dangDiChuyen && ["dang_chay", "hoan_thanh"].includes(trangThaiChuyen) && choXuong > 1 ? `<button type="button" class="btn-confirm btn-confirm--outline btn-hang-loat" data-xuong-tat-ca="${esc(diem.diem_don_tra_id)}">Cho xuống tất cả (${choXuong})</button>` : ""}${xuong.map((v) => veDongKhach(v, "xuong", diem)).join("")}` : ""}
+              ${len.length ? `<h3 class="muc-nho">Lên xe tại đây (${len.length})</h3>${len.map((v) => veDongKhach(v, "len", diem)).join("")}` : ""}
+              ${xuong.length ? `<h3 class="muc-nho">Xuống xe tại đây (${xuong.length})</h3>${xuong.map((v) => veDongKhach(v, "xuong", diem)).join("")}` : ""}
             </div></div>
           </section>`;
         })
@@ -463,8 +482,194 @@
       ganSuKienHanhKhach(hanhTrinh);
     }
 
-    function ganSuKienHanhKhach(hanhTrinh) {
-      const vung = document.getElementById("danh-sach-hanh-khach");
+    // ---------- Việc tại điểm này: gom MỌI việc của điểm xe đang đứng vào 1 chỗ ----------
+    // Hiện sẵn ai cần xuống, ai cần lên, đã xong x/y và còn bao nhiêu — không cần bấm thao tác mới biết.
+    const viecXongMo = { xuong: false, len: false };   // nhớ mục "Đã xong" đang mở qua các lần tải lại
+    let bangViecDangHien = null;
+    let canCuonToiViec = false;
+
+    // ---------- Sơ đồ ghế (khối "Khách lên / xuống xe") ----------
+    let soDoGhe = [];   // so_do_ghe từ /tong-quan: [{ma_ghe, tang, x, y}]
+
+    // Trạng thái 1 ghế tại điểm xe đang đứng → vé đại diện + kiểu hiển thị.
+    // Màu theo việc: XUỐNG = đỏ (chờ) → đỏ nhạt có ✓ (xong); LÊN = cam (chờ) → xanh lá (xong).
+    // Ghế vừa có người xuống vừa có người lên ở điểm này: hiện việc XUỐNG trước (phải trống ghế rồi mới lên),
+    // xuống xong ghế tự chuyển sang "chờ lên".
+    function trangThaiGhe(maGhe, diem) {
+      const ves = duLieuKhach.filter((v) => v.so_ghe === maGhe);
+      const id = diem.diem_don_tra_id;
+      const lenTai = (...ts) => ves.find((v) => v.diem_don_id === id && ts.includes(v.trang_thai));
+      const xuongTai = (...ts) => ves.find((v) => v.diem_tra_id === id && ts.includes(v.trang_thai));
+      const choLen = lenTai("da_thanh_toan");
+      const kem = choLen ? "len" : "";   // còn việc lên xe sau việc xuống → đánh dấu phụ trên ghế
+      let v;
+      if ((v = xuongTai("da_len_xe"))) return { v, phia: "xuong", lop: "xuong", nhan: "chờ xuống xe", kem };
+      if (choLen) return { v: choLen, phia: "len", lop: "cho", nhan: "chờ lên xe" };
+      if ((v = lenTai("giu_cho"))) return { v, phia: "len", lop: "giu", nhan: "chưa trả tiền" };
+      if ((v = lenTai("da_len_xe"))) return { v, phia: "len", lop: "da-len", nhan: "đã lên xe" };
+      if ((v = xuongTai("da_xuong_xe"))) return { v, phia: "xuong", lop: "da-xuong", nhan: "đã xuống xe" };
+      if ((v = lenTai("khong_den"))) return { v, phia: "len", lop: "khong-den", nhan: "không đến" };
+      if ((v = ves.find((x) => x.trang_thai === "da_len_xe"))) return { v, phia: "xuong", lop: "tren", nhan: "đang trên xe, đi tiếp" };
+      if ((v = ves.find((x) => ["da_thanh_toan", "giu_cho"].includes(x.trang_thai)))) return { v, phia: "len", lop: "sau", nhan: "khách của điểm khác" };
+      return { v: null, phia: "len", lop: "trong", nhan: "trống" };
+    }
+
+    function veSoDoLen(diem) {
+      const K = 1.2, RG = 48, CG = 36;   // phóng vị trí + kích thước ghế cho dễ chạm trên điện thoại
+      const minX = Math.min(...soDoGhe.map((g) => g.x)), minY = Math.min(...soDoGhe.map((g) => g.y));
+      const rong = (Math.max(...soDoGhe.map((g) => g.x)) - minX) * K + RG + 32;
+      const cao = (Math.max(...soDoGhe.map((g) => g.y)) - minY) * K + CG + 32 + 16;
+      const cacTang = [...new Set(soDoGhe.map((g) => g.tang))].sort();
+      const khung = document.getElementById("viec-diem-than");
+      const tiLe = Math.min(1, ((khung.clientWidth || 360) - 24 - (cacTang.length - 1) * 16) / cacTang.length / rong);
+      const tang = cacTang.map((t) => {
+        const o = soDoGhe.filter((g) => g.tang === t).map((g) => {
+          const { v, phia, lop, nhan, kem } = trangThaiGhe(g.ma_ghe, diem);
+          const bam = v ? ` data-ve="${esc(v.ve_id)}" data-phia="${phia}" role="button" tabindex="0"` : "";
+          const dau = lop === "xuong" ? "⬇" : lop === "cho" ? "⬆" : "";   // dấu mũi tên: phân biệt không chỉ bằng màu
+          return `<span class="sd-ghe sd-ghe--${lop}"${bam} style="left:${(g.x - minX) * K + 16}px;top:${(g.y - minY) * K + 32}px;width:${RG}px;height:${CG}px" title="${esc(g.ma_ghe)} — ${nhan}${v ? " · " + esc(v.ho_ten) : ""}${kem ? " (sau đó còn khách lên ghế này)" : ""}">${dau ? `<b class="sd-ghe__dau">${dau}</b>` : ""}${lop === "da-xuong" ? '<b class="sd-ghe__dau">✓</b>' : ""}${esc(g.ma_ghe)}${kem ? '<i class="sd-ghe__kem">⬆</i>' : ""}</span>`;
+        }).join("");
+        return `<div class="sd-tang">${cacTang.length > 1 ? `<div class="sd-tang__ten">Tầng ${t}</div>` : ""}
+          <div style="width:${rong * tiLe}px;height:${cao * tiLe}px;margin:0 auto">
+            <div class="sd-xe" style="width:${rong}px;height:${cao}px;transform:scale(${tiLe});transform-origin:top left"><span class="sd-dau">▲ Đầu xe</span>${o}</div>
+          </div></div>`;
+      }).join("");
+      const chu = (lop, nhan) => `<span class="sd-chu"><i class="sd-mau sd-ghe--${lop}"></i>${nhan}</span>`;
+      const nhomChu = (tieu, ...muc) => `<div class="sd-chu-nhom"><b>${tieu}</b>${muc.join("")}</div>`;
+      return `<div class="sd-khung">${tang}</div>
+        <div class="sd-chu-thich">
+          ${nhomChu("⬇ Xuống", chu("xuong", "Chờ xuống"), chu("da-xuong", "Đã xuống"))}
+          ${nhomChu("⬆ Lên", chu("cho", "Chờ lên"), chu("da-len", "Đã lên"), chu("giu", "Chưa trả tiền"))}
+          ${nhomChu("Khác", chu("tren", "Trên xe, đi tiếp"), chu("sau", "Điểm khác"), chu("trong", "Trống"))}
+        </div>
+        <p class="hint">Bấm vào ghế có người để xem khách và xác nhận lên / xuống xe. Ghế có ⬆ nhỏ ở góc: xuống xong sẽ có khách lên ghế đó.</p>`;
+    }
+
+    // Bấm ghế → chi tiết khách; nút xác nhận lên/xuống xe (hoặc hoàn tác nếu bấm nhầm) nằm ngay trong khung chi tiết
+    function moChiTietGhe(v, diem, phia) {
+      const hd = hanhDongKhach(v, phia, diem);
+      const ht = hd ? null : hoanTacKhach(v, phia, diem);
+      const dong = phia === "len" ? "lên" : "xuống";
+      const lam = (x, nhan, hoi) => ({ nhan, hoi, chay: async () => { await x.chay(); await taiDuLieu(); } });
+      const tuyChon = { tatCaKhach: duLieuKhach };
+      if (hd) tuyChon.hanhDong = lam(hd, `Xác nhận khách ${dong} xe`, `Xác nhận khách ${v.ho_ten} (ghế ${v.so_ghe}) đã ${dong} xe?`);
+      else if (ht) tuyChon.hanhDong = lam(ht, `Hoàn tác ${dong} xe`, ht.hoi);
+      else tuyChon.ghiChu = lyDoChuaCoNut(v, phia, diem) || `Ghế này không cần thao tác ${dong} xe tại điểm này.`;
+      window.moChiTietKhach(v, tuyChon);
+    }
+
+    function renderViecDiem(hanhTrinh, { xemKhach, xongHet }) {
+      const the = document.getElementById("khu-viec-diem");
+      const thanh = document.getElementById("viec-thanh");
+      const diem = hanhTrinh.find((d) => d.diem_don_tra_id === diemHienTaiId);
+      const hienDuoc = !!(xemKhach && !xongHet && diem && (benDaMo() || trangThaiChuyen === "hoan_thanh"));
+      the.hidden = !hienDuoc;
+      thanh.hidden = true;
+      // Khối việc bị ẩn (chưa mở bến, sự cố...) → mở sẵn danh sách cả chuyến để vẫn xem được khách
+      if (bangViecDangHien !== hienDuoc) {
+        document.getElementById("khu-hanh-khach").open = !hienDuoc;
+        bangViecDangHien = hienDuoc;
+      }
+      if (!hienDuoc) return;
+
+      const tieu = document.getElementById("viec-diem-tieu");
+      const tom = document.getElementById("viec-diem-tom");
+      const than = document.getElementById("viec-diem-than");
+
+      // Xe đang chạy giữa 2 điểm: báo trước điểm sắp tới để phụ xe chuẩn bị
+      if (dangDiChuyen) {
+        const keTiep = hanhTrinh.slice(1).find((d) => !d.da_toi);
+        if (!keTiep) { the.hidden = true; return; }
+        const xuongSap = duLieuKhach.filter((v) => v.diem_tra_id === keTiep.diem_don_tra_id && v.trang_thai === "da_len_xe");
+        const lenSap = duLieuKhach.filter((v) => v.diem_don_id === keTiep.diem_don_tra_id && ["da_thanh_toan", "giu_cho"].includes(v.trang_thai));
+        const ten = (ds) => ds.map((v) => `<b>${esc(v.so_ghe)}</b> ${esc(v.ho_ten)}`).join(" · ");
+        tieu.innerHTML = `Sắp tới ${esc(keTiep.ten_diem)}`;
+        tom.innerHTML = `<span class="viec-pill viec-pill--chan">⬇ Xuống ${xuongSap.length}</span><span class="viec-pill viec-pill--cho">⬆ Lên ${lenSap.length}</span>`;
+        than.innerHTML = `<p class="viec-xem-truoc">${xuongSap.length ? `<span class="viec-xem-truoc__nhan">Khách sẽ xuống:</span> ${ten(xuongSap)}` : "Không có khách xuống ở điểm này."}</p>` +
+          `<p class="viec-xem-truoc">${lenSap.length ? `<span class="viec-xem-truoc__nhan">Khách sẽ lên:</span> ${ten(lenSap)}` : "Không có khách lên ở điểm này."}</p>`;
+        return;
+      }
+
+      const viec = viecTaiDiem();
+      const tongCon = viec.choXuong + viec.choLen + viec.choChat + viec.choDo;
+      const daXong = (v) => ["da_len_xe", "da_xuong_xe"].includes(v.trang_thai);
+      const xuongTat = duLieuKhach.filter((v) => v.diem_tra_id === diemHienTaiId && ["da_len_xe", "da_xuong_xe"].includes(v.trang_thai));
+      const lenTat = duLieuKhach.filter((v) => v.diem_don_id === diemHienTaiId && ["da_thanh_toan", "giu_cho", "da_len_xe", "da_xuong_xe"].includes(v.trang_thai));
+
+      const nhom = (khoa, nhan, danhSach, xongLa, phia, lop) => {
+        if (!danhSach.length) return "";
+        const xong = danhSach.filter(xongLa), con = danhSach.filter((v) => !xongLa(v));
+        const dong = (v) => veDongKhach(v, phia, diem);
+        return `<section class="viec-nhom viec-nhom--${con.length ? lop : "ok"}">
+          <h3 class="viec-nhom__tieu"><span>${nhan}</span>
+            <span class="viec-nhom__so">${xong.length}/${danhSach.length}</span>
+            <span class="viec-nhom__con${con.length ? "" : " viec-nhom__con--ok"}">${con.length ? `còn ${con.length}` : "✓ đủ"}</span></h3>
+          ${con.map(dong).join("")}
+          ${xong.length ? `<details class="viec-nhom__xong" data-khoa="${khoa}"${viecXongMo[khoa] ? " open" : ""}><summary>Đã xong (${xong.length}) · bấm nhầm thì hoàn tác ở đây</summary>${xong.map(dong).join("")}</details>` : ""}
+        </section>`;
+      };
+      const pill = (so, nhan, lop) => `<span class="viec-pill ${so ? `viec-pill--${lop}` : "viec-pill--ok"}">${nhan} ${so}</span>`;
+
+      tieu.innerHTML = `Việc tại ${esc(diem.ten_diem)} <span class="count-badge">${tongCon}</span>`;
+      tom.innerHTML = tongCon === 0
+        ? '<span class="viec-pill viec-pill--ok">✓ Đã xong mọi việc tại điểm này</span>'
+        : pill(viec.choXuong, "⬇ Khách xuống", "chan") + pill(viec.choDo, "📤 Hàng dỡ", "chan") +
+          pill(viec.choLen, "⬆ Khách lên", "cho") + pill(viec.choChat, "📦 Hàng chất", "cho") +
+          (viec.choDo || viec.choChat ? `<a class="text-link" href="chuyen-dang-chay.html?chuyen_id=${encodeURIComponent(chuyenId)}&phan=hang">Xử lý hàng →</a>` : "");
+      // Có sơ đồ ghế: 1 sơ đồ chung cho cả khách xuống lẫn khách lên (bấm ghế để xác nhận); không có thì dùng 2 danh sách
+      const xuongXong = xuongTat.filter((v) => v.trang_thai === "da_xuong_xe").length;
+      const lenXong = lenTat.filter(daXong).length;
+      const conXuong = xuongTat.length - xuongXong, conLen = lenTat.length - lenXong;
+      const khoiSoDo = () => {
+        if (!xuongTat.length && !lenTat.length) return "";
+        const con = conXuong + conLen;
+        const dem = (cls, nhan, xong, tong) => `<span class="sd-dem sd-dem--${cls}${xong === tong ? " sd-dem--ok" : ""}">${nhan} ${xong}/${tong}</span>`;
+        return `<section class="viec-nhom viec-nhom--${conXuong ? "chan" : con ? "cho" : "ok"}">
+          <h3 class="viec-nhom__tieu"><span>🚌 Khách lên / xuống xe</span>
+            <span class="viec-nhom__con${con ? "" : " viec-nhom__con--ok"}">${con ? `còn ${con}` : "✓ đủ"}</span></h3>
+          <div class="sd-dem-hang">${xuongTat.length ? dem("xuong", "⬇ Xuống", xuongXong, xuongTat.length) : ""}${lenTat.length ? dem("len", "⬆ Lên", lenXong, lenTat.length) : ""}</div>
+          ${veSoDoLen(diem)}
+        </section>`;
+      };
+      than.innerHTML = (soDoGhe.length > 0
+        ? khoiSoDo()
+        : nhom("xuong", "⬇ Khách xuống xe", xuongTat, (v) => v.trang_thai === "da_xuong_xe", "xuong", "chan") +
+          nhom("len", "⬆ Khách lên xe", lenTat, daXong, "len", "cho")) ||
+        '<p class="hint">Không có khách nào lên hoặc xuống ở điểm này.</p>';
+
+      than.querySelectorAll(".viec-nhom__xong").forEach((el) =>
+        el.addEventListener("toggle", () => { viecXongMo[el.dataset.khoa] = el.open; })
+      );
+      ganSuKienHanhKhach(hanhTrinh, than);
+      // Chọn ghế trên sơ đồ → chi tiết khách + nút xác nhận lên xe (hoặc hoàn tác nếu đã lên)
+      than.querySelectorAll(".sd-ghe[data-ve]").forEach((o) =>
+        o.addEventListener("click", () => {
+          const v = duLieuKhach.find((k) => k.ve_id === o.dataset.ve);
+          if (!v) return;
+          const phia = o.dataset.phia === "xuong" ? "xuong" : "len";
+          // Khách trên xe đi tiếp: điểm cần xét là điểm trả của họ (để giải thích vì sao chưa xuống được)
+          const idDiem = phia === "xuong" ? v.diem_tra_id : v.diem_don_id;
+          moChiTietGhe(v, hanhTrinh.find((d) => d.diem_don_tra_id === idDiem) || diem, phia);
+        })
+      );
+
+      // Thanh nhắc cố định ở đáy khi còn việc và khối việc đang khuất khỏi màn hình
+      if (tongCon > 0) {
+        thanh.textContent = `Còn ${tongCon} việc tại ${diem.ten_diem} — bấm để xem`;
+        thanh.hidden = false;
+        if (!thanh.dataset.quanSat) {
+          thanh.dataset.quanSat = "1";
+          new IntersectionObserver(([e]) => { thanh.classList.toggle("an", e.isIntersecting); }).observe(the);
+          thanh.addEventListener("click", () => the.scrollIntoView({ behavior: "smooth", block: "start" }));
+        }
+      }
+      if (canCuonToiViec) {
+        canCuonToiViec = false;
+        the.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+
+    function ganSuKienHanhKhach(hanhTrinh, vung = document.getElementById("danh-sach-hanh-khach")) {
       vung.querySelectorAll(".diem-nhom__dau").forEach((nut) =>
         nut.addEventListener("click", () => {
           const nhom = nut.closest(".diem-nhom");
@@ -483,21 +688,20 @@
         nut.addEventListener("click", () => {
           const v = timKhach(nut.dataset.ve);
           const hd = hanhDongKhach(v, nut.dataset.phia, timDiem(nut.dataset.diem));
-          window.moChiTietKhach(v, hd ? { hanhDong: { nhan: hd.nhan === "Lên xe" ? "Xác nhận khách lên xe" : "Xác nhận khách xuống xe", chay: async () => { await hd.chay(); await taiDuLieu(); } } } : {});
+          window.moChiTietKhach(v, {
+            tatCaKhach: duLieuKhach,
+            ...(hd ? { hanhDong: { nhan: hd.nhan === "Lên xe" ? "Xác nhận khách lên xe" : "Xác nhận khách xuống xe", chay: async () => { await hd.chay(); await taiDuLieu(); } } } : {}),
+          });
         })
-      );
-      vung.querySelectorAll("[data-len-tat-ca]").forEach((nut) =>
-        nut.addEventListener("click", () => hanhDong(() => hangLoat(`diem/${nut.dataset.lenTatCa}/len-xe-tat-ca`), nut))
-      );
-      vung.querySelectorAll("[data-xuong-tat-ca]").forEach((nut) =>
-        nut.addEventListener("click", () => hanhDong(() => hangLoat(`diem/${nut.dataset.xuongTatCa}/xuong-xe-tat-ca`), nut))
       );
       // Bấm nhầm → hoàn tác (hỏi lại 1 lần để không bấm nhầm tiếp)
       vung.querySelectorAll("[data-hoan-tac]").forEach((nut) =>
         nut.addEventListener("click", () => {
           const v = timKhach(nut.dataset.hoanTac);
           const ht = hoanTacKhach(v, nut.dataset.phia, timDiem(nut.dataset.diem));
-          if (ht && window.confirm(ht.hoi)) hanhDong(ht.chay, nut);
+          if (!ht) return;
+          window.thongBao.xacNhan({ tieuDe: "Hoàn tác?", noiDung: ht.hoi, nhan: "Hoàn tác", loai: "canh-bao" })
+            .then((dongY) => { if (dongY) hanhDong(ht.chay, nut); });
         })
       );
       // Bấm nút xác nhận ngay trên dòng
@@ -505,7 +709,10 @@
         nut.addEventListener("click", () => {
           const v = timKhach(nut.dataset.xacNhan);
           const hd = hanhDongKhach(v, nut.dataset.phia, timDiem(nut.dataset.diem));
-          if (hd) hanhDong(hd.chay, nut);
+          if (!hd) return;
+          const viec = hd.nhan === "Lên xe" ? "lên" : "xuống";
+          window.thongBao.xacNhan({ tieuDe: `Khách ${viec} xe?`, noiDung: `Xác nhận khách ${v.ho_ten} (ghế ${v.so_ghe}) đã ${viec} xe?`, nhan: `Đã ${viec} xe` })
+            .then((dongY) => { if (dongY) hanhDong(hd.chay, nut); });
         })
       );
     }
@@ -514,35 +721,6 @@
     function nhanSuCoHang(d) {
       return (d.so_bao_that_lac > 0 ? '<span class="badge badge--loi">⚠ Đã báo thất lạc</span> ' : "") +
         (d.so_bao_hu_hong > 0 ? '<span class="badge badge--cho">⚠ Đã báo hư hỏng</span> ' : "");
-    }
-
-    // Đơn đã báo thất lạc: vẫn xác nhận được (không chặn UC-26/27) nhưng hỏi lại để khỏi bấm nhầm
-    function hoiTruocKhiXacNhan(d, viec) {
-      return d.so_bao_that_lac > 0 ? `if (!confirm('Đơn ${esc(d.ma_van_don)} đã báo THẤT LẠC. Vẫn xác nhận ${viec}?')) return; ` : "";
-    }
-
-    function renderHangChat(danhSach) {
-      if (danhSach.length === 0) {
-        return '<p class="empty-state">Không có đơn hàng nào chờ chất.</p>';
-      }
-      const tatCa = danhSach.length > 1
-        ? `<button type="button" class="btn-confirm btn-confirm--outline btn-hang-loat" onclick="hanhDong(() => hangLoat('chat-hang-tat-ca'), this)">Chất tất cả (${danhSach.length})</button>`
-        : "";
-      return tatCa + danhSach
-        .map(
-          (d) => `
-        <div class="list-item" data-tim="${esc(chuanHoa([d.ma_van_don, d.ten_nguoi_nhan, d.ten_diem_nhan].join(" ")))}">
-          <div class="info">
-            <div class="name">${esc(d.ma_van_don)} — ${esc(d.ten_nguoi_nhan)}</div>
-            <div class="sub">${esc(d.can_nang_kg)}kg · đến ${esc(d.ten_diem_nhan)}</div>
-            ${nhanSuCoHang(d) ? `<div class="sub">${nhanSuCoHang(d)}</div>` : ""}
-            <a href="#" class="text-link item-link" style="margin-right:16px;" data-xem-hang="${esc(d.id)}">Xem chi tiết</a>
-            <a href="#" class="text-link item-link" data-id="${esc(d.id)}" data-ma="${esc(d.ma_van_don)}" onclick="baoThatLac(this); return false;">Báo hư hỏng</a>
-          </div>
-          <button class="btn-confirm" onclick="${hoiTruocKhiXacNhan(d, "chất lên xe")}hanhDong(() => chatHang('${esc(d.id)}'), this)">Chất lên xe</button>
-        </div>`
-        )
-        .join("");
     }
 
     function veTomTat(tongQuan) {
@@ -581,74 +759,138 @@
       );
     }
 
-    function renderHangTrenXe(danhSach) {
-      return danhSach
-        .map(
-          (d) => `
-        <div class="list-item" data-tim="${esc(chuanHoa([d.ma_van_don, d.ten_nguoi_nhan, d.ten_diem_nhan].join(" ")))}">
-          <div class="info">
-            <div class="name">${esc(d.ma_van_don)} — ${esc(d.ten_nguoi_nhan)}</div>
-            <div class="sub">${esc(d.can_nang_kg)}kg · ${esc(d.ten_diem_gui)} → ${esc(d.ten_diem_nhan)}
-              </div>
-            ${nhanSuCoHang(d) ? `<div class="sub">${nhanSuCoHang(d)}</div>` : ""}
-            <a href="#" class="text-link item-link" data-xem-hang="${esc(d.id)}">Xem chi tiết</a>
-          </div>
-        </div>`
-        )
-        .join("");
+    // ---------- Hàng hóa dạng ô (chất / dỡ / trên xe): bấm ô → chi tiết + nút xác nhận; có thanh lọc/sắp xếp ----------
+    // Màu viền theo việc, cùng quy ước với sơ đồ ghế: chờ chất = cam, cần dỡ = đỏ, đang trên xe = tím.
+    const GIO_CHO_LAU = 24;   // đơn gửi quá 24 giờ chưa lên xe → gắn nhãn "Chờ lâu"
+    const khoHang = { chat: [], do: [], tren: [] };
+    const locHang = {   // trạng thái lọc giữ nguyên qua các lần tải lại
+      chat: { sap: "som", lau: false, suco: false },
+      do: { sap: "som", lau: false, suco: false },
+      tren: { sap: "den", lau: false, suco: false },
+    };
+    const CACH_SAP = {
+      chat: [["som", "Gửi sớm nhất"], ["moi", "Mới gửi"], ["nang", "Nặng nhất"], ["den", "Điểm đến gần nhất"]],
+      do: [["som", "Gửi sớm nhất"], ["nang", "Nặng nhất"]],
+      tren: [["den", "Dỡ sớm nhất"], ["som", "Gửi sớm nhất"], ["nang", "Nặng nhất"]],
+    };
+    const VUNG_HANG = { chat: "danh-sach-hang-chat", do: "danh-sach-hang-do", tren: "danh-sach-hang-tren-xe" };
+
+    function truocDay(iso) {
+      if (!iso) return "";
+      const phut = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+      if (phut < 60) return `${phut} phút trước`;
+      if (phut < 24 * 60) return `${Math.floor(phut / 60)} giờ trước`;
+      return `${Math.floor(phut / (24 * 60))} ngày trước`;
+    }
+    const gioCho = (d) => (d.ngay_tao ? (Date.now() - new Date(d.ngay_tao).getTime()) / 3600000 : 0);
+    const coSuCo = (d) => (d.so_bao_that_lac || 0) + (d.so_bao_hu_hong || 0) > 0;
+    const thuTuDen = (d) => (thuTuDiem.has(d.diem_nhan_id) ? thuTuDiem.get(d.diem_nhan_id) : 1e9);
+
+    function sapHang(khoa, ds) {
+      const { sap, lau, suco } = locHang[khoa];
+      const t = (d) => (d.ngay_tao ? new Date(d.ngay_tao).getTime() : 0);
+      let kq = ds.filter((d) => (!lau || gioCho(d) >= GIO_CHO_LAU) && (!suco || coSuCo(d)));
+      const cmp = { som: (a, b) => t(a) - t(b), moi: (a, b) => t(b) - t(a), nang: (a, b) => b.can_nang_kg - a.can_nang_kg, den: (a, b) => thuTuDen(a) - thuTuDen(b) || t(a) - t(b) }[sap];
+      return kq.sort((a, b) => (b.vua ? 1 : 0) - (a.vua ? 1 : 0) || cmp(a, b));
     }
 
-    // Khách đang trên xe, nhóm theo điểm xuống: nhóm "xuống ở điểm kế tiếp" đứng đầu và nổi bật. Chỉ để xem/gọi/tìm;
-    // nút "Xuống xe" vẫn ở danh sách theo điểm để không có 2 chỗ làm cùng 1 việc.
-    function renderKhachTrenXe(danhSach, hanhTrinh) {
-      if (danhSach.length === 0) return '<p class="empty-state">Chưa có khách nào đang trên xe.</p>';
-      const viTriXe = hanhTrinh.findIndex((d) => d.diem_don_tra_id === diemHienTaiId);
-      const keTiepId = viTriXe >= 0 && hanhTrinh[viTriXe + 1] ? hanhTrinh[viTriXe + 1].diem_don_tra_id : null;
-      const thuTu = (id) => hanhTrinh.findIndex((d) => d.diem_don_tra_id === id);
-      const nhom = new Map();
-      danhSach.forEach((v) => {
-        if (!nhom.has(v.diem_tra_id)) nhom.set(v.diem_tra_id, []);
-        nhom.get(v.diem_tra_id).push(v);
-      });
-      return [...nhom.entries()]
-        .sort((a, b) => thuTu(a[0]) - thuTu(b[0]))
-        .map(([diemId, ds]) => {
-          const ke = diemId === keTiepId;
-          return `
-          <div class="tren-xe-nhom${ke ? " tren-xe-nhom--ke-tiep" : ""}" data-nhom-tren-xe>
-            <h3 class="muc-nho">Xuống ở ${esc(ds[0].ten_diem_tra)} (${ds.length})${ke ? " · điểm kế tiếp" : ""}</h3>
-            ${ds.map((v) => `
-            <div class="list-item" data-tim="${esc(chuanHoa([v.so_ghe, v.ho_ten, v.so_dien_thoai, v.ma_dat_cho].join(" ")))}">
-              <button type="button" class="info info--bam" data-khach-tren-xe="${esc(v.ve_id)}" aria-label="Xem chi tiết ${esc(v.ho_ten)}">
-                <div class="name"><span class="seat-code">${esc(v.so_ghe)}</span>${esc(v.ho_ten)}</div>
-                <div class="sub">${esc(v.so_dien_thoai)} · lên ở ${esc(v.ten_diem_don)}</div>
-              </button>
-            </div>`).join("")}
-          </div>`;
-        })
-        .join("");
+    function veOHang(khoa, d) {
+      const lau = khoa === "chat" && gioCho(d) >= GIO_CHO_LAU;
+      const nhan = [
+        d.vua ? `<span class="badge badge--xong">↩ Vừa ${d.vua === "chat" ? "chất" : "dỡ"}</span>` : "",
+        d.so_bao_that_lac > 0 ? '<span class="badge badge--loi">⚠ Thất lạc</span>' : "",
+        d.so_bao_hu_hong > 0 ? '<span class="badge badge--cho">⚠ Hư hỏng</span>' : "",
+        lau ? '<span class="badge badge--cho">⏳ Chờ lâu</span>' : "",
+      ].join("");
+      const tim = chuanHoa([d.ma_van_don, d.ten_nguoi_nhan, d.ten_nguoi_gui, d.ten_diem_nhan, d.ten_diem_gui].join(" "));
+      return `<button type="button" class="hang-o hang-o--${khoa}${d.vua ? " hang-o--vua" : ""}${coSuCo(d) ? " hang-o--suco" : ""}" data-hang="${esc(d.id)}" data-khoa="${khoa}" data-tim="${esc(tim)}">
+        <span class="hang-o__ma">${esc(d.ma_van_don)}</span>
+        <span class="hang-o__nguoi">${esc(d.ten_nguoi_nhan)}</span>
+        ${d.ten_diem_nhan ? `<span class="hang-o__den">→ ${esc(d.ten_diem_nhan)}</span>` : ""}
+        <span class="hang-o__chan"><b>${esc(d.can_nang_kg)}kg</b>${d.ngay_tao ? `<span class="hang-o__gio">Gửi ${truocDay(d.ngay_tao)}</span>` : ""}</span>
+        ${nhan ? `<span class="hang-o__nhan">${nhan}</span>` : ""}
+      </button>`;
     }
 
-    let tabTrenXe = "khach";
-    function datTabTrenXe(tab) {
-      tabTrenXe = tab;
-      document.querySelectorAll("[data-tab-tren-xe]").forEach((nut) => {
-        const dang = nut.dataset.tabTrenXe === tab;
-        nut.classList.toggle("is-chon", dang);
-        nut.setAttribute("aria-selected", dang);
-      });
-      elHien("pane-hang-tren-xe", tab === "hang");
-      elHien("pane-khach-tren-xe", tab === "khach");
-      locTrenXe();
+    // Thanh lọc: 1 nhóm chip "sắp xếp" (chọn 1) + chip bật/tắt "Chờ lâu", "Có báo sự cố"
+    function veThanhLoc(khoa, tong) {
+      const l = locHang[khoa];
+      const chip = (thuocTinh, nhan, bat) => `<button type="button" class="hang-loc__chip${bat ? " is-chon" : ""}" aria-pressed="${bat}" ${thuocTinh}>${nhan}</button>`;
+      return `<div class="hang-loc" data-khoa="${khoa}" role="toolbar" aria-label="Lọc và sắp xếp hàng">
+        ${CACH_SAP[khoa].map(([ma, ten]) => chip(`data-sap="${ma}"`, ten, l.sap === ma)).join("")}
+        <span class="hang-loc__cach"></span>
+        ${khoa === "chat" ? chip('data-bat="lau"', `⏳ Chờ ≥ ${GIO_CHO_LAU}g`, l.lau) : ""}
+        ${chip('data-bat="suco"', "⚠ Có báo sự cố", l.suco)}
+      </div>`;
     }
 
-    // Ô tìm riêng của thẻ "Đang trên xe": chỉ lọc tab đang mở
+    // Vẽ lại 1 vùng hàng từ kho đã lưu (gọi khi tải dữ liệu mới và khi bấm chip lọc)
+    function veHang(khoa, danhSach) {
+      if (danhSach) khoHang[khoa] = danhSach;
+      const kho = khoHang[khoa];
+      const vung = document.getElementById(VUNG_HANG[khoa]);
+      if (kho.length === 0) {
+        vung.innerHTML = `<p class="empty-state">${{ chat: "Không có đơn hàng nào chờ chất.", do: "Không có đơn hàng nào chờ dỡ.", tren: "Chưa có hàng nào trên xe." }[khoa]}</p>`;
+        return;
+      }
+      const ds = sapHang(khoa, kho);
+      vung.innerHTML = (kho.length > 1 ? veThanhLoc(khoa, kho.length) : "") +
+        (ds.length
+          ? `<div class="hang-luoi">${ds.map((d) => veOHang(khoa, d)).join("")}</div>`
+          : '<p class="empty-state">Không có đơn nào khớp bộ lọc.</p>');
+      if (typeof apDungTimKiem === "function") (khoa === "tren" ? locTrenXe : apDungTimKiem)();
+    }
+
+    // Chip lọc + bấm ô hàng: 1 trình nghe chung cho cả 3 vùng
+    document.addEventListener("click", (e) => {
+      const chip = e.target.closest(".hang-loc__chip");
+      if (chip) {
+        const khoa = chip.closest(".hang-loc").dataset.khoa;
+        if (chip.dataset.sap) locHang[khoa].sap = chip.dataset.sap;
+        else locHang[khoa][chip.dataset.bat] = !locHang[khoa][chip.dataset.bat];
+        veHang(khoa);
+        return;
+      }
+      const o = e.target.closest(".hang-o");
+      if (o) moChiTietOHang(o.dataset.khoa, khoHang[o.dataset.khoa].find((d) => d.id === o.dataset.hang));
+    });
+
+    // Ô "chờ chất" có nút Chất lên xe; ô "cần dỡ" có nút Dỡ hàng; ô "trên xe" chỉ xem
+    function moChiTietOHang(khoa, d) {
+      if (!d) return;
+      const tuyChon = {};
+      if (d.vua) {   // vừa chất / vừa dỡ → hoàn tác nếu bấm nhầm (backend chỉ cho khi xe còn đứng ở điểm đó)
+        const chat = d.vua === "chat";
+        tuyChon.hanhDong = {
+          nhan: chat ? "Hoàn tác chất hàng" : "Hoàn tác dỡ hàng",
+          tieuDe: "Hoàn tác?",
+          hoi: `Hoàn tác: đơn ${d.ma_van_don} CHƯA ${chat ? "chất lên xe" : "dỡ xuống"}?`,
+          canhBao: "Chỉ làm được khi xe còn đứng ở điểm này.",
+          chay: async () => { await (chat ? hoanTacChatHang(d.id) : hoanTacDoHang(d.id)); await taiDuLieu(); },
+        };
+      } else if (khoa === "chat" || khoa === "do") {
+        const chat = khoa === "chat";
+        tuyChon.hanhDong = {
+          nhan: chat ? "Chất lên xe" : "Dỡ xuống xe",
+          tieuDe: chat ? "Chất hàng lên xe?" : "Dỡ hàng xuống xe?",
+          ...(d.so_bao_that_lac > 0 ? { hoi: `Xác nhận ${chat ? "chất" : "dỡ"} đơn ${d.ma_van_don}?`, canhBao: `Đơn ${d.ma_van_don} đã báo THẤT LẠC.` } : {}),
+          chay: async () => { await (chat ? chatHang(d.id) : doHang(d.id)); await taiDuLieu(); },
+        };
+      }
+      window.moChiTietHang(d.id, chuyenId, tuyChon);
+    }
+
+    // 2 phần của màn thao tác (chọn từ menu ☰): "khach" = hành trình chuyến xe, chỉ thao tác với khách;
+    // "hang" = hàng hóa chuyến này, chỉ thao tác với hàng. Ẩn/hiện khối theo [data-phan] ở phu-xe.css.
+    const PHAN = new URLSearchParams(location.search).get("phan") === "hang" ? "hang" : "khach";
+    document.body.dataset.phan = PHAN;
+    // Ô tìm riêng của thẻ "Hàng đang trên xe"
     function locTrenXe() {
       const tuKhoa = chuanHoa(document.getElementById("o-tim-tren-xe").value.trim());
-      const vung = document.getElementById(tabTrenXe === "hang" ? "danh-sach-hang-tren-xe" : "danh-sach-khach-tren-xe");
+      const vung = document.getElementById("danh-sach-hang-tren-xe");
       const cu = vung.querySelector(".khong-ket-qua");
       if (cu) cu.remove();
-      const dongs = [...vung.querySelectorAll(".list-item[data-tim]")];
+      const dongs = [...vung.querySelectorAll(".list-item[data-tim], .hang-o[data-tim]")];
       dongs.forEach((dong) => (dong.hidden = tuKhoa !== "" && !dong.dataset.tim.includes(tuKhoa)));
       vung.querySelectorAll("[data-nhom-tren-xe]").forEach((nhom) => {
         nhom.hidden = [...nhom.querySelectorAll(".list-item[data-tim]")].every((dong) => dong.hidden);
@@ -658,75 +900,11 @@
       }
     }
     document.getElementById("o-tim-tren-xe").addEventListener("input", locTrenXe);
-    document.querySelectorAll("[data-tab-tren-xe]").forEach((nut) => nut.addEventListener("click", () => datTabTrenXe(nut.dataset.tabTrenXe)));
-    document.getElementById("danh-sach-khach-tren-xe").addEventListener("click", (e) => {
-      const nut = e.target.closest("[data-khach-tren-xe]");
-      const v = nut && duLieuKhach.find((k) => k.ve_id === nut.dataset.khachTrenXe);
-      if (v) window.moChiTietKhach(v, {});
-    });
 
-    function renderHoanTacHang(danhSach) {
-      return danhSach
-        .map((d) => {
-          const chat = d.loai === "chat";
-          const hoi = `Hoàn tác: đơn ${d.ma_van_don} CHƯA ${chat ? "chất lên xe" : "dỡ xuống"}?`;
-          return `
-        <div class="list-item">
-          <div class="info">
-            <div class="name">${esc(d.ma_van_don)} — ${esc(d.ten_nguoi_nhan)}</div>
-            <div class="sub">${esc(d.can_nang_kg)}kg · <span class="badge ${chat ? "badge--tren" : "badge--xong"}">${chat ? "Đã chất lên xe" : "Đã dỡ xuống"}</span> ${nhanSuCoHang(d)}</div>
-            <a href="#" class="text-link item-link" style="margin-right:16px;" data-xem-hang="${esc(d.id)}">Xem chi tiết</a>
-          </div>
-          <button class="btn-confirm btn-confirm--outline" data-hoi="${esc(hoi)}"
-                  onclick="if (confirm(this.dataset.hoi)) hanhDong(() => ${chat ? "hoanTacChatHang" : "hoanTacDoHang"}('${esc(d.id)}'), this)">Hoàn tác</button>
-        </div>`;
-        })
-        .join("");
-    }
-
-    function renderHangDo(danhSach) {
-      if (danhSach.length === 0) {
-        return '<p class="empty-state">Không có đơn hàng nào chờ dỡ.</p>';
-      }
-      const tatCa = danhSach.length > 1
-        ? `<button type="button" class="btn-confirm btn-confirm--outline btn-hang-loat" onclick="hanhDong(() => hangLoat('do-hang-tat-ca'), this)">Dỡ tất cả (${danhSach.length})</button>`
-        : "";
-      return tatCa + danhSach
-        .map(
-          (d) => `
-        <div class="list-item" data-tim="${esc(chuanHoa([d.ma_van_don, d.ten_nguoi_nhan].join(" ")))}">
-          <div class="info">
-            <div class="name">${esc(d.ma_van_don)} — ${esc(d.ten_nguoi_nhan)}</div>
-            <div class="sub">${esc(d.can_nang_kg)}kg</div>
-            ${nhanSuCoHang(d) ? `<div class="sub">${nhanSuCoHang(d)}</div>` : ""}
-            <a href="#" class="text-link item-link" style="margin-right:16px;" data-xem-hang="${esc(d.id)}">Xem chi tiết</a>
-            <a href="#" class="text-link item-link" data-id="${esc(d.id)}" data-ma="${esc(d.ma_van_don)}" onclick="baoThatLac(this); return false;">Báo thất lạc/hư hỏng</a>
-          </div>
-          <button class="btn-confirm" onclick="${hoiTruocKhiXacNhan(d, "dỡ hàng")}hanhDong(() => doHang('${esc(d.id)}'), this)">Dỡ hàng</button>
-        </div>`
-        )
-        .join("");
-    }
-
-    // Việc còn dang dở tại điểm xe đang đứng — quyết định xe có được rời điểm hay không (khớp di_chuyen_service ở backend)
     function viecTaiDiem() {
       const choLen = duLieuKhach.filter((v) => v.diem_don_id === diemHienTaiId && ["da_thanh_toan", "giu_cho"].includes(v.trang_thai)).length;
       const choXuong = duLieuKhach.filter((v) => v.diem_tra_id === diemHienTaiId && v.trang_thai === "da_len_xe").length;
       return { choLen, choXuong, choChat: soHangChoChat, choDo: soHangChoDo };
-    }
-
-    // Danh sách kiểm: CHẶN (đỏ) = khách chưa xuống / hàng chưa dỡ; CẢNH BÁO (cam) = khách chưa lên / hàng chưa chất
-    function veViecTaiDiem(viec) {
-      const dong = (so, lop, xong, chuaXong) =>
-        so === 0
-          ? `<div class="viec-diem__dong viec-diem__dong--ok"><span class="viec-diem__dau">✓</span>${xong}</div>`
-          : `<div class="viec-diem__dong viec-diem__dong--${lop}"><span class="viec-diem__dau">${lop === "chan" ? "✕" : "!"}</span>${chuaXong(so)}</div>`;
-      return `<div class="viec-diem">
-        ${dong(viec.choXuong, "chan", "Khách xuống xe: đã xong", (n) => `${n} khách chưa xuống xe — phải xác nhận xuống mới đi được`)}
-        ${dong(viec.choDo, "chan", "Hàng dỡ: đã xong", (n) => `${n} đơn hàng chưa dỡ — phải dỡ mới đi được`)}
-        ${dong(viec.choLen, "cho", "Khách lên xe: đã đủ", (n) => `${n} khách chưa lên xe (rời điểm sẽ bị đánh dấu "Không đến")`)}
-        ${dong(viec.choChat, "cho", "Hàng chất: đã xong", (n) => `${n} đơn hàng chưa chất lên xe`)}
-      </div>`;
     }
 
     function renderHanhTrinh(diemList, dangChay) {
@@ -759,12 +937,13 @@
               : giaiDoan === "chua_mo_ben" ? `Bến mở lúc ${gioNgan(gioMoBen)} (15 phút trước giờ chạy) — từ đó mới cho khách lên xe và chất hàng. Xuất phát lúc ${gioNgan(gioKhoiHanh)}.`
               : giaiDoan === "ben_mo" ? `Chưa đến giờ chạy — xuất phát được từ ${gioNgan(gioKhoiHanh)}. Trong lúc chờ, cho khách lên xe và chất hàng.`
               : "";
-            thanPhu = (giaiDoan === "chua_mo_ben" ? "" : veViecTaiDiem(viec)) +
-              (ghiChu ? `<p class="hint">${ghiChu}</p>` : "") +
+            // Danh sách việc (khách/hàng lên-xuống) đã nằm ở khối "Việc tại điểm này" — ở đây chỉ còn lý do bị chặn + nút đi
+            thanPhu = (ghiChu ? `<p class="hint">${ghiChu}</p>` : "") +
+              (bi_chan ? `<p class="viec-ly-do">Chưa thể đi: ${[viec.choXuong ? `còn ${viec.choXuong} khách chưa xuống xe` : "", viec.choDo ? `còn ${viec.choDo} đơn hàng chưa dỡ` : ""].filter(Boolean).join(", ")}.</p>` : "") +
               `<button class="btn-primary nut-di-chuyen" ${bi_chan || khoaGio || dangHoan ? "disabled" : ""} onclick="batDauDiChuyen()">${nhanNut}</button>`;
           } else if (laKeTiep && dangDiChuyen) {
             thanPhu = `<div class="trang-thai-di-chuyen">Xe đang di chuyển tới đây</div>
-              <button class="btn-confirm nut-di-chuyen" onclick="hanhDong(() => xacNhanToiDiem('${esc(d.diem_don_tra_id)}'), this)">Xác nhận đã đến đây</button>`;
+              <button class="btn-confirm nut-di-chuyen" data-tieu-de="Xe đã đến điểm?" data-nhan="Đã đến" data-hoi="${esc(`Xác nhận xe đã đến ${d.ten_diem}?`)}" onclick="hoiRoiChay(this, () => xacNhanToiDiem('${esc(d.diem_don_tra_id)}'))">Xác nhận đã đến đây</button>`;
           }
           return `
           <div class="route-step ${lop}">
@@ -773,7 +952,7 @@
               ${!laCuoi ? '<div class="line"></div>' : ""}
             </div>
             <div class="noi-dung">
-              <div class="ten-diem">${esc(d.ten_diem)}</div>
+              <div class="ten-diem">${esc(d.ten_diem)}${d.loai ? ` <span class="loai-diem loai-diem--${d.loai === "van_phong" ? "vp" : "dung"}" title="${esc(d.ten_khu_vuc || "")}">${d.loai === "van_phong" ? "🏢 Văn phòng" : "📍 Điểm dừng"}</span>` : ""}</div>
               <div class="gio">${esc(gio)}</div>
               ${thanPhu}
             </div>
@@ -784,15 +963,53 @@
 
     // Bấm "Bắt đầu di chuyển": còn khách chưa xuống / hàng chưa dỡ đã bị nút khóa; còn khách chưa lên /
     // hàng chưa chất thì hỏi lại trong hộp thoại trước khi đi (server cũng kiểm tra lại, không tin giao diện).
-    function batDauDiChuyen() {
+    async function batDauDiChuyen() {
       const viec = viecTaiDiem();
-      const canhBao = [];
-      if (viec.choLen) canhBao.push(`<b>${viec.choLen}</b> khách chưa lên xe — họ sẽ bị đánh dấu "Không đến" khi xe tới điểm kế tiếp.`);
-      if (viec.choChat) canhBao.push(`<b>${viec.choChat}</b> đơn hàng chưa chất lên xe — hàng ở lại chờ chuyến sau.`);
-      if (!canhBao.length) return hanhDong(() => guiBatDauDiChuyen(false).then(baoDiChuyen));
-      document.getElementById("noi-dung-canh-bao-di-chuyen").innerHTML = canhBao.map((x) => `<li>${x}</li>`).join("");
+      const khachChuaLen = duLieuKhach.filter((v) => v.diem_don_id === diemHienTaiId && ["da_thanh_toan", "giu_cho"].includes(v.trang_thai));
+      if (!viec.choLen && !viec.choChat) {
+        if (!(await window.thongBao.xacNhan({ tieuDe: "Bắt đầu di chuyển?", noiDung: "Xác nhận xe bắt đầu di chuyển tới điểm kế tiếp?", nhan: "Bắt đầu" }))) return;
+        return hanhDong(() => guiBatDauDiChuyen(false).then(baoDiChuyen));
+      }
+      // Phải xác nhận TỪNG khách chưa lên / TỪNG đơn hàng chưa chất (tick từng dòng) mới đi được —
+      // không có nút "chọn tất cả" để không bấm lướt qua.
+      const dongKhach = khachChuaLen.map((v) => `
+        <label class="xn-dong"><input type="checkbox" />
+          <span><b>${esc(v.so_ghe)}</b> ${esc(v.ho_ten)} · ${esc(v.so_dien_thoai)}
+          <small>${v.trang_thai === "giu_cho" ? "Chưa trả tiền · " : ""}Xác nhận khách KHÔNG ĐẾN (sẽ bị đánh dấu "Không đến")</small></span></label>`).join("");
+      const dongHang = dsHangChoChat.map((d) => `
+        <label class="xn-dong"><input type="checkbox" data-nhom="hang" />
+          <span><b>${esc(d.ma_van_don)}</b> → ${esc(d.ten_diem_nhan)} · ${esc(d.can_nang_kg)}kg
+          <small>Xác nhận ĐỂ LẠI hàng này, chờ chuyến sau</small></span></label>`).join("");
+      document.getElementById("noi-dung-canh-bao-di-chuyen").innerHTML =
+        (dongKhach ? `<h3 class="muc-nho">Khách chưa lên xe (${khachChuaLen.length})</h3>${dongKhach}` : "") +
+        (dongHang ? `<h3 class="muc-nho">Hàng chưa chất (${dsHangChoChat.length})</h3>${
+          // Nhiều đơn: có ô "Chọn tất cả" để khỏi tick từng đơn (khách vẫn tick từng người — mỗi người là 1 xác nhận "không đến")
+          dsHangChoChat.length >= 2 ? '<label class="xn-dong xn-dong--tat-ca"><input type="checkbox" data-chon-tat-ca="hang" /><span><b>Chọn tất cả hàng</b><small>Để lại toàn bộ hàng chưa chất, chờ chuyến sau</small></span></label>' : ""
+        }${dongHang}` : "");
+      capNhatXacNhanDiChuyen();
       elHien("modal-di-chuyen", true);
     }
+
+    function capNhatXacNhanDiChuyen() {
+      const o = [...document.querySelectorAll("#noi-dung-canh-bao-di-chuyen input[type=checkbox]:not([data-chon-tat-ca])")];
+      const xong = o.filter((x) => x.checked).length;
+      const nut = document.getElementById("nut-xac-nhan-di-chuyen");
+      nut.disabled = xong < o.length;
+      nut.textContent = xong < o.length ? `Còn ${o.length - xong} mục chưa xác nhận` : "Vẫn bắt đầu di chuyển";
+    }
+    document.getElementById("noi-dung-canh-bao-di-chuyen").addEventListener("change", (e) => {
+      const vung = e.currentTarget;
+      const tatCa = vung.querySelector("[data-chon-tat-ca]");
+      if (e.target.matches("[data-chon-tat-ca]")) {
+        vung.querySelectorAll(`input[data-nhom="${e.target.dataset.chonTatCa}"]`).forEach((o) => (o.checked = e.target.checked));
+      } else if (tatCa && e.target.dataset.nhom === tatCa.dataset.chonTatCa) {   // tick/bỏ tick từng đơn → ô "tất cả" theo kịp
+        const cacO = [...vung.querySelectorAll(`input[data-nhom="${tatCa.dataset.chonTatCa}"]`)];
+        const so = cacO.filter((o) => o.checked).length;
+        tatCa.checked = so === cacO.length;
+        tatCa.indeterminate = so > 0 && so < cacO.length;
+      }
+      capNhatXacNhanDiChuyen();
+    });
 
     function baoDiChuyen(kq) {
       if (kq && kq.thong_bao) hienLoi(kq.thong_bao);
@@ -810,15 +1027,17 @@
     // Lọc danh sách khách/hàng theo ô tìm kiếm; chạy lại sau mỗi lần render để
     // giữ nguyên từ khóa khi dữ liệu tự làm mới.
     function apDungTimKiem() {
-      const tuKhoa = chuanHoa(document.getElementById("o-tim-kiem").value.trim());
+      // Phần Hàng hóa tìm bằng ô trong thẻ "Hàng tại điểm này"; phần Khách tìm bằng ô riêng phía trên danh sách khách
+      const tuKhoa = chuanHoa(document.getElementById(PHAN === "hang" ? "o-tim-hang" : "o-tim-kiem").value.trim());
       const khop = (dong) => tuKhoa === "" || dong.dataset.tim.includes(tuKhoa);
+      if (tuKhoa !== "" && PHAN !== "hang") document.getElementById("khu-hanh-khach").open = true;   // đang tìm thì mở danh sách cả chuyến
 
       // Hàng hóa: ẩn dòng không khớp, báo "không có kết quả" nếu ẩn hết
       ["danh-sach-hang-chat", "danh-sach-hang-do"].forEach((id) => {
         const vung = document.getElementById(id);
         const cu = vung.querySelector(".khong-ket-qua");
         if (cu) cu.remove();
-        const dongs = [...vung.querySelectorAll(".list-item[data-tim]")];
+        const dongs = [...vung.querySelectorAll(".list-item[data-tim], .hang-o[data-tim]")];
         dongs.forEach((dong) => (dong.hidden = !khop(dong)));
         if (tuKhoa !== "" && dongs.length > 0 && dongs.every((dong) => dong.hidden)) {
           vung.insertAdjacentHTML("beforeend", '<p class="empty-state khong-ket-qua">Không có kết quả khớp.</p>');
@@ -835,6 +1054,7 @@
       });
     }
     document.getElementById("o-tim-kiem").addEventListener("input", apDungTimKiem);
+    document.getElementById("o-tim-hang").addEventListener("input", apDungTimKiem);
 
     // Chuyến chưa khởi hành có 3 giai đoạn theo giờ: chưa mở bến -> bến mở (lên xe/chất hàng) -> tới giờ chạy (được xuất phát).
     // Server là nơi chặn thật (kể cả khi đồng hồ điện thoại sai) — giao diện chỉ để khỏi bấm vô ích và tự đổi đúng lúc.
@@ -890,7 +1110,7 @@
         const han = con > 0 ? `còn ${con} phút nữa` : "đã tới mốc";
         dong.push(
           `Khách <b>${esc(v.ho_ten)}</b> (ghế ${esc(v.so_ghe)}, đón tại ${esc(v.ten_diem_don)}) chưa lên xe — ${han} hệ thống sẽ đánh dấu "Không đến". ` +
-          `<a href="tel:${esc(v.so_dien_thoai)}">Gọi ${esc(v.so_dien_thoai)}</a>`
+          `SĐT ${window.sdtSaoChep(v.so_dien_thoai)}`
         );
       });
       if (sapNoShow.length > 5) dong.push(`… và ${sapNoShow.length - 5} khách khác cũng sắp tới mốc.`);
@@ -925,11 +1145,18 @@
         gap_su_co: ["Gặp sự cố", "chip--danger"],
         hoan_thanh: ["Đã hoàn thành", "chip--ok"],
       };
-      const [nhanTrangThai, lopTrangThai] = NHAN_TRANG_THAI[chuyen.trang_thai] || [chuyen.trang_thai, ""];
+      let [nhanTrangThai, lopTrangThai] = NHAN_TRANG_THAI[chuyen.trang_thai] || [chuyen.trang_thai, ""];
+      if (chuyen.trang_thai === "chua_khoi_hanh") {
+        // Chuyến chưa chạy: nhãn theo giai đoạn giờ (chưa mở bến -> bến đã mở -> đến giờ chạy)
+        const bay = Date.now();
+        if (bay >= new Date(chuyen.gio_khoi_hanh).getTime()) [nhanTrangThai, lopTrangThai] = ["Đến giờ chạy", "chip--ok"];
+        else if (bay >= new Date(chuyen.gio_mo_ben).getTime()) [nhanTrangThai, lopTrangThai] = ["Bến đã mở", "chip--ok"];
+      }
       document.getElementById("tieu-de-tuyen").textContent = chuyen.tuyen_ten;
       document.getElementById("tieu-de-meta").innerHTML =
         `<span class="chip chip--bien-so">${esc(chuyen.bien_so)}</span>` +
         `<span class="chip">Giờ chạy ${esc(dinhDangGio(chuyen.gio_khoi_hanh))}</span>` +
+        `<span class="chip">${PHAN === "hang" ? "📦 Hàng hóa" : "🚌 Hành trình"}</span>` +
         `<span class="chip ${lopTrangThai}">${esc(nhanTrangThai)}</span>` +
         (chuyen.trang_thai === "dang_chay" ? (chuyen.dang_di_chuyen ? '<span class="chip chip--warn">Đang di chuyển</span>' : '<span class="chip">Xe đang dừng</span>') : "") +
         (chuyen.dang_hoan ? '<span class="chip chip--warn">Đang hoãn</span>' : "");
@@ -965,14 +1192,16 @@
       const xemKhach = coTheXuongVaDo || gapSuCo;
       trangThaiChuyen = chuyen.trang_thai;
 
-      let soKhachLen = 0, soKhachXuong = 0, soHangChat = 0, soHangDo = 0;
+      let soKhachXuong = 0, soHangChat = 0, soHangDo = 0;
       let hanhTrinh = [];
       let tomTat = "";
       let hangTrenXe = [];
       if (xemKhach) {
         const tongQuan = await apiGet(`/phu-xe/chuyen/${chuyenId}/tong-quan`);
         hanhTrinh = tongQuan.hanh_trinh;
+        thuTuDiem = new Map(hanhTrinh.map((d) => [d.diem_don_tra_id, d.thu_tu]));   // cần sớm cho sắp xếp hàng theo điểm đến
         duLieuKhach = tongQuan.hanh_khach;
+        soDoGhe = tongQuan.so_do_ghe || [];
         if (hoanThanh) tomTat = veTomTat(tongQuan);
         hangTrenXe = tongQuan.hang_hoa.filter((d) => d.trang_thai === "da_len_xe");
 
@@ -981,19 +1210,21 @@
         const diemHienTai = daToi.length ? daToi[daToi.length - 1] : hanhTrinh[0];
         diemHienTaiId = diemHienTai ? diemHienTai.diem_don_tra_id : null;
         if (diemHienTaiId !== lanCuoiDiemHienTai) {
+          if (lanCuoiDiemHienTai !== null) canCuonToiViec = true;   // xe sang điểm mới → cuộn tới việc của điểm đó
           nhomDangMo = new Set([diemHienTaiId]); // xe sang điểm mới → xổ ô điểm đó ra, thu gọn các ô còn lại
           lanCuoiDiemHienTai = diemHienTaiId;
         }
-        soKhachLen = duLieuKhach.filter((v) => v.diem_don_id === diemHienTaiId && v.trang_thai === "da_thanh_toan").length;
         soKhachXuong = duLieuKhach.filter((v) => v.diem_tra_id === diemHienTaiId && v.trang_thai === "da_len_xe").length;
       }
 
       soHangChoChat = 0;
       soHangChoDo = 0;
+      dsHangChoChat = [];
       let hangHoanTac = [];
       if (coTheXuongVaDo) hangHoanTac = await apiGet(`/phu-xe/chuyen/${chuyenId}/hang-co-the-hoan-tac`);
-      document.getElementById("dem-hoan-tac-hang").textContent = hangHoanTac.length;
-      document.getElementById("danh-sach-hoan-tac-hang").innerHTML = renderHoanTacHang(hangHoanTac);
+      // Hàng vừa chất/dỡ không còn khối riêng: vừa chất nằm cùng "Đang trên xe", vừa dỡ nằm cùng "Cần dỡ" (màu xanh, có Hoàn tác)
+      const vuaChatIds = new Set(hangHoanTac.filter((d) => d.loai === "chat").map((d) => d.id));
+      const hangVuaDo = hangHoanTac.filter((d) => d.loai === "do").map((d) => ({ ...d, vua: "do" }));
 
       if (coTheLenVaChat || coTheXuongVaDo) {
         const [hangChat, hangDo] = await Promise.all([
@@ -1003,12 +1234,13 @@
         soHangChat = hangChat.length;
         soHangDo = hangDo.length;
         soHangChoChat = soHangChat;
+        dsHangChoChat = hangChat;
         soHangChoDo = soHangDo;
 
         document.getElementById("dem-hang-chat").textContent = soHangChat;
         document.getElementById("dem-hang-do").textContent = soHangDo;
-        document.getElementById("danh-sach-hang-chat").innerHTML = renderHangChat(hangChat);
-        document.getElementById("danh-sach-hang-do").innerHTML = renderHangDo(hangDo);
+        veHang("chat", hangChat);
+        veHang("do", [...hangDo, ...hangVuaDo]);
       }
 
       // Thanh tiến độ: xe đã đi được bao nhiêu chặng / còn bao nhiêu
@@ -1039,7 +1271,7 @@
       if (dangDiChuyen) {
         const keTiepTen = (hanhTrinh.slice(1).find((d) => !d.da_toi) || {}).ten_diem || "điểm kế tiếp";
         bannerEl.innerHTML +=
-          `<div class="status-banner status-banner--warning">🚌 Xe đang di chuyển tới <b>${esc(keTiepTen)}</b>. Khi xe tới nơi, bấm "Xác nhận đã đến đây" để cho khách lên/xuống và chất/dỡ hàng.</div>`;
+          `<div class="status-banner status-banner--warning">🚌 Xe đang di chuyển tới <b>${esc(keTiepTen)}</b>. ${PHAN === "hang" ? 'Khi xe tới nơi, phụ xe xác nhận ở phần "Hành trình chuyến xe" (menu ☰), rồi quay lại đây chất/dỡ hàng.' : 'Khi xe tới nơi, bấm "Xác nhận đã đến đây" để cho khách lên/xuống; hàng chất/dỡ ở phần "Hàng hóa chuyến này".'}</div>`;
       }
 
       const goiY = document.getElementById("goi-y-hanh-khach");
@@ -1065,56 +1297,49 @@
       // (danh sách hành khách bên dưới vẫn xem lại được trạng thái từng người).
       const xongHet = hoanThanh && soKhachXuong === 0 && soHangDo === 0;
       elHien("khu-xong", xongHet);
+      // Vừa đủ điều kiện hoàn thành chuyến (xe tới điểm cuối và hết khách/hàng cần xử lý) ngay trong phiên này
+      // → cuộn lên đầu trang + báo "đã hoàn thành". Mở trang khi chuyến đã xong từ trước thì không báo lại.
+      if (xongHet && daXongHetTruocDo === false) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        hienLoi("✓ Chuyến đã hoàn thành — khách và hàng đã xử lý xong.");
+      }
+      daXongHetTruocDo = xongHet;
       if (hoanThanh && !xongHet) {
         bannerEl.innerHTML +=
           '<div class="status-banner status-banner--success">Xe đã đến điểm cuối. Còn khách xuống xe hoặc hàng cần dỡ — xử lý nốt bên dưới.</div>';
       }
       // Ô tìm chỉ có ích khi danh sách đủ dài
-      elHien("khu-tim-kiem", xemKhach && duLieuKhach.length + soHangChat + soHangDo >= 4);
+      elHien("khu-tim-kiem", xemKhach && PHAN !== "hang" && duLieuKhach.length + soHangChat + soHangDo >= 4);
+      elHien("khu-tim-hang", PHAN === "hang" && soHangChat + soHangDo >= 3);
       elHien("khu-hanh-khach", xemKhach);
+      renderViecDiem(hanhTrinh, { xemKhach, xongHet });
       const hienChat = coTheLenVaChat && !dangDiChuyen && benDaMo() && soHangChoChat > 0;
-      const hienDo = coTheXuongVaDo && !dangDiChuyen && !xongHet && soHangChoDo > 0;
-      const hienHoanTac = hangHoanTac.length > 0;
+      const hienDo = coTheXuongVaDo && !dangDiChuyen && !xongHet && (soHangChoDo > 0 || hangVuaDo.length > 0);
       // Xe đang dừng (hoặc bến đã mở) mà không có hàng nào để xử lý: vẫn hiện thẻ nhưng chỉ 1 dòng "không có hàng"
       const dangPhucVu = (dangChay || (chuaKhoiHanh && benDaMo())) && !dangDiChuyen && !xongHet;
       elHien("khu-hang-chat", hienChat);
       elHien("khu-hang-do", hienDo);
-      elHien("khu-hoan-tac-hang", hienHoanTac);
-      elHien("hang-tai-diem-trong", dangPhucVu && !hienChat && !hienDo && !hienHoanTac);
+      elHien("hang-tai-diem-trong", dangPhucVu && !hienChat && !hienDo);
       document.getElementById("dem-hang-tai-diem").textContent = (hienChat ? soHangChoChat : 0) + (hienDo ? soHangChoDo : 0);
-      elHien("khu-hang-tai-diem", hienChat || hienDo || hienHoanTac || dangPhucVu);
+      elHien("khu-hang-tai-diem", hienChat || hienDo || dangPhucVu);
       const tongKg = hangTrenXe.reduce((t, d) => t + Number(d.can_nang_kg || 0), 0);
       document.getElementById("dem-hang-tren-xe").textContent = hangTrenXe.length;
       document.getElementById("tong-kg-hang-tren-xe").textContent = `Tổng ${tongKg.toLocaleString("vi-VN")}kg đã chất, chưa dỡ khỏi xe.`;
-      document.getElementById("danh-sach-hang-tren-xe").innerHTML = renderHangTrenXe(hangTrenXe);
-      const khachDangTrenXe = duLieuKhach.filter((v) => v.trang_thai === "da_len_xe");
-      document.getElementById("dem-khach-tren-xe").textContent = khachDangTrenXe.length;
-      document.getElementById("danh-sach-khach-tren-xe").innerHTML = renderKhachTrenXe(khachDangTrenXe, hanhTrinh);
-      elHien("khu-hang-tren-xe", xemKhach && (hangTrenXe.length > 0 || khachDangTrenXe.length > 0));
-      datTabTrenXe(tabTrenXe);
+      veHang("tren", hangTrenXe.map((d) => (vuaChatIds.has(d.id) ? { ...d, vua: "chat" } : d)));
+      elHien("khu-hang-tren-xe", xemKhach && PHAN === "hang" && hangTrenXe.length > 0);
       document.getElementById("noi-dung-tom-tat").innerHTML = tomTat;
       elHien("khu-tom-tat", hoanThanh && tomTat !== "");
 
-      // Dải số liệu nhanh: việc đang chờ tại điểm xe đứng
+      // Dải số liệu: chỉ còn "đang trên xe" — số việc cần làm ở điểm đã nằm trong khối "Việc tại điểm này"
       const soLieu = document.getElementById("so-lieu-nhanh");
-      const ICON = { "Khách cần lên": "⬆", "Khách cần xuống": "⬇", "Hàng chờ chất": "📦", "Hàng chờ dỡ": "📤", "Khách trên xe": "🧑‍🤝‍🧑", "Hàng trên xe": "🚚" };
-      const the = (so, nhan, lop) => `<div class="quick-stat${lop}"><span class="quick-stat__icon" aria-hidden="true">${ICON[nhan] || ""}</span><div><div class="so">${so}</div><div class="nhan">${nhan}</div></div></div>`;
-      const o = (so, nhan) => the(so, nhan, so > 0 ? " quick-stat--co-viec" : "");
-      const thongTin = (so, nhan) => the(so, nhan, "");
+      const the = (icon, so, nhan) => `<div class="quick-stat"><span class="quick-stat__icon" aria-hidden="true">${icon}</span><div><div class="so">${so}</div><div class="nhan">${nhan}</div></div></div>`;
       const khachTrenXe = duLieuKhach.filter((v) => v.trang_thai === "da_len_xe").length;
-      soLieu.innerHTML = [
-        coTheLenVaChat && !dangDiChuyen && benDaMo() ? o(soKhachLen, "Khách cần lên") : "",
-        coTheXuongVaDo && !dangDiChuyen ? o(soKhachXuong, "Khách cần xuống") : "",
-        coTheLenVaChat && !dangDiChuyen && benDaMo() ? o(soHangChat, "Hàng chờ chất") : "",
-        coTheXuongVaDo && !dangDiChuyen ? o(soHangDo, "Hàng chờ dỡ") : "",
-        xemKhach ? thongTin(khachTrenXe, "Khách trên xe") : "",
-        xemKhach ? thongTin(hangTrenXe.length, "Hàng trên xe") : "",
-      ].join("");
-      soLieu.hidden = xongHet || !(coTheLenVaChat || coTheXuongVaDo);
+      soLieu.innerHTML = the("🧑‍🤝‍🧑", khachTrenXe, "Khách trên xe") + the("🚚", hangTrenXe.length, "Hàng trên xe");
+      soLieu.hidden = xongHet || !xemKhach || (khachTrenXe === 0 && hangTrenXe.length === 0);
 
       // 2 cột chỉ khi cột trái (xuất phát / hành trình / báo sự cố) thật sự có nội dung
       const cotTrai = document.getElementById("cot-trai");
-      const coDieuKhien = [...cotTrai.children].some((el) => !el.hidden);
+      const coDieuKhien = [...cotTrai.children].some((el) => !el.hidden && getComputedStyle(el).display !== "none");
       cotTrai.classList.toggle("rong", !coDieuKhien);
       document.getElementById("bo-cuc").classList.toggle("trip-layout--2-cot", coDieuKhien);
       document.querySelector(".container").classList.toggle("container--mot-cot", !coDieuKhien);
