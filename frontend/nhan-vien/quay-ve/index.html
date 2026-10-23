@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+    <title>Tổng quan quầy vé</title>
+    <link rel="stylesheet" href="/shared/design-tokens.css" />
+    <link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+    <link rel="stylesheet" href="/nhan-vien/quay-ve/style.css" />
+  </head>
+  <body class="nhan-vien-shell">
+    <div class="nv-layout">
+      <aside class="nv-sidebar" id="qv-nav"></aside>
+      <div class="nv-main">
+        <header class="nv-topbar" id="qv-header"><h1>Tổng quan</h1></header>
+        <main class="nv-content">
+          <div class="nv-page-intro">
+            <div class="nv-page-intro__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M7 15h4" />
+              </svg>
+            </div>
+            <div class="nv-page-intro__body">
+              <p class="nv-page-intro__title" id="qv-office-title">Đang tải văn phòng…</p>
+              <p class="nv-page-intro__desc" id="qv-office-desc">Bán vé, tra cứu và hỗ trợ hành khách tại văn phòng được phân công.</p>
+            </div>
+          </div>
+
+          <div class="qv-grid">
+            <article class="qv-stat">
+              <span>Vé đã bán hôm nay</span>
+              <strong id="st-sold">—</strong>
+              <small>Trong ngày</small>
+            </article>
+            <article class="qv-stat">
+              <span>Doanh thu hôm nay</span>
+              <strong id="st-revenue">—</strong>
+              <small>Vé đã thanh toán</small>
+            </article>
+            <article class="qv-stat">
+              <span>Chờ thanh toán</span>
+              <strong id="st-hold">—</strong>
+              <small>Toàn bộ vé của văn phòng</small>
+              <a class="qv-stat-link" href="#pending-tickets">Xem từng vé ↓</a>
+            </article>
+            <article class="qv-stat">
+              <span>Đã hủy</span>
+              <strong id="st-cancel">—</strong>
+              <small>Trong ngày</small>
+            </article>
+          </div>
+
+          <article class="nv-card qv-card" id="pending-tickets">
+            <div class="qv-toolbar">
+              <div>
+                <h2>Vé chờ thanh toán</h2>
+                <p class="qv-muted">Tất cả vé còn giữ chỗ của văn phòng, không chỉ vé lập trong hôm nay.</p>
+              </div>
+              <div class="qv-actions-inline">
+                <span class="qv-badge orange" id="pending-count">—</span>
+                <button class="qv-btn secondary" id="pending-reload" type="button">Làm mới</button>
+              </div>
+            </div>
+            <div id="pending-error" class="qv-alert error qv-hidden" role="alert"></div>
+            <div class="qv-table-wrap">
+              <table class="qv-table qv-pending-table">
+                <thead>
+                  <tr>
+                    <th>Mã vé / đặt chỗ</th>
+                    <th>Khách hàng</th>
+                    <th>Chuyến / giờ chạy</th>
+                    <th>Điểm đón → trả / ghế</th>
+                    <th>Số tiền</th>
+                    <th>Tình trạng</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="pending-rows"><tr><td colspan="7" class="qv-empty">Đang tải vé chờ thanh toán…</td></tr></tbody>
+              </table>
+            </div>
+            <div class="qv-history-pagination">
+              <span class="qv-muted" id="pending-page">—</span>
+              <div class="qv-actions-inline">
+                <button type="button" class="qv-btn secondary" id="pending-prev" disabled>Trang trước</button>
+                <button type="button" class="qv-btn secondary" id="pending-next" disabled>Trang sau</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="nv-card qv-card">
+            <div class="nv-card__header"><h2>Tác vụ nhanh</h2></div>
+            <div class="qv-actions">
+              <a class="qv-action" href="ban-ve.html">
+                <strong>Bán vé mới</strong>
+                <span>Tìm chuyến, chọn ghế và lập vé tại quầy hoặc hotline.</span>
+              </a>
+              <a class="qv-action" href="tra-cuu-ve.html">
+                <strong>Tra cứu / in vé</strong>
+                <span>Tìm theo mã đặt chỗ hoặc số điện thoại, nhận thanh toán và in vé.</span>
+              </a>
+              <a class="qv-action" href="thong-ke.html">
+                <strong>Thống kê văn phòng</strong>
+                <span>Xem doanh thu và số vé theo ngày.</span>
+              </a>
+            </div>
+          </article>
+        </main>
+      </div>
+    </div>
+
+    <script src="api-client.js"></script>
+    <script src="auth-check.js"></script>
+    <script src="nav.js"></script>
+    <script>
+      let pendingPage = 1;
+      let pendingRequest = 0;
+
+      async function loadPendingTickets(page = 1) {
+        const request = ++pendingRequest;
+        const errorBox = document.querySelector("#pending-error");
+        errorBox.classList.add("qv-hidden");
+        document.querySelector("#pending-rows").innerHTML =
+          '<tr><td colspan="7" class="qv-empty">Đang tải vé chờ thanh toán…</td></tr>';
+        try {
+          const result = await apiGet(`/quay-ve/ve-cho-thanh-toan?${queryString({ trang: page })}`);
+          if (request !== pendingRequest) return;
+          pendingPage = result.trang;
+          const totalPages = Math.max(1, Math.ceil(result.tong_so / result.kich_thuoc_trang));
+          document.querySelector("#st-hold").textContent = result.tong_so;
+          document.querySelector("#pending-count").textContent = `${result.tong_so} vé`;
+          document.querySelector("#pending-page").textContent = `Trang ${pendingPage}/${totalPages}`;
+          document.querySelector("#pending-prev").disabled = pendingPage <= 1;
+          document.querySelector("#pending-next").disabled = pendingPage >= totalPages;
+          document.querySelector("#pending-rows").innerHTML = result.ve.map(ticket => {
+            const quaGio = new Date(ticket.gio_khoi_hanh) <= new Date();
+            const hetHan = ticket.han_giu_cho_den && new Date(ticket.han_giu_cho_den) <= new Date();
+            const trangThai = quaGio ? "Chuyến đã qua giờ" : hetHan ? "Quá hạn giữ chỗ" : "Chờ thanh toán";
+            return `<tr>
+              <td><strong>${escapeHtml(ticket.ma_ve)}</strong><br><small>${escapeHtml(ticket.ma_dat_cho)}</small></td>
+              <td>${escapeHtml(ticket.ten_khach || "Khách vãng lai")}<br><small>${escapeHtml(ticket.sdt_khach || "—")}</small></td>
+              <td>${escapeHtml(ticket.ma_chuyen)}<br><small>${dinhDangNgay(ticket.gio_khoi_hanh)}</small></td>
+              <td>${escapeHtml(ticket.ten_diem_don)} → ${escapeHtml(ticket.ten_diem_tra)}<br><small>Ghế ${escapeHtml(ticket.so_ghe)}</small></td>
+              <td><strong>${dinhDangTien(ticket.gia)}</strong></td>
+              <td><span class="qv-badge orange">${trangThai}</span>${ticket.han_giu_cho_den ? `<br><small>Giữ đến ${dinhDangNgay(ticket.han_giu_cho_den)}</small>` : ""}</td>
+              <td><a class="qv-btn secondary qv-table-link" href="tra-cuu-ve.html?ma_dat_cho=${encodeURIComponent(ticket.ma_dat_cho)}">Xem lượt</a></td>
+            </tr>`;
+          }).join("") || '<tr><td colspan="7" class="qv-empty">Không có vé chờ thanh toán trên trang này.</td></tr>';
+        } catch (error) {
+          if (request !== pendingRequest) return;
+          document.querySelector("#pending-rows").innerHTML =
+            '<tr><td colspan="7" class="qv-empty">Không tải được danh sách vé.</td></tr>';
+          errorBox.textContent = error.message;
+          errorBox.classList.remove("qv-hidden");
+        }
+      }
+
+      if (quayVeKiemTraQuyen()) {
+        renderQuayVeNav(location.pathname);
+        qvPageHeader("Tổng quan", "Hoạt động bán vé tại văn phòng của bạn.");
+        document.querySelector("#pending-prev").addEventListener("click", () => loadPendingTickets(pendingPage - 1));
+        document.querySelector("#pending-next").addEventListener("click", () => loadPendingTickets(pendingPage + 1));
+        document.querySelector("#pending-reload").addEventListener("click", () => loadPendingTickets(pendingPage));
+        loadPendingTickets();
+
+        (async () => {
+          try {
+            const vanPhong = await apiGet("/quay-ve/van-phong-cua-toi");
+            document.querySelector("#qv-office-title").textContent = vanPhong.ten;
+            document.querySelector("#qv-office-desc").textContent = vanPhong.dia_chi;
+
+            const homNay = new Date().toLocaleDateString("en-CA");
+            const thongKe = await apiGet(
+              `/quay-ve/thong-ke?tu_ngay=${homNay}&den_ngay=${homNay}`
+            );
+            document.querySelector("#st-sold").textContent = thongKe.so_ve_da_ban;
+            document.querySelector("#st-revenue").textContent = dinhDangTien(
+              thongKe.doanh_thu
+            );
+            document.querySelector("#st-cancel").textContent = thongKe.so_ve_da_huy;
+          } catch (error) {
+            document.querySelector("#qv-office-title").textContent =
+              "Không tải được dữ liệu";
+          }
+        })();
+      }
+    </script>
+  </body>
+</html>

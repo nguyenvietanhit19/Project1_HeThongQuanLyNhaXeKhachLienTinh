@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+    <title>Tra cứu vé</title>
+    <link rel="stylesheet" href="/shared/design-tokens.css" />
+    <link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+    <link rel="stylesheet" href="/nhan-vien/quay-ve/style.css" />
+  </head>
+  <body class="nhan-vien-shell">
+    <div class="nv-layout">
+      <aside class="nv-sidebar" id="qv-nav"></aside>
+      <div class="nv-main">
+        <header class="nv-topbar" id="qv-header"><h1>Tra cứu / in vé</h1></header>
+        <main class="nv-content">
+          <div class="nv-page-intro qv-no-print">
+            <div class="nv-page-intro__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" />
+              </svg>
+            </div>
+            <div class="nv-page-intro__body">
+              <p class="nv-page-intro__title">Tra cứu / in vé</p>
+              <p class="nv-page-intro__desc">Tra cứu vé của văn phòng, nhận thanh toán và in vé cho hành khách.</p>
+            </div>
+          </div>
+          <article class="nv-card qv-card qv-no-print">
+            <h2>Tra cứu vé / đặt chỗ</h2>
+            <form id="lookup-form" class="qv-row">
+              <div class="qv-field">
+                <label for="booking-code">Mã đặt chỗ</label>
+                <input id="booking-code" placeholder="VD: DC1234AB" />
+              </div>
+              <span class="qv-muted">hoặc</span>
+              <div class="qv-field">
+                <label for="phone">Số điện thoại khách</label>
+                <input id="phone" inputmode="tel" placeholder="0xxxxxxxxx" />
+              </div>
+              <button class="qv-btn" type="submit">Tra cứu</button>
+            </form>
+            <div id="lookup-error" class="qv-alert error qv-hidden"></div>
+          </article>
+
+          <article class="nv-card qv-card qv-no-print qv-hidden" id="ticket-card">
+            <div class="qv-toolbar">
+              <div>
+                <h2>Kết quả</h2>
+                <span id="result-note" class="qv-muted"></span>
+              </div>
+              <div class="qv-actions-inline" id="booking-actions"></div>
+            </div>
+            <form id="ticket-filter-form" class="qv-row qv-result-filter qv-hidden">
+              <div class="qv-field">
+                <label for="filter-ticket-code">Lọc theo mã vé</label>
+                <input id="filter-ticket-code" type="search" maxlength="32" autocomplete="off" placeholder="VD: VE000015" />
+              </div>
+              <div class="qv-field">
+                <label for="filter-trip-date">Lọc theo ngày khởi hành</label>
+                <input id="filter-trip-date" type="date" />
+              </div>
+              <button class="qv-btn secondary" id="clear-ticket-filters" type="button">Xóa bộ lọc</button>
+            </form>
+            <div id="lookup-pending-summary" class="qv-pending-summary qv-hidden"></div>
+            <div class="qv-table-wrap">
+              <table class="qv-table">
+                <thead>
+                  <tr>
+                    <th>Mã vé</th>
+                    <th>Khách</th>
+                    <th>Chuyến / thời gian</th>
+                    <th>Ghế, điểm đón/trả</th>
+                    <th>Giá / trạng thái</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="ticket-rows"></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="nv-card qv-card qv-no-print qv-hidden" id="refund-card">
+            <h2>Trạng thái hoàn tiền</h2>
+            <div class="qv-table-wrap">
+              <table class="qv-table">
+                <thead>
+                  <tr>
+                    <th>Mã vé / đặt chỗ</th>
+                    <th>Số tiền</th>
+                    <th>Lý do</th>
+                    <th>Trạng thái</th>
+                    <th>Thời gian</th>
+                  </tr>
+                </thead>
+                <tbody id="refund-rows"></tbody>
+              </table>
+            </div>
+          </article>
+          <article class="nv-card qv-card qv-hidden" id="print-card"></article>
+        </main>
+      </div>
+    </div>
+    <script src="api-client.js"></script>
+    <script src="auth-check.js"></script>
+    <script src="nav.js"></script>
+    <script src="/nhan-vien/gui-hang/vendor/JsBarcode.code128.min.js"></script>
+    <script>
+const $=s=>document.querySelector(s);let currentTickets=[];let qvPrintRequest=0;
+function statusBadge(status, ticket=null){
+  const cls=status==="da_thanh_toan"?"green":status==="giu_cho"?"orange":"";
+  const ten={da_thanh_toan:"Đã thanh toán",giu_cho:"Chờ thanh toán",da_huy:"Đã hủy",het_han:"Hết hạn"};
+  const quaGio=status==="da_huy"&&ticket?.gio_huy&&!ticket.phuong_thuc_thanh_toan
+    &&new Date(ticket.gio_huy)>=new Date(ticket.gio_khoi_hanh);
+  return `<span class="qv-badge ${cls}">${escapeHtml(quaGio?"Tự hủy quá giờ":ten[status]||status.replaceAll("_"," "))}</span>`;
+}
+function ngayKhoiHanhVN(value){
+  const date=new Date(value);
+  if(Number.isNaN(date.getTime()))return "";
+  const parts=new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Ho_Chi_Minh",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(date);
+  const part=type=>parts.find(item=>item.type===type)?.value||"";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+function apDungBoLoc(){
+  const code=$("#filter-ticket-code").value.trim().toUpperCase();
+  const ngay=$("#filter-trip-date").value;
+  let hienThi=0;
+  $("#ticket-rows").querySelectorAll("tr[data-ma-ve]").forEach(row=>{
+    const hopLe=(!code||row.dataset.maVe.toUpperCase().includes(code))&&(!ngay||row.dataset.ngayKhoiHanh===ngay);
+    row.hidden=!hopLe;
+    if(hopLe)hienThi++;
+  });
+  $("#filter-empty")?.classList.toggle("qv-hidden",!currentTickets.length||hienThi>0);
+  $("#result-note").textContent=currentTickets.length
+    ? `${hienThi}/${currentTickets.length} vé tại văn phòng này`
+    : "Không tìm thấy vé thuộc văn phòng của bạn.";
+}
+function gioTrenVe(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
+}
+function ngayTrenVe(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
+}
+function veMaVachVe(svg, ma) {
+  if (!svg || !ma) return;
+  if (typeof JsBarcode !== "function") {
+    svg.hidden = true;
+    return;
+  }
+  try {
+    JsBarcode(svg, String(ma), { format: "CODE128", width: 2, height: 50, displayValue: false, margin: 0, lineColor: "#282038" });
+    const width = svg.getAttribute("width");
+    const height = svg.getAttribute("height");
+    if (width && height) svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svg.removeAttribute("width");
+    svg.removeAttribute("height");
+  } catch (_) {
+    svg.hidden = true;
+  }
+}
+function mauVe(t) {
+  return `
+    <div class="qv-ticket" aria-label="Vé xe khách ${escapeHtml(t.ma_ve)}">
+      <div class="qv-ticket__main">
+        <header class="qv-ticket__header">
+          <div class="qv-ticket__brand">
+            <img src="/shared/assets/logo-mark.png" alt="" />
+            <strong>GoBus</strong><span>VÉ XE KHÁCH LIÊN TỈNH</span>
+          </div>
+          <div class="qv-ticket__code"><small>MÃ VÉ</small><strong>${escapeHtml(t.ma_ve)}</strong></div>
+        </header>
+        <div class="qv-ticket__body">
+          <div class="qv-ticket__route">
+            <h2>${escapeHtml(t.ten_tuyen)}</h2>
+            <span class="qv-ticket__stamp">ĐÃ THANH TOÁN</span>
+          </div>
+          <div class="qv-ticket__stops">
+            <div><small>ĐIỂM ĐÓN</small><strong>${escapeHtml(t.ten_diem_don)}</strong><span>${gioTrenVe(t.gio_don_du_kien)} · ${ngayTrenVe(t.gio_don_du_kien)}</span></div>
+            <span class="qv-ticket__arrow" aria-hidden="true">→</span>
+            <div><small>ĐIỂM TRẢ</small><strong>${escapeHtml(t.ten_diem_tra)}</strong><span>${gioTrenVe(t.gio_den_du_kien)} · ${ngayTrenVe(t.gio_den_du_kien)} (dự kiến)</span></div>
+          </div>
+          <dl class="qv-ticket__details">
+            <div><dt>LOẠI XE</dt><dd>${escapeHtml(t.ten_loai_xe)}</dd></div>
+            <div><dt>BIỂN SỐ</dt><dd>${escapeHtml(t.bien_so || "Chưa gán xe")}</dd></div>
+            <div><dt>GIÁ VÉ</dt><dd>${dinhDangTien(t.gia)}</dd></div>
+            <div><dt>ĐÃ THANH TOÁN</dt><dd>${dinhDangTien(t.gia)}</dd></div>
+            <div><dt>CÒN LẠI</dt><dd>0 ₫</dd></div>
+            <div><dt>MÃ ĐẶT CHỖ</dt><dd>${escapeHtml(t.ma_dat_cho)}</dd></div>
+          </dl>
+          <div class="qv-ticket__passenger"><span>HÀNH KHÁCH <strong>${escapeHtml(t.ten_khach || "Khách vãng lai")}${t.sdt_khach ? ` · ${escapeHtml(t.sdt_khach)}` : ""}</strong></span><span>CHUYẾN <strong>${escapeHtml(t.ma_chuyen)}</strong></span></div>
+        </div>
+      </div>
+      <aside class="qv-ticket__stub" aria-label="Cuống vé">
+        <div class="qv-ticket__seat"><small>GHẾ</small><strong>${escapeHtml(t.so_ghe)}</strong></div>
+        <div class="qv-ticket__barcode-wrap"><svg class="qv-ticket__barcode" role="img" aria-label="Mã vạch vé ${escapeHtml(t.ma_ve)}"></svg><strong>${escapeHtml(t.ma_ve)}</strong></div>
+        <p class="qv-ticket__reminder">Vui lòng có mặt tại điểm đón trước giờ lên xe và xuất trình vé khi được yêu cầu.</p>
+      </aside>
+    </div>`;
+}
+function hienThiVeIn(danhSachVe, { maDatCho = "", tongSoVe = danhSachVe.length } = {}) {
+  const card = $("#print-card");
+  const soVeKhongDuDieuKien = tongSoVe - danhSachVe.length;
+  card.innerHTML = `
+    <div class="qv-print-summary qv-no-print">
+      <h2>${maDatCho ? `Lượt vé ${escapeHtml(maDatCho)}` : `Vé ${escapeHtml(danhSachVe[0].ma_ve)}`}</h2>
+      <p>${danhSachVe.length} vé đã thanh toán sẵn sàng in.${soVeKhongDuDieuKien ? ` Còn ${soVeKhongDuDieuKien} vé không đủ điều kiện in, không có trong bản in.` : ""}</p>
+    </div>
+    <div class="qv-ticket-stack">${danhSachVe.map(mauVe).join("")}</div>
+    <div class="qv-ticket__actions qv-no-print"><button class="qv-btn" type="button" id="print-ticket-button">In ${danhSachVe.length} vé</button></div>`;
+  card.querySelectorAll(".qv-ticket__barcode").forEach((svg, index) => veMaVachVe(svg, danhSachVe[index].ma_ve));
+  card.classList.remove("qv-hidden");
+  $("#print-ticket-button").addEventListener("click", () => window.print());
+  card.scrollIntoView({ behavior: "smooth" });
+}
+async function printTicket(id) {
+  const request=++qvPrintRequest;
+  $("#print-card").classList.add("qv-hidden");
+  const ve = await apiGet(`/quay-ve/ve/${encodeURIComponent(id)}/in`);
+  if(request!==qvPrintRequest)return;
+  hienThiVeIn([ve]);
+}
+async function printBooking(maDatCho, veTraCuu = null) {
+  const request=++qvPrintRequest;
+  $("#print-card").classList.add("qv-hidden");
+  const danhSach = veTraCuu || await apiGet(`/quay-ve/tra-cuu?${queryString({ ma_dat_cho: maDatCho })}`);
+  if(request!==qvPrintRequest)return;
+  const veCuaLuot = danhSach.filter(ve => ve.ma_dat_cho === maDatCho);
+  if (!veCuaLuot.length) throw new Error("Không tìm thấy vé thuộc lượt đặt chỗ này tại văn phòng của bạn.");
+  const veDaThanhToan = veCuaLuot.filter(ve => ve.co_the_in && ve.trang_thai === "da_thanh_toan");
+  if (!veDaThanhToan.length) throw new Error("Lượt này chưa có vé đã thanh toán để in.");
+  const duLieuIn = await Promise.all(veDaThanhToan.map(ve => apiGet(`/quay-ve/ve/${encodeURIComponent(ve.id)}/in`)));
+  if(request!==qvPrintRequest)return;
+  hienThiVeIn(duLieuIn, { maDatCho, tongSoVe: veCuaLuot.length });
+}
+async function loadResults(params){
+  ++qvPrintRequest;
+  $("#print-card").classList.add("qv-hidden");
+  const tickets=await apiGet(`/quay-ve/tra-cuu?${queryString(params)}`);
+  currentTickets=tickets;
+  $("#ticket-card").classList.remove("qv-hidden");
+  $("#result-note").textContent=tickets.length?`${tickets.length} vé tại văn phòng này`:"Không tìm thấy vé thuộc văn phòng của bạn.";
+  $("#ticket-rows").innerHTML=tickets.map(t=>`<tr data-ma-ve="${escapeHtml(t.ma_ve)}" data-ngay-khoi-hanh="${ngayKhoiHanhVN(t.gio_khoi_hanh)}">
+    <td><b>${escapeHtml(t.ma_ve)}</b><br><small>${escapeHtml(t.ma_dat_cho)}</small></td>
+    <td>${escapeHtml(t.ten_khach)}<br><small>${escapeHtml(t.sdt_khach)}</small></td>
+    <td>${escapeHtml(t.ma_chuyen)}<br><small>${dinhDangNgay(t.gio_khoi_hanh)}</small></td>
+    <td>${escapeHtml(t.so_ghe)}<br><small>${escapeHtml(t.ten_diem_don)} → ${escapeHtml(t.ten_diem_tra)}</small></td>
+    <td>${dinhDangTien(t.gia)}<br>${statusBadge(t.trang_thai,t)}<br><small>${escapeHtml(t.phuong_thuc_thanh_toan||"Chưa thanh toán")}</small></td>
+    <td><div class="qv-actions-inline">
+      ${t.co_the_in?`<button class="qv-btn secondary print-btn" type="button" data-id="${escapeHtml(t.id)}">In vé</button>`:""}
+      ${t.co_the_thanh_toan?`<button class="qv-btn cash-btn" type="button" data-booking="${escapeHtml(t.ma_dat_cho)}">Thu tiền mặt</button><button class="qv-btn secondary qr-btn" type="button" data-id="${escapeHtml(t.id)}">Tạo link QR</button>`:""}
+      ${t.co_the_huy_giu_cho?`<button class="qv-btn danger cancel-btn" type="button" data-booking="${escapeHtml(t.ma_dat_cho)}">Hủy giữ chỗ</button>`:""}
+      ${t.co_the_huy_hoan_tien?`<button class="qv-btn danger refund-btn" type="button" data-id="${escapeHtml(t.id)}">Hủy vé / yêu cầu hoàn</button>`:""}
+    </div></td>
+  </tr>`).join("")||'<tr><td colspan="6" class="qv-empty">Không tìm thấy vé.</td></tr>';
+  if(tickets.length)$("#ticket-rows").insertAdjacentHTML("beforeend",'<tr id="filter-empty" class="qv-hidden"><td colspan="6" class="qv-empty">Không có vé khớp bộ lọc.</td></tr>');
+  $("#ticket-filter-form").classList.toggle("qv-hidden",!tickets.length);
+  const choThanhToan=tickets.filter(ticket=>ticket.trang_thai==="giu_cho");
+  $("#lookup-pending-summary").classList.toggle("qv-hidden",!choThanhToan.length);
+  $("#lookup-pending-summary").innerHTML=choThanhToan.length?`
+    <strong>${choThanhToan.length} vé chờ thanh toán trong kết quả tra cứu</strong>
+    <ul>${choThanhToan.map(ticket=>`<li><b>${escapeHtml(ticket.ma_ve)}</b> · Mã đặt chỗ ${escapeHtml(ticket.ma_dat_cho)} · Ghế ${escapeHtml(ticket.so_ghe)} · ${dinhDangTien(ticket.gia)}</li>`).join("")}</ul>`:"";
+  apDungBoLoc();
+const booking=[...new Set(tickets.map(t=>t.ma_dat_cho))];
+$("#booking-actions").innerHTML=booking.length===1
+  ? `${tickets.some(t=>t.co_the_in)?'<button class="qv-btn" id="print-all-tickets" type="button">In tất cả vé đã thanh toán</button>':""}${tickets.some(t=>t.co_the_huy_giu_cho)?'<button class="qv-btn danger" id="cancel-all" type="button">Hủy toàn bộ giữ chỗ</button>':""}`
+  : "";
+const printAll=$("#print-all-tickets");
+if(printAll)printAll.onclick=()=>printBooking(booking[0],tickets).catch(e=>qvAlert(e.message,"Không in được vé","danger"));
+$("#ticket-rows").querySelectorAll(".print-btn").forEach(b=>b.onclick=()=>printTicket(b.dataset.id).catch(e=>qvAlert(e.message,"Không in được vé","danger")));
+$("#ticket-rows").querySelectorAll(".cash-btn").forEach(b=>b.onclick=async()=>{
+  if(!await qvConfirm("Bạn đã nhận đủ tiền mặt cho các vé đang giữ chỗ trong lượt này?","Xác nhận đã thanh toán","Ghi nhận thanh toán"))return;
+  try{
+    await apiPost(`/quay-ve/dat-cho/${encodeURIComponent(b.dataset.booking)}/thanh-toan`,{phuong_thuc:"tien_mat"});
+    await loadResults(params);
+    await qvAlert("Đã ghi nhận khách thanh toán xong.","Thanh toán thành công","success");
+  }catch(e){await qvAlert(e.message,"Không thể thanh toán","danger");}
+});
+$("#ticket-rows").querySelectorAll(".qr-btn").forEach(b=>b.onclick=async()=>{
+  try{
+    const r=await apiPost(`/quay-ve/ve/${encodeURIComponent(b.dataset.id)}/duong-dan-thanh-toan`,{frontend_origin:location.origin});
+    window.open(r.duong_dan_thanh_toan,"_blank","noopener");
+  }catch(e){await qvAlert(e.message,"Không tạo được link thanh toán","danger");}
+});
+$("#ticket-rows").querySelectorAll(".cancel-btn").forEach(b=>b.onclick=async()=>{
+  if(!await qvConfirm("Hủy các vé đang giữ chỗ trong lượt này?","Xác nhận hủy vé","Hủy giữ chỗ","danger"))return;
+  try{await apiPost(`/quay-ve/dat-cho/${encodeURIComponent(b.dataset.booking)}/huy`);await loadResults(params);}
+  catch(e){await qvAlert(e.message,"Không thể hủy vé","danger");}
+});
+$("#ticket-rows").querySelectorAll(".refund-btn").forEach(b=>b.onclick=async()=>{
+  if(!await qvConfirm("Hủy vé này và ghi nhận yêu cầu hoàn tiền?","Xác nhận hủy vé","Hủy và yêu cầu hoàn","danger"))return;
+  try{await apiPost(`/quay-ve/ve/${encodeURIComponent(b.dataset.id)}/huy-hoan-tien`,{});await loadResults(params);}
+  catch(e){await qvAlert(e.message,"Không thể hủy vé","danger");}
+});
+const cancelAll=$("#cancel-all");
+if(cancelAll)cancelAll.onclick=async()=>{
+  if(!await qvConfirm("Hủy toàn bộ vé giữ chỗ của lượt này?","Xác nhận hủy lượt","Hủy toàn bộ","danger"))return;
+  try{await apiPost(`/quay-ve/dat-cho/${encodeURIComponent(booking[0])}/huy`);await loadResults(params);}
+  catch(e){await qvAlert(e.message,"Không thể hủy lượt","danger");}
+};
+const refunds=await apiGet(`/quay-ve/hoan-tien?${queryString(params)}`);$("#refund-card").classList.toggle("qv-hidden",!refunds.length);$("#refund-rows").innerHTML=refunds.map(r=>`<tr><td>${escapeHtml(r.ma_ve)}<br><small>${escapeHtml(r.ma_dat_cho)}</small></td><td>${dinhDangTien(r.so_tien)}</td><td>${escapeHtml(r.ly_do.replaceAll("_"," "))}</td><td>${statusBadge(r.trang_thai)}</td><td>${dinhDangNgay(r.thoi_gian_xac_dinh)}${r.thoi_gian_hoan_xong?`<br>Hoàn tất: ${dinhDangNgay(r.thoi_gian_hoan_xong)}`:""}</td></tr>`).join("");}
+if(quayVeKiemTraQuyen()){
+  renderQuayVeNav(location.pathname);
+  qvPageHeader("Tra cứu / in vé","Tra vé thuộc văn phòng, nhận thanh toán và in vé cứng cho hành khách.");
+  const baoLoi=error=>{$("#lookup-error").textContent=error.message;$("#lookup-error").classList.remove("qv-hidden");};
+  $("#ticket-filter-form").addEventListener("submit",event=>{event.preventDefault();apDungBoLoc();});
+  $("#filter-ticket-code").addEventListener("input",apDungBoLoc);
+  $("#filter-trip-date").addEventListener("input",apDungBoLoc);
+  $("#clear-ticket-filters").addEventListener("click",()=>{
+    $("#filter-ticket-code").value="";
+    $("#filter-trip-date").value="";
+    apDungBoLoc();
+  });
+  $("#lookup-form").addEventListener("submit",async e=>{
+    e.preventDefault();
+    const code=$("#booking-code").value.trim();
+    const phone=$("#phone").value.trim();
+    if(!code&&!phone){baoLoi(new Error("Nhập mã đặt chỗ hoặc số điện thoại."));return;}
+    try{
+      $("#lookup-error").classList.add("qv-hidden");
+      $("#filter-ticket-code").value="";
+      $("#filter-trip-date").value="";
+      await loadResults(code?{ma_dat_cho:code}:{sdt:phone});
+    }catch(error){baoLoi(error);}
+  });
+  const params=new URLSearchParams(location.search);
+  const maDatChoIn=params.get("in-dat-cho");
+  const maDatChoTraCuu=params.get("ma_dat_cho");
+  const veId=params.get("in");
+  if(maDatChoIn){
+    $("#booking-code").value=maDatChoIn;
+    printBooking(maDatChoIn).catch(baoLoi);
+  }else if(maDatChoTraCuu){
+    $("#booking-code").value=maDatChoTraCuu;
+    loadResults({ma_dat_cho:maDatChoTraCuu}).catch(baoLoi);
+  }else if(veId){
+    printTicket(veId).catch(baoLoi);
+  }
+}
+    </script>
+  </body>
+</html>

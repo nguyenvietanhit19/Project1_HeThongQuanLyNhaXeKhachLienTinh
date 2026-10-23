@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import CORS_ORIGINS
+from app.jobs import quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han, quet_ve_qua_gio_chay
 from app.jobs import canh_bao_giay_to, quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han
 from app.routes.auth import router as auth_router
 from app.routes.chuyen import router as chuyen_router
@@ -18,6 +19,7 @@ from app.routes.thanh_toan import router as thanh_toan_router
 from app.routes.ve import router as ve_router
 from app.routes.websocket import router as websocket_router
 from app.routes.thong_bao import router as thong_bao_router
+from app.routes.quay_ve import router as quay_ve_router
 from app.utils.loi import CamTruyCap, GiaTriLoi, KhongDuQuyen, KhongTimThay, LoiHeThong, XungDot
 
 scheduler = BackgroundScheduler()
@@ -30,6 +32,7 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(quet_no_show.chay, "interval", minutes=1, id="quet_no_show")
     # Vé giữ chỗ có hạn quá hạn → het_han (mục 6) — chu kỳ 1 phút
     scheduler.add_job(quet_ve_het_han.chay, "interval", minutes=1, id="quet_ve_het_han")
+    scheduler.add_job(quet_ve_qua_gio_chay.chay, "interval", minutes=1, id="quet_ve_qua_gio_chay")
     # Hỏi VNPay kết quả các lượt đang chờ thanh toán (chỉ làm gì ở chế độ sandbox) — chu kỳ 1 phút, chỉ hỏi giao dịch đã đủ cũ
     scheduler.add_job(quet_giao_dich_vnpay.chay, "interval", seconds=60, id="quet_giao_dich_vnpay")
     # UC-46 (⏱, mục 10.3 & mục 12) — quét cảnh báo (7 ngày) & chuyển tồn kho (14 ngày)
@@ -119,6 +122,7 @@ app.include_router(tai_khoan_can_bo_router)
 app.include_router(phu_xe_router)
 app.include_router(gui_hang_router)
 app.include_router(thong_bao_router)
+app.include_router(quay_ve_router)
 app.include_router(chuyen_router)
 app.include_router(ve_router)
 app.include_router(thanh_toan_router)

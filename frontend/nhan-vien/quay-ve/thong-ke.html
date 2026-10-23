@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+    <title>Thống kê quầy vé</title>
+    <link rel="stylesheet" href="/shared/design-tokens.css" />
+    <link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+    <link rel="stylesheet" href="/nhan-vien/quay-ve/style.css" />
+  </head>
+  <body class="nhan-vien-shell">
+    <div class="nv-layout">
+      <aside class="nv-sidebar" id="qv-nav"></aside>
+      <div class="nv-main">
+        <header class="nv-topbar" id="qv-header"><h1>Thống kê</h1></header>
+        <main class="nv-content">
+          <div class="nv-page-intro">
+            <div class="nv-page-intro__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 3v18h18" /><path d="m7 14 4-4 3 3 6-7" />
+              </svg>
+            </div>
+            <div class="nv-page-intro__body">
+              <p class="nv-page-intro__title">Thống kê</p>
+              <p class="nv-page-intro__desc">Doanh thu, số lượng và lịch sử vé đã bán trong phạm vi văn phòng của bạn.</p>
+            </div>
+          </div>
+          <article class="nv-card qv-card">
+            <form id="filter-form" class="qv-row">
+              <div class="qv-field">
+                <label for="from-date">Ngày lập vé từ</label>
+                <input type="date" id="from-date" required />
+              </div>
+              <div class="qv-field">
+                <label for="to-date">Đến ngày</label>
+                <input type="date" id="to-date" required />
+              </div>
+              <div class="qv-field">
+                <label for="ticket-code">Mã vé</label>
+                <input id="ticket-code" type="search" maxlength="32" autocomplete="off" placeholder="Toàn bộ hoặc một phần mã vé" />
+              </div>
+              <button class="qv-btn" type="submit">Lọc kết quả</button>
+              <button class="qv-btn secondary" type="button" id="clear-filters">Xóa bộ lọc</button>
+            </form>
+            <p class="qv-muted qv-filter-note">Lọc theo ngày lập vé; chọn cùng ngày ở hai ô để xem một ngày. Mã vé áp dụng cho cả số liệu và lịch sử bên dưới.</p>
+            <div id="stats-error" class="qv-alert error qv-hidden"></div>
+          </article>
+
+          <div class="qv-grid">
+            <article class="qv-stat"><span>Vé đã bán</span><strong id="sold">—</strong></article>
+            <article class="qv-stat"><span>Doanh thu</span><strong id="revenue">—</strong></article>
+            <article class="qv-stat"><span>Chờ thanh toán</span><strong id="holds">—</strong><small>Trong khoảng ngày</small><a class="qv-stat-link" href="index.html#pending-tickets">Xem toàn bộ vé</a></article>
+            <article class="qv-stat"><span>Vé đã hủy</span><strong id="cancelled">—</strong></article>
+          </div>
+
+          <div class="qv-two-col">
+            <article class="nv-card qv-card">
+              <h2>Phương thức thanh toán</h2>
+              <div class="qv-grid qv-detail-grid">
+                <div><span class="qv-muted">Tiền mặt</span><h2 id="cash-count">—</h2></div>
+                <div><span class="qv-muted">Chuyển khoản</span><h2 id="transfer-count">—</h2></div>
+              </div>
+            </article>
+            <article class="nv-card qv-card">
+              <h2>Kênh bán</h2>
+              <div class="qv-grid qv-detail-grid">
+                <div><span class="qv-muted">Tại quầy</span><h2 id="walkin-count">—</h2></div>
+                <div><span class="qv-muted">Hotline</span><h2 id="hotline-count">—</h2></div>
+              </div>
+            </article>
+          </div>
+
+          <article class="nv-card qv-card qv-history-card">
+            <div class="qv-toolbar">
+              <div>
+                <h2>Lịch sử vé đã bán</h2>
+                <p class="qv-muted">Theo ngày lập vé; gồm vé đã thanh toán, đã lên/xuống xe hoặc khách không đến. Vé đã hủy không tính vào doanh thu.</p>
+              </div>
+              <span class="qv-badge" id="history-count">—</span>
+            </div>
+            <div id="history-error" class="qv-alert error qv-hidden" role="alert"></div>
+            <div class="qv-table-wrap">
+              <table class="qv-table qv-history-table">
+                <thead>
+                  <tr>
+                    <th>Ngày lập vé</th>
+                    <th>Vé / mã đặt chỗ</th>
+                    <th>Khách hàng</th>
+                    <th>Chuyến</th>
+                    <th>Điểm đón → trả / ghế</th>
+                    <th>Giá vé</th>
+                    <th>Thanh toán / kênh</th>
+                    <th>Trạng thái / nhân viên</th>
+                  </tr>
+                </thead>
+                <tbody id="history-rows">
+                  <tr><td colspan="8" class="qv-empty">Đang tải lịch sử vé…</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="qv-history-pagination">
+              <span class="qv-muted" id="history-page">—</span>
+              <div class="qv-actions-inline">
+                <button type="button" class="qv-btn secondary" id="history-prev" disabled>Trang trước</button>
+                <button type="button" class="qv-btn secondary" id="history-next" disabled>Trang sau</button>
+              </div>
+            </div>
+          </article>
+        </main>
+      </div>
+    </div>
+
+    <script src="api-client.js"></script>
+    <script src="auth-check.js"></script>
+    <script src="nav.js"></script>
+    <script>
+      const $ = (selector) => document.querySelector(selector);
+      let statsRequest = 0;
+      let historyRequest = 0;
+      let historyPage = 1;
+
+      function formatDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      }
+
+      async function loadStats() {
+        const requestId = ++statsRequest;
+        const errorMessage = $("#stats-error");
+        errorMessage.classList.add("qv-hidden");
+
+        try {
+          const stats = await apiGet(
+            `/quay-ve/thong-ke?${queryString({
+              tu_ngay: $("#from-date").value,
+              den_ngay: $("#to-date").value,
+              ma_ve: $("#ticket-code").value.trim(),
+            })}`
+          );
+          if (requestId !== statsRequest) return;
+          $("#sold").textContent = stats.so_ve_da_ban;
+          $("#revenue").textContent = dinhDangTien(stats.doanh_thu);
+          $("#holds").textContent = stats.so_ve_cho_thanh_toan;
+          $("#cancelled").textContent = stats.so_ve_da_huy;
+          $("#cash-count").textContent = stats.so_ve_tien_mat;
+          $("#transfer-count").textContent = stats.so_ve_chuyen_khoan;
+          $("#walkin-count").textContent = stats.so_ve_tai_quay;
+          $("#hotline-count").textContent = stats.so_ve_hotline;
+        } catch (error) {
+          if (requestId !== statsRequest) return;
+          ["#sold", "#revenue", "#holds", "#cancelled", "#cash-count", "#transfer-count", "#walkin-count", "#hotline-count"]
+            .forEach(selector => { $(selector).textContent = "—"; });
+          errorMessage.textContent = error.message;
+          errorMessage.classList.remove("qv-hidden");
+        }
+      }
+
+      const statusLabels = {
+        da_thanh_toan: "Đã thanh toán",
+        da_len_xe: "Đã lên xe",
+        da_xuong_xe: "Đã xuống xe",
+        khong_den: "Không đến",
+      };
+      const paymentLabels = { tien_mat: "Tiền mặt", chuyen_khoan: "Chuyển khoản" };
+      const channelLabels = { tai_quay: "Tại quầy", hotline: "Hotline" };
+
+      async function loadHistory(page = 1) {
+        const requestId = ++historyRequest;
+        const errorMessage = $("#history-error");
+        errorMessage.classList.add("qv-hidden");
+        $("#history-rows").innerHTML = '<tr><td colspan="8" class="qv-empty">Đang tải lịch sử vé…</td></tr>';
+        $("#history-count").textContent = "—";
+        $("#history-page").textContent = "—";
+        $("#history-prev").disabled = true;
+        $("#history-next").disabled = true;
+
+        try {
+          const result = await apiGet(`/quay-ve/lich-su-ban-ve?${queryString({
+            tu_ngay: $("#from-date").value,
+            den_ngay: $("#to-date").value,
+            trang: page,
+            ma_ve: $("#ticket-code").value.trim(),
+          })}`);
+          if (requestId !== historyRequest) return;
+          historyPage = result.trang;
+          const totalPages = Math.max(1, Math.ceil(result.tong_so / result.kich_thuoc_trang));
+          $("#history-count").textContent = `${result.tong_so} vé`;
+          $("#history-page").textContent = `Trang ${historyPage}/${totalPages}`;
+          $("#history-prev").disabled = historyPage <= 1;
+          $("#history-next").disabled = historyPage >= totalPages;
+          $("#history-rows").innerHTML = result.ve.map(ticket => `
+            <tr>
+              <td>${dinhDangNgay(ticket.ngay_tao)}</td>
+              <td><strong>${escapeHtml(ticket.ma_ve)}</strong><br><small>${escapeHtml(ticket.ma_dat_cho)}</small></td>
+              <td>${escapeHtml(ticket.ten_khach || "—")}<br><small>${escapeHtml(ticket.sdt_khach || "—")}</small></td>
+              <td>${escapeHtml(ticket.ma_chuyen)}<br><small>${dinhDangNgay(ticket.gio_khoi_hanh)}</small></td>
+              <td>${escapeHtml(ticket.ten_diem_don)} → ${escapeHtml(ticket.ten_diem_tra)}<br><small>Ghế ${escapeHtml(ticket.so_ghe)}</small></td>
+              <td><strong>${dinhDangTien(ticket.gia)}</strong></td>
+              <td>${escapeHtml(paymentLabels[ticket.phuong_thuc_thanh_toan] || "—")}<br><small>${escapeHtml(channelLabels[ticket.kenh_ban] || "Trực tuyến")} · ${dinhDangNgay(ticket.gio_thanh_toan)}</small></td>
+              <td><span class="qv-badge green">${escapeHtml(statusLabels[ticket.trang_thai] || ticket.trang_thai)}</span><br><small>${escapeHtml(ticket.nhan_vien_ban || (ticket.kenh_ban ? "Chưa ghi nhận nhân viên" : "Đặt trực tuyến"))}</small></td>
+            </tr>`).join("") || '<tr><td colspan="8" class="qv-empty">Không có vé đã bán phù hợp bộ lọc.</td></tr>';
+        } catch (error) {
+          if (requestId !== historyRequest) return;
+          $("#history-rows").innerHTML = '<tr><td colspan="8" class="qv-empty">Không tải được lịch sử vé.</td></tr>';
+          errorMessage.textContent = error.message;
+          errorMessage.classList.remove("qv-hidden");
+        }
+      }
+
+      if (quayVeKiemTraQuyen()) {
+        renderQuayVeNav(location.pathname);
+        qvPageHeader(
+          "Thống kê",
+          "Doanh thu và số lượng vé trong phạm vi văn phòng của bạn."
+        );
+
+        const today = new Date();
+        const fromDate = new Date(today);
+        fromDate.setDate(fromDate.getDate() - 29);
+        $("#from-date").value = formatDate(fromDate);
+        $("#to-date").value = formatDate(today);
+        function applyFilters() {
+          if ($("#from-date").value > $("#to-date").value) {
+            $("#stats-error").textContent = "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.";
+            $("#stats-error").classList.remove("qv-hidden");
+            return;
+          }
+          loadStats();
+          loadHistory(1);
+        }
+        $("#filter-form").addEventListener("submit", (event) => {
+          event.preventDefault();
+          applyFilters();
+        });
+        $("#clear-filters").addEventListener("click", () => {
+          $("#from-date").value = formatDate(fromDate);
+          $("#to-date").value = formatDate(today);
+          $("#ticket-code").value = "";
+          applyFilters();
+        });
+        $("#history-prev").addEventListener("click", () => loadHistory(historyPage - 1));
+        $("#history-next").addEventListener("click", () => loadHistory(historyPage + 1));
+        applyFilters();
+      }
+    </script>
+  </body>
+</html>
