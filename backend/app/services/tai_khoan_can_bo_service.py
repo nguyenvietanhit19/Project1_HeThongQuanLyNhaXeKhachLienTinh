@@ -18,10 +18,12 @@ from passlib.context import CryptContext
 
 from app.repositories import dia_diem_repository as dia_diem_repo
 from app.repositories import nguoi_dung_repository as nguoi_dung_repo
+from app.repositories import nhat_ky_admin_repository as nhat_ky_admin_repo
 from app.repositories import nhat_ky_quan_ly_nhan_su_repository as nhat_ky_repo
 from app.repositories import tai_khoan_can_bo_repository as repo
 from app.schemas.tai_khoan_can_bo_schema import VAI_TRO_CAN_VAN_PHONG
-from app.utils.loi import CamTruyCap, GiaTriLoi
+from app.services import thong_bao_khach_service as thong_bao
+from app.utils.loi import CamTruyCap, GiaTriLoi, KhongTimThay
 from app.utils.so_dien_thoai import chuan_hoa_so_dien_thoai
 
 _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -52,11 +54,13 @@ _QUYEN_XEM = {
 }
 
 
-def _ghi_nhat_ky(actor_id: str, actor_vai_tro: str, tai_khoan_moi_id: str, ghi_chu: str) -> None:
-    # Chỉ ghi khi người thao tác là quan_ly_nhan_su; quan_ly làm cùng việc thì bỏ qua.
-    if actor_vai_tro != "quan_ly_nhan_su":
-        return
-    nhat_ky_repo.ghi(actor_id, "tao_tai_khoan", "nguoi_dung", tai_khoan_moi_id, ghi_chu)
+def _ghi_nhat_ky(actor_id: str, actor_vai_tro: str, tai_khoan_id: str, ghi_chu: str, hanh_dong: str = "tao_tai_khoan") -> None:
+    # quan_ly_nhan_su -> nhat_ky_quan_ly_nhan_su; quan_ly -> nhat_ky_admin. Hai bảng tách riêng, không ghi chéo.
+    if actor_vai_tro == "quan_ly_nhan_su":
+        nhat_ky_repo.ghi(actor_id, hanh_dong, "nguoi_dung", tai_khoan_id, ghi_chu)
+    elif actor_vai_tro == "quan_ly" and hanh_dong != "tao_tai_khoan":
+        # UC-36 chưa ghi nhật ký cho quan_ly (giữ nguyên hành vi cũ); UC-37 trở đi mới ghi.
+        nhat_ky_admin_repo.ghi(actor_id, hanh_dong, "nguoi_dung", tai_khoan_id, ghi_chu)
 
 
 def _kiem_tra_quyen_tao(actor_id: str, actor_vai_tro: str, vai_tro_moi: str) -> None:
@@ -132,3 +136,77 @@ def danh_sach_tai_khoan(actor_vai_tro: str, vai_tro: str | None = None, tu_khoa:
 
 def danh_sach_van_phong() -> list[dict]:
     return repo.danh_sach_van_phong()
+
+
+# ---------------------------------------------------------
+# UC-37: khóa / mở khóa tài khoản cán bộ (KE_HOACH_UC37 bước 3)
+# ---------------------------------------------------------
+# Quy tắc bậc: gốc > (quan_ly thường = ke_toan) > quan_ly_nhan_su > 4 vai trò vận hành.
+# Chỉ khóa / mở khóa được bậc THẤP HƠN mình. Khóa và mở khóa dùng chung bảng này.
+# Khóa tuple theo người gọi: "goc" = quan_ly có la_tai_khoan_goc, "quan_ly" = quan_ly thường.
+_QUYEN_KHOA = {
+    "goc": _VAI_TRO_VAN_HANH + ("quan_ly_nhan_su", "ke_toan", "quan_ly"),
+    "quan_ly": _VAI_TRO_VAN_HANH + ("quan_ly_nhan_su",),
+    "quan_ly_nhan_su": _VAI_TRO_VAN_HANH,
+}
+
+
+def _tim_muc_tieu(actor_id: str, actor_vai_tro: str, muc_tieu_id: str, la_khoa: bool) -> dict:
+    """Tìm tài khoản mục tiêu và kiểm tra mọi luật chặn; trả bản ghi nếu hợp lệ."""
+    muc_tieu = repo.tim_tai_khoan(muc_tieu_id)
+    if not muc_tieu:
+        raise KhongTimThay("Không tìm thấy tài khoản")
+    if muc_tieu["vai_tro"] == "khach_hang":
+        raise GiaTriLoi("Không khóa / mở khóa tài khoản khách hàng ở chức năng này")
+    if muc_tieu["la_tai_khoan_goc"]:
+        raise CamTruyCap("Không thể khóa tài khoản quản lý gốc")
+    if la_khoa and str(muc_tieu["id"]) == str(actor_id):
+        raise CamTruyCap("Không thể tự khóa chính mình")
+
+    if actor_vai_tro == "quan_ly":
+        bac = "goc" if repo.la_tai_khoan_goc(actor_id) else "quan_ly"
+    else:
+        bac = actor_vai_tro
+    if muc_tieu["vai_tro"] not in _QUYEN_KHOA.get(bac, ()):
+        raise CamTruyCap("Không đủ quyền với tài khoản này")
+    return muc_tieu
+
+
+def _bao_xe_thieu_phu_xe(muc_tieu: dict, xe_thieu: list[dict]) -> None:
+    """Báo quan_ly + dieu_do_vien đang hoạt động (không báo quan_ly_nhan_su, bỏ người vừa khóa).
+    Chỉ nhắc, không tự đổi biên chế."""
+    bien_so = ", ".join(x["bien_so"] for x in xe_thieu)
+    noi_dung = (
+        f"Phụ xe {muc_tieu['ho_ten']} vừa bị khóa tài khoản; xe không còn phụ xe cố định: {bien_so}. "
+        "Vui lòng bố trí phụ xe thay thế."
+    )
+    nguoi_nhan: set[str] = set()
+    for vai_tro in ("quan_ly", "dieu_do_vien"):
+        nguoi_nhan.update(str(i) for i in nguoi_dung_repo.danh_sach_id_theo_vai_tro(vai_tro, chi_dang_hoat_dong=True))
+    nguoi_nhan.discard(str(muc_tieu["id"]))
+    for nguoi_id in nguoi_nhan:
+        thong_bao.gui(nguoi_id, noi_dung)
+
+
+def khoa_tai_khoan(actor_id: str, actor_vai_tro: str, muc_tieu_id: str, ly_do: str) -> dict:
+    muc_tieu = _tim_muc_tieu(actor_id, actor_vai_tro, muc_tieu_id, la_khoa=True)
+    if not muc_tieu["dang_hoat_dong"]:
+        raise GiaTriLoi("Tài khoản đã bị khóa")
+    repo.dat_trang_thai_hoat_dong(muc_tieu_id, False)
+    _ghi_nhat_ky(actor_id, actor_vai_tro, str(muc_tieu["id"]), ly_do.strip(), "khoa_tai_khoan")
+
+    xe_thieu: list[dict] = []
+    if muc_tieu["vai_tro"] == "phu_xe":
+        xe_thieu = repo.xe_thieu_phu_xe(muc_tieu_id)
+        if xe_thieu:
+            _bao_xe_thieu_phu_xe(muc_tieu, xe_thieu)
+    return {"id": muc_tieu["id"], "dang_hoat_dong": False, "canh_bao_xe_thieu_phu_xe": xe_thieu}
+
+
+def mo_khoa_tai_khoan(actor_id: str, actor_vai_tro: str, muc_tieu_id: str, ly_do: str) -> dict:
+    muc_tieu = _tim_muc_tieu(actor_id, actor_vai_tro, muc_tieu_id, la_khoa=False)
+    if muc_tieu["dang_hoat_dong"]:
+        raise GiaTriLoi("Tài khoản đang hoạt động")
+    repo.dat_trang_thai_hoat_dong(muc_tieu_id, True)
+    _ghi_nhat_ky(actor_id, actor_vai_tro, str(muc_tieu["id"]), ly_do.strip(), "mo_khoa_tai_khoan")
+    return {"id": muc_tieu["id"], "dang_hoat_dong": True, "canh_bao_xe_thieu_phu_xe": []}

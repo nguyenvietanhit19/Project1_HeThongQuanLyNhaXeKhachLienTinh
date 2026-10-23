@@ -35,7 +35,7 @@
           </div>
           <div class="nv-page-intro__body">
             <p class="nv-page-intro__title">Tài khoản cán bộ</p>
-            <p class="nv-page-intro__desc">Tạo tài khoản đăng nhập cho nhân viên. Email do công ty cấp; tài khoản mới có mật khẩu ban đầu mặc định, cán bộ nên đổi ngay sau khi đăng nhập. Quầy vé và gửi hàng phải chọn văn phòng phụ trách.</p>
+            <p class="nv-page-intro__desc">Tạo, khóa và mở khóa tài khoản đăng nhập cho nhân viên. Email do công ty cấp; tài khoản mới có mật khẩu ban đầu mặc định, cán bộ nên đổi ngay sau khi đăng nhập. Quầy vé và gửi hàng phải chọn văn phòng phụ trách.</p>
           </div>
           <div class="nv-page-intro__stat">
             <span class="nv-page-intro__stat-num" id="stat-so-luong">—</span>
@@ -126,6 +126,43 @@
     </div>
   </div>
 
+  <!-- Hộp thoại khóa / mở khóa (UC-37): lý do bắt buộc; sau khi khóa phụ xe có thể chuyển sang cảnh báo thiếu xe -->
+  <div class="nv-modal-overlay" id="modal-khoa" hidden>
+    <div class="nv-modal" style="max-width:520px;">
+      <form id="form-khoa" novalidate>
+        <div class="nv-modal__header">
+          <div class="nv-modal__header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>
+            </svg>
+          </div>
+          <h2 id="khoa-tieu-de">Khóa tài khoản</h2>
+        </div>
+        <div class="nv-modal__body">
+          <div id="khoa-buoc-nhap">
+            <p id="khoa-mo-ta" style="margin-top:0;"></p>
+            <label class="nv-label" for="khoa-ly-do">Lý do (bắt buộc)</label>
+            <textarea class="input-field" id="khoa-ly-do" rows="3" maxlength="500" style="resize:vertical;"></textarea>
+            <p class="nv-text-phu" style="margin-top:4px;"><span id="khoa-dem">0</span>/500 ký tự</p>
+            <div id="khoa-loi" class="text-error" hidden style="margin-top:12px;"></div>
+            <div class="nv-modal__actions">
+              <button type="button" class="nv-btn-secondary" id="khoa-huy">Hủy</button>
+              <button type="submit" class="btn-primary" id="khoa-xac-nhan">Xác nhận</button>
+            </div>
+          </div>
+          <div id="khoa-buoc-canh-bao" hidden>
+            <p style="margin-top:0;">Tài khoản đã được khóa. <strong>Các xe sau không còn phụ xe cố định nào đang hoạt động:</strong></p>
+            <ul id="khoa-ds-xe" style="margin:8px 0 12px 20px;"></ul>
+            <p class="nv-text-phu">Quản lý và điều độ viên đã nhận thông báo. Biên chế xe không tự đổi; hãy bố trí phụ xe thay thế. Nếu người này nghỉ việc hẳn, dùng chức năng cho nghỉ việc ở Hồ sơ nhân sự.</p>
+            <div class="nv-modal__actions">
+              <button type="button" class="btn-primary" id="khoa-da-hieu">Đã hiểu</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script src="/shared/so-dien-thoai.js"></script>
   <script src="/nhan-vien/quan-li-nhan-su/api-client.js"></script>
   <script src="/nhan-vien/quan-li-nhan-su/auth-check.js"></script>
@@ -208,7 +245,11 @@
           label: "Trạng thái",
           render: (r) => (r.dang_hoat_dong ? htmlPill("pill--success", "Hoạt động") : htmlPill("pill--xam", "Đã khóa")),
         },
-      ], loc);
+      ], loc, {
+        extraActions: [
+          { label: (r) => (r.dang_hoat_dong ? "Khóa" : "Mở khóa"), onClick: moModalKhoa },
+        ],
+      });
     }
 
     oTim.addEventListener("input", renderDanhSach);
@@ -341,6 +382,69 @@
       }
     });
     document.getElementById("btn-dong-ket-qua").addEventListener("click", () => { modalKetQua.hidden = true; });
+
+    // ---------- Khóa / mở khóa (UC-37) ----------
+    // Nút hiện ở mọi hàng; quyền theo bậc do backend quyết định, lỗi 403/400/404 hiện ngay trong hộp thoại.
+    const modalKhoa = document.getElementById("modal-khoa");
+    const formKhoa = document.getElementById("form-khoa");
+    const oLyDo = document.getElementById("khoa-ly-do");
+    const loiKhoa = document.getElementById("khoa-loi");
+    let tkDangXuLy = null; // tài khoản đang mở hộp thoại
+
+    function hienLoiKhoa(thongBao) {
+      loiKhoa.textContent = thongBao;
+      loiKhoa.hidden = false;
+    }
+
+    function moModalKhoa(tk) {
+      tkDangXuLy = tk;
+      const laKhoa = tk.dang_hoat_dong;
+      document.getElementById("khoa-tieu-de").textContent = laKhoa ? "Khóa tài khoản" : "Mở khóa tài khoản";
+      document.getElementById("khoa-mo-ta").innerHTML = laKhoa
+        ? `Khóa tài khoản <strong>${esc(tk.ho_ten)}</strong> (${esc(NHAN_VAI_TRO[tk.vai_tro] || tk.vai_tro)}). Người này sẽ <strong>không đăng nhập được</strong>, kể cả phiên đang mở. Dữ liệu và lịch sử vẫn được giữ.`
+        : `Mở khóa tài khoản <strong>${esc(tk.ho_ten)}</strong> (${esc(NHAN_VAI_TRO[tk.vai_tro] || tk.vai_tro)}). Người này sẽ đăng nhập lại được bằng mật khẩu hiện có.`;
+      document.getElementById("khoa-xac-nhan").textContent = laKhoa ? "Khóa tài khoản" : "Mở khóa";
+      oLyDo.value = "";
+      document.getElementById("khoa-dem").textContent = "0";
+      loiKhoa.hidden = true;
+      document.getElementById("khoa-buoc-nhap").hidden = false;
+      document.getElementById("khoa-buoc-canh-bao").hidden = true;
+      modalKhoa.hidden = false;
+      oLyDo.focus();
+    }
+
+    oLyDo.addEventListener("input", () => { document.getElementById("khoa-dem").textContent = oLyDo.value.length; });
+    document.getElementById("khoa-huy").addEventListener("click", () => { modalKhoa.hidden = true; });
+    document.getElementById("khoa-da-hieu").addEventListener("click", () => { modalKhoa.hidden = true; });
+
+    formKhoa.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loiKhoa.hidden = true;
+      const lyDo = oLyDo.value.trim();
+      if (!lyDo) return hienLoiKhoa("Vui lòng nhập lý do.");
+      if (lyDo.length > 500) return hienLoiKhoa("Lý do tối đa 500 ký tự.");
+
+      const nut = document.getElementById("khoa-xac-nhan");
+      nut.classList.add("is-loading");
+      try {
+        const duoi = tkDangXuLy.dang_hoat_dong ? "khoa" : "mo-khoa";
+        const kq = await apiPost(`/quan-ly-nhan-su/tai-khoan/${tkDangXuLy.id}/${duoi}`, { ly_do: lyDo });
+        taiDanhSach();
+        const xeThieu = kq.canh_bao_xe_thieu_phu_xe || [];
+        if (xeThieu.length) {
+          document.getElementById("khoa-ds-xe").innerHTML = xeThieu.map((x) => `<li><strong>${esc(x.bien_so)}</strong></li>`).join("");
+          document.getElementById("khoa-tieu-de").textContent = "Cảnh báo thiếu phụ xe";
+          document.getElementById("khoa-buoc-nhap").hidden = true;
+          document.getElementById("khoa-buoc-canh-bao").hidden = false;
+        } else {
+          modalKhoa.hidden = true;
+        }
+      } catch (err) {
+        hienLoiKhoa(err.message);
+      } finally {
+        nut.classList.remove("is-loading");
+      }
+    });
   </script>
 </body>
 </html>

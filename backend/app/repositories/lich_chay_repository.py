@@ -172,3 +172,27 @@ def tim_trung(tuyen_id: str, chieu: str, gio_khoi_hanh, loai_xe_id: str, tru_id:
             return _thanh_dict(cur, cur.fetchone())
     finally:
         release_connection(conn)
+
+
+def cac_cap_dang_ap_dung_kem_ngay_chuyen_cuoi() -> list[dict]:
+    """Mỗi cặp lịch đang áp dụng (cả 2 chiều) kèm ngày (giờ Việt Nam) của chuyến đi cuối cùng đã sinh — NULL nếu chưa
+    sinh chuyến nào. Dùng nhắc quản lý sinh thêm chuyến trước khi hết (jobs/nhac_quan_ly)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT x.cap_id, x.tuyen_id, t.ma AS ma_tuyen, t.ten AS ten_tuyen,
+                       x.gio_khoi_hanh AS gio_di, n.gio_khoi_hanh AS gio_ve,
+                       (SELECT MAX((c.gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date)
+                          FROM chuyen_xe c WHERE c.lich_chay_dinh_ky_id = x.id) AS ngay_chuyen_cuoi
+                FROM lich_chay_dinh_ky x
+                JOIN lich_chay_dinh_ky n ON n.cap_id = x.cap_id AND n.chieu = 'nguoc'
+                JOIN tuyen t ON t.id = x.tuyen_id
+                WHERE x.chieu = 'xuoi' AND x.dang_ap_dung AND n.dang_ap_dung
+                ORDER BY t.ten, x.gio_khoi_hanh
+                """
+            )
+            return _thanh_list(cur, cur.fetchall())
+    finally:
+        release_connection(conn)

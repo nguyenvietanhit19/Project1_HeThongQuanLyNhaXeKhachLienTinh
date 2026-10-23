@@ -13,5 +13,5 @@ from app.services import thong_bao_khach_service
 @pytest.fixture(autouse=True)
 def da_gui_thong_bao(monkeypatch):
     da_gui: list[tuple] = []
-    monkeypatch.setattr(thong_bao_khach_service, "gui", lambda nguoi_nhan_id, noi_dung, ve_id=None: da_gui.append((nguoi_nhan_id, noi_dung, ve_id)))
+    monkeypatch.setattr(thong_bao_khach_service, "gui", lambda nguoi_nhan_id, noi_dung, ve_id=None, duong_dan=None: da_gui.append((nguoi_nhan_id, noi_dung, ve_id)))
     return da_gui

@@ -12,6 +12,7 @@ services/dat_ve_service.py.
 
 import datetime
 
+from app.config import HAN_THANH_TOAN_NGAY_PHUT
 from app.db import get_connection, release_connection
 from app.repositories import ma_repository
 from app.utils import ma_tu_sinh
@@ -146,7 +147,7 @@ def tao_ve_quay(
     """Tạo vé qua quầy, dùng chung transaction khóa/kiểm tra ghế.
 
     Tiền mặt tại quầy được ghi nhận cùng transaction tạo vé. Vé hotline chưa thu tiền
-    giữ chỗ tới giờ khởi hành; VNPay hoàn tất qua callback riêng cho từng mã vé.
+    giữ chỗ tới giờ khởi hành; đơn QR giữ chỗ 5 phút và hoàn tất theo cả mã đặt chỗ.
     """
     if not danh_sach_ghe or len(set(danh_sach_ghe)) != len(danh_sach_ghe):
         raise GiaTriLoi("Danh sách ghế không hợp lệ")
@@ -211,7 +212,7 @@ def tao_ve_quay(
 
             ve_tao = []
             da_thanh_toan = phuong_thuc == "tien_mat" and kenh_ban == "tai_quay"
-            loai_hinh = "thanh_toan_tai_quay"
+            loai_hinh = "thanh_toan_ngay" if phuong_thuc == "chuyen_khoan" else "thanh_toan_tai_quay"
             for so_ghe in danh_sach_ghe:
                 cur.execute(
                     """INSERT INTO ve (
@@ -220,13 +221,15 @@ def tao_ve_quay(
                            ten_khach_vang_lai, sdt_khach_vang_lai, nhan_vien_ban_id,
                            nhan_vien_thu_id, kenh_ban, phuong_thuc_thanh_toan, gio_thanh_toan
                        ) VALUES (
-                           %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL,
+                           %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                           CASE WHEN %s THEN LEAST(now() + make_interval(mins => %s), %s) ELSE NULL END,
                            %s, %s, %s, %s, %s, %s, CASE WHEN %s THEN now() ELSE NULL END
-                       ) RETURNING id, ma_ve, ma_dat_cho, so_ghe, gia, trang_thai, ten_khach_vang_lai""",
+                       ) RETURNING id, ma_ve, ma_dat_cho, so_ghe, gia, trang_thai, han_giu_cho_den, ten_khach_vang_lai""",
                     (
                         ma_tu_sinh.ma_ve(ma_repository.so_tiep_theo(cur, "ve")), chuyen_id, so_ghe,
                         diem_don_id, diem_tra_id, khach_hang_id, gia_theo_ghe[so_ghe], ma_dat_cho, loai_hinh,
-                        "da_thanh_toan" if da_thanh_toan else "giu_cho", ten_khach, sdt_khach,
+                        "da_thanh_toan" if da_thanh_toan else "giu_cho", phuong_thuc == "chuyen_khoan",
+                        HAN_THANH_TOAN_NGAY_PHUT, chuyen[1], ten_khach, sdt_khach,
                         nhan_vien_id, nhan_vien_id if da_thanh_toan else None, kenh_ban,
                         "tien_mat" if da_thanh_toan else None, da_thanh_toan,
                     ),
@@ -303,7 +306,7 @@ def lay_dat_cho(ma_dat_cho: str, khach_hang_id: str) -> list[dict]:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT v.id, v.so_ghe, v.gia, v.trang_thai, v.loai_hinh_thanh_toan, v.la_ve_dat_coc,
+                SELECT v.id, v.so_ghe, v.gia, v.trang_thai, v.loai_hinh_thanh_toan, v.la_ve_dat_coc, v.kenh_ban,
                        v.han_giu_cho_den, v.gio_bat_dau_dem_han, v.ma_dat_cho, v.chuyen_id, v.diem_don_id, v.diem_tra_id,
                        c.ma AS ma_chuyen, c.gio_khoi_hanh, c.tuyen_id, c.chieu, c.trang_thai AS trang_thai_chuyen,
                        lx.ten AS ten_loai_xe,
@@ -367,6 +370,7 @@ def tim_ma_dat_cho_con_giu(khach_hang_id: str) -> list[str]:
                 """
                 SELECT ma_dat_cho FROM ve
                 WHERE khach_hang_id = %s AND trang_thai = 'giu_cho'
+                  AND kenh_ban IS NULL
                   AND han_giu_cho_den IS NOT NULL AND han_giu_cho_den > now()
                 GROUP BY ma_dat_cho ORDER BY MIN(han_giu_cho_den)
                 """,

@@ -56,3 +56,5 @@ VNPAY_HASH_SECRET = os.getenv("VNPAY_HASH_SECRET") or hashlib.sha256(((JWT_SECRE
 
 # Hồ sơ nhân sự vận hành (UC-49, NGHIEP_VU.md mục 8.9) — chưa có bảng cấu hình tham số nên để hằng số (DATABASE.md mục 9)
 NGUONG_CANH_BAO_GIAY_TO_NGAY = 30  # nhắc khi giấy tờ (bằng lái, giấy khám sức khỏe) còn <= ngần này ngày tới hạn
+NGUONG_NHAC_SINH_CHUYEN_NGAY = 7  # nhắc quản lý sinh thêm chuyến khi chuyến đã sinh của cặp lịch còn <= ngần này ngày (jobs/nhac_quan_ly)
+NGUONG_NHAC_BO_GIA_NGAY = 14  # nhắc quản lý tạo bộ giá nối tiếp khi bộ giá cuối còn <= ngần này ngày (khớp mức "Sắp hết hạn" trang Giá vé)

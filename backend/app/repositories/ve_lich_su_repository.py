@@ -10,7 +10,7 @@ from app.db import get_connection, release_connection
 SO_LUOT_TOI_DA = 100  # lấy tối đa chừng này lượt đặt gần nhất
 
 _CAC_COT_VA_BANG = """
-    SELECT v.id, v.ma_ve, v.so_ghe, v.gia, v.trang_thai, v.loai_hinh_thanh_toan, v.la_ve_dat_coc,
+    SELECT v.id, v.ma_ve, v.so_ghe, v.gia, v.trang_thai, v.loai_hinh_thanh_toan, v.la_ve_dat_coc, v.kenh_ban,
            v.han_giu_cho_den, v.gio_bat_dau_dem_han, v.gio_thanh_toan, v.ma_dat_cho, v.ngay_tao,
            v.chuyen_id, c.ma AS ma_chuyen, c.gio_khoi_hanh, c.trang_thai AS trang_thai_chuyen,
            lx.ten AS ten_loai_xe, tu.ten AS ten_tuyen, x.bien_so,

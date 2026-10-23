@@ -78,7 +78,7 @@ project-root/
 │   │   │
 │   │   ├── services/                      # quy tắc nghiệp vụ + service hạ tầng
 │   │   │   ├── mat_khau_service.py            # đăng ký/đăng nhập/quên mật khẩu — kế thừa bản v1
-│   │   │   ├── tai_khoan_can_bo_service.py    # tạo/khóa/mở khóa tài khoản cán bộ (UC-36/37) — kiểm tra quyền actor vs vai trò mục tiêu, chặn khóa quan_ly gốc (mục 8.9 NGHIEP_VU.md)
+│   │   │   ├── tai_khoan_can_bo_service.py    # tạo/khóa/mở khóa tài khoản cán bộ (UC-36/37) — kiểm tra quyền actor vs vai trò mục tiêu theo quy tắc bậc (gốc > quan_ly thường = ke_toan > quan_ly_nhan_su > vận hành; chỉ khóa bậc thấp hơn), chặn khóa quan_ly gốc và tự khóa mình, lý do bắt buộc; nhật ký quan_ly -> nhat_ky_admin, quan_ly_nhan_su -> nhat_ky_quan_ly_nhan_su (mục 8.9 NGHIEP_VU.md)
 │   │   │   ├── email_service.py               # gửi mail OTP qua Brevo API (HTTPS) — hạ tầng
 │   │   │   ├── tim_kiem_chuyen_service.py     # tìm theo điểm đi/đến (mục 3.4 bước 1-2); chọn giá theo bộ giá áp dụng cho ngày khởi hành của từng chuyến
 │   │   │   ├── gia_ve_service.py              # giá vé theo bộ (UC-33): bộ đủ mọi chặng, có ngày bắt đầu + kết thúc, bộ mới nối liền bộ cuối, khóa bộ đã sinh chuyến (bộ cuối vẫn gia hạn được), cảnh báo giá bất thường, bảng giá của 1 chuyến, kiểm tra giá phủ từng ngày khi sinh chuyến
@@ -104,7 +104,7 @@ project-root/
 │   │   │   ├── phu_xe.py                      # giao diện di động: soát vé, xác nhận trạng thái chuyến
 │   │   │   ├── dieu_do.py                     # điều độ viên: gán xe cho chuyến (UC-44), đổi xe, xử lý sự cố/nhân sự
 │   │   │   ├── ke_toan.py                     # kế toán: danh sách hoàn tiền chờ xử lý, đánh dấu đã chuyển khoản thủ công (mục 8.8 NGHIEP_VU.md) — toàn hệ thống
-│   │   │   ├── tai_khoan_can_bo.py            # tạo/khóa/mở khóa tài khoản cán bộ (UC-36/37) — dùng chung cho quan_ly và quan_ly_nhan_su (mục 8.9 NGHIEP_VU.md), Service phân quyền theo vai_tro + la_tai_khoan_goc của actor lẫn tài khoản mục tiêu
+│   │   │   ├── tai_khoan_can_bo.py            # tạo/khóa/mở khóa tài khoản cán bộ (UC-36/37) — dùng chung cho quan_ly và quan_ly_nhan_su (mục 8.9 NGHIEP_VU.md), Service phân quyền theo vai_tro + la_tai_khoan_goc của actor lẫn tài khoản mục tiêu (quy tắc bậc; khóa/mở khóa dùng POST .../khoa và .../mo-khoa)
 │   │   │   ├── quan_ly.py                     # quản lý: danh mục, lịch chạy định kỳ (UC-18), sinh chuyến (UC-47), quản lý chuyến (UC-48), cấu hình, thống kê
 │   │   │   └── websocket.py                   # điểm kết nối real-time
 │   │   │
@@ -186,6 +186,7 @@ project-root/
 | Cảnh báo `quan_ly` khi chuyến `dang_hoan` quá lâu | Chuyến `chuyen_xe.dang_hoan = true` (`NGHIEP_VU.md` mục 3.3) chưa tìm được xe thay thế quá ngưỡng cấu hình (mặc định 6 tiếng) | **Job định kỳ** — chỉ gửi thông báo/nhắc `quan_ly` hỗ trợ tìm thêm nguồn xe, **không** tự động đổi trạng thái hay hủy chuyến gì cả (chuyến không bao giờ bị hủy vì lý do này) |
 | Tự động hoàn 100% cho vé khi `gap_su_co` do lỗi nhà xe kéo dài ≥3 tiếng (UC-19) | Chuyến `gap_su_co` với `loai_su_co = 'loi_nha_xe'` chưa quay lại `dang_chay` sau ngưỡng cấu hình (mặc định 3 tiếng kể từ lúc báo sự cố) | **Job định kỳ** — chỉ tạo `lich_su_hoan_tien` cho các vé `da_thanh_toan` chưa có dòng nào (tránh hoàn trùng), **không đổi `ve.trang_thai`** — vé vẫn tiếp tục được phục vụ bình thường, chỉ khác là miễn phí |
 | Cảnh báo `dieu_do_vien` khi chuyến sắp chạy mà chưa gán xe (UC-44) | Chuyến `chua_khoi_hanh` có `xe_id IS NULL` còn ≤ ngưỡng cấu hình (mặc định 48 tiếng) tới `gio_khoi_hanh` (`NGHIEP_VU.md` mục 3.5) | **Job định kỳ** — chỉ gửi thông báo/nhắc, **không** tự động gán xe hay đổi trạng thái gì cả |
+| Nhắc `quan_ly` sinh thêm chuyến / tạo bộ giá nối tiếp (`jobs/nhac_quan_ly.py`) | Cặp lịch đang áp dụng còn chuyến ≤ 7 ngày (hoặc hết/chưa sinh), bộ giá cuối kết thúc trong ≤ 14 ngày (hoặc hết/chưa có) | **Job định kỳ** (07:00 giờ Việt Nam mỗi ngày, và 1 lần ngay sau khi khởi động vì dịch vụ có thể ngủ/khởi động lại) — chỉ gửi thông báo kèm đường dẫn, mỗi tình trạng một lần, **không** tự sinh chuyến hay tạo giá |
 | Tự động chuyển "đang hoãn" khi tới giờ chạy mà chưa gán được xe (UC-44) | Chuyến `chua_khoi_hanh` có `xe_id IS NULL` và `gio_khoi_hanh <= now()` (`NGHIEP_VU.md` mục 3.3) | **Job định kỳ** — bật `dang_hoan = true`, dời `gio_khoi_hanh` tạm thời, báo khách qua WebSocket. Dùng chung đúng cơ chế "đang hoãn" của UC-20 (kể cả cảnh báo 6 tiếng, quyền hủy nhận hoàn UC-41) — chỉ khác lúc điều độ viên tìm được xe thì gán thẳng `xe_id`, không qua `xe_thuc_te_id` |
 | Cảnh báo (7 ngày) rồi chuyển "hàng tồn" (14 ngày) khi hàng chờ quá lâu tại điểm nhận (UC-25) | `don_hang.trang_thai = 'cho_lay'` đã đủ 7 hoặc 14 ngày kể từ `thoi_gian_den_diem_nhan` (`NGHIEP_VU.md` mục 10.3.1) | **Job định kỳ** — mốc 7 ngày chỉ bật `co_canh_bao_cho_lau = true` (nhắc nhân viên gửi hàng xử lý, UC-25); mốc 14 ngày chuyển `trang_thai = 'qua_han_luu_kho'`. Cả 2 mốc đều **không tự hủy/thanh lý** gì cả, chỉ nhắc con người xử lý |
 

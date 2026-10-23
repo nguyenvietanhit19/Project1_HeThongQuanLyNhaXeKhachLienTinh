@@ -19,6 +19,7 @@ from app.repositories import don_hang_repository as don_hang_repo
 from app.repositories import nguoi_dung_repository as nguoi_dung_repo
 from app.repositories import thong_bao_repository as thong_bao_repo
 from app.schemas.don_hang_schema import TRUONG_LIEN_HE, HuyDonRequest, SuaThongTinLienHeRequest, TaoDonHangRequest
+from app.schemas.tai_khoan_can_bo_schema import VAI_TRO_CAN_VAN_PHONG
 from app.services import chuyen_xe_service
 from app.services.chuyen_xe_service import XeDangDiChuyen, diem_hien_tai, kiem_tra_ben_da_mo, lay_chuyen_cua_phu_xe
 from app.services.websocket_manager import broadcast_sync
@@ -82,9 +83,11 @@ def lay_danh_sach_loai_hang() -> list[dict]:
 
 
 def gan_van_phong_can_bo(nguoi_dung_id: str, van_phong_id: str) -> None:
-    """Chỉ gán hồ sơ văn phòng cho các vai trò nhân viên có phạm vi theo điểm."""
+    """Gán/đổi văn phòng cho quầy vé, gửi hàng (dùng chung quy tắc UC-36: VAI_TRO_CAN_VAN_PHONG).
+    Tạm giữ làm đường sửa văn phòng tới khi có nhánh "Đổi văn phòng" của UC-36 rồi xóa
+    (UC36_THAY_THE_GAN_VAN_PHONG_VA_DOI_VAN_PHONG.md mục 3.5)."""
     can_bo = nguoi_dung_repo.tim_theo_id(nguoi_dung_id)
-    if not can_bo or can_bo["vai_tro"] not in ("nhan_vien_quay_ve", "nhan_vien_gui_hang", "dieu_do_vien"):
+    if not can_bo or can_bo["vai_tro"] not in VAI_TRO_CAN_VAN_PHONG:
         raise GiaTriLoi("Tài khoản không thuộc nhóm cán bộ cần gán văn phòng")
     van_phong = dia_diem_repo.tim_diem_don_tra_theo_id(van_phong_id)
     if not van_phong or van_phong.get("loai") != "van_phong":
@@ -106,7 +109,7 @@ def lay_van_phong(van_phong_id: str) -> dict:
 
 def lay_diem_nhan_kha_dung(van_phong_gui_id: str) -> list[dict]:
     """UC-23 bước 2 / mục 10.4.1 bước 3: danh sách 2 tầng khu_vực → văn phòng nhận,
-    chỉ gồm văn phòng có ít nhất 1 tuyến chung với văn phòng gửi."""
+    chỉ gồm văn phòng ở khu vực khác văn phòng gửi và có ít nhất 1 tuyến chung với nó."""
     nhom: dict[str, dict] = {}
     for vp in don_hang_repo.danh_sach_diem_nhan_kha_dung(van_phong_gui_id):
         khu_vuc_id = str(vp["khu_vuc_id"])
@@ -126,6 +129,15 @@ def lay_tuyen_phu_hop(diem_gui_id: str, diem_nhan_id: str) -> list[dict]:
     return don_hang_repo.tim_cac_tuyen_qua_hai_diem(diem_gui_id, diem_nhan_id)
 
 
+def tim_don_theo_khoa_chong_trung(nhan_vien_id: str, khoa_chong_trung: str) -> dict:
+    """Đơn mà chính nhân viên này đã tạo bằng khóa chống trùng — FE hỏi sau khi tải lại trang
+    giữa lúc chờ phản hồi tạo đơn, để biết đơn đã vào hệ thống chưa (không tạo mới)."""
+    don = don_hang_repo.tim_theo_khoa_chong_trung(nhan_vien_id, khoa_chong_trung)
+    if not don:
+        raise KhongTimThay("Chưa có đơn nào được tạo với khóa này")
+    return don
+
+
 def tao_don_hang(
     du_lieu: TaoDonHangRequest,
     nhan_vien_id: str,
@@ -135,7 +147,7 @@ def tao_don_hang(
     """UC-23: Nhận hàng tại quầy, tạo đơn `cho_van_chuyen` gắn tuyến (chưa gắn chuyến).
 
     - Chặn hàng cấm (bước 5).
-    - Điểm gửi và nhận bắt buộc là văn phòng, khác nhau (mục 10.1).
+    - Điểm gửi và nhận bắt buộc là văn phòng, khác nhau (mục 10.1), và ở 2 khu vực khác nhau.
     - Tuyến phải đi qua cả 2 điểm (tuyến 2 chiều).
     - Trả trước phải xác nhận đã thu; COD không được ghi nhận thu ở điểm gửi.
     """
@@ -169,6 +181,9 @@ def tao_don_hang(
 
     if str(du_lieu.diem_gui_id) == str(du_lieu.diem_nhan_id):
         raise GiaTriLoi("Điểm nhận không được trùng với điểm gửi")
+    # Chỉ gửi tới văn phòng ở khu vực khác (NGHIEP_VU_GUI_HANG.md mục 1, nguyên tắc 3b)
+    if str(diem_gui["khu_vuc_id"]) == str(diem_nhan["khu_vuc_id"]):
+        raise GiaTriLoi("Chỉ nhận gửi tới văn phòng ở khu vực khác với văn phòng gửi")
 
     if du_lieu.phuong_thuc_thanh_toan == "nguoi_gui_tra_truoc" and not du_lieu.xac_nhan_da_thu:
         raise GiaTriLoi("Cần xác nhận đã thu cước từ người gửi")

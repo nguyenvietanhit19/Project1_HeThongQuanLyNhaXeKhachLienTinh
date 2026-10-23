@@ -4,8 +4,58 @@ Tách khỏi ve_lock_repository.py (chỉ lo khóa ghế/chống trùng) nhưng 
 Không chứa quy tắc nghiệp vụ — việc ai trả vé nào, cọc bao nhiêu thuộc services/dat_ve_service.py.
 """
 
+import datetime
+
 from app.db import get_connection, release_connection
 from app.repositories.ve_lock_repository import _DANG_GIU_CHO, _thanh_list
+from app.utils.loi import GiaTriLoi
+
+
+def bat_dau_thanh_toan_qr_quay(ma_dat_cho: str, van_phong_id: str, ma_giao_dich: str,
+                              han_phut: int) -> dict:
+    """Khóa toàn bộ lượt tại quầy và gán một mã VNPay, một hạn thanh toán cho mọi ghế."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT v.trang_thai, v.gia, v.han_giu_cho_den, v.ma_tham_chieu_vnpay,
+                          v.kenh_ban, c.gio_khoi_hanh
+                   FROM ve v JOIN chuyen_xe c ON c.id = v.chuyen_id
+                   WHERE v.ma_dat_cho = %s AND v.diem_don_id = %s
+                   ORDER BY v.id FOR UPDATE OF v""",
+                (ma_dat_cho, van_phong_id),
+            )
+            ve = _thanh_list(cur, cur.fetchall())
+            now = datetime.datetime.now(datetime.timezone.utc)
+            if not ve or any(v["kenh_ban"] not in ("tai_quay", "hotline") for v in ve):
+                raise GiaTriLoi("Không tìm thấy lượt đặt tại văn phòng này")
+            if any(v["trang_thai"] != "giu_cho" or v["gio_khoi_hanh"] <= now or
+                   (v["han_giu_cho_den"] is not None and v["han_giu_cho_den"] <= now) for v in ve):
+                raise GiaTriLoi("Lượt đặt đã thanh toán, hết hạn hoặc không còn mở bán")
+            tham_chieu = {v["ma_tham_chieu_vnpay"] for v in ve if v["ma_tham_chieu_vnpay"]}
+            if len(tham_chieu) > 1 or any(ref.startswith("VE") for ref in tham_chieu):
+                raise GiaTriLoi("Lượt đặt đã có giao dịch thanh toán riêng; vui lòng tra cứu lại")
+            ref = next(iter(tham_chieu), ma_giao_dich)
+            han = min([now + datetime.timedelta(minutes=han_phut)] +
+                      [v["han_giu_cho_den"] for v in ve if v["han_giu_cho_den"] is not None] +
+                      [v["gio_khoi_hanh"] for v in ve])
+            cur.execute(
+                """UPDATE ve SET loai_hinh_thanh_toan = 'thanh_toan_ngay',
+                          han_giu_cho_den = %s, ma_tham_chieu_vnpay = %s,
+                          gio_bat_dau_dem_han = COALESCE(gio_bat_dau_dem_han, now())
+                   WHERE ma_dat_cho = %s AND diem_don_id = %s AND trang_thai = 'giu_cho'""",
+                (han, ref, ma_dat_cho, van_phong_id),
+            )
+            if cur.rowcount != len(ve):
+                raise GiaTriLoi("Lượt đặt vừa thay đổi, vui lòng tải lại")
+        conn.commit()
+        return {"ma_giao_dich": ref, "han_thanh_toan": han,
+                "tong_tien": sum(int(v["gia"]) for v in ve), "so_ve": len(ve)}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
 
 
 def bat_dau_thanh_toan_ngay(
@@ -75,7 +125,8 @@ def lay_ve_cua_dat_cho(ma_dat_cho: str) -> list[dict]:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, ma_ve, so_ghe, gia, trang_thai, loai_hinh_thanh_toan, han_giu_cho_den, khach_hang_id
+                SELECT id, ma_ve, so_ghe, gia, trang_thai, loai_hinh_thanh_toan, han_giu_cho_den,
+                       khach_hang_id, kenh_ban, ma_tham_chieu_vnpay
                 FROM ve WHERE ma_dat_cho = %s ORDER BY so_ghe
                 """,
                 (ma_dat_cho,),
@@ -85,7 +136,8 @@ def lay_ve_cua_dat_cho(ma_dat_cho: str) -> list[dict]:
         release_connection(conn)
 
 
-def ghi_nhan_thanh_toan_ngay(ma_dat_cho: str, ma_giao_dich_cong_thanh_toan: str) -> int:
+def ghi_nhan_thanh_toan_ngay(ma_dat_cho: str, ma_giao_dich_cong_thanh_toan: str,
+                             ma_tham_chieu: str | None = None, so_ve_ky_vong: int | None = None) -> int:
     """IPN báo thành công: các vé trả VNPay còn trong hạn → `da_thanh_toan` (`chuyen_khoan`, lưu mã giao dịch của cổng);
     các vé trả tại quầy đang chờ phần cọc được chốt luôn (bỏ hạn). Trả số vé đã thanh toán (0 = quá hạn/không còn vé nào)."""
     conn = get_connection()
@@ -94,15 +146,20 @@ def ghi_nhan_thanh_toan_ngay(ma_dat_cho: str, ma_giao_dich_cong_thanh_toan: str)
             cur.execute(
                 """
                 UPDATE ve SET trang_thai = 'da_thanh_toan', phuong_thuc_thanh_toan = 'chuyen_khoan',
-                       ma_giao_dich_cong_thanh_toan = %s, gio_thanh_toan = now(), han_giu_cho_den = NULL
+                       ma_giao_dich_cong_thanh_toan = %s, gio_thanh_toan = now(), han_giu_cho_den = NULL,
+                       nhan_vien_thu_id = COALESCE(nhan_vien_thu_id, nhan_vien_ban_id)
                 WHERE ma_dat_cho = %s AND trang_thai = 'giu_cho' AND loai_hinh_thanh_toan = 'thanh_toan_ngay'
+                  AND (%s IS NULL OR ma_tham_chieu_vnpay = %s)
                   AND han_giu_cho_den IS NOT NULL AND han_giu_cho_den > now()
                   AND EXISTS (SELECT 1 FROM chuyen_xe c
                               WHERE c.id = ve.chuyen_id AND c.gio_khoi_hanh > now())
                 """,
-                (ma_giao_dich_cong_thanh_toan, ma_dat_cho),
+                (ma_giao_dich_cong_thanh_toan, ma_dat_cho, ma_tham_chieu, ma_tham_chieu),
             )
             so_da_tra = cur.rowcount
+            if so_ve_ky_vong is not None and so_da_tra != so_ve_ky_vong:
+                conn.rollback()
+                return 0
             if so_da_tra:
                 cur.execute(
                     """
@@ -120,14 +177,15 @@ def ghi_nhan_thanh_toan_ngay(ma_dat_cho: str, ma_giao_dich_cong_thanh_toan: str)
         release_connection(conn)
 
 
-def huy_thanh_toan_ngay(ma_dat_cho: str) -> int:
+def huy_thanh_toan_ngay(ma_dat_cho: str, ma_tham_chieu: str | None = None) -> int:
     """IPN báo thất bại/khách hủy: cả lượt đặt đang giữ chỗ → `het_han`, ghế mở lại (mục 3.4, mục 6)."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE ve SET trang_thai = 'het_han' WHERE ma_dat_cho = %s AND trang_thai = 'giu_cho'",
-                (ma_dat_cho,),
+                """UPDATE ve SET trang_thai = 'het_han' WHERE ma_dat_cho = %s AND trang_thai = 'giu_cho'
+                   AND (%s IS NULL OR ma_tham_chieu_vnpay = %s)""",
+                (ma_dat_cho, ma_tham_chieu, ma_tham_chieu),
             )
             so_ve = cur.rowcount
         conn.commit()

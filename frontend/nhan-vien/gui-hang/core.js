@@ -25,6 +25,7 @@ const SO_DONG_MOI_TRANG = 10;
 const state = {
   tab: null,
   vaiTro: localStorage.getItem("vai_tro"),
+  nguoiDungId: null,       // id tài khoản đang đăng nhập (từ /auth/me) — gắn với đơn đang tạo dở trong sessionStorage
   vanPhong: null,          // văn phòng của nhân viên {id, ten, dia_chi}
   vanPhongXemId: "",       // quản lý: văn phòng đang xem ("" = toàn hệ thống)
   loaiHang: [],

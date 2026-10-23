@@ -17,7 +17,7 @@ from typing import Annotated, Literal
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, Header, Query, status
+from fastapi import APIRouter, Depends, Header, Path, Query, status
 
 from app.middleware.auth_middleware import NguoiDungHienTai, yeu_cau_vai_tro
 from app.schemas.don_hang_schema import (
@@ -116,6 +116,17 @@ def tao_don_hang(
     return gui_hang_service.tao_don_hang(
         du_lieu, nhan_vien_id=nguoi_dung.id, diem_gui_id=diem_gui_id, khoa_chong_trung=idempotency_key,
     )
+
+
+@router.get("/tao-don/khoa/{khoa}", response_model=DonHangResponse)
+def tim_don_theo_khoa_chong_trung(
+    nguoi_dung: QuyenThaoTacQuay,
+    khoa: Annotated[str, Path(min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")],
+):
+    """Đơn đã tạo bằng `Idempotency-Key` này (chỉ đơn của chính nhân viên); 404 nếu chưa tạo.
+    FE gọi sau khi tải lại trang giữa lúc chờ phản hồi tạo đơn."""
+    _pham_vi_van_phong(nguoi_dung)
+    return gui_hang_service.tim_don_theo_khoa_chong_trung(nguoi_dung.id, khoa)
 
 
 @router.post("/don-hang/{don_hang_id}/huy", response_model=DonHangResponse)

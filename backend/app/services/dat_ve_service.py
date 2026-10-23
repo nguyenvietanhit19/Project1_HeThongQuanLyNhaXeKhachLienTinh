@@ -154,6 +154,8 @@ def _dung_dat_cho(cac_ve: list[dict], ho_so: dict) -> dict:
 def _lay_dat_cho_con_giu(nguoi_dung_id: str, ma_dat_cho: str) -> list[dict]:
     """Các vé của lượt đặt, bắt buộc còn đang giữ ghế và CHƯA chọn cách thanh toán (bỏ ghế, thanh toán chỉ làm ở đây)."""
     cac_ve = lock_repo.lay_dat_cho(ma_dat_cho, nguoi_dung_id)
+    if any(v.get("kenh_ban") in ("tai_quay", "hotline") for v in cac_ve):
+        raise GiaTriLoi("Lượt đặt do nhân viên quầy vé xử lý")
     if not cac_ve:
         raise GiaTriLoi("Không tìm thấy lượt đặt chỗ này")
     if trang_thai_dat_cho(cac_ve, _bay_gio()) != "dang_giu":
@@ -294,6 +296,8 @@ def ve_huy_duoc(v: dict, nhan_luot: str, bay_gio: datetime.datetime) -> bool:
     được (hoàn tiền chỉ theo mục 7). Vé trả VNPay của lượt đang chờ thanh toán thì không hủy lẻ — tổng tiền cổng đã tính."""
     if not _ve_con_giu_cho(v, bay_gio) or not _con_truoc_moc_chot_cua_ve(v, bay_gio):
         return False
+    if v.get("kenh_ban") in ("tai_quay", "hotline") and v["loai_hinh_thanh_toan"] == "thanh_toan_ngay":
+        return False
     return not (v["loai_hinh_thanh_toan"] == "thanh_toan_ngay" and nhan_luot == "cho_thanh_toan")
 
 
@@ -325,7 +329,10 @@ def lich_su(nguoi_dung_id: str) -> list[dict]:
         for v in huu_hieu:
             da_tra, con_lai = tien_da_tra_con_lai(v, bay_gio)
             ve_ra.append({
-                "id": v["id"], "ma_ve": v["ma_ve"], "so_ghe": v["so_ghe"], "gia": int(v["gia"]), "trang_thai": v["trang_thai"],
+                "id": v["id"], "ma_ve": ("Chưa phát hành" if v.get("kenh_ban") in ("tai_quay", "hotline")
+                                         and v["loai_hinh_thanh_toan"] == "thanh_toan_ngay"
+                                         and v["trang_thai"] == "giu_cho" else v["ma_ve"]),
+                "so_ghe": v["so_ghe"], "gia": int(v["gia"]), "trang_thai": v["trang_thai"],
                 "loai_hinh_thanh_toan": v["loai_hinh_thanh_toan"], "da_thanh_toan": da_tra, "con_lai": con_lai,
                 "co_the_huy": ve_huy_duoc(v, nhan, bay_gio), "co_the_thanh_toan": ve_thanh_toan_duoc(v, bay_gio),
                 "ten_diem_don": v["ten_diem_don"], "ten_diem_tra": v["ten_diem_tra"],
@@ -349,7 +356,7 @@ def lich_su(nguoi_dung_id: str) -> list[dict]:
             "ngay_dat": min(v["ngay_tao"] for v in cac_ve),
             "han_giu_cho_den": han_giu,
             "han_thanh_toan": han_thanh_toan_tu_han_giu(han_giu) if nhan == "cho_thanh_toan" and han_giu else None,
-            "co_the_tiep_tuc": nhan in ("dang_giu", "cho_thanh_toan"),
+            "co_the_tiep_tuc": nhan in ("dang_giu", "cho_thanh_toan") and dau.get("kenh_ban") is None,
         })
     return ket_qua
 
@@ -364,6 +371,8 @@ def _lay_ve_cua_khach(nguoi_dung_id: str, ve_id: str) -> dict:
 def huy_ve(nguoi_dung_id: str, ve_id: str) -> dict:
     """UC-08 theo từng vé: tự hủy riêng 1 vé còn giữ chỗ (chưa trả tiền) trước mốc chốt; các vé khác của lượt giữ nguyên."""
     ve = _lay_ve_cua_khach(nguoi_dung_id, ve_id)
+    if ve.get("kenh_ban") in ("tai_quay", "hotline") and ve["loai_hinh_thanh_toan"] == "thanh_toan_ngay":
+        raise GiaTriLoi("Lượt thanh toán QR do nhân viên quầy vé xử lý")
     bay_gio = _bay_gio()
     if ve["trang_thai"] in TRANG_THAI_DA_TRA:
         raise GiaTriLoi("Vé đã thanh toán không tự hủy được — vui lòng liên hệ nhà xe")
@@ -468,6 +477,8 @@ def tao_duong_dan_thanh_toan(nguoi_dung_id: str, ma_dat_cho: str, frontend_origi
     cac_ve = lock_repo.lay_dat_cho(ma_dat_cho, nguoi_dung_id)
     if not cac_ve:
         raise GiaTriLoi("Không tìm thấy lượt đặt chỗ này")
+    if any(v.get("kenh_ban") in ("tai_quay", "hotline") for v in cac_ve):
+        raise GiaTriLoi("Lượt thanh toán QR do nhân viên quầy vé xử lý")
     bay_gio = _bay_gio()
     if trang_thai_dat_cho(cac_ve, bay_gio) != "cho_thanh_toan":
         raise GiaTriLoi("Lượt đặt chỗ này không ở trạng thái chờ thanh toán (có thể đã hết hạn)")
@@ -491,6 +502,8 @@ def huy_dat_cho(nguoi_dung_id: str, ma_dat_cho: str) -> dict:
     cac_ve = lock_repo.lay_dat_cho(ma_dat_cho, nguoi_dung_id)
     if not cac_ve:
         raise GiaTriLoi("Không tìm thấy lượt đặt chỗ này")
+    if any(v.get("kenh_ban") in ("tai_quay", "hotline") for v in cac_ve):
+        raise GiaTriLoi("Lượt đặt do nhân viên quầy vé xử lý")
     bay_gio = _bay_gio()
     trang_thai = trang_thai_dat_cho(cac_ve, bay_gio)
     if trang_thai == "da_thanh_toan":

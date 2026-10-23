@@ -53,7 +53,7 @@ def tim_theo_id(nguoi_dung_id: str) -> dict | None:
 
 
 def gan_van_phong(nguoi_dung_id: str, van_phong_id: str) -> None:
-    """Gán văn phòng phụ trách cho nhân viên quầy/điều độ viên."""
+    """Gán văn phòng phụ trách cho nhân viên quầy vé / gửi hàng."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:

@@ -25,6 +25,7 @@ async function apiFetch(path, options = {}) {
 
 function apiGet(path) { return apiFetch(path); }
 function apiPost(path, body = {}) { return apiFetch(path, { method: "POST", body: JSON.stringify(body) }); }
+function apiPut(path, body = {}) { return apiFetch(path, { method: "PUT", body: JSON.stringify(body) }); }
 function queryString(data) {
   const query = new URLSearchParams();
   Object.entries(data).forEach(([key, value]) => { if (value !== "" && value != null) query.set(key, value); });

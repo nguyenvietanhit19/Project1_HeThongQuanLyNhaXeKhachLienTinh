@@ -133,8 +133,9 @@ def _dung_ve(v: dict) -> dict:
     return {
         **v,
         "co_the_in": v["trang_thai"] == "da_thanh_toan",
-        "co_the_thanh_toan": unpaid_hold and before_cutoff,
-        "co_the_huy_giu_cho": unpaid_hold and before_cutoff,
+        "co_the_thanh_toan": unpaid_hold and before_cutoff and v["loai_hinh_thanh_toan"] == "thanh_toan_tai_quay",
+        "co_the_tao_qr": unpaid_hold and before_cutoff and v.get("kenh_ban") in ("tai_quay", "hotline"),
+        "co_the_huy_giu_cho": unpaid_hold and before_cutoff and v["loai_hinh_thanh_toan"] == "thanh_toan_tai_quay",
         "co_the_huy_hoan_tien": refund_allowed,
         "ten_khach": v["ten_khach"] or "Khách vãng lai",
         "gia": int(v["gia"]),
@@ -172,6 +173,8 @@ def thu_tien(nguoi_dung, ma_dat_cho: str, phuong_thuc: str) -> dict:
     held = [v for v in tickets if v["trang_thai"] == "giu_cho"]
     if not held:
         raise GiaTriLoi("Không có vé giữ chỗ chưa thanh toán tại văn phòng này")
+    if any(v["loai_hinh_thanh_toan"] != "thanh_toan_tai_quay" for v in held):
+        raise GiaTriLoi("Lượt này đang chờ thanh toán QR; không thể ghi nhận thêm tiền mặt")
     now = datetime.datetime.now(MUI_GIO)
     if any(v.get("han_giu_cho_den") and v["han_giu_cho_den"] <= now for v in held):
         raise GiaTriLoi("Đã hết hạn giữ vé")
@@ -185,25 +188,27 @@ def thu_tien(nguoi_dung, ma_dat_cho: str, phuong_thuc: str) -> dict:
     return {"ma_dat_cho": ma_dat_cho, "so_ve_da_thanh_toan": updated}
 
 
+def tao_link_thanh_toan_dat_cho(nguoi_dung, ma_dat_cho: str, frontend_origin: str, ip: str = "127.0.0.1") -> str:
+    vp = lay_van_phong(nguoi_dung)
+    # Xác thực origin trước khi đổi trạng thái đặt chỗ.
+    vnpay_service.kiem_tra_origin_frontend(frontend_origin)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    giao_dich = thanh_toan_repo.bat_dau_thanh_toan_qr_quay(
+        ma_dat_cho, str(vp["id"]), vnpay_service.tao_ma_giao_dich(ma_dat_cho, now), HAN_THANH_TOAN_NGAY_PHUT,
+    )
+    return vnpay_service.tao_url_thanh_toan(
+        ma_dat_cho, giao_dich["tong_tien"], giao_dich["han_thanh_toan"],
+        frontend_origin, ip, now, giao_dich["ma_giao_dich"],
+        noi_dung=f"Thanh toan luot ve xe {ma_dat_cho}", tra_ve_quay_ve=True,
+    )
+
+
 def tao_link_thanh_toan(nguoi_dung, ve_id: str, frontend_origin: str, ip: str = "127.0.0.1") -> str:
     vp = lay_van_phong(nguoi_dung)
     v = repo.ve_va_chuyen(ve_id, str(vp["id"]))
     if not v:
         raise KhongTimThay("Không tìm thấy vé thuộc văn phòng này")
-    if v["trang_thai"] != "giu_cho":
-        raise GiaTriLoi("Vé không còn chờ thanh toán")
-    now = datetime.datetime.now(datetime.timezone.utc)
-    if v["gio_khoi_hanh"] <= now:
-        raise GiaTriLoi("Chuyến đã qua giờ khởi hành; không thể tạo link thanh toán")
-    txn = vnpay_service.tao_ma_giao_dich(v["ma_ve"], now)
-    deadline = min(now + datetime.timedelta(minutes=HAN_THANH_TOAN_NGAY_PHUT), v["gio_khoi_hanh"])
-    url = vnpay_service.tao_url_thanh_toan(
-        v["ma_ve"], int(v["gia"]), deadline,
-        frontend_origin, ip, now, txn, noi_dung=f"Thanh toan ve xe {v['ma_ve']}",
-    )
-    if not thanh_toan_repo.luu_ma_tham_chieu_vnpay_ve(str(v["id"]), txn, deadline):
-        raise GiaTriLoi("Vé vừa thay đổi trạng thái; vui lòng tra cứu và thử lại")
-    return url
+    return tao_link_thanh_toan_dat_cho(nguoi_dung, v["ma_dat_cho"], frontend_origin, ip)
 
 
 def huy_dat_cho(nguoi_dung, ma_dat_cho: str) -> dict:
@@ -211,6 +216,8 @@ def huy_dat_cho(nguoi_dung, ma_dat_cho: str) -> dict:
     tickets = repo.tra_cuu(str(vp["id"]), ma_dat_cho=ma_dat_cho)
     if not tickets or any(v["trang_thai"] != "giu_cho" for v in tickets):
         raise GiaTriLoi("Chỉ có thể hủy lượt đặt còn giữ chỗ chưa thanh toán")
+    if any(v["loai_hinh_thanh_toan"] != "thanh_toan_tai_quay" for v in tickets):
+        raise GiaTriLoi("Lượt đang thanh toán QR sẽ tự hết hạn; vui lòng chờ kết quả giao dịch")
     now = datetime.datetime.now(MUI_GIO)
     if any(not dat_ve_service.con_truoc_moc_chot(v["gio_don_du_kien"], now) for v in tickets):
         raise GiaTriLoi("Đã qua thời điểm hủy giữ chỗ")
@@ -236,6 +243,7 @@ def huy_ve_hoan_tien(nguoi_dung, ve_id: str, ly_do: str | None = None) -> dict:
         and v.get("phuong_thuc_thanh_toan") == "chuyen_khoan"
         and v.get("ma_tham_chieu_vnpay")
         and v.get("ma_giao_dich_cong_thanh_toan")
+        and vnpay_service.la_giao_dich_cua_ve(v["ma_tham_chieu_vnpay"])
         and VNPAY_CHE_DO == "sandbox"
     ):
         result = vnpay_service.hoan_tien_toan_phan(

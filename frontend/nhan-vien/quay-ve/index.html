@@ -7,6 +7,7 @@
     <title>Tổng quan quầy vé</title>
     <link rel="stylesheet" href="/shared/design-tokens.css" />
     <link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+    <link rel="stylesheet" href="/nhan-vien/quan-ly/thong-bao.css" />
     <link rel="stylesheet" href="/nhan-vien/quay-ve/style.css" />
   </head>
   <body class="nhan-vien-shell">
@@ -111,6 +112,7 @@
 
     <script src="api-client.js"></script>
     <script src="auth-check.js"></script>
+    <script src="/nhan-vien/quan-ly/thong-bao.js"></script>
     <script src="nav.js"></script>
     <script>
       let pendingPage = 1;
@@ -137,7 +139,7 @@
             const hetHan = ticket.han_giu_cho_den && new Date(ticket.han_giu_cho_den) <= new Date();
             const trangThai = quaGio ? "Chuyến đã qua giờ" : hetHan ? "Quá hạn giữ chỗ" : "Chờ thanh toán";
             return `<tr>
-              <td><strong>${escapeHtml(ticket.ma_ve)}</strong><br><small>${escapeHtml(ticket.ma_dat_cho)}</small></td>
+              <td><strong>${ticket.loai_hinh_thanh_toan==="thanh_toan_ngay"?"Chưa phát hành":escapeHtml(ticket.ma_ve)}</strong><br><small>${escapeHtml(ticket.ma_dat_cho)}</small></td>
               <td>${escapeHtml(ticket.ten_khach || "Khách vãng lai")}<br><small>${escapeHtml(ticket.sdt_khach || "—")}</small></td>
               <td>${escapeHtml(ticket.ma_chuyen)}<br><small>${dinhDangNgay(ticket.gio_khoi_hanh)}</small></td>
               <td>${escapeHtml(ticket.ten_diem_don)} → ${escapeHtml(ticket.ten_diem_tra)}<br><small>Ghế ${escapeHtml(ticket.so_ghe)}</small></td>

@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 MUI_GIO_VN = ZoneInfo("Asia/Ho_Chi_Minh")
 TRANG_THAI_THANH_TOAN_GIA = "/khach-hang/cong-thanh-toan-gia.html"
 TRANG_KET_QUA = "/khach-hang/ket-qua-thanh-toan.html"
+TRANG_KET_QUA_QUAY_VE = "/nhan-vien/quay-ve/ket-qua-thanh-toan.html"
 
 
 def dinh_dang_gio_vn(thoi_diem: datetime.datetime) -> str:
@@ -88,6 +89,7 @@ def tao_url_thanh_toan(
     bay_gio: datetime.datetime | None = None,
     ma_giao_dich: str | None = None,
     noi_dung: str | None = None,
+    tra_ve_quay_ve: bool = False,
 ) -> str:
     bay_gio = bay_gio or datetime.datetime.now(datetime.timezone.utc)
     origin = kiem_tra_origin_frontend(origin_frontend)
@@ -102,7 +104,7 @@ def tao_url_thanh_toan(
         "vnp_Locale": "vn",
         "vnp_OrderInfo": noi_dung or f"Thanh toan ve xe ma dat cho {ma_dat_cho}",
         "vnp_OrderType": "other",
-        "vnp_ReturnUrl": origin + TRANG_KET_QUA,
+        "vnp_ReturnUrl": origin + (TRANG_KET_QUA_QUAY_VE if tra_ve_quay_ve else TRANG_KET_QUA),
         "vnp_TxnRef": ma_giao_dich or tao_ma_giao_dich(ma_dat_cho, bay_gio),
         "vnp_ExpireDate": dinh_dang_gio_vn(han_thanh_toan),
     }

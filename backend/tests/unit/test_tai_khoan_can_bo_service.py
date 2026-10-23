@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from app.schemas.tai_khoan_can_bo_schema import TaoTaiKhoanCanBoRequest
 from app.services import tai_khoan_can_bo_service as svc
-from app.utils.loi import CamTruyCap, GiaTriLoi
+from app.utils.loi import CamTruyCap, GiaTriLoi, KhongTimThay
 
 QLNS = "quan_ly_nhan_su"
 QL = "quan_ly"
@@ -241,3 +241,208 @@ def test_danh_sach_tu_khoa_trong_duoc_bo_qua(monkeypatch):
     monkeypatch.setattr(svc.repo, "danh_sach_tai_khoan_can_bo", lambda vt, tk: da_goi.append(tk) or [])
     svc.danh_sach_tai_khoan(QL, tu_khoa="   ")
     assert da_goi == [None]
+
+
+# =========================================================
+# UC-37: khóa / mở khóa tài khoản cán bộ
+# =========================================================
+def _tk(vai_tro="phu_xe", hoat_dong=True, goc=False, ma=None):
+    return {
+        "id": ma or str(uuid4()), "email": "x@gmail.com", "ho_ten": "Tran Van B",
+        "vai_tro": vai_tro, "dang_hoat_dong": hoat_dong, "la_tai_khoan_goc": goc,
+    }
+
+
+@pytest.fixture
+def khoa_gia_lap(monkeypatch):
+    """Giả lập repository + thông báo cho khóa / mở khóa."""
+    g = {"muc_tieu": _tk(), "goc": False, "xe_thieu": [], "dat": [], "nk_qlns": [], "nk_admin": [], "tb": [], "so_lan_tra_bien_che": 0}
+    monkeypatch.setattr(svc.repo, "tim_tai_khoan", lambda i: g["muc_tieu"])
+    monkeypatch.setattr(svc.repo, "la_tai_khoan_goc", lambda i: g["goc"])
+    monkeypatch.setattr(svc.repo, "dat_trang_thai_hoat_dong", lambda i, v: g["dat"].append((i, v)))
+
+    def xe_thieu(i):
+        g["so_lan_tra_bien_che"] += 1
+        return g["xe_thieu"]
+
+    monkeypatch.setattr(svc.repo, "xe_thieu_phu_xe", xe_thieu)
+    monkeypatch.setattr(svc.nhat_ky_repo, "ghi", lambda *a: g["nk_qlns"].append(a))
+    monkeypatch.setattr(svc.nhat_ky_admin_repo, "ghi", lambda *a: g["nk_admin"].append(a))
+    monkeypatch.setattr(
+        svc.nguoi_dung_repo, "danh_sach_id_theo_vai_tro",
+        lambda vt, chi_dang_hoat_dong=False: g.get("nguoi_nhan", {}).get(vt, []),
+    )
+    monkeypatch.setattr(svc.thong_bao, "gui", lambda nguoi, nd, **kw: g["tb"].append((nguoi, nd)))
+    return g
+
+
+def _khoa(g, actor, vai_tro_muc_tieu, **kw):
+    g["muc_tieu"] = _tk(vai_tro_muc_tieu, **kw)
+    return svc.khoa_tai_khoan(str(uuid4()), actor, g["muc_tieu"]["id"], "  vi pham  ")
+
+
+# ---- Ma trận quyền theo bậc ----
+@pytest.mark.parametrize("vai_tro", VAI_TRO_VAN_HANH)
+@pytest.mark.parametrize("actor,goc", [(QLNS, False), (QL, False), (QL, True)])
+def test_khoa_ba_bac_deu_khoa_duoc_4_vai_tro_van_hanh(khoa_gia_lap, actor, goc, vai_tro):
+    khoa_gia_lap["goc"] = goc
+    kq = _khoa(khoa_gia_lap, actor, vai_tro)
+    assert kq["dang_hoat_dong"] is False
+    assert khoa_gia_lap["dat"][-1][1] is False
+
+
+@pytest.mark.parametrize("vai_tro", ["ke_toan", "quan_ly", "quan_ly_nhan_su"])
+def test_qlns_khong_khoa_duoc_ke_toan_quan_ly_qlns(khoa_gia_lap, vai_tro):
+    with pytest.raises(CamTruyCap, match="Không đủ quyền"):
+        _khoa(khoa_gia_lap, QLNS, vai_tro)
+    assert khoa_gia_lap["dat"] == []
+
+
+def test_quan_ly_thuong_khoa_duoc_qlns(khoa_gia_lap):
+    assert _khoa(khoa_gia_lap, QL, "quan_ly_nhan_su")["dang_hoat_dong"] is False
+
+
+@pytest.mark.parametrize("vai_tro", ["quan_ly", "ke_toan"])
+def test_quan_ly_thuong_khong_khoa_duoc_quan_ly_khac_va_ke_toan(khoa_gia_lap, vai_tro):
+    with pytest.raises(CamTruyCap, match="Không đủ quyền"):
+        _khoa(khoa_gia_lap, QL, vai_tro)
+
+
+@pytest.mark.parametrize("vai_tro", ["quan_ly", "ke_toan", "quan_ly_nhan_su"])
+def test_quan_ly_goc_khoa_duoc_cap_duoi(khoa_gia_lap, vai_tro):
+    khoa_gia_lap["goc"] = True
+    assert _khoa(khoa_gia_lap, QL, vai_tro)["dang_hoat_dong"] is False
+
+
+# ---- Luật chặn ----
+@pytest.mark.parametrize("actor", [QLNS, QL])
+def test_khong_ai_khoa_duoc_tai_khoan_goc(khoa_gia_lap, actor):
+    khoa_gia_lap["goc"] = True
+    with pytest.raises(CamTruyCap, match="gốc"):
+        _khoa(khoa_gia_lap, actor, "quan_ly", goc=True)
+
+
+def test_khong_tu_khoa_chinh_minh(khoa_gia_lap):
+    ma = str(uuid4())
+    khoa_gia_lap["muc_tieu"] = _tk("phu_xe", ma=ma)
+    with pytest.raises(CamTruyCap, match="tự khóa"):
+        svc.khoa_tai_khoan(ma, QLNS, ma, "ly do")
+
+
+def test_khoa_tai_khoan_da_khoa_bi_chan(khoa_gia_lap):
+    with pytest.raises(GiaTriLoi, match="đã bị khóa"):
+        _khoa(khoa_gia_lap, QLNS, "phu_xe", hoat_dong=False)
+
+
+def test_mo_khoa_tai_khoan_dang_hoat_dong_bi_chan(khoa_gia_lap):
+    khoa_gia_lap["muc_tieu"] = _tk("phu_xe", hoat_dong=True)
+    with pytest.raises(GiaTriLoi, match="đang hoạt động"):
+        svc.mo_khoa_tai_khoan(str(uuid4()), QLNS, khoa_gia_lap["muc_tieu"]["id"], "ly do")
+
+
+def test_tai_khoan_khong_ton_tai_404(khoa_gia_lap):
+    khoa_gia_lap["muc_tieu"] = None
+    with pytest.raises(KhongTimThay):
+        svc.khoa_tai_khoan(str(uuid4()), QLNS, str(uuid4()), "ly do")
+
+
+@pytest.mark.parametrize("actor", [QLNS, QL])
+def test_khong_khoa_khach_hang(khoa_gia_lap, actor):
+    with pytest.raises(GiaTriLoi, match="khách hàng"):
+        _khoa(khoa_gia_lap, actor, "khach_hang")
+
+
+# ---- Mở khóa ----
+def test_mo_khoa_thanh_cong(khoa_gia_lap):
+    khoa_gia_lap["muc_tieu"] = _tk("dieu_do_vien", hoat_dong=False)
+    kq = svc.mo_khoa_tai_khoan(str(uuid4()), QLNS, khoa_gia_lap["muc_tieu"]["id"], " da giai trinh ")
+    assert kq["dang_hoat_dong"] is True and kq["canh_bao_xe_thieu_phu_xe"] == []
+    assert khoa_gia_lap["dat"][-1][1] is True
+    assert khoa_gia_lap["nk_qlns"][0][1] == "mo_khoa_tai_khoan"
+    assert khoa_gia_lap["nk_qlns"][0][4] == "da giai trinh"
+
+
+@pytest.mark.parametrize("vai_tro", ["ke_toan", "quan_ly", "quan_ly_nhan_su"])
+def test_mo_khoa_qlns_cung_quy_tac_bac(khoa_gia_lap, vai_tro):
+    khoa_gia_lap["muc_tieu"] = _tk(vai_tro, hoat_dong=False)
+    with pytest.raises(CamTruyCap):
+        svc.mo_khoa_tai_khoan(str(uuid4()), QLNS, khoa_gia_lap["muc_tieu"]["id"], "ly do")
+
+
+def test_mo_khoa_quan_ly_thuong_bi_chan_voi_ke_toan(khoa_gia_lap):
+    khoa_gia_lap["muc_tieu"] = _tk("ke_toan", hoat_dong=False)
+    with pytest.raises(CamTruyCap):
+        svc.mo_khoa_tai_khoan(str(uuid4()), QL, khoa_gia_lap["muc_tieu"]["id"], "ly do")
+
+
+# ---- Nhật ký ----
+def test_qlns_khoa_ghi_nhat_ky_qlns_kem_ly_do_da_strip(khoa_gia_lap):
+    _khoa(khoa_gia_lap, QLNS, "phu_xe")
+    assert len(khoa_gia_lap["nk_qlns"]) == 1 and khoa_gia_lap["nk_admin"] == []
+    _, hanh_dong, loai, doi_tuong, ghi_chu = khoa_gia_lap["nk_qlns"][0]
+    assert (hanh_dong, loai, ghi_chu) == ("khoa_tai_khoan", "nguoi_dung", "vi pham")
+    assert doi_tuong == khoa_gia_lap["muc_tieu"]["id"]
+
+
+@pytest.mark.parametrize("goc", [True, False])
+def test_quan_ly_khoa_ghi_nhat_ky_admin_khong_ghi_sang_bang_qlns(khoa_gia_lap, goc):
+    khoa_gia_lap["goc"] = goc
+    _khoa(khoa_gia_lap, QL, "phu_xe")
+    assert len(khoa_gia_lap["nk_admin"]) == 1 and khoa_gia_lap["nk_qlns"] == []
+    assert khoa_gia_lap["nk_admin"][0][1] == "khoa_tai_khoan"
+    assert khoa_gia_lap["nk_admin"][0][4] == "vi pham"
+
+
+def test_khoa_bi_chan_thi_khong_ghi_nhat_ky(khoa_gia_lap):
+    with pytest.raises(CamTruyCap):
+        _khoa(khoa_gia_lap, QLNS, "ke_toan")
+    assert khoa_gia_lap["nk_qlns"] == [] and khoa_gia_lap["nk_admin"] == []
+
+
+def test_tao_tai_khoan_cua_quan_ly_van_khong_ghi_nhat_ky_admin(gia_lap, monkeypatch):
+    ds = []
+    monkeypatch.setattr(svc.nhat_ky_admin_repo, "ghi", lambda *a: ds.append(a))
+    svc.tao_tai_khoan(str(uuid4()), QL, _yeu_cau("phu_xe"))
+    assert ds == []
+
+
+# ---- Phụ xe: cảnh báo thiếu xe ----
+def test_khoa_phu_xe_thieu_xe_co_canh_bao_va_thong_bao_dung_nguoi(khoa_gia_lap):
+    quan_ly, dieu_do = str(uuid4()), str(uuid4())
+    khoa_gia_lap["xe_thieu"] = [{"xe_id": uuid4(), "bien_so": "51B-111"}, {"xe_id": uuid4(), "bien_so": "51B-222"}]
+    khoa_gia_lap["muc_tieu"] = _tk("phu_xe")
+    vua_khoa = khoa_gia_lap["muc_tieu"]["id"]
+    khoa_gia_lap["nguoi_nhan"] = {"quan_ly": [quan_ly], "dieu_do_vien": [dieu_do, vua_khoa]}
+    kq = svc.khoa_tai_khoan(str(uuid4()), QLNS, vua_khoa, "ly do")
+    assert [x["bien_so"] for x in kq["canh_bao_xe_thieu_phu_xe"]] == ["51B-111", "51B-222"]
+    assert {n for n, _ in khoa_gia_lap["tb"]} == {quan_ly, dieu_do}
+    assert "51B-111, 51B-222" in khoa_gia_lap["tb"][0][1]
+
+
+def test_khoa_phu_xe_khong_thieu_xe_khong_thong_bao(khoa_gia_lap):
+    khoa_gia_lap["nguoi_nhan"] = {"quan_ly": [str(uuid4())]}
+    kq = _khoa(khoa_gia_lap, QLNS, "phu_xe")
+    assert kq["canh_bao_xe_thieu_phu_xe"] == [] and khoa_gia_lap["tb"] == []
+
+
+def test_chi_tim_quan_ly_va_dieu_do_vien_dang_hoat_dong_khong_tim_qlns(khoa_gia_lap, monkeypatch):
+    goi = []
+    monkeypatch.setattr(
+        svc.nguoi_dung_repo, "danh_sach_id_theo_vai_tro",
+        lambda vt, chi_dang_hoat_dong=False: goi.append((vt, chi_dang_hoat_dong)) or [],
+    )
+    khoa_gia_lap["xe_thieu"] = [{"xe_id": uuid4(), "bien_so": "51B-111"}]
+    _khoa(khoa_gia_lap, QLNS, "phu_xe")
+    assert sorted(goi) == [("dieu_do_vien", True), ("quan_ly", True)]
+
+
+@pytest.mark.parametrize("vai_tro", ["dieu_do_vien", "nhan_vien_quay_ve", "nhan_vien_gui_hang"])
+def test_vai_tro_khac_phu_xe_khong_tra_bien_che(khoa_gia_lap, vai_tro):
+    _khoa(khoa_gia_lap, QLNS, vai_tro)
+    assert khoa_gia_lap["so_lan_tra_bien_che"] == 0
+
+
+def test_mo_khoa_khong_tra_bien_che_khong_thong_bao(khoa_gia_lap):
+    khoa_gia_lap["muc_tieu"] = _tk("phu_xe", hoat_dong=False)
+    svc.mo_khoa_tai_khoan(str(uuid4()), QLNS, khoa_gia_lap["muc_tieu"]["id"], "ly do")
+    assert khoa_gia_lap["so_lan_tra_bien_che"] == 0 and khoa_gia_lap["tb"] == []

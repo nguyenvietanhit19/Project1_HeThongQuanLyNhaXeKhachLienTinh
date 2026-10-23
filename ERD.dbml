@@ -437,6 +437,7 @@ Table thong_bao [headercolor: #607D8B] {
   ve_id uuid [ref: > ve.id]
   da_doc boolean [not null, default: false]
   ngay_tao timestamptz [not null, default: `now()`]
+  duong_dan text [note: 'Trang mở ra khi bấm vào thông báo (cán bộ), NULL = chỉ có chữ']
 }
 
 Table nhat_ky_admin [headercolor: #607D8B] {

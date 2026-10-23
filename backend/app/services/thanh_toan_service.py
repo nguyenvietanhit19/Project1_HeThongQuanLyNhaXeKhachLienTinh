@@ -23,7 +23,8 @@ def _rsp(ma: str, thong_diep: str) -> dict:
     return {"RspCode": ma, "Message": thong_diep}
 
 
-def _ap_dung_ket_qua(ma_dat_cho: str, so_tien_cong: str, thanh_cong: bool, ma_giao_dich_cong: str) -> dict:
+def _ap_dung_ket_qua(ma_dat_cho: str, so_tien_cong: str, thanh_cong: bool,
+                     ma_giao_dich_cong: str, ma_tham_chieu: str | None = None) -> dict:
     """Đổi trạng thái vé theo kết quả giao dịch (dùng chung cho IPN và truy vấn querydr). Trả mã phản hồi kiểu IPN."""
     cac_ve = repo.lay_ve_cua_dat_cho(ma_dat_cho)
     ve_online = [
@@ -33,6 +34,10 @@ def _ap_dung_ket_qua(ma_dat_cho: str, so_tien_cong: str, thanh_cong: bool, ma_gi
         return _rsp("01", "Order not found")
     if all(v["trang_thai"] == "da_thanh_toan" for v in ve_online):
         return _rsp("02", "Order already confirmed")
+    la_don_quay = any(v["kenh_ban"] in ("tai_quay", "hotline") for v in ve_online)
+    if la_don_quay and (not ma_tham_chieu or
+                       any(v["ma_tham_chieu_vnpay"] != ma_tham_chieu for v in ve_online)):
+        return _rsp("01", "Transaction reference mismatch")
 
     try:
         so_tien = int(so_tien_cong)
@@ -44,7 +49,11 @@ def _ap_dung_ket_qua(ma_dat_cho: str, so_tien_cong: str, thanh_cong: bool, ma_gi
     khach_hang_id = ve_online[0].get("khach_hang_id")
     if thanh_cong:
         vua_tra = [v for v in ve_online if v["trang_thai"] == "giu_cho"]
-        if not repo.ghi_nhan_thanh_toan_ngay(ma_dat_cho, ma_giao_dich_cong):
+        if not repo.ghi_nhan_thanh_toan_ngay(
+            ma_dat_cho, ma_giao_dich_cong,
+            ma_tham_chieu if la_don_quay else None,
+            len(ve_online) if la_don_quay else None,
+        ):
             # Tiền đã trừ nhưng vé đã quá hạn/không còn giữ chỗ (trả đúng sát giờ): dừng cổng gọi lại, cần hoàn tiền thủ công (UC-22)
             return _rsp("02", "Order expired")
         thong_bao.gui(
@@ -54,7 +63,7 @@ def _ap_dung_ket_qua(ma_dat_cho: str, so_tien_cong: str, thanh_cong: bool, ma_gi
         )
     else:
         dang_giu = [v for v in cac_ve if v["trang_thai"] == "giu_cho"]
-        if repo.huy_thanh_toan_ngay(ma_dat_cho) and dang_giu:
+        if repo.huy_thanh_toan_ngay(ma_dat_cho, ma_tham_chieu if la_don_quay else None) and dang_giu:
             thong_bao.gui(khach_hang_id, thong_bao.nd_thanh_toan_that_bai(ma_dat_cho, [v["so_ghe"] for v in dang_giu]), ve_id=dang_giu[0].get("id"))
     return _rsp("00", "Confirm Success")
 
@@ -104,6 +113,7 @@ def xu_ly_ipn(tham_so: dict) -> dict:
         tham_so.get("vnp_Amount", "0"),
         thanh_cong,
         str(tham_so.get("vnp_TransactionNo", "")),
+        ma_giao_dich,
     )
 
 
@@ -153,7 +163,7 @@ def xac_nhan_qua_truy_van(ma_giao_dich: str) -> dict:
     if cua_ve:
         rsp = ap_dung(ma_goc, str(kq.get("vnp_Amount", "0")), ket_luan == "00", str(kq.get("vnp_TransactionNo", "")), ma_giao_dich)
     else:
-        rsp = ap_dung(ma_goc, str(kq.get("vnp_Amount", "0")), ket_luan == "00", str(kq.get("vnp_TransactionNo", "")))
+        rsp = ap_dung(ma_goc, str(kq.get("vnp_Amount", "0")), ket_luan == "00", str(kq.get("vnp_TransactionNo", "")), ma_giao_dich)
     if ket_luan == "00":
         if rsp["RspCode"] == "00":
             return {"trang_thai": "thanh_cong"}
