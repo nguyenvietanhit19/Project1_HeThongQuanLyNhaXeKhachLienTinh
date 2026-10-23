@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/shared/design-tokens.css" />
 <link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
 <link rel="stylesheet" href="/nhan-vien/quan-ly/thong-bao.css" />
+<link rel="stylesheet" href="/nhan-vien/quan-ly/phan-cong-dieu-do.css" />
 </head>
 <body class="nhan-vien-shell">
   <div class="nv-layout">
@@ -99,6 +100,7 @@
   <script src="/nhan-vien/quan-ly/nav.js"></script>
   <script src="/nhan-vien/quan-ly/tai-khoan.js"></script>
   <script src="/nhan-vien/quan-ly/thong-bao.js"></script>
+  <script src="/nhan-vien/quan-ly/phan-cong-dieu-do.js"></script>
   <script>
     const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
     if (nguoiDung) {
@@ -403,6 +405,7 @@
           })
         );
 
+        await PhanCongDieuDo.tai().catch((err) => console.error("Không tải được phân công điều độ viên:", err));
         renderDanhSach();
       } catch (err) {
         bangTuyen.innerHTML = `<div class="text-error">${esc(err.message)}</div>`;
@@ -446,9 +449,11 @@
                         : '<span class="nv-text-phu">Chưa có điểm dừng</span>'
                     }
                   </div>
+                  ${PhanCongDieuDo.htmlDong(t.id)}
                 </div>
                 <span class="tu-the__ngay nv-text-phu">Tạo ${dinhDangNgayGio(t.ngay_tao)}</span>
                 <div class="tu-the__nut">
+                  <button type="button" class="nv-btn-phu" data-act="phan-cong" data-id="${t.id}">Phân công</button>
                   <button type="button" class="nv-btn-sua" data-act="sua" data-id="${t.id}">Sửa</button>
                   <button type="button" class="nv-btn-xoa" data-act="xoa" data-id="${t.id}">Xóa</button>
                 </div>
@@ -478,7 +483,8 @@
       bangTuyen.querySelectorAll("button[data-act]").forEach((btn) => {
         const t = dsTuyen.find((v) => v.id === btn.dataset.id);
         btn.addEventListener("click", () => {
-          if (btn.dataset.act === "sua") moModalSua(t);
+          if (btn.dataset.act === "phan-cong") PhanCongDieuDo.mo(t, renderDanhSach);
+          else if (btn.dataset.act === "sua") moModalSua(t);
           else if (confirm(`Xóa tuyến "${t.ten}"? Không thể hoàn tác.`)) xoaTuyen(t);
         });
       });
