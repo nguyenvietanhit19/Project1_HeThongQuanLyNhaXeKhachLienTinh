@@ -10,6 +10,29 @@ token, không bao giờ đọc/đánh dấu được thông báo của người 
 from app.db import get_connection, release_connection
 
 
+# Nhắc khách đặt chỗ tại quầy là cảnh báo cần được giữ lại đến khi chuyến đã
+# khởi hành và mọi vé trong mã đặt chỗ đã thanh toán.
+# Dùng psycopg với query có tham số %s nên ký tự wildcard SQL phải viết thành %%.
+_NHAC_QUAY_VE = "tb.duong_dan LIKE '/nhan-vien/quay-ve/tra-cuu-ve.html?ma_dat_cho=%%'"
+_DU_DIEU_KIEN_AN = f"""(
+    NOT ({_NHAC_QUAY_VE})
+    OR (
+        EXISTS (
+            SELECT 1 FROM ve v_nhac
+            WHERE v_nhac.ma_dat_cho = split_part(tb.duong_dan, 'ma_dat_cho=', 2)
+        )
+        AND NOT EXISTS (
+            SELECT 1
+            FROM ve v_nhac
+            LEFT JOIN chuyen_xe c_nhac ON c_nhac.id = v_nhac.chuyen_id
+            WHERE v_nhac.ma_dat_cho = split_part(tb.duong_dan, 'ma_dat_cho=', 2)
+              AND (v_nhac.trang_thai NOT IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den')
+                   OR c_nhac.gio_khoi_hanh IS NULL OR c_nhac.gio_khoi_hanh > now())
+        )
+    )
+)"""
+
+
 def _thanh_danh_sach_dict(cur, rows) -> list[dict]:
     cols = [d[0] for d in cur.description]
     return [dict(zip(cols, r)) for r in rows]
@@ -58,6 +81,7 @@ def danh_sach_cua_toi(nguoi_nhan_id: str, chi_chua_doc: bool = False, limit: int
             cur.execute(
                 f"""
                 SELECT tb.id, tb.noi_dung, tb.da_doc, tb.ngay_tao, tb.ve_id, tb.don_hang_id, tb.duong_dan,
+                       {_DU_DIEU_KIEN_AN} AS co_the_danh_dau_da_doc,
                        dh.ma_van_don, v.ma_dat_cho
                 FROM thong_bao tb
                 LEFT JOIN don_hang dh ON dh.id = tb.don_hang_id
@@ -86,17 +110,23 @@ def dem_chua_doc(nguoi_nhan_id: str) -> int:
         release_connection(conn)
 
 
-def danh_dau_da_doc(thong_bao_id: str, nguoi_nhan_id: str) -> bool:
+def danh_dau_da_doc(thong_bao_id: str, nguoi_nhan_id: str) -> str:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE thong_bao SET da_doc = true WHERE id = %s AND nguoi_nhan_id = %s RETURNING id",
+                f"""UPDATE thong_bao tb SET da_doc = true
+                    WHERE tb.id = %s AND tb.nguoi_nhan_id = %s AND {_DU_DIEU_KIEN_AN}
+                    RETURNING tb.id""",
                 (thong_bao_id, nguoi_nhan_id),
             )
-            co_dong = cur.fetchone() is not None
+            if cur.fetchone() is not None:
+                ket_qua = "updated"
+            else:
+                cur.execute("SELECT 1 FROM thong_bao WHERE id = %s AND nguoi_nhan_id = %s", (thong_bao_id, nguoi_nhan_id))
+                ket_qua = "locked" if cur.fetchone() is not None else "not_found"
         conn.commit()
-        return co_dong
+        return ket_qua
     finally:
         release_connection(conn)
 
@@ -106,7 +136,8 @@ def danh_dau_tat_ca_da_doc(nguoi_nhan_id: str) -> int:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE thong_bao SET da_doc = true WHERE nguoi_nhan_id = %s AND da_doc = false",
+                f"""UPDATE thong_bao tb SET da_doc = true
+                    WHERE tb.nguoi_nhan_id = %s AND tb.da_doc = false AND {_DU_DIEU_KIEN_AN}""",
                 (nguoi_nhan_id,),
             )
             so_dong = cur.rowcount

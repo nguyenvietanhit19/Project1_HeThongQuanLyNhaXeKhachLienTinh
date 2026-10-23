@@ -7,6 +7,7 @@
     <title>Thống kê quầy vé</title>
     <link rel="stylesheet" href="/shared/design-tokens.css" />
     <link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+    <link rel="stylesheet" href="/nhan-vien/quan-ly/thong-bao.css" />
     <link rel="stylesheet" href="/nhan-vien/quay-ve/style.css" />
   </head>
   <body class="nhan-vien-shell">
@@ -92,10 +93,11 @@
                     <th>Giá vé</th>
                     <th>Thanh toán / kênh</th>
                     <th>Trạng thái / nhân viên</th>
+                    <th>Xem chi tiết</th>
                   </tr>
                 </thead>
                 <tbody id="history-rows">
-                  <tr><td colspan="8" class="qv-empty">Đang tải lịch sử vé…</td></tr>
+                  <tr><td colspan="9" class="qv-empty">Đang tải lịch sử vé…</td></tr>
                 </tbody>
               </table>
             </div>
@@ -111,9 +113,22 @@
       </div>
     </div>
 
+    <dialog class="qv-history-ticket-dialog" id="history-ticket-dialog" aria-labelledby="history-ticket-title">
+      <div class="qv-history-ticket-dialog__head">
+        <div><span>CHI TIẾT VÉ ĐÃ BÁN</span><h2 id="history-ticket-title">Thông tin vé</h2></div>
+        <button class="qv-history-ticket-dialog__x" type="button" data-close-ticket-dialog aria-label="Đóng">×</button>
+      </div>
+      <div class="qv-history-ticket-dialog__body" id="history-ticket-content" aria-live="polite">
+        <p class="qv-history-ticket-dialog__loading">Đang tải vé…</p>
+      </div>
+      <div class="qv-history-ticket-dialog__foot"><button class="qv-btn secondary" type="button" data-close-ticket-dialog>Đóng</button></div>
+    </dialog>
+
     <script src="api-client.js"></script>
     <script src="auth-check.js"></script>
+    <script src="/nhan-vien/quan-ly/thong-bao.js"></script>
     <script src="nav.js"></script>
+    <script src="/nhan-vien/gui-hang/vendor/JsBarcode.code128.min.js"></script>
     <script>
       const $ = (selector) => document.querySelector(selector);
       let statsRequest = 0;
@@ -167,11 +182,77 @@
       const paymentLabels = { tien_mat: "Tiền mặt", chuyen_khoan: "Chuyển khoản" };
       const channelLabels = { tai_quay: "Tại quầy", hotline: "Hotline" };
 
+      const historyTicketDialog = $("#history-ticket-dialog");
+      const historyTicketContent = $("#history-ticket-content");
+      historyTicketDialog.querySelectorAll("[data-close-ticket-dialog]").forEach(button =>
+        button.addEventListener("click", () => historyTicketDialog.close())
+      );
+      historyTicketDialog.addEventListener("click", event => {
+        if (event.target === historyTicketDialog) historyTicketDialog.close();
+      });
+
+      function ticketTime(value, options) {
+        if (!value) return "—";
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", ...options }).format(date);
+      }
+
+      function ticketPreview(ticket) {
+        const paidStatuses = ["da_thanh_toan", "da_len_xe", "da_xuong_xe", "khong_den"];
+        const paid = paidStatuses.includes(ticket.trang_thai) ? Number(ticket.gia || 0) : 0;
+        const status = ticket.trang_thai === "da_huy" ? "ĐÃ HỦY" : paid ? "ĐÃ THANH TOÁN" : "CHỜ THANH TOÁN";
+        const stampClass = ticket.trang_thai === "da_huy" ? "qv-ticket__stamp--cancelled" : paid ? "" : "qv-ticket__stamp--pending";
+        return `
+          <div class="qv-ticket" aria-label="Vé ${escapeHtml(ticket.ma_ve)}">
+            <div class="qv-ticket__main">
+              <header class="qv-ticket__header">
+                <div class="qv-ticket__brand"><img src="/shared/assets/logo-mark.png" alt="" /><strong>GoBus</strong><span>VÉ XE KHÁCH LIÊN TỈNH</span></div>
+                <div class="qv-ticket__code"><small>MÃ VÉ</small><strong>${escapeHtml(ticket.ma_ve)}</strong></div>
+              </header>
+              <div class="qv-ticket__body">
+                <div class="qv-ticket__route"><h2>${escapeHtml(ticket.ten_tuyen || "Thông tin chuyến")}</h2><span class="qv-ticket__stamp ${stampClass}">${status}</span></div>
+                <div class="qv-ticket__stops">
+                  <div><small>ĐIỂM ĐÓN</small><strong>${escapeHtml(ticket.ten_diem_don || "—")}</strong><span>${ticketTime(ticket.gio_don_du_kien, { hour: "2-digit", minute: "2-digit", weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" })}</span></div>
+                  <span class="qv-ticket__arrow" aria-hidden="true">→</span>
+                  <div><small>ĐIỂM TRẢ</small><strong>${escapeHtml(ticket.ten_diem_tra || "—")}</strong><span>${ticketTime(ticket.gio_den_du_kien, { hour: "2-digit", minute: "2-digit", weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" })} (dự kiến)</span></div>
+                </div>
+                <dl class="qv-ticket__details">
+                  <div><dt>LOẠI XE</dt><dd>${escapeHtml(ticket.ten_loai_xe || "—")}</dd></div>
+                  <div><dt>BIỂN SỐ</dt><dd>${escapeHtml(ticket.bien_so || "Chưa gán xe")}</dd></div>
+                  <div><dt>GIÁ VÉ</dt><dd>${dinhDangTien(ticket.gia)}</dd></div>
+                  <div><dt>ĐÃ THANH TOÁN</dt><dd>${dinhDangTien(paid)}</dd></div>
+                  <div><dt>CÒN LẠI</dt><dd>${dinhDangTien(Math.max(0, Number(ticket.gia || 0) - paid))}</dd></div>
+                  <div><dt>MÃ ĐẶT CHỖ</dt><dd>${escapeHtml(ticket.ma_dat_cho || "—")}</dd></div>
+                </dl>
+                <div class="qv-ticket__passenger"><span>HÀNH KHÁCH <strong>${escapeHtml(ticket.ten_khach || "Khách vãng lai")}${ticket.sdt_khach ? ` · ${escapeHtml(ticket.sdt_khach)}` : ""}</strong></span><span>CHUYẾN <strong>${escapeHtml(ticket.ma_chuyen || "—")}</strong></span></div>
+              </div>
+            </div>
+            <aside class="qv-ticket__stub"><div class="qv-ticket__seat"><small>GHẾ</small><strong>${escapeHtml(ticket.so_ghe || "—")}</strong></div><div class="qv-ticket__barcode-wrap"><svg class="qv-ticket__barcode" aria-label="Mã vạch vé ${escapeHtml(ticket.ma_ve)}"></svg><strong>${escapeHtml(ticket.ma_ve)}</strong></div><p class="qv-ticket__reminder">Vui lòng có mặt tại điểm đón trước giờ lên xe và xuất trình vé khi được yêu cầu.</p></aside>
+          </div>`;
+      }
+
+      async function showHistoryTicket(ticketId) {
+        historyTicketContent.innerHTML = '<p class="qv-history-ticket-dialog__loading">Đang tải vé…</p>';
+        historyTicketDialog.showModal();
+        try {
+          const ticket = await apiGet(`/quay-ve/ve/${encodeURIComponent(ticketId)}/in`);
+          $("#history-ticket-title").textContent = `Vé ${ticket.ma_ve}`;
+          historyTicketContent.innerHTML = ticketPreview(ticket);
+          if (typeof JsBarcode === "function") {
+            JsBarcode(historyTicketContent.querySelector(".qv-ticket__barcode"), String(ticket.ma_ve), {
+              format: "CODE128", width: 2, height: 50, displayValue: false, margin: 0, lineColor: "#282038",
+            });
+          }
+        } catch (error) {
+          historyTicketContent.innerHTML = `<div class="qv-history-ticket-dialog__error"><strong>Không tải được vé</strong><span>${escapeHtml(error.message || "Vui lòng thử lại.")}</span></div>`;
+        }
+      }
+
       async function loadHistory(page = 1) {
         const requestId = ++historyRequest;
         const errorMessage = $("#history-error");
         errorMessage.classList.add("qv-hidden");
-        $("#history-rows").innerHTML = '<tr><td colspan="8" class="qv-empty">Đang tải lịch sử vé…</td></tr>';
+        $("#history-rows").innerHTML = '<tr><td colspan="9" class="qv-empty">Đang tải lịch sử vé…</td></tr>';
         $("#history-count").textContent = "—";
         $("#history-page").textContent = "—";
         $("#history-prev").disabled = true;
@@ -201,14 +282,20 @@
               <td><strong>${dinhDangTien(ticket.gia)}</strong></td>
               <td>${escapeHtml(paymentLabels[ticket.phuong_thuc_thanh_toan] || "—")}<br><small>${escapeHtml(channelLabels[ticket.kenh_ban] || "Trực tuyến")} · ${dinhDangNgay(ticket.gio_thanh_toan)}</small></td>
               <td><span class="qv-badge green">${escapeHtml(statusLabels[ticket.trang_thai] || ticket.trang_thai)}</span><br><small>${escapeHtml(ticket.nhan_vien_ban || (ticket.kenh_ban ? "Chưa ghi nhận nhân viên" : "Đặt trực tuyến"))}</small></td>
-            </tr>`).join("") || '<tr><td colspan="8" class="qv-empty">Không có vé đã bán phù hợp bộ lọc.</td></tr>';
+              <td><button class="qv-btn secondary qv-table-link" type="button" data-view-ticket="${escapeHtml(ticket.id)}" aria-label="Xem chi tiết vé ${escapeHtml(ticket.ma_ve)}">Xem chi tiết</button></td>
+            </tr>`).join("") || '<tr><td colspan="9" class="qv-empty">Không có vé đã bán phù hợp bộ lọc.</td></tr>';
         } catch (error) {
           if (requestId !== historyRequest) return;
-          $("#history-rows").innerHTML = '<tr><td colspan="8" class="qv-empty">Không tải được lịch sử vé.</td></tr>';
+          $("#history-rows").innerHTML = '<tr><td colspan="9" class="qv-empty">Không tải được lịch sử vé.</td></tr>';
           errorMessage.textContent = error.message;
           errorMessage.classList.remove("qv-hidden");
         }
       }
+
+      $("#history-rows").addEventListener("click", event => {
+        const button = event.target.closest("[data-view-ticket]");
+        if (button) showHistoryTicket(button.dataset.viewTicket);
+      });
 
       if (quayVeKiemTraQuyen()) {
         renderQuayVeNav(location.pathname);
