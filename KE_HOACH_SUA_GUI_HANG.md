@@ -603,7 +603,7 @@ Ký hiệu: 🟢 tự làm được ngay · 🟡 cần bạn quyết trước ·
 | # | Việc | Công | Chi tiết |
 |---|---|---|---|
 | A1 ✅ | **Commit + mở PR** nhánh `feature/Trinh-chot-ca` — **xong 23/10: PR #37 đã squash-merge vào integration** | S | Working tree đang chưa commit: nhắc 24 giờ (migration `20261021_0900`), hàng trên chuyến có vấn đề, cảnh báo rời trang, xác nhận đăng xuất, CSS mới, biểu đồ, 6 sửa lỗi rà soát, nhóm "làm ngay" (đổi SĐT, chốt ca 2 cửa sổ, giới hạn 500, nhãn COD). Gợi ý tách 3 commit: (1) cảnh báo/thông báo + migration, (2) giao diện (CSS, biểu đồ, đăng xuất, nhãn), (3) sửa lỗi + góp ý. PR vào `integration/gop-nhanh-thanh-vien`, squash-merge. Trong mô tả PR ghi rõ: **thành viên khác phải `yoyo apply`** migration `20261021_0900`; **API đổi**: `PUT …/thong-tin-lien-he` bắt buộc `ly_do` khi đổi SĐT người nhận (chốt ca đã tạm bỏ 22/10 nên không còn trong PR). Chạy lại trước khi đẩy: unit, E2E gửi hàng, E2E chốt ca (bản script đã cập nhật nằm ở scratchpad phiên 21/10, bản cũ không còn đúng). |
-| A2 🔵 | Báo **tuanhdung**: 2 test no-show fail | S | `tests/unit/test_thong_bao_khach.py::test_job_khong_den_*` — #33 bỏ mất thông báo "không đến" cho khách trong `quet_no_show.py`. Không thuộc role, nhưng làm CI đỏ. **23/10:** thêm 7 test vé lẻ/VNPay fail sau #39 (`test_ve_le.py` ×6, `test_thong_bao_khach.py::test_ipn_ve_le_thanh_cong_bao_khach`) — #39 thêm kiểm tra `ma_tham_chieu_vnpay` trong `_ap_dung_ket_qua_ve` nhưng vé giả trong test chưa có trường này → báo người làm quầy vé (#39). Tin nhắn mẫu: mục 7.7. |
+| A2 🔵 | ~~Báo **tuanhdung**: 2 test no-show fail~~ (đã sửa ở #40) — còn báo **Sơn** 7 test #39 | S | `tests/unit/test_thong_bao_khach.py::test_job_khong_den_*` — #33 bỏ mất thông báo "không đến" cho khách trong `quet_no_show.py`. Không thuộc role, nhưng làm CI đỏ. **23/10:** thêm 7 test vé lẻ/VNPay fail sau #39 (`test_ve_le.py` ×6, `test_thong_bao_khach.py::test_ipn_ve_le_thanh_cong_bao_khach`) — #39 thêm kiểm tra `ma_tham_chieu_vnpay` trong `_ap_dung_ket_qua_ve` nhưng vé giả trong test chưa có trường này → báo người làm quầy vé (#39). Tin nhắn mẫu: mục 7.7. |
 | A3 ✅ | Kiểm thử **đồng thời** trên PostgreSQL thật — **xong 23/10, xem mục 7.8** | M | Góp ý nêu: test hiện tại chưa chứng minh các tình huống tranh chấp. Viết 1 script chạy 2 luồng cùng lúc cho: 2 nhân viên cùng giao 1 đơn; hủy đơn đúng lúc phụ xe chất hàng; 2 lần chốt ca cùng lúc; ghi liên hệ đúng lúc giao. Kỳ vọng: mỗi cặp chỉ 1 bên thành công, bên kia nhận 400. Không cần sửa code nếu pass. |
 
 #### B. Trong role, cần bạn quyết trước
@@ -728,9 +728,9 @@ Sau khi gộp integration #37–#39. Nguồn: `KE_HOACH_UC36_TAO_TAI_KHOAN_CAN_B
 
 ### 7.7. Tin nhắn báo test fail ngoài role (23/10/2026)
 
-Trạng thái unit test trên integration sau #39: **9 fail** (không có test gửi hàng nào). Tin nhắn mẫu:
+Trạng thái unit test trên integration sau #39: **9 fail** (không có test gửi hàng nào). **Cập nhật sau #40, #42 (23/10): còn 7 fail** — 2 test no-show đã được #40 sửa nên **không cần gửi tin cho tuanhdung nữa**; chỉ còn tin cho Sơn. Tin nhắn mẫu:
 
-**Gửi tuanhdung (#33):**
+**~~Gửi tuanhdung (#33)~~ — đã tự sửa ở #40:**
 > Trên integration có 2 test no-show đang fail từ #33: `tests/unit/test_thong_bao_khach.py::test_job_khong_den_bao_khach_kem_so_lan` và `::test_job_khong_den_du_nguong_khoa_va_bao_khoa`. Test mong job `quet_no_show.py` gửi thông báo "Vé … bị ghi nhận là không đến … (hiện 2/3)" cho khách, nhưng job không gửi gì (`[]`) — có vẻ lúc sửa `quet_no_show.py` ở #33 bị mất đoạn gọi `thong_bao_khach_service` (`nd_khong_den`). Bạn xem lại giúp: nếu bỏ có chủ ý thì sửa test, còn không thì thêm lại lời gọi. Chạy thử: `python -m pytest tests/unit/test_thong_bao_khach.py -k khong_den`.
 
 **Gửi Sơn (#39, quầy vé):**
@@ -771,3 +771,10 @@ docker compose exec backend python scripts/kiem_thu_dong_thoi_gui_hang.py 30
 - Chốt ca (tình huống "2 lần chốt ca cùng lúc") bỏ vì chốt ca đang tạm bỏ.
 
 **Phát hiện ngoài role (báo nhóm):** `backend/app/db.py` dùng `psycopg2.pool.SimpleConnectionPool` — theo tài liệu psycopg2 loại này **không an toàn khi dùng chung giữa nhiều luồng**, trong khi FastAPI chạy route `def` (đồng bộ) trên threadpool. Nên đổi sang `ThreadedConnectionPool` (cùng chữ ký `(minconn, maxconn, dsn=...)`, sửa 1 dòng). Ngoài ra `maxconn = 10`: quá 10 request đồng thời giữ kết nối thì `getconn()` ném `PoolError` thay vì chờ. File dùng chung → không tự sửa.
+
+### 7.9. Gộp integration #40, #42 (23/10/2026)
+
+- Merge không conflict. #40 (phụ xe) sửa file gửi hàng nhưng chỉ **thêm**: gỡ cặp mốc lịch sử khi hoàn tác chất/dỡ (`_go_moc_hoan_tac`), chặn hoàn tác khi chuyến `hoan_thanh`, thêm `diem_nhan_id` / `ngay_tao` vào danh sách chờ chất / chờ dỡ. Không đụng `tim_don_theo_khoa_chong_trung`, `gan_van_phong_can_bo`, hủy/giao/liên hệ.
+- Migration mới `20261023_0900_thong_bao_duong_dan` (thêm cột `thong_bao.duong_dan`, NULL được) — **đã `yoyo apply` DB local**.
+- Kiểm tra lại: unit **790 pass, 7 fail** (chỉ còn 7 test #39); A3 30/30 cả 5 tình huống; thử API B2 6/6.
+- `db.py` vẫn `SimpleConnectionPool` → phát hiện ở 7.8 vẫn còn.
