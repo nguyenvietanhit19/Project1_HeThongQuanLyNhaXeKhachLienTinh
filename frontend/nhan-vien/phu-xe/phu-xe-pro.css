@@ -278,52 +278,10 @@ button[aria-busy="true"]::after {
   font-weight: 700;
   color: #fff;
 }
-.px-mang[hidden], .px-snack[hidden] { display: none; }
+.px-mang[hidden] { display: none; }
 .px-mang--mat { background: #c2410c; }
 .px-mang--ok { background: #15803d; }
 
-.px-snack {
-  position: fixed;
-  left: 50%;
-  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
-  transform: translateX(-50%);
-  z-index: 900;
-  width: min(92vw, 460px);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px 14px;
-  border-radius: 16px;
-  background: #1A1A1E;
-  color: #fff;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
-  overflow: hidden;
-  animation: px-len 0.18s ease-out;
-}
-.px-snack__nd { flex: 1; font-size: 15px; font-weight: 600; }
-.px-snack__nut {
-  min-height: 44px;
-  padding: 0 16px;
-  border: none;
-  border-radius: 12px;
-  background: var(--color-primary);
-  color: #2a1c00;
-  font: inherit;
-  font-weight: 800;
-  cursor: pointer;
-}
-.px-snack__dem {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 4px;
-  width: 100%;
-  background: var(--color-primary);
-  transform-origin: left;
-  animation: px-het-gio linear forwards;
-}
-@keyframes px-het-gio { to { transform: scaleX(0); } }
-@keyframes px-len { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
 /* ============ 5. Tiếp cận ============ */
 :focus-visible {
@@ -334,7 +292,7 @@ button[aria-busy="true"]::after {
 #tabs, .tabs { touch-action: pan-x pan-y; }
 
 @media (prefers-reduced-motion: reduce) {
-  .sk-dong, .sk-the, button[aria-busy="true"]::after, .px-snack, .px-snack__dem { animation: none; }
+  .sk-dong, .sk-the, button[aria-busy="true"]::after { animation: none; }
 }
 
 /* Nút tùy chọn trong menu: giá trị hiện bên phải */

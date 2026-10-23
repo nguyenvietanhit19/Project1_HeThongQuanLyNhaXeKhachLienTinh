@@ -5,7 +5,6 @@
  *     một câu "Đã có lỗi hệ thống". Ghi đè apiFetch của api-client.js CHỈ trên các trang phụ xe (không đụng file dùng chung).
  *  2. Phản hồi khi bấm: rung nhẹ khi thao tác ghi thành công / thất bại; âm "bíp" (tùy chọn, mặc định tắt).
  *  3. Banner "Mất kết nối" + tự tải lại dữ liệu khi có mạng trở lại.
- *  4. Snackbar "Hoàn tác" ngay sau thao tác nhầm tay (phuXe.hoanTac).
  *  5. (đã chuyển) Cài đặt Giao diện / Âm báo / Hồ sơ → phu-xe-cai-dat.js.
  *  6. Gỡ khung xương (skeleton) khi trang đã có dữ liệu.
  * CSS: phu-xe-pro.css.
@@ -167,31 +166,13 @@
     };
   }
 
-  // ---------- 4. Snackbar "Hoàn tác" ----------
-  let snack = null, henSnack = null;
-  function hoanTac(noiDung, thucHien, ms = 7000) {
-    if (!snack) {
-      snack = document.createElement("div");
-      snack.className = "px-snack";
-      snack.setAttribute("role", "status");
-      snack.setAttribute("aria-live", "polite");
-      document.body.appendChild(snack);
-    }
-    clearTimeout(henSnack);
-    snack.innerHTML = `<span class="px-snack__nd">${esc(noiDung)}</span><button type="button" class="px-snack__nut">Hoàn tác</button><span class="px-snack__dem" style="animation-duration:${ms}ms"></span>`;
-    snack.hidden = false;
-    const an = () => { snack.hidden = true; };
-    snack.querySelector(".px-snack__nut").onclick = () => { clearTimeout(henSnack); an(); thucHien(); };
-    henSnack = setTimeout(an, ms);
-  }
-
   // ---------- Ngày giờ: LUÔN dd/MM/yyyy HH:mm (tự ghép, không nhờ toLocaleString vì mỗi trình duyệt in một kiểu: "22-10", "10/22"...) ----------
   const hai = (n) => String(n).padStart(2, "0");
   const ngay = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : `${hai(d.getDate())}/${hai(d.getMonth() + 1)}/${d.getFullYear()}`; };
   const gio = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : `${hai(d.getHours())}:${hai(d.getMinutes())}`; };
   const ngayGio = (iso) => { const n = ngay(iso); return n ? `${n} ${gio(iso)}` : ""; };
 
-  window.phuXe = { hoanTac, phanHoi, rung: phanHoi.thanhCong, am: phanHoi.bao, amThanh, ngay, gio, ngayGio };
+  window.phuXe = { phanHoi, rung: phanHoi.thanhCong, am: phanHoi.bao, amThanh, ngay, gio, ngayGio };
 
   // ---------- 6. Gỡ khung xương ----------
   document.addEventListener("DOMContentLoaded", () => {
