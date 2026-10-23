@@ -26,13 +26,13 @@ Tài liệu này mô tả đầy đủ cấu trúc bảng của cơ sở dữ li
 |---|---|---|
 | `id` | UUID PK | |
 | `email` | TEXT NOT NULL UNIQUE | Định danh đăng nhập — kế thừa nguyên cơ chế từ bản v1 (`GiaoThongAnToan_API/routes/auth.py`), `NGHIEP_VU.md` mục 2.1 |
-| `mat_khau` | TEXT NULLABLE | Hash bcrypt; **NULL** với cán bộ vừa được mời, chưa tự đặt mật khẩu lần đầu |
+| `mat_khau` | TEXT NULLABLE | Hash bcrypt; **NULL** chỉ với tài khoản `quan_ly` gốc mới seed (tự đặt qua Quên mật khẩu); cán bộ khác được tạo kèm mật khẩu ban đầu mặc định (UC-36) |
 | `ho_ten` | TEXT NOT NULL | |
 | `so_dien_thoai` | TEXT NOT NULL | Bắt buộc với mọi vai trò từ bản viết lại này (khác bản v1) — dùng để nhân viên quầy vé tra cứu (mục 8.4), liên hệ khi cần; **không dùng để đăng nhập/xác thực** (mục 2.1). Lưu ở **dạng chuẩn hóa bắt đầu bằng `0`** (bỏ khoảng trắng/dấu, `+84`/`84` đổi thành `0`); hợp lệ khi khớp `0[35789]\d{8}` (di động) hoặc `02\d{9}` (số bàn) — kiểm tra ở backend (`utils/so_dien_thoai.py`) và giao diện (`frontend/shared/so-dien-thoai.js`), 2 nơi phải khớp nhau |
 | `vai_tro` | TEXT NOT NULL, CHECK IN (`khach_hang`, `phu_xe`, `nhan_vien_quay_ve`, `nhan_vien_gui_hang`, `dieu_do_vien`, `ke_toan`, `quan_ly_nhan_su`, `quan_ly`) | Quyết định bảng con nào áp dụng. `phu_xe` là 1 trong 2 `chuc_danh` của `nhan_vien_van_hanh` — chỉ `chuc_danh = phu_xe` có tài khoản (mục 3.2). `ke_toan` phụ trách hoàn tiền, phạm vi toàn hệ thống (mục 2 `NGHIEP_VU.md`). `quan_ly_nhan_su` chỉ quản lý tài khoản/nhân sự cấp vận hành (không `ke_toan`/`quan_ly`), cũng phạm vi toàn hệ thống (mục 8.9 `NGHIEP_VU.md`) |
 | `dang_hoat_dong` | BOOLEAN NOT NULL DEFAULT true | `false` = tài khoản bị khóa (mục 8.7 điểm 5) |
 | `la_tai_khoan_goc` | BOOLEAN NOT NULL DEFAULT false | Chỉ có ý nghĩa khi `vai_tro = 'quan_ly'` — đánh dấu tài khoản `quan_ly` gốc, seed lúc khởi tạo hệ thống (`NGHIEP_VU.md` mục 2). Tài khoản này **không thể bị khóa** (UC-37) và là `quan_ly` **duy nhất** tạo thêm được `quan_ly`/`quan_ly_nhan_su` khác (UC-36) — kiểm tra quyền ở Service. Ràng buộc "tối đa 1 dòng `true`" thực hiện bằng partial unique index: `CREATE UNIQUE INDEX ... ON nguoi_dung ((true)) WHERE la_tai_khoan_goc = true` |
-| `da_xac_nhan` | BOOLEAN NOT NULL DEFAULT false | `true` sau khi `khach_hang` xác thực OTP, hoặc cán bộ đã tự đặt mật khẩu lần đầu qua liên kết mời |
+| `da_xac_nhan` | BOOLEAN NOT NULL DEFAULT false | `true` sau khi `khach_hang` xác thực OTP; cán bộ do UC-36 tạo thì `true` ngay lúc tạo (email do công ty cấp) |
 | `ma_xac_nhan` | TEXT NULLABLE | Mã OTP 6 số — tên cột giữ nguyên như bản v1 để tái dùng thẳng `email_service.py`/`mat_khau_service.py` |
 | `ma_het_han` | TIMESTAMPTZ NULLABLE | Hạn hiệu lực của `ma_xac_nhan` — mặc định 1 phút (mục 2.1) |
 | `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
@@ -50,7 +50,7 @@ Số lần vi phạm no-show **không lưu thành cột đếm riêng** (mục 7
 
 ### 1.3. `ho_so_can_bo_diem` (con dùng chung — `nhan_vien_quay_ve`, `nhan_vien_gui_hang`, `dieu_do_vien`)
 
-Cả 3 vai trò chỉ cần thêm đúng 1 thông tin giống nhau: văn phòng cố định phụ trách — gộp chung 1 bảng con, phân biệt qua `nguoi_dung.vai_tro`.
+Cả 3 vai trò chỉ cần thêm đúng 1 thông tin giống nhau: văn phòng phụ trách hiện tại (chọn lúc tạo tài khoản, đổi được khi điều chuyển — nhánh kèm theo UC-36 `NGHIEP_VU.md`; mỗi cán bộ đúng 1 dòng nên đổi là `UPDATE`) — gộp chung 1 bảng con, phân biệt qua `nguoi_dung.vai_tro`.
 
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
