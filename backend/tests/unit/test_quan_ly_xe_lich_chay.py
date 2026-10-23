@@ -296,6 +296,21 @@ def _gia_lap_gio_hien_tai(monkeypatch, bay_gio):
         datetime=DongHo, date=datetime.date, time=datetime.time, timedelta=datetime.timedelta))
 
 
+def test_sinh_chuyen_chuyen_di_va_chuyen_ve_cung_chu_ky_chia_se_chu_ky_de_gan_chung_chu_trinh(monkeypatch):
+    # cặp lệch +1 ngày: chuyến đi ngày D và chuyến về ngày D+1 là 1 chu trình; ngày D+1 lại là chu trình khác
+    da_sinh = _gia_lap_sinh(monkeypatch)
+    _gia_lap_gio_hien_tai(monkeypatch, datetime.datetime(2026, 10, 12, 0, 0, tzinfo=lc.MUI_GIO_VN))
+    lc.sinh_chuyen_cho_cac_cap(["cap-1"], datetime.date(2026, 10, 13), datetime.date(2026, 10, 14))
+    theo_chu_ky: dict = {}
+    for muc in da_sinh:
+        theo_chu_ky.setdefault(muc["chu_ky"], []).append((muc["lich"]["chieu"], muc["ngay"]))
+    assert len(theo_chu_ky) == 2  # 2 ngày đi → 2 chu trình
+    for cac_chuyen in theo_chu_ky.values():
+        assert sorted(c for c, _ in cac_chuyen) == ["nguoc", "xuoi"]  # mỗi chu trình đúng 1 chuyến đi + 1 chuyến về
+    chu_ky_ngay_13 = next(k for k, v in theo_chu_ky.items() if ("xuoi", datetime.date(2026, 10, 13)) in v)
+    assert ("nguoc", datetime.date(2026, 10, 14)) in theo_chu_ky[chu_ky_ngay_13]  # chuyến về lệch +1 ngày cùng chu trình với chuyến đi ngày 13
+
+
 def test_sinh_chuyen_chuyen_di_hom_nay_da_qua_gio_thi_bo_ca_chu_ky_khong_thua_chuyen_ve(monkeypatch):
     # Lịch: đi 23:00, về 07:00 (lệch 1 ngày). Bây giờ 12/10 lúc 23:30 → chuyến đi 12/10 đã quá giờ
     bay_gio = datetime.datetime(2026, 10, 12, 23, 30, tzinfo=lc.MUI_GIO_VN)

@@ -7,6 +7,7 @@ từ góc nhìn quản lý (UC-18, cuối file — gọi từ lich_chay_service.
 """
 
 import json
+import uuid
 
 from app.db import get_connection, release_connection
 from app.repositories import ma_repository
@@ -281,26 +282,6 @@ def danh_sach_chuyen_da_chay(xe_id: str, tu_ngay, den_ngay) -> list[dict]:
         release_connection(conn)
 
 
-def danh_sach_dieu_do_vien_tai_diem(diem_id: str) -> list[str]:
-    """Điều độ viên đang hoạt động, phụ trách văn phòng `diem_id` (ho_so_can_bo_diem).
-    Dùng để báo sự cố (UC-17, mục 8.2 điểm 7) cho đúng người phụ trách điểm xuất phát."""
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT h.nguoi_dung_id
-                FROM ho_so_can_bo_diem h
-                JOIN nguoi_dung nd ON nd.id = h.nguoi_dung_id
-                WHERE h.van_phong_id = %s AND nd.vai_tro = 'dieu_do_vien' AND nd.dang_hoat_dong = true
-                """,
-                (diem_id,),
-            )
-            return [str(row[0]) for row in cur.fetchall()]
-    finally:
-        release_connection(conn)
-
-
 def gan_co_xung_dot_vi_tri_cho_chuyen_tuong_lai(xe_id: str, chuyen_id_hien_tai: str) -> None:
     """NGHIEP_VU.md mục 3.3: ngay khi 1 chuyến của xe_id chuyển gap_su_co,
     mọi chuyến chua_khoi_hanh khác cùng xe_id (xe gốc) bị gắn cờ cảnh báo
@@ -339,30 +320,38 @@ def sinh_nhieu_chuyen_tu_lich(ke_hoach: list[dict]) -> list[dict]:
             if cac_loai_xe:
                 cur.execute("SELECT id, he_so_ghe FROM loai_xe WHERE id = ANY(%s::uuid[]) ORDER BY id FOR SHARE", (cac_loai_xe,))
                 he_so_ghe_theo_loai = {str(i): json.dumps(h) for i, h in cur.fetchall()}
+            # Vòng 1: (lịch, ngày) nào đã có chuyến thì bỏ qua; chuyến đã có mang sẵn chu_trinh_id thì chuyến còn lại của chu kỳ (nếu
+            # mới được sinh bù) nhận lại đúng id đó để 2 chuyến không bị tách khỏi nhau.
+            chu_trinh_theo_chu_ky: dict = {}
             for muc in ke_hoach:
-                lich = muc["lich"]
                 cur.execute(
                     """
-                    SELECT 1 FROM chuyen_xe
+                    SELECT chu_trinh_id FROM chuyen_xe
                     WHERE lich_chay_dinh_ky_id = %s AND (gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = %s
                     LIMIT 1
                     """,
-                    (str(lich["id"]), muc["ngay"]),
+                    (str(muc["lich"]["id"]), muc["ngay"]),
                 )
-                if cur.fetchone() is not None:
-                    muc["da_sinh"] = False
+                dong = cur.fetchone()
+                muc["da_sinh"] = dong is None
+                if dong is not None and dong[0] is not None:
+                    chu_trinh_theo_chu_ky.setdefault(muc["chu_ky"], str(dong[0]))
+            # Vòng 2: sinh các chuyến chưa có.
+            for muc in ke_hoach:
+                if not muc["da_sinh"]:
                     continue
+                lich = muc["lich"]
+                chu_trinh_id = chu_trinh_theo_chu_ky.setdefault(muc["chu_ky"], str(uuid.uuid4()))
                 ma_tuyen, ma_loai_xe = ma_repository.lay_ma_tuyen_va_loai_xe(cur, str(lich["tuyen_id"]), str(lich["loai_xe_id"]))
                 cur.execute(
                     """
-                    INSERT INTO chuyen_xe (ma, tuyen_id, chieu, loai_xe_id, lich_chay_dinh_ky_id, gio_khoi_hanh, he_so_gia, he_so_ghe)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO chuyen_xe (ma, tuyen_id, chieu, loai_xe_id, lich_chay_dinh_ky_id, gio_khoi_hanh, he_so_gia, he_so_ghe, chu_trinh_id)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (ma_tu_sinh.ma_chuyen(ma_tuyen, ma_loai_xe, muc["gio_khoi_hanh"], lich["chieu"]), str(lich["tuyen_id"]),
                      lich["chieu"], str(lich["loai_xe_id"]), str(lich["id"]), muc["gio_khoi_hanh"], lich["he_so_gia"],
-                     he_so_ghe_theo_loai.get(str(lich["loai_xe_id"]), "{}")),
+                     he_so_ghe_theo_loai.get(str(lich["loai_xe_id"]), "{}"), chu_trinh_id),
                 )
-                muc["da_sinh"] = True
         conn.commit()
         return ke_hoach
     except Exception:

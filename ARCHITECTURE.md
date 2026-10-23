@@ -205,7 +205,7 @@ Dùng WebSocket có sẵn trong FastAPI, không polling:
 - Phụ xe (giao diện di động) mở kết nối riêng để nhận cập nhật khi điều độ viên đổi xe/hủy chuyến sự cố.
 - Khi 1 Service hoàn tất hành động cần thông báo, gọi tới `websocket_manager` để **broadcast** tới đúng client liên quan:
   - Đổi xe trước giờ khởi hành / đổi ghế (`NGHIEP_VU.md` mục 3.3) → báo khách có vé trên chuyến đó.
-  - Chuyến chuyển `gap_su_co` → báo điều độ viên phụ trách điểm xuất phát ngay lập tức.
+  - Chuyến chuyển `gap_su_co` → báo điều độ viên phụ trách tuyến của chuyến ngay lập tức (tuyến chưa có ai thì báo mọi điều độ viên đang hoạt động, không có thì báo quản lý).
   - Phụ xe xác nhận đến từng điểm trung gian → cập nhật ETA cho khách đang chờ đón ở điểm phía sau (`NGHIEP_VU.md` mục 8.2 điểm 5).
 - Route `routes/websocket.py` chỉ lo việc nhận/giữ kết nối, xác thực token lúc connect — không chứa nghiệp vụ.
 

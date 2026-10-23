@@ -259,7 +259,8 @@ def sinh_chuyen_cho_cac_cap(cap_ids: list[str], tu_ngay: datetime.date, den_ngay
                 for lich in lich_cap.values():
                     ngay_chay = ngay + datetime.timedelta(days=lich["ngay_lech"])
                     gio = datetime.datetime.combine(ngay_chay, lich["gio_khoi_hanh"], tzinfo=MUI_GIO_VN)
-                    ke_hoach.append({"lich": lich, "ngay": ngay_chay, "gio_khoi_hanh": gio})
+                    # chu_ky: chuyến đi ngày D và chuyến về ngày D + ngay_lech của cùng 1 cặp là 1 chu trình (điều độ viên gán xe cho cả hai)
+                    ke_hoach.append({"lich": lich, "ngay": ngay_chay, "gio_khoi_hanh": gio, "chu_ky": (str(lich["cap_id"]), ngay)})
             ngay += datetime.timedelta(days=1)
 
     # Mỗi ngày khởi hành của các chuyến sắp sinh (cả chuyến về lệch ngày) phải có bộ giá vé đầy đủ áp dụng, nếu không
