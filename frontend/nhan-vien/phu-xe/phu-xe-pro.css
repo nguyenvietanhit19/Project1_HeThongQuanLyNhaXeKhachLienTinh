@@ -351,3 +351,59 @@ button[aria-busy="true"]::after {
   font-size: 12px;
   font-weight: 700;
 }
+
+/* ---- Chữ ở chế độ tối: các phần tử nằm NGOÀI .app-shell (hộp thoại, menu) không thừa kế màu chữ; chữ tím chuyển sang tím sáng ---- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]).phu-xe-page, :root:not([data-theme="light"]) body.phu-xe-page { color: var(--color-text-primary); }
+  :root:not([data-theme="light"]) .modal-sheet, :root:not([data-theme="light"]) .modal-sheet h1, :root:not([data-theme="light"]) .modal-sheet h2, :root:not([data-theme="light"]) .modal-sheet h3, :root:not([data-theme="light"]) .modal-sheet label,
+  :root:not([data-theme="light"]) .modal-sheet p, :root:not([data-theme="light"]) .tb-nd, :root:not([data-theme="light"]) .tk-menu, :root:not([data-theme="light"]) .tk-menu__muc, :root:not([data-theme="light"]) .section h2, :root:not([data-theme="light"]) h1, :root:not([data-theme="light"]) h2, :root:not([data-theme="light"]) h3 { color: var(--color-text-primary); }
+  :root:not([data-theme="light"]) .tk-menu__muc--dang-xuat { color: var(--color-danger); }
+  :root:not([data-theme="light"]) .count-badge,
+  :root:not([data-theme="light"]) .quick-stat .so,
+  :root:not([data-theme="light"]) .btn-confirm--outline,
+  :root:not([data-theme="light"]) .stat-tile .so,
+  :root:not([data-theme="light"]) .chip--tim,
+  :root:not([data-theme="light"]) .filter-chip b,
+  :root:not([data-theme="light"]) .badge--tren,
+  :root:not([data-theme="light"]) .diem-nhom__so,
+  :root:not([data-theme="light"]) .quick-stat__icon,
+  :root:not([data-theme="light"]) .status-banner a,
+  :root:not([data-theme="light"]) .trip-card::after,
+  :root:not([data-theme="light"]) .tab-tren-xe__nut,
+  :root:not([data-theme="light"]) .tab:not(.is-active),
+  :root:not([data-theme="light"]) .modal-sheet h2,
+  :root:not([data-theme="light"]) .modal-sheet h3 { color: #C4B5FD; }
+  :root:not([data-theme="light"]) .btn-confirm--outline { border-color: #8B6FD6; background: transparent; }
+  :root:not([data-theme="light"]) .hang-loc__chip.is-chon { color: #D9CCFF; }
+  :root:not([data-theme="light"]) .sd-ghe--giu, :root:not([data-theme="light"]) .hang-loc__chip[data-bat].is-chon { color: var(--px-cam-chu); }
+  :root:not([data-theme="light"]) .sd-dem--ok { color: #4ADE80; }
+  :root:not([data-theme="light"]) .sd-dem--xuong { color: #F87171; }
+  :root:not([data-theme="light"]) .sd-ghe--da-xuong { color: #F87171; border-color: rgba(248,113,113,.5); }
+  :root:not([data-theme="light"]) .hint, :root:not([data-theme="light"]) .topbar-sub, :root:not([data-theme="light"]) .trip-meta, :root:not([data-theme="light"]) .info .sub { color: var(--color-text-muted); }
+}
+:root[data-theme="dark"].phu-xe-page, :root[data-theme="dark"] body.phu-xe-page { color: var(--color-text-primary); }
+:root[data-theme="dark"] .modal-sheet, :root[data-theme="dark"] .modal-sheet h1, :root[data-theme="dark"] .modal-sheet h2, :root[data-theme="dark"] .modal-sheet h3, :root[data-theme="dark"] .modal-sheet label,
+:root[data-theme="dark"] .modal-sheet p, :root[data-theme="dark"] .tb-nd, :root[data-theme="dark"] .tk-menu, :root[data-theme="dark"] .tk-menu__muc, :root[data-theme="dark"] .section h2, :root[data-theme="dark"] h1, :root[data-theme="dark"] h2, :root[data-theme="dark"] h3 { color: var(--color-text-primary); }
+:root[data-theme="dark"] .tk-menu__muc--dang-xuat { color: var(--color-danger); }
+:root[data-theme="dark"] .count-badge,
+:root[data-theme="dark"] .quick-stat .so,
+:root[data-theme="dark"] .btn-confirm--outline,
+:root[data-theme="dark"] .stat-tile .so,
+:root[data-theme="dark"] .chip--tim,
+:root[data-theme="dark"] .filter-chip b,
+:root[data-theme="dark"] .badge--tren,
+:root[data-theme="dark"] .diem-nhom__so,
+:root[data-theme="dark"] .quick-stat__icon,
+:root[data-theme="dark"] .status-banner a,
+:root[data-theme="dark"] .trip-card::after,
+:root[data-theme="dark"] .tab-tren-xe__nut,
+:root[data-theme="dark"] .tab:not(.is-active),
+:root[data-theme="dark"] .modal-sheet h2,
+:root[data-theme="dark"] .modal-sheet h3 { color: #C4B5FD; }
+:root[data-theme="dark"] .btn-confirm--outline { border-color: #8B6FD6; background: transparent; }
+:root[data-theme="dark"] .hang-loc__chip.is-chon { color: #D9CCFF; }
+:root[data-theme="dark"] .sd-ghe--giu, :root[data-theme="dark"] .hang-loc__chip[data-bat].is-chon { color: var(--px-cam-chu); }
+:root[data-theme="dark"] .sd-dem--ok { color: #4ADE80; }
+:root[data-theme="dark"] .sd-dem--xuong { color: #F87171; }
+:root[data-theme="dark"] .sd-ghe--da-xuong { color: #F87171; border-color: rgba(248,113,113,.5); }
+:root[data-theme="dark"] .hint, :root[data-theme="dark"] .topbar-sub, :root[data-theme="dark"] .trip-meta, :root[data-theme="dark"] .info .sub { color: var(--color-text-muted); }
