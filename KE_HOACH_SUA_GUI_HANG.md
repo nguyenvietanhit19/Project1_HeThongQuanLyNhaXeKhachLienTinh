@@ -604,7 +604,7 @@ Ký hiệu: 🟢 tự làm được ngay · 🟡 cần bạn quyết trước ·
 |---|---|---|---|
 | A1 ✅ | **Commit + mở PR** nhánh `feature/Trinh-chot-ca` — **xong 23/10: PR #37 đã squash-merge vào integration** | S | Working tree đang chưa commit: nhắc 24 giờ (migration `20261021_0900`), hàng trên chuyến có vấn đề, cảnh báo rời trang, xác nhận đăng xuất, CSS mới, biểu đồ, 6 sửa lỗi rà soát, nhóm "làm ngay" (đổi SĐT, chốt ca 2 cửa sổ, giới hạn 500, nhãn COD). Gợi ý tách 3 commit: (1) cảnh báo/thông báo + migration, (2) giao diện (CSS, biểu đồ, đăng xuất, nhãn), (3) sửa lỗi + góp ý. PR vào `integration/gop-nhanh-thanh-vien`, squash-merge. Trong mô tả PR ghi rõ: **thành viên khác phải `yoyo apply`** migration `20261021_0900`; **API đổi**: `PUT …/thong-tin-lien-he` bắt buộc `ly_do` khi đổi SĐT người nhận (chốt ca đã tạm bỏ 22/10 nên không còn trong PR). Chạy lại trước khi đẩy: unit, E2E gửi hàng, E2E chốt ca (bản script đã cập nhật nằm ở scratchpad phiên 21/10, bản cũ không còn đúng). |
 | A2 🔵 | Báo **tuanhdung**: 2 test no-show fail | S | `tests/unit/test_thong_bao_khach.py::test_job_khong_den_*` — #33 bỏ mất thông báo "không đến" cho khách trong `quet_no_show.py`. Không thuộc role, nhưng làm CI đỏ. **23/10:** thêm 7 test vé lẻ/VNPay fail sau #39 (`test_ve_le.py` ×6, `test_thong_bao_khach.py::test_ipn_ve_le_thanh_cong_bao_khach`) — #39 thêm kiểm tra `ma_tham_chieu_vnpay` trong `_ap_dung_ket_qua_ve` nhưng vé giả trong test chưa có trường này → báo người làm quầy vé (#39). Tin nhắn mẫu: mục 7.7. |
-| A3 🟢 | Kiểm thử **đồng thời** trên PostgreSQL thật | M | Góp ý nêu: test hiện tại chưa chứng minh các tình huống tranh chấp. Viết 1 script chạy 2 luồng cùng lúc cho: 2 nhân viên cùng giao 1 đơn; hủy đơn đúng lúc phụ xe chất hàng; 2 lần chốt ca cùng lúc; ghi liên hệ đúng lúc giao. Kỳ vọng: mỗi cặp chỉ 1 bên thành công, bên kia nhận 400. Không cần sửa code nếu pass. |
+| A3 ✅ | Kiểm thử **đồng thời** trên PostgreSQL thật — **xong 23/10, xem mục 7.8** | M | Góp ý nêu: test hiện tại chưa chứng minh các tình huống tranh chấp. Viết 1 script chạy 2 luồng cùng lúc cho: 2 nhân viên cùng giao 1 đơn; hủy đơn đúng lúc phụ xe chất hàng; 2 lần chốt ca cùng lúc; ghi liên hệ đúng lúc giao. Kỳ vọng: mỗi cặp chỉ 1 bên thành công, bên kia nhận 400. Không cần sửa code nếu pass. |
 
 #### B. Trong role, cần bạn quyết trước
 
@@ -618,7 +618,7 @@ Ký hiệu: 🟢 tự làm được ngay · 🟡 cần bạn quyết trước ·
   - **(b) Quản lý két đầy đủ**: tiền đầu ca, cấp thêm, nộp/rút, người nhận bàn giao — bảng mới, nhiều màn hình. Đúng thực tế hơn nhưng to so với đồ án.
   - **(c) Chỉ đổi nhãn**: "Thu ròng trong ca", cho phép số âm và giải thích trên phiếu. Ít công nhất nhưng chênh lệch vẫn sai khi ca chỉ có hoàn.
 
-**B2 🟡 — Chống tạo trùng khi tải lại trang (góp ý điểm 6)** · Công S–M
+**B2 ✅ — Chống tạo trùng khi tải lại trang (góp ý điểm 6)** · Công S–M · **xong 23/10, xem mục 7.8**
 
 - Hiện tại: khóa chống trùng chỉ nằm trong bộ nhớ (`state.khoaTaoDon`). Server đã tạo đơn nhưng mất phản hồi, nhân viên tải lại trang và nhập lại → khóa mới → đơn thứ 2. Cảnh báo "rời trang?" chỉ giảm bớt, không chặn được.
 - Làm: lưu `{khoa, noi_dung, nguoi_dung_id}` vào `sessionStorage` lúc bấm tạo; tạo xong thì xóa. Mở lại trang thấy còn khóa → gửi lại đúng nội dung đó với khóa cũ (BE trả lại đơn đã tạo nếu có) hoặc hỏi nhân viên. Tùy chọn phía BE: lưu băm nội dung kèm khóa, cùng khóa khác nội dung → 409 (cần thêm cột).
@@ -735,3 +735,39 @@ Trạng thái unit test trên integration sau #39: **9 fail** (không có test g
 
 **Gửi Sơn (#39, quầy vé):**
 > Sau #39 có 7 test vé lẻ / VNPay fail: `tests/unit/test_ve_le.py` (`test_ipn_ve_thanh_cong`, `test_ipn_ve_that_bai_khong_doi_gi`, `test_ipn_ve_sai_so_tien`, `test_ipn_ve_da_thanh_toan_roi`, `test_ipn_ve_da_bi_huy_trong_luc_thanh_toan_can_hoan_tien_tay`, `test_truy_van_ve_thanh_cong`) và `tests/unit/test_thong_bao_khach.py::test_ipn_ve_le_thanh_cong_bao_khach`. Nguyên nhân: `thanh_toan_service._ap_dung_ket_qua_ve` mới so `ve["ma_tham_chieu_vnpay"]` với `vnp_TxnRef`, còn vé giả trong các test cũ chưa có trường `ma_tham_chieu_vnpay` → trả `01 Transaction reference mismatch` thay vì `00`. Code đúng, chỉ cần thêm `ma_tham_chieu_vnpay` (bằng mã giao dịch test dùng) vào vé giả, và cập nhật mock `ghi_nhan_thanh_toan_ve_le` theo chữ ký mới 3 tham số. Chạy thử: `python -m pytest tests/unit/test_ve_le.py tests/unit/test_thong_bao_khach.py`.
+
+### 7.8. B2 + A3 (23/10/2026)
+
+**B2 — Chống tạo trùng khi tải lại trang**
+
+| Lớp | Sửa |
+|---|---|
+| BE | `GET /gui-hang/tao-don/khoa/{khoa}` (`routes/gui_hang.py`, `gui_hang_service.tim_don_theo_khoa_chong_trung`): đơn chính nhân viên đó đã tạo bằng `Idempotency-Key` này, 404 nếu chưa. Chỉ đọc, không tạo; khóa của nhân viên khác → 404 |
+| FE `tao-don.js` | Trước khi gửi tạo đơn lưu `{nguoi_dung_id, khoa, duLieu}` vào `sessionStorage` (theo từng tab → 2 tab không đè nhau). Thành công hoặc lỗi 4xx → xóa; mất mạng / 5xx → **giữ** (có thể đơn đã vào DB) |
+| FE khi mở trang | `khoiPhucDonChoTao`: còn khóa của đúng tài khoản → hỏi BE. Đã tạo → toast + biên nhận. Chưa tạo → mở lại hộp xác nhận với **đúng nội dung + khóa cũ** kèm nhắc "CHƯA được tạo, hỏi lại khách" — không tự gửi vì khách có thể đã đi. Hỏi lỗi mạng → giữ khóa, nhắc tải lại |
+| `core.js`, `khoi-tao.js` | `state.nguoiDungId` lấy từ `/auth/me` |
+| Test | +2 unit test service; thử API thật 6 ca (404 khóa mới, 201 tạo, 200 hỏi lại cùng mã, 404 nhân viên khác, 422 khóa sai định dạng, gửi lại cùng khóa → cùng đơn); mô phỏng FE bằng Node 5 ca (đã tạo / chưa tạo / mất mạng khi hỏi / khóa tài khoản khác / mất mạng vs 400 khi tạo) |
+
+Chưa thử bằng trình duyệt thật (phiên này không có công cụ trình duyệt) — nên tự thử: tạo đơn, tắt backend (`docker compose stop backend`) trước khi bấm tạo, F5, bật lại backend, F5.
+
+**A3 — Kiểm thử đồng thời:** `backend/scripts/kiem_thu_dong_thoi_gui_hang.py` (chỉ chạy DB local, tự dọn đơn thử)
+
+```
+docker compose exec backend python scripts/kiem_thu_dong_thoi_gui_hang.py 30
+```
+
+- Gọi thẳng hàm repository từ 2 luồng. Bản đầu chỉ dùng `threading.Barrier` → **1 bên luôn thắng 50/50 vòng**, tức 2 transaction không chồng nhau, test vô nghĩa. Bản cuối: kết nối "cổng" giữ khóa dòng, đợi `pg_stat_activity` thấy đủ 2 phiên chờ khóa rồi mới nhả; thứ tự khởi động đảo ngẫu nhiên.
+- Kết quả (30 vòng mỗi tình huống, cả 2 kết cục đều xảy ra):
+
+| Tình huống | Đúng | Phân bố |
+|---|---|---|
+| 2 nhân viên cùng giao 1 đơn | 30/30 | NV1 thắng 15, NV2 thắng 15 |
+| Hủy đúng lúc phụ xe chất hàng | 30/30 | hủy 15, chất 15 — dữ liệu không lai |
+| Ghi liên hệ đúng lúc giao | 30/30 | liên hệ kịp 12, bị chặn 18 — giao luôn thành công |
+| 2 nhân viên cùng hủy | 30/30 | 14 / 16 — hoàn tiền 1 lần |
+| 2 request tạo đơn cùng `Idempotency-Key` | 30/30 | luôn 1 đơn, 2 request nhận cùng đơn |
+
+- Kiểm tra ngược: thay `cap_nhat_giao_hang` bằng bản "đọc rồi mới UPDATE" (không điều kiện trong UPDATE) → script báo **SAI 0/10** (2 bên cùng giao) → script bắt được lỗi thật.
+- Chốt ca (tình huống "2 lần chốt ca cùng lúc") bỏ vì chốt ca đang tạm bỏ.
+
+**Phát hiện ngoài role (báo nhóm):** `backend/app/db.py` dùng `psycopg2.pool.SimpleConnectionPool` — theo tài liệu psycopg2 loại này **không an toàn khi dùng chung giữa nhiều luồng**, trong khi FastAPI chạy route `def` (đồng bộ) trên threadpool. Nên đổi sang `ThreadedConnectionPool` (cùng chữ ký `(minconn, maxconn, dsn=...)`, sửa 1 dòng). Ngoài ra `maxconn = 10`: quá 10 request đồng thời giữ kết nối thì `getconn()` ném `PoolError` thay vì chờ. File dùng chung → không tự sửa.
