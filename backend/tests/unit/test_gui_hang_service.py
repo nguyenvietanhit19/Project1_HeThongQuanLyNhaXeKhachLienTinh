@@ -519,6 +519,21 @@ def test_tao_don_hang_khong_khoa_khong_tra_cuu_khoa(du_lieu_tao_don_mau):
             m.stop()
 
 
+# Tải lại trang khi chưa nhận được phản hồi tạo đơn: FE hỏi khóa cũ đã tạo đơn chưa (B2).
+def test_tim_don_theo_khoa_tra_don_cua_dung_nhan_vien():
+    nhan_vien_id = str(uuid4())
+    don_cu = {"id": str(uuid4()), "ma_van_don": "DH-CU"}
+    with patch("app.repositories.don_hang_repository.tim_theo_khoa_chong_trung", return_value=don_cu) as mock_tim:
+        assert gui_hang_service.tim_don_theo_khoa_chong_trung(nhan_vien_id, "khoa-12345678") is don_cu
+        mock_tim.assert_called_once_with(nhan_vien_id, "khoa-12345678")
+
+
+def test_tim_don_theo_khoa_chua_tao_bao_khong_tim_thay():
+    with patch("app.repositories.don_hang_repository.tim_theo_khoa_chong_trung", return_value=None):
+        with pytest.raises(KhongTimThay):
+            gui_hang_service.tim_don_theo_khoa_chong_trung(str(uuid4()), "khoa-12345678")
+
+
 def test_lich_su_trang_thai_chan_van_phong_khac():
     don = {"id": str(uuid4()), "diem_gui_id": str(uuid4()), "diem_nhan_id": str(uuid4())}
     with patch("app.repositories.don_hang_repository.tim_theo_id", return_value=don),          patch("app.repositories.don_hang_repository.lay_lich_su_trang_thai") as mock_ls:

@@ -129,6 +129,15 @@ def lay_tuyen_phu_hop(diem_gui_id: str, diem_nhan_id: str) -> list[dict]:
     return don_hang_repo.tim_cac_tuyen_qua_hai_diem(diem_gui_id, diem_nhan_id)
 
 
+def tim_don_theo_khoa_chong_trung(nhan_vien_id: str, khoa_chong_trung: str) -> dict:
+    """Đơn mà chính nhân viên này đã tạo bằng khóa chống trùng — FE hỏi sau khi tải lại trang
+    giữa lúc chờ phản hồi tạo đơn, để biết đơn đã vào hệ thống chưa (không tạo mới)."""
+    don = don_hang_repo.tim_theo_khoa_chong_trung(nhan_vien_id, khoa_chong_trung)
+    if not don:
+        raise KhongTimThay("Chưa có đơn nào được tạo với khóa này")
+    return don
+
+
 def tao_don_hang(
     du_lieu: TaoDonHangRequest,
     nhan_vien_id: str,

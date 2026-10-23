@@ -33,6 +33,7 @@ async function khoiTaoVanPhong() {
   }
 
   const me = await apiGet("/auth/me");
+  state.nguoiDungId = me.id;
   if (!me.van_phong_id) {
     hienThongBaoChuaGanVanPhong();
     return false;
@@ -228,6 +229,8 @@ async function khoiTaoTrang() {
     if (TAB_HOP_LE.includes(daLuu)) tab = daLuu;
   } catch (_) {}
   chuyenTab(tab);
+
+  if (!laQuanLyXem()) khoiPhucDonChoTao();
 }
 
 window.chuyenTab = chuyenTab;
