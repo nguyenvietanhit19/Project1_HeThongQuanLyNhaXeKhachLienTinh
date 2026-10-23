@@ -1292,7 +1292,7 @@ stop
 ```plantuml
 @startuml AD_UC36_TaoTaiKhoanNhanVien
 start
-:Nhập email, chọn vai trò muốn tạo và văn phòng phụ trách (nếu cần);
+:Nhập email, họ tên, số điện thoại, chọn vai trò muốn tạo\nvà văn phòng phụ trách (chỉ quầy vé/gửi hàng);
 if (Email này đã có tài khoản chưa?) then (có rồi)
   :Báo lỗi email đã tồn tại;
   stop
@@ -1308,9 +1308,33 @@ else (Quản lý)
     stop
   endif
 endif
-:Tạo tài khoản và gửi thư mời qua email;
-:Nhân viên bấm liên kết trong thư và tự đặt mật khẩu lần đầu;
-:Tài khoản bắt đầu dùng được;
+:Tạo tài khoản đã xác nhận với mật khẩu ban đầu mặc định\n(không gửi email) và nhắc người tạo báo cho cán bộ;
+:Người tạo báo mật khẩu ban đầu cho cán bộ;
+:Cán bộ đăng nhập và nên đổi mật khẩu ngay;
+stop
+@enduml
+```
+
+#### Nhánh kèm theo — Đổi văn phòng của cán bộ
+
+```plantuml
+@startuml AD_UC36_DoiVanPhongCanBo
+start
+:Tìm cán bộ cần đổi văn phòng;
+if (Tài khoản là nhân viên quầy vé hoặc gửi hàng?) then (không)
+  :Từ chối — vai trò này không gắn văn phòng;
+  stop
+endif
+:Hiển thị văn phòng hiện tại\n(chưa có thì xem như gán lần đầu), chọn văn phòng mới;
+if (Điểm được chọn là văn phòng\nvà khác văn phòng hiện tại?) then (không)
+  :Báo lỗi, chọn lại;
+  stop
+endif
+:Cập nhật văn phòng của cán bộ;
+if (Người thao tác là Quản lý nhân sự?) then (đúng)
+  :Ghi nhật ký (văn phòng cũ -> văn phòng mới);
+endif
+:Từ đây cán bộ chỉ thấy dữ liệu của văn phòng mới;
 stop
 @enduml
 ```
@@ -1326,6 +1350,10 @@ if (Khóa hay mở khóa?) then (khóa)
   :Tìm tài khoản cần khóa;
   if (Tài khoản này có phải quản lý gốc\n(tài khoản khởi tạo hệ thống) không?) then (phải)
     :Từ chối tuyệt đối — không ai khóa được tài khoản này;
+    stop
+  endif
+  if (Người thao tác chọn đúng tài khoản của chính mình?) then (đúng)
+    :Từ chối — không thể tự khóa chính mình;
     stop
   endif
 else (mở khóa)
