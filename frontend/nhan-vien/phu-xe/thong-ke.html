@@ -6,6 +6,9 @@
 <title>Thống kê — Phụ xe</title>
 <link rel="stylesheet" href="/shared/design-tokens.css?v=2" />
 <link rel="stylesheet" href="phu-xe.css?v=21" />
+<link rel="stylesheet" href="phu-xe-pro.css?v=16" />
+<link rel="manifest" href="manifest.webmanifest" />
+<script src="phu-xe-theme.js?v=1"></script>
 <style>
   /* Lưới thẻ số liệu/ô ngày đã chuyển sang phu-xe.css (2 cột điện thoại, 4 cột tablet) */
 </style>
@@ -26,6 +29,8 @@
         <input class="input-field" type="date" id="den_ngay" required />
         <button class="btn-primary" type="submit">Xem</button>
       </form>
+      <!-- Ô chọn ngày của trình duyệt hiện theo ngôn ngữ máy (có thể là tháng/ngày/năm) — dòng này luôn hiện dd/mm/yyyy -->
+      <p class="hint" id="khoang-ngay" aria-live="polite"></p>
       <div class="hang-loc" id="nhanh-ngay" role="toolbar" aria-label="Chọn nhanh khoảng ngày">
         <button type="button" class="hang-loc__chip" data-ngay="0">Hôm nay</button>
         <button type="button" class="hang-loc__chip" data-ngay="7">7 ngày</button>
@@ -89,8 +94,11 @@
   </div>
 
   <script src="/shared/api-client.js"></script>
+  <script src="phu-xe-pro.js?v=5"></script>
   <script src="../shared/auth-check.js"></script>
-  <script src="tai-khoan-menu.js?v=2"></script>
+  <script src="tai-khoan-menu.js?v=6"></script>
+  <script src="/shared/so-dien-thoai.js"></script>
+  <script src="phu-xe-cai-dat.js?v=2"></script>
   <script>
     requireRole("phu_xe");
 
@@ -108,7 +116,14 @@
     document.getElementById("tu_ngay").value = dinhDangNgay(ba0NgayTruoc);
     document.getElementById("den_ngay").value = dinhDangNgay(homNay);
 
+    // "2026-10-23" (giá trị ô date) → "23/10/2026"
+    function capNhatKhoangNgay() {
+      const dang = (v) => (v ? v.split("-").reverse().join("/") : "…");
+      document.getElementById("khoang-ngay").textContent = `Từ ${dang(document.getElementById("tu_ngay").value)} đến ${dang(document.getElementById("den_ngay").value)}`;
+    }
+
     async function taiThongKe() {
+      capNhatKhoangNgay();
       const loiEl = document.getElementById("loi");
       const ketQuaEl = document.getElementById("ket-qua");
       loiEl.hidden = true;
@@ -194,15 +209,24 @@
       document.getElementById("ds-chuyen-da-chay").innerHTML = ds.length
         ? ds.map((c) => {
             const [nhan, lop] = NHAN_CHUYEN[c.trang_thai] || [c.trang_thai, ""];
-            const gio = new Date(c.gio_khoi_hanh).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+            const gio = window.phuXe.ngayGio(c.gio_khoi_hanh);
             return `
-              <a class="row-btn" href="chi-tiet-chuyen.html?chuyen_id=${encodeURIComponent(c.id)}&ve=thong-ke" style="text-decoration:none;">
-                <span class="row-btn__chinh">
-                  <span class="name">${esc(c.tuyen_ten)} · ${c.chieu === "nguoc" ? "chiều ngược" : "chiều xuôi"}</span>
-                  ${c.ma ? `<span class="sub">Mã ${esc(c.ma)}</span>` : ""}
-                  <span class="sub">${esc(gio)} · ${c.so_ve_ban}${c.tong_ghe ? "/" + c.tong_ghe : ""} vé · ${Number(c.doanh_thu).toLocaleString("vi-VN")}đ · ${c.so_don_hang} đơn hàng</span>
+              <a class="chuyen-the" href="chi-tiet-chuyen.html?chuyen_id=${encodeURIComponent(c.id)}&ve=thong-ke">
+                <span class="chuyen-the__dau">
+                  <span class="chuyen-the__ten">${esc(c.tuyen_ten)}</span>
+                  <span class="badge ${lop}">${esc(nhan)}</span>
                 </span>
-                <span class="badge ${lop}">${esc(nhan)}</span>
+                <span class="chuyen-the__gio">
+                  <span class="chip-chieu chip-chieu--${c.chieu === "nguoc" ? "nguoc" : "xuoi"}">${c.chieu === "nguoc" ? "← Chiều ngược" : "Chiều xuôi →"}</span>
+                  <span class="chuyen-the__ngay">${esc(window.phuXe.ngay(c.gio_khoi_hanh))}</span>
+                  <span class="chuyen-the__luc">${esc(window.phuXe.gio(c.gio_khoi_hanh))}</span>
+                </span>
+                <span class="so-hang">
+                  <span class="so-o so-o--ve"><i>Vé bán</i><b>${c.so_ve_ban}${c.tong_ghe ? `<small>/${c.tong_ghe}</small>` : ""}</b></span>
+                  <span class="so-o so-o--tien"><i>Doanh thu</i><b>${Number(c.doanh_thu).toLocaleString("vi-VN")}<small>đ</small></b></span>
+                  <span class="so-o so-o--hang"><i>Đơn hàng</i><b>${c.so_don_hang}</b></span>
+                </span>
+                ${c.ma ? `<span class="chuyen-the__ma">Mã ${esc(c.ma)}</span>` : ""}
               </a>`;
           }).join("")
         : `<p class="empty-state">${tong ? "Không có chuyến nào khớp bộ lọc." : "Không có chuyến nào trong khoảng ngày này."}</p>`;

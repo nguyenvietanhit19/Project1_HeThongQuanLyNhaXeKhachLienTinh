@@ -6,6 +6,9 @@
 <title>Chuyến của tôi — Phụ xe</title>
 <link rel="stylesheet" href="/shared/design-tokens.css?v=2" />
 <link rel="stylesheet" href="phu-xe.css?v=14" />
+<link rel="stylesheet" href="phu-xe-pro.css?v=16" />
+<link rel="manifest" href="manifest.webmanifest" />
+<script src="phu-xe-theme.js?v=1"></script>
 </head>
 <body class="phu-xe-page">
   <div class="app-shell">
@@ -25,16 +28,19 @@
         <input class="input-field" type="search" id="o-tim-kiem" inputmode="search" autocomplete="off"
                placeholder="Tìm tuyến, biển số, giờ, trạng thái..." aria-label="Tìm chuyến xe" />
       </div>
-      <div id="danh-sach-chuyen" class="trip-list">
-        <p class="empty-state">Đang tải...</p>
+      <div id="danh-sach-chuyen" class="trip-list" aria-live="polite">
+        <div class="sk-khoi" aria-hidden="true"><div class="sk-the"></div><div class="sk-the"></div><div class="sk-the"></div></div>
       </div>
     </div>
   </div>
   </div>
 
   <script src="/shared/api-client.js"></script>
+  <script src="phu-xe-pro.js?v=5"></script>
   <script src="../shared/auth-check.js"></script>
-  <script src="tai-khoan-menu.js?v=2"></script>
+  <script src="tai-khoan-menu.js?v=6"></script>
+  <script src="/shared/so-dien-thoai.js"></script>
+  <script src="phu-xe-cai-dat.js?v=2"></script>
   <script>
     const { hoTen } = requireRole("phu_xe");
     document.getElementById("loi-chao").textContent = `Xin chào, ${hoTen}`;
@@ -62,8 +68,7 @@
     }
 
     function dinhDangGio(iso) {
-      const d = new Date(iso);
-      return d.toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+      return window.phuXe.ngayGio(iso);
     }
 
     // Bỏ dấu + hạ chữ thường để gõ "chua khoi hanh" vẫn ra "Chưa khởi hành"
@@ -95,8 +100,9 @@
             (c) => `
           <a class="trip-card" href="chuyen-dang-chay.html?chuyen_id=${encodeURIComponent(c.id)}">
             <div class="trip-route">${esc(c.tuyen_ten)}</div>
+            <div class="trip-gio">Khởi hành <b>${dinhDangGio(c.gio_khoi_hanh)}</b></div>
             <div class="trip-meta">
-              <span>${esc(c.bien_so)}</span> · ${dinhDangGio(c.gio_khoi_hanh)} ·
+              <span class="chip-bien">${esc(c.bien_so)}</span>
               <span class="pill ${nhanChuyen(c)[1]}">${esc(nhanChuyen(c)[0])}</span>
               ${c.dang_hoan ? '<span class="pill pill--dark">Đang hoãn</span>' : ""}
             </div>
@@ -108,10 +114,13 @@
 
     async function taiDanhSach() {
       try {
+        const truoc = new Map(danhSachChuyen.map((c) => [c.id, nhanChuyen(c)[0]]));
         danhSachChuyen = await apiGet("/phu-xe/chuyen-cua-toi");
+        // Chuyến nào vừa chuyển sang "Bến đã mở" / "Đến giờ chạy" so với lần tải trước → chuông nhắc
+        if (danhSachChuyen.some((c) => truoc.has(c.id) && truoc.get(c.id) !== nhanChuyen(c)[0] && ["Bến đã mở", "Đến giờ chạy"].includes(nhanChuyen(c)[0]))) window.phuXe.am("nhacNho");
         veDanhSach();
       } catch (err) {
-        document.getElementById("danh-sach-chuyen").innerHTML = `<p class="text-error">${esc(err.message)}</p>`;
+        document.getElementById("danh-sach-chuyen").innerHTML = `<p class="text-error" role="alert">${esc(err.message)}</p>`;
       }
     }
 
