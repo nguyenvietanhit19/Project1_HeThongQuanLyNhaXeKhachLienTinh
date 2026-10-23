@@ -115,9 +115,8 @@ def tim_hanh_khach_cua_chuyen(chuyen_id: str) -> list[dict]:
 
 def tim_ve_qua_gio_len_xe(x_phut: int) -> list[dict]:
     """UC-14 (⏱) — vé chưa lên xe nhưng đã quá X phút trước giờ dự kiến
-    tại đúng điểm đón của nó (NGHIEP_VU.md mục 8.2 điểm 6) — áp dụng như
-    nhau cho vé đã trả tiền (da_thanh_toan) lẫn đang giữ chỗ chờ trả tại
-    quầy (giu_cho, mục 9).
+    tại đúng điểm đón của nó (NGHIEP_VU.md mục 8.2 điểm 6). Vé chưa thanh
+    toán được hủy khi chuyến chạy, không tính là khách không đến.
 
     Bỏ qua vé mà xe đang DỪNG đúng điểm đón của nó (chưa bấm "Bắt đầu di chuyển"): lúc đó phụ xe còn đang cho
     khách lên xe. Khách chưa lên khi xe rời điểm sẽ được đánh dấu lúc xe tới điểm kế tiếp
@@ -132,8 +131,7 @@ def tim_ve_qua_gio_len_xe(x_phut: int) -> list[dict]:
                 JOIN chuyen_xe cx ON cx.id = v.chuyen_id
                 JOIN tuyen_diem_don_tra tdt
                     ON tdt.tuyen_id = cx.tuyen_id AND tdt.diem_don_tra_id = v.diem_don_id
-                WHERE (v.trang_thai = 'da_thanh_toan'
-                       OR (v.trang_thai = 'giu_cho' AND (v.han_giu_cho_den IS NULL OR v.han_giu_cho_den > now())))
+                WHERE v.trang_thai = 'da_thanh_toan'
                   AND cx.trang_thai != 'da_huy'
                   AND v.gio_hoan_tac IS NULL
                   AND NOT (
@@ -170,7 +168,7 @@ def danh_dau_khong_den(ve_id: str) -> None:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("UPDATE ve SET trang_thai = 'khong_den' WHERE id = %s", (ve_id,))
+            cur.execute("UPDATE ve SET trang_thai = 'khong_den' WHERE id = %s AND trang_thai = 'da_thanh_toan'", (ve_id,))
         conn.commit()
     finally:
         release_connection(conn)
@@ -342,8 +340,7 @@ def xac_nhan_xuong_xe(ve_id: str) -> None:
 
 
 def tim_ve_chua_len_tai_diem(chuyen_id: str, diem_don_id: str) -> list[dict]:
-    """Vé chưa lên xe tại điểm đón này (đã trả tiền HOẶC còn giữ chỗ chờ trả tại quầy) — khi xe rời điểm
-    mà họ vẫn chưa lên thì coi như không đến."""
+    """Vé đã thanh toán nhưng chưa lên xe tại điểm đón này; vé chưa trả tiền được tự hủy riêng."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -353,7 +350,7 @@ def tim_ve_chua_len_tai_diem(chuyen_id: str, diem_don_id: str) -> list[dict]:
                        COALESCE(nd.ho_ten, v.ten_khach_vang_lai) AS ho_ten
                 FROM ve v
                 LEFT JOIN nguoi_dung nd ON nd.id = v.khach_hang_id
-                WHERE v.chuyen_id = %s AND v.diem_don_id = %s AND v.trang_thai IN ('da_thanh_toan', 'giu_cho')
+                WHERE v.chuyen_id = %s AND v.diem_don_id = %s AND v.trang_thai = 'da_thanh_toan'
                 ORDER BY length(v.so_ghe), v.so_ghe
                 """,
                 (chuyen_id, diem_don_id),

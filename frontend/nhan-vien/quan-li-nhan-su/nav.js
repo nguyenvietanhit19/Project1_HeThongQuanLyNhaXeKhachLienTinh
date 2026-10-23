@@ -2,11 +2,10 @@
  * Menu điều hướng cho các trang Quản lý nhân sự — mảng link, tự thêm entry
  * vào cuối mảng khi có UC mới.
  *
- * Hiện mới có UC-49 (hồ sơ nhân sự vận hành). Còn thiếu backend nên CHƯA
- * thêm vào menu: UC-36/37 (tạo/khóa tài khoản cán bộ — đã có sẵn ở
- * routes/quan_ly.py? kiểm tra lại trước khi bật), UC-51 (cho nghỉ việc,
- * hiện lồng trong modal sửa hồ sơ ở ho-so.html chứ chưa tách trang riêng),
- * UC-52 (xem nhật ký thao tác).
+ * Hiện có UC-49 (hồ sơ nhân sự vận hành) và UC-36 (tạo tài khoản cán bộ,
+ * tai-khoan.html). Còn thiếu backend nên CHƯA thêm vào menu: UC-37
+ * (khóa/mở khóa tài khoản), UC-51 (cho nghỉ việc, hiện lồng trong modal sửa
+ * hồ sơ ở ho-so.html chứ chưa tách trang riêng), UC-52 (xem nhật ký thao tác).
  *
  * Riêng của domain Quản lý nhân sự — không dùng chung với
  * frontend/nhan-vien/quan-ly/nav.js (dù cùng kiểu actor "quản lý", 2 domain
@@ -23,6 +22,11 @@ const MENU_QUAN_LY_NHAN_SU = [
     label: "Hồ sơ nhân sự",
     href: "/nhan-vien/quan-li-nhan-su/ho-so.html",
     icon: '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5a3 3 0 0 1 0 6M18 14c1.8.6 3 2.3 3 4"/>',
+  },
+  {
+    label: "Tài khoản cán bộ",
+    href: "/nhan-vien/quan-li-nhan-su/tai-khoan.html",
+    icon: '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M19 8v6M16 11h6"/>',
   },
 ];
 

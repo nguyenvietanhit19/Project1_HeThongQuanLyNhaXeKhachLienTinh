@@ -72,6 +72,10 @@ def nd_het_han(ma_dat_cho: str, danh_sach_ghe: list[str]) -> str:
     return f"Mã đặt chỗ {ma_dat_cho} (ghế {_ghe(danh_sach_ghe)}) đã hết hạn giữ chỗ, ghế được nhả cho người khác. Bạn có thể đặt lại."
 
 
+def nd_huy_ve_qua_gio_chay(ma_dat_cho: str, danh_sach_ghe: list[str]) -> str:
+    return f"Mã đặt chỗ {ma_dat_cho} (ghế {_ghe(danh_sach_ghe)}) đã tự hủy vì chưa thanh toán khi chuyến quá giờ khởi hành."
+
+
 def nd_khong_den(ma_ve: str, so_ghe: str, so_lan: int, nguong: int, so_ngay: int) -> str:
     canh_bao = (
         f"Bạn đã không đến {so_lan} lần trong {so_ngay} ngày nên từ nay chỉ được thanh toán ngay khi đặt vé."
