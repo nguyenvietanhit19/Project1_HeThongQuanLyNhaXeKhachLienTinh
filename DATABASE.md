@@ -43,23 +43,23 @@ Tài liệu này mô tả đầy đủ cấu trúc bảng của cơ sở dữ li
 |---|---|---|
 | `nguoi_dung_id` | UUID PK, FK → `nguoi_dung(id)` ON DELETE CASCADE | |
 | `khoa_thanh_toan_tai_quay` | BOOLEAN NOT NULL DEFAULT false | Đủ N lần vi phạm no-show (mục 9) → tự động `true`, chỉ còn đặt được vé kiểu "thanh toán ngay" |
-| `bi_khoa` | BOOLEAN NOT NULL DEFAULT false | Vi phạm nghiêm trọng hơn ngưỡng thứ 2 (mục 9) — khóa tạm, khác `nguoi_dung.dang_hoat_dong` (khóa hẳn do quản lý) |
+| `bi_khoa` | BOOLEAN NOT NULL DEFAULT false | Vi phạm nghiêm trọng hơn ngưỡng thứ 2 (mục 9) — **hệ thống tự đặt, không ai mở lại** (khách bị khóa coi như mất tài khoản). Khác `nguoi_dung.dang_hoat_dong`, chỉ do UC-37 khóa/mở **cán bộ** |
 | `ly_do_khoa` | TEXT NULLABLE | |
 
 Số lần vi phạm no-show **không lưu thành cột đếm riêng** (mục 7) — tính động bằng đếm `ve` của khách có `trang_thai = 'khong_den'`, theo đúng định nghĩa 1 loại vi phạm duy nhất ở mục 9 `NGHIEP_VU.md`.
 
-### 1.3. `ho_so_can_bo_diem` (con dùng chung — `nhan_vien_quay_ve`, `nhan_vien_gui_hang`, `dieu_do_vien`)
+### 1.3. `ho_so_can_bo_diem` (con dùng chung — `nhan_vien_quay_ve`, `nhan_vien_gui_hang`)
 
-Cả 3 vai trò chỉ cần thêm đúng 1 thông tin giống nhau: văn phòng phụ trách hiện tại (chọn lúc tạo tài khoản, đổi được khi điều chuyển — nhánh kèm theo UC-36 `NGHIEP_VU.md`; mỗi cán bộ đúng 1 dòng nên đổi là `UPDATE`) — gộp chung 1 bảng con, phân biệt qua `nguoi_dung.vai_tro`.
+Cả 2 vai trò chỉ cần thêm đúng 1 thông tin giống nhau: văn phòng phụ trách hiện tại (chọn lúc tạo tài khoản, đổi được khi điều chuyển — nhánh kèm theo UC-36 `NGHIEP_VU.md`; mỗi cán bộ đúng 1 dòng nên đổi là `UPDATE`) — gộp chung 1 bảng con, phân biệt qua `nguoi_dung.vai_tro`. **`dieu_do_vien` không còn gắn văn phòng** (phụ trách theo tuyến — nhóm đã duyệt, xem `DIEU_DO_VIEN_THEO_TUYEN_DE_XUAT.md`) nên không có dòng nào ở bảng này; UC-36 chặn việc gán văn phòng cho vai trò này.
 
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `nguoi_dung_id` | UUID PK, FK → `nguoi_dung(id)` ON DELETE CASCADE | |
 | `van_phong_id` | UUID NOT NULL, FK → `diem_don_tra(id)` | Bắt buộc `loai = 'van_phong'` — phạm vi thao tác được xác thực ở BE |
 
-Migration triển khai: `20261002_0900_ho_so_va_thanh_toan_gui_hang.sql`. Quản lý gán/cập nhật qua `PUT /quan-ly/ho-so-can-bo-diem/{nguoi_dung_id}`.
+Migration triển khai: `20261002_0900_ho_so_va_thanh_toan_gui_hang.sql`. Văn phòng được gán lúc tạo tài khoản cán bộ (UC-36); đổi sau đó qua nhánh "Đổi văn phòng" của UC-36, hoặc `PUT /quan-ly/ho-so-can-bo-diem/{nguoi_dung_id}` (hàm của phần gửi hàng, dự kiến bỏ khi UC-36 thay thế).
 
-`phu_xe`, `ke_toan`, `quan_ly_nhan_su`, và `quan_ly` **không có bảng con** — phụ xe gắn với xe qua `xe_nhan_su` (mục 1.5), không gắn 1 văn phòng; `ke_toan`/`quan_ly_nhan_su`/`quan_ly` phạm vi toàn hệ thống, không cần cột phạm vi nào thêm.
+`phu_xe`, `dieu_do_vien`, `ke_toan`, `quan_ly_nhan_su`, và `quan_ly` **không có bảng con** — phụ xe gắn với xe qua `xe_nhan_su` (mục 1.5), không gắn 1 văn phòng; điều độ viên phụ trách theo tuyến, không gắn văn phòng; `ke_toan`/`quan_ly_nhan_su`/`quan_ly` phạm vi toàn hệ thống, không cần cột phạm vi nào thêm.
 
 ### 1.4. `nhan_su_van_hanh` (hồ sơ tài xế + phụ xe — **không phải** bảng tài khoản)
 
@@ -525,7 +525,7 @@ Nhật ký thao tác của **`quan_ly`** — phục vụ tra soát. Hành độn
 |---|---|---|
 | `id` | UUID PK | |
 | `admin_id` | UUID NOT NULL, FK → `nguoi_dung(id)` | |
-| `hanh_dong` | TEXT NOT NULL | VD `tao_tai_khoan`, `khoa_tai_khoan`, `sua_bien_che_co_dinh`, `cau_hinh_gia_ve`, `go_han_che_khach_hang`... |
+| `hanh_dong` | TEXT NOT NULL | VD `tao_tai_khoan`, `khoa_tai_khoan`, `mo_khoa_tai_khoan`, `sua_bien_che_co_dinh`, `cau_hinh_gia_ve`... (không còn gỡ hạn chế khách hàng: khách do hệ thống tự khóa, không ai gỡ — `NGHIEP_VU.md` mục 9). `ghi_chu` lưu lý do khóa/mở khóa (bắt buộc ở UC-37). Migration: `20261023_1000_tao_bang_nhat_ky_admin.sql` |
 | `doi_tuong_loai` | TEXT NOT NULL | Bảng/loại đối tượng bị tác động |
 | `doi_tuong_id` | UUID NOT NULL | |
 | `ghi_chu` | TEXT NULLABLE | |
@@ -577,7 +577,7 @@ Nhất quán với nguyên tắc "tính động qua query, không cache số li�
 
 ```
 nguoi_dung 1──1 ho_so_khach_hang     (vai_tro = khach_hang)
-nguoi_dung 1──1 ho_so_can_bo_diem    (vai_tro = nhan_vien_quay_ve | nhan_vien_gui_hang | dieu_do_vien)
+nguoi_dung 1──1 ho_so_can_bo_diem    (vai_tro = nhan_vien_quay_ve | nhan_vien_gui_hang)
 nguoi_dung 0──1 nhan_su_van_hanh     (vai_tro = phu_xe — chiều ngược lại nullable)
 ho_so_can_bo_diem N──1 diem_don_tra  (van_phong_id)
 

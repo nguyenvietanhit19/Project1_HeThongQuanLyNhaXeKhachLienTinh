@@ -7,11 +7,14 @@ router riêng để không đụng file đó.
 """
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
 from app.middleware.auth_middleware import NguoiDungHienTai, yeu_cau_vai_tro
 from app.schemas.tai_khoan_can_bo_schema import (
+    DoiTrangThaiTaiKhoanRequest,
+    DoiTrangThaiTaiKhoanResponse,
     TaiKhoanCanBoResponse,
     TaoTaiKhoanCanBoRequest,
     TaoTaiKhoanCanBoResponse,
@@ -48,3 +51,15 @@ def vai_tro_duoc_tao(nguoi_dung: QuyenQuanLyNhanSu):
 @router.post("", response_model=TaoTaiKhoanCanBoResponse, status_code=201)
 def tao_tai_khoan(du_lieu: TaoTaiKhoanCanBoRequest, nguoi_dung: QuyenQuanLyNhanSu):
     return service.tao_tai_khoan(nguoi_dung.id, nguoi_dung.vai_tro, du_lieu)
+
+
+# POST /quan-ly-nhan-su/tai-khoan/{muc_tieu_id}/khoa — khóa tài khoản cán bộ (UC-37), body: lý do bắt buộc
+@router.post("/{muc_tieu_id}/khoa", response_model=DoiTrangThaiTaiKhoanResponse)
+def khoa_tai_khoan(muc_tieu_id: UUID, du_lieu: DoiTrangThaiTaiKhoanRequest, nguoi_dung: QuyenQuanLyNhanSu):
+    return service.khoa_tai_khoan(nguoi_dung.id, nguoi_dung.vai_tro, str(muc_tieu_id), du_lieu.ly_do)
+
+
+# POST /quan-ly-nhan-su/tai-khoan/{muc_tieu_id}/mo-khoa — mở khóa tài khoản cán bộ (UC-37), body: lý do bắt buộc
+@router.post("/{muc_tieu_id}/mo-khoa", response_model=DoiTrangThaiTaiKhoanResponse)
+def mo_khoa_tai_khoan(muc_tieu_id: UUID, du_lieu: DoiTrangThaiTaiKhoanRequest, nguoi_dung: QuyenQuanLyNhanSu):
+    return service.mo_khoa_tai_khoan(nguoi_dung.id, nguoi_dung.vai_tro, str(muc_tieu_id), du_lieu.ly_do)

@@ -26,7 +26,7 @@
 > Phạm vi **toàn hệ thống** (không gắn văn phòng, giống `ke_toan`/`quan_ly`, mục 2) — sinh ra để san bớt việc quản lý nhân sự vận hành khỏi `quan_ly` khi quy mô công ty lớn (nhiều văn phòng, hàng trăm nhân sự). Chỉ xử lý **tài khoản và hồ sơ** nhân sự cấp vận hành — **không có quyền nghiệp vụ nào khác** (không sửa tuyến, giá, xe, biên chế xe, khuyến mãi, lịch chạy định kỳ).
 
 1. **Tạo tài khoản** cho đúng **4 vai trò**: `nhan_vien_van_hanh` (phụ xe; trong DB/code là `phu_xe`), `nhan_vien_quay_ve`, `nhan_vien_gui_hang`, `dieu_do_vien` — qua cơ chế mời như `quan_ly`. **Không** tạo được `ke_toan`, `quan_ly`, hay `quan_ly_nhan_su` khác.
-2. **Khóa/mở khóa tài khoản** cho đúng 4 vai trò trên — không đụng được `ke_toan`/`quan_ly`/`quan_ly_nhan_su` khác.
+2. **Khóa/mở khóa tài khoản** cho đúng 4 vai trò trên — không đụng được `ke_toan`/`quan_ly`/`quan_ly_nhan_su` khác (cùng bậc hoặc cao hơn). Chỉ tài khoản **cán bộ**; khách hàng không ai khóa/mở được (hệ thống tự khóa).
 3. Xem thống kê toàn hệ thống (UC-39), cùng phạm vi như `quan_ly`.
 4. Chỉ **tài khoản `quan_ly` gốc** mới tạo được `quan_ly_nhan_su` — không tự đăng ký, không được `quan_ly_nhan_su` khác hay `quan_ly` không phải gốc tạo hộ.
 5. **Quản lý hồ sơ nhân sự vận hành** (UC-49): tạo/sửa hồ sơ **tài xế và phụ xe** (họ tên, SĐT, CCCD, ngày sinh, ngày vào làm) kèm **giấy tờ** (bằng lái, giấy khám sức khỏe, ngày hết hạn). Tài xế không có tài khoản nên đây là nơi duy nhất lưu thông tin của họ. Hệ thống tự nhắc khi giấy tờ sắp hết hạn.
@@ -69,7 +69,7 @@ Nguyên tắc: vai trò càng nhạy cảm (tiền, quyền quản trị) thì c
 | `ke_toan` | ❌ | ❌ | ❌ |
 | `quan_ly_nhan_su` khác | ❌ | ❌ | ❌ |
 | `quan_ly` | ❌ | ❌ | ❌ |
-| `khach_hang` | tài liệu chưa nêu cho QLNS (UC-37 nói "khách hàng hoặc cán bộ" — cần làm rõ) | ❌ | ❌ |
+| `khach_hang` | ❌ (đã chốt 23/10/2026: không ai khóa/mở khách hàng — hệ thống tự khóa theo mục 9) | ❌ | ❌ |
 
 ### 2.3. Vì sao hồ sơ chỉ có tài xế và phụ xe
 
@@ -97,7 +97,7 @@ Cột theo thứ tự: khách hàng · phụ xe · tài xế · quầy vé · g�
 |---|---|---|---|
 | UC-35 | Quản lý biên chế xe | ❌ | ✅ |
 | UC-36 | Tạo tài khoản cán bộ | ✅ (4 vai trò vận hành, không `ke_toan`/`quan_ly`/`quan_ly_nhan_su`) | ✅ (mọi vai trò; `quan_ly`/`quan_ly_nhan_su` chỉ tài khoản gốc tạo được) |
-| UC-37 | Khóa / mở khóa tài khoản *(gộp từ UC-37 + UC-38 cũ)* | ✅ (4 vai trò vận hành) | ✅ (mọi tài khoản; riêng `quan_ly` gốc không ai khóa được) |
+| UC-37 | Khóa / mở khóa tài khoản *(gộp từ UC-37 + UC-38 cũ)* | ✅ (chỉ 4 vai trò vận hành) | ✅ theo **bậc** (gốc khóa mọi cán bộ; `quan_ly` thường chỉ khóa `quan_ly_nhan_su` + 4 vai trò vận hành; không ai khóa gốc; không áp dụng khách hàng) |
 | UC-39 | Xem thống kê doanh thu/vận hành | ✅ (toàn hệ thống) | ✅ (toàn hệ thống) |
 | **UC-49** | **Quản lý hồ sơ nhân sự vận hành (tài xế/phụ xe)** *(gồm cơ chế UC-50 cũ — cảnh báo giấy tờ)* | ✅ | ✅ |
 | **UC-51** | **Cho nghỉ việc nhân sự vận hành** | ✅ | ✅ |
@@ -184,21 +184,23 @@ Cột theo thứ tự: khách hàng · phụ xe · tài xế · quầy vé · g�
 
 ### UC-37. Khóa / mở khóa tài khoản *(gộp từ UC-37 + UC-38 cũ, dùng chung với `quan_ly`)*
 
-- **Actor**: Quản lý (bất kỳ), hoặc Quản lý nhân sự (phạm vi hẹp hơn).
+- **Actor**: Quản lý (gốc hoặc thường), hoặc Quản lý nhân sự — mỗi bậc chỉ khóa được bậc thấp hơn mình.
 - **Luồng chính (khóa)**:
-  1. Tìm tài khoản (khách hàng hoặc cán bộ) cần khóa.
-  2. Hệ thống kiểm tra actor có quyền khóa đúng tài khoản mục tiêu hay không.
-  3. Nhập lý do (nếu có).
+  1. Tìm tài khoản **cán bộ** cần khóa.
+  2. Hệ thống kiểm tra actor có quyền khóa đúng tài khoản mục tiêu hay không (quy tắc bậc).
+  3. Nhập **lý do (bắt buộc, gõ chữ tự do, tối đa 500 ký tự)**.
   4. Đặt `dang_hoat_dong = false`.
 - **Luồng rẽ nhánh**:
+  - Tài khoản mục tiêu là khách hàng → chặn (hệ thống tự khóa, không ai khóa/mở).
   - Tài khoản mục tiêu là `quan_ly` gốc → chặn tuyệt đối, không ai khóa được.
-  - Actor là `quan_ly_nhan_su` nhưng mục tiêu là `ke_toan`/`quan_ly`/`quan_ly_nhan_su` khác → chặn.
+  - Tự khóa chính mình → chặn.
+  - Mục tiêu có bậc cùng hoặc cao hơn actor (gốc > `quan_ly` thường = `ke_toan` > `quan_ly_nhan_su` > vận hành) → chặn "không đủ quyền"; riêng `ke_toan` chỉ gốc khóa được.
 - **Hậu điều kiện**: Tài khoản không đăng nhập được nữa; lịch sử vẫn được giữ. **Nếu tài khoản bị khóa là `phu_xe` đang thuộc biên chế xe**, hệ thống cảnh báo "xe X thiếu phụ xe" và gửi thông báo như UC-51 — nhưng **không tự đổi biên chế** (khóa tạm thời chưa chắc là nghỉ việc; nếu là nghỉ việc thì dùng UC-51).
 
 #### Nhánh kèm theo — trước đây là UC-38 (Mở khóa tài khoản)
 
-- **Luồng chính**: Tìm tài khoản đang khóa → kiểm tra quyền (cùng quy tắc UC-37) → xem lý do bị khóa trước đó → đặt lại `dang_hoat_dong = true`.
-- **Luồng rẽ nhánh**: Actor là `quan_ly_nhan_su` nhưng tài khoản mục tiêu là `ke_toan`/`quan_ly`/`quan_ly_nhan_su` khác → chặn.
+- **Luồng chính**: Tìm tài khoản cán bộ đang khóa → kiểm tra quyền (cùng quy tắc bậc UC-37) → xem lý do bị khóa trước đó → nhập lý do mở khóa (bắt buộc) → đặt lại `dang_hoat_dong = true`.
+- **Luồng rẽ nhánh**: Mục tiêu có bậc cùng hoặc cao hơn actor → chặn "không đủ quyền".
 - **Hậu điều kiện**: Tài khoản đăng nhập lại được.
 
 ### UC-35. Quản lý biên chế xe *(chỉ `quan_ly` — ghi lại đoạn liên quan tới hồ sơ nhân sự)*
@@ -391,15 +393,15 @@ UC-49, UC-51, UC-52 (vai trò `quan_ly_nhan_su`) **chưa phân công người** 
 | 5 | Thứ tự kiểm tra khi tạo | Quyền → định dạng SĐT → email trùng → văn phòng hợp lệ → mới tạo (kiểm tra hết trước khi ghi để không tạo dở) | — |
 | 6 | Tự khóa chính mình | **Chặn** (tránh tự mất quyền truy cập) | ✅ UC-37 rẽ nhánh, UML UC-37 |
 | 7 | Khóa phụ xe đang trong biên chế | Trả danh sách xe thiếu người cho người thao tác + gửi thông báo, **không tự đổi biên chế** (đúng UC-37). Dùng chung hàm tính "xe thiếu người" với UC-51 | — (đã có trong spec) |
-| 8 | Mở khóa — xem lại lý do khóa | Trả lý do ở lần khóa gần nhất **nếu do QLNS khóa** (bảng nhật ký chỉ có hành động QLNS — xem mục e) | — |
+| 8 | Mở khóa — xem lại lý do khóa | Trả lý do ở lần khóa gần nhất, tra từ nhật ký tương ứng (QLNS khóa -> `nhat_ky_quan_ly_nhan_su`, `quan_ly` khóa -> `nhat_ky_admin`) | ✅ UC-37 (lý do bắt buộc) |
 | 9 | UC-51: nhập liệu | Ngày nghỉ mặc định hôm nay, không tương lai, không trước ngày vào làm; **lý do bắt buộc**; hồ sơ đã nghỉ thì chặn | ✅ UC-51 bước 1 + rẽ nhánh |
 | 10 | UC-51: 2 bước "xem trước → xác nhận" | 2 API: xem trước (không ghi gì) rồi mới gọi API nghỉ việc. Nghỉ việc chạy **1 transaction**: đóng hồ sơ + khóa tài khoản (nếu có) + chuyển mọi dòng biên chế sang `tam_nghi` | — |
 | 11 | UC-51: thế nào là "thiếu người" | Biên chế **cố định** đang hoạt động, không tính người này: còn **< 2 tài xế** hoặc **0 phụ xe**. Biên chế tạm thời vẫn chuyển `tam_nghi` nhưng không tính thiếu | ✅ UC-51 rẽ nhánh |
 | 12 | UC-51: chặn khi xe đang chạy | Xe (gốc hoặc `xe_thuc_te`) có chuyến `dang_chay` → chặn | — (đã có trong spec) |
-| 13 | Người nhận thông báo thiếu người | Mọi `quan_ly` và mọi `dieu_do_vien` đang hoạt động; mỗi xe thiếu 1 thông báo | — |
+| 13 | Người nhận thông báo thiếu người | Mọi `quan_ly` và mọi `dieu_do_vien` đang hoạt động (không gửi `quan_ly_nhan_su`; với UC-37 bỏ chính người vừa khóa); mỗi xe thiếu 1 thông báo | ✅ chốt 23/10/2026 |
 | 14 | UC-52: phạm vi xem | `quan_ly_nhan_su` **luôn bị ép về dòng của chính mình** dù client gửi tham số gì; `quan_ly` xem toàn bộ + lọc theo người | — (đã có trong spec) |
 | 15 | UC-52: lọc, phân trang | Lọc: từ ngày, đến ngày (giờ VN), loại hành động, loại đối tượng. Phân trang 50 dòng/lần, tối đa 200. Hiện tên người thực hiện và tên đối tượng bị tác động | ✅ UC-52 bước 3 |
-| 16 | Ghi nhật ký | Chỉ ghi khi người thao tác là `quan_ly_nhan_su` (một hàm ghi dùng chung cho cả UC-36/37/51) | — |
+| 16 | Ghi nhật ký | `quan_ly_nhan_su` -> `nhat_ky_quan_ly_nhan_su`; `quan_ly` (gốc hay thường) -> `nhat_ky_admin` (bảng này cần migration, làm cùng UC-37) | ✅ chốt 23/10/2026 |
 
 #### c) Ma trận quyền tạo / khóa tài khoản (hàm kiểm tra dùng chung)
 
@@ -413,11 +415,20 @@ UC-49, UC-51, UC-52 (vai trò `quan_ly_nhan_su`) **chưa phân công người** 
 
 `khach_hang` không tạo qua UC-36 (tự đăng ký công khai).
 
-**Khóa / mở khóa (UC-37)** — luật theo thứ tự:
-1. Mục tiêu là `quan_ly` gốc → chặn tuyệt đối.
-2. Mục tiêu là chính mình → chặn.
-3. Người thao tác là `quan_ly_nhan_su` và mục tiêu **không** thuộc 4 vai trò vận hành → chặn "không đủ quyền".
-4. Còn lại → cho phép.
+**Khóa / mở khóa (UC-37)** — **quy tắc bậc** (chốt 23/10/2026): gốc > (`quan_ly` thường = `ke_toan`) > `quan_ly_nhan_su` > 4 vai trò vận hành; chỉ khóa được bậc **thấp hơn** mình.
+
+| Người thao tác | Khóa / mở khóa được |
+|---|---|
+| `quan_ly` gốc | `quan_ly` thường, `ke_toan`, `quan_ly_nhan_su`, 4 vai trò vận hành |
+| `quan_ly` thường | `quan_ly_nhan_su`, 4 vai trò vận hành |
+| `quan_ly_nhan_su` | 4 vai trò vận hành |
+
+Luật theo thứ tự:
+1. Mục tiêu là khách hàng → chặn (không ai khóa/mở).
+2. Mục tiêu là `quan_ly` gốc → chặn tuyệt đối.
+3. Mục tiêu là chính mình → chặn (chỉ khi khóa).
+4. Mục tiêu có bậc cùng hoặc cao hơn → chặn "không đủ quyền".
+5. Lý do bắt buộc (rỗng -> từ chối). Còn lại → cho phép.
 
 Danh sách tài khoản trả về kèm cờ `thao_tac_duoc` (tính bằng đúng luật trên) để giao diện bật/tắt nút; quyền thật vẫn kiểm ở backend.
 
@@ -428,8 +439,8 @@ Danh sách tài khoản trả về kèm cờ `thao_tac_duoc` (tính bằng đún
 GET    /quan-ly-nhan-su/tai-khoan?vai_tro=&tu_khoa=     danh sách tài khoản cán bộ (kèm thao_tac_duoc)
 GET    /quan-ly-nhan-su/tai-khoan/van-phong             danh sách văn phòng cho ô chọn
 POST   /quan-ly-nhan-su/tai-khoan                       tạo tài khoản (UC-36)
-PUT    /quan-ly-nhan-su/tai-khoan/{id}/khoa             khóa, body: ly_do (UC-37)
-PUT    /quan-ly-nhan-su/tai-khoan/{id}/mo-khoa          mở khóa (UC-37)
+POST   /quan-ly-nhan-su/tai-khoan/{id}/khoa             khóa, body: ly_do bắt buộc (UC-37)
+POST   /quan-ly-nhan-su/tai-khoan/{id}/mo-khoa          mở khóa, body: ly_do bắt buộc (UC-37)
 
 # UC-51 — thêm vào routes/nhan_su.py
 GET    /quan-ly-nhan-su/ho-so/{id}/nghi-viec/xem-truoc  xe bị ảnh hưởng + xe đang chạy (không ghi gì)
@@ -453,8 +464,8 @@ Tất cả mở cho `quan_ly_nhan_su` và `quan_ly` (cùng `yeu_cau_vai_tro`).
 
 #### f) Điểm tài liệu gốc còn mơ hồ — cần hỏi nhóm
 
-1. **Nhật ký của `quan_ly` đi đâu?** `DATABASE.md` mục 6.2 mô tả `nhat_ky_admin` cho hành động của `quan_ly`, nhưng **chưa có migration nào tạo bảng này**. Hậu quả: khi `quan_ly` tạo/khóa tài khoản hay cho nghỉ việc thì không có nơi ghi; và "UC-52: `quan_ly` thấy toàn bộ" thực chất chỉ thấy nhật ký của `quan_ly_nhan_su`.
-2. **Khóa khách hàng (UC-37)**: spec ghi `dang_hoat_dong = false` *hoặc* `bi_khoa = true` (no-show, bảng `ho_so_khach_hang`). Chưa rõ `quan_ly` khóa khách hàng thì dùng cột nào. Đề xuất bản đầu **chưa làm** khách hàng, chỉ cán bộ.
+1. ✅ **ĐÃ CHỐT (23/10/2026): lưu vào `nhat_ky_admin`**, migration làm cùng UC-37. (Câu hỏi gốc:) `DATABASE.md` mục 6.2 mô tả `nhat_ky_admin` cho hành động của `quan_ly`, nhưng **chưa có migration nào tạo bảng này**. Hậu quả: khi `quan_ly` tạo/khóa tài khoản hay cho nghỉ việc thì không có nơi ghi; và "UC-52: `quan_ly` thấy toàn bộ" thực chất chỉ thấy nhật ký của `quan_ly_nhan_su`.
+2. ✅ **ĐÃ CHỐT (23/10/2026): không ai khóa/mở khách hàng**, hệ thống tự khóa theo mục 9 (bị khóa coi như mất tài khoản). (Câu hỏi gốc:) **Khóa khách hàng (UC-37)**: spec ghi `dang_hoat_dong = false` *hoặc* `bi_khoa = true` (no-show, bảng `ho_so_khach_hang`). Chưa rõ `quan_ly` khóa khách hàng thì dùng cột nào. Đề xuất bản đầu **chưa làm** khách hàng, chỉ cán bộ.
 3. **Tên vai trò phụ xe**: tài liệu ghi `nhan_vien_van_hanh`, DB và code dùng `phu_xe`.
 4. **Hạn OTP 1 phút** có hợp lý cho thư mời cán bộ không? Đề xuất giữ vì dùng chung cơ chế Quên mật khẩu.
 5. **Đổi "liên kết trong thư" thành "mã OTP + trang Quên mật khẩu"** (quyết định 3) là sửa so với spec cũ — nên báo nhóm.

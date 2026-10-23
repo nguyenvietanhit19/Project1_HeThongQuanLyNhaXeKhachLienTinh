@@ -78,7 +78,7 @@ project-root/
 │   │   │
 │   │   ├── services/                      # quy tắc nghiệp vụ + service hạ tầng
 │   │   │   ├── mat_khau_service.py            # đăng ký/đăng nhập/quên mật khẩu — kế thừa bản v1
-│   │   │   ├── tai_khoan_can_bo_service.py    # tạo/khóa/mở khóa tài khoản cán bộ (UC-36/37) — kiểm tra quyền actor vs vai trò mục tiêu, chặn khóa quan_ly gốc (mục 8.9 NGHIEP_VU.md)
+│   │   │   ├── tai_khoan_can_bo_service.py    # tạo/khóa/mở khóa tài khoản cán bộ (UC-36/37) — kiểm tra quyền actor vs vai trò mục tiêu theo quy tắc bậc (gốc > quan_ly thường = ke_toan > quan_ly_nhan_su > vận hành; chỉ khóa bậc thấp hơn), chặn khóa quan_ly gốc và tự khóa mình, lý do bắt buộc; nhật ký quan_ly -> nhat_ky_admin, quan_ly_nhan_su -> nhat_ky_quan_ly_nhan_su (mục 8.9 NGHIEP_VU.md)
 │   │   │   ├── email_service.py               # gửi mail OTP qua Brevo API (HTTPS) — hạ tầng
 │   │   │   ├── tim_kiem_chuyen_service.py     # tìm theo điểm đi/đến (mục 3.4 bước 1-2); chọn giá theo bộ giá áp dụng cho ngày khởi hành của từng chuyến
 │   │   │   ├── gia_ve_service.py              # giá vé theo bộ (UC-33): bộ đủ mọi chặng, có ngày bắt đầu + kết thúc, bộ mới nối liền bộ cuối, khóa bộ đã sinh chuyến (bộ cuối vẫn gia hạn được), cảnh báo giá bất thường, bảng giá của 1 chuyến, kiểm tra giá phủ từng ngày khi sinh chuyến
@@ -104,7 +104,7 @@ project-root/
 │   │   │   ├── phu_xe.py                      # giao diện di động: soát vé, xác nhận trạng thái chuyến
 │   │   │   ├── dieu_do.py                     # điều độ viên: gán xe cho chuyến (UC-44), đổi xe, xử lý sự cố/nhân sự
 │   │   │   ├── ke_toan.py                     # kế toán: danh sách hoàn tiền chờ xử lý, đánh dấu đã chuyển khoản thủ công (mục 8.8 NGHIEP_VU.md) — toàn hệ thống
-│   │   │   ├── tai_khoan_can_bo.py            # tạo/khóa/mở khóa tài khoản cán bộ (UC-36/37) — dùng chung cho quan_ly và quan_ly_nhan_su (mục 8.9 NGHIEP_VU.md), Service phân quyền theo vai_tro + la_tai_khoan_goc của actor lẫn tài khoản mục tiêu
+│   │   │   ├── tai_khoan_can_bo.py            # tạo/khóa/mở khóa tài khoản cán bộ (UC-36/37) — dùng chung cho quan_ly và quan_ly_nhan_su (mục 8.9 NGHIEP_VU.md), Service phân quyền theo vai_tro + la_tai_khoan_goc của actor lẫn tài khoản mục tiêu (quy tắc bậc; khóa/mở khóa dùng POST .../khoa và .../mo-khoa)
 │   │   │   ├── quan_ly.py                     # quản lý: danh mục, lịch chạy định kỳ (UC-18), sinh chuyến (UC-47), quản lý chuyến (UC-48), cấu hình, thống kê
 │   │   │   └── websocket.py                   # điểm kết nối real-time
 │   │   │
