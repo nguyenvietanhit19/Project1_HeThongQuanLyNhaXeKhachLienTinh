@@ -119,7 +119,7 @@ function badgeTrangThai(trangThai) {
 
 function badgeThanhToan(d) {
   return laCod(d)
-    ? `<span class="badge-payment cod">🚚 COD${d.da_thu_tien ? " · đã thu" : ""}</span>`
+    ? `<span class="badge-payment cod" title="Người nhận trả cước vận chuyển khi lấy hàng (COD)">🚚 Người nhận trả${d.da_thu_tien ? " · đã thu" : ""}</span>`
     : '<span class="badge-payment prepaid">💵 Đã trả trước</span>';
 }
 

@@ -28,6 +28,7 @@ def _gia_lap(monkeypatch, chuyen, trung=False):
     monkeypatch.setattr(cs.repo, "tim_chuyen_theo_id_ql", lambda _id: chuyen)
     monkeypatch.setattr(cs.repo, "tim_trung_loai_xe_va_gio", lambda *a: trung)
     monkeypatch.setattr(cs.repo, "sua_gio_chuyen", lambda cid, gio: da_ghi.append(gio))
+    monkeypatch.setattr(cs, "chi_tiet_chuyen", lambda cid: {"id": cid})  # sửa xong trả chi tiết đầy đủ (kiểm riêng ở test chi tiết)
     return da_ghi
 
 
@@ -71,3 +72,23 @@ def test_sua_gio_trung_loai_xe_va_gio_bi_chan(monkeypatch):
     with pytest.raises(GiaTriLoi, match="cùng loại xe"):
         cs.sua_gio_chuyen("c-1", datetime.time(8, 0))
     assert da_ghi == []
+
+
+# ---------------------------------------------------------
+# Chi tiết chuyến: sơ đồ ghế có hệ số + vé đang chiếm ghế + giá từng ghế theo chặng
+# ---------------------------------------------------------
+def test_chi_tiet_chuyen_co_so_do_ghe_he_so_ve_va_gia_tung_ghe(monkeypatch):
+    chuyen = _chuyen(_ngay_tuong_lai(), loai_xe_id="lx1", tuyen_id="t1", chieu="xuoi", he_so_gia=1, he_so_ghe={"A1": 1.2})
+    so_do = [{"ma_ghe": "A1", "tang": 1, "x": 0, "y": 0}, {"ma_ghe": "B1", "tang": 2, "x": 0, "y": 0}]
+    ve = {"ma_ve": "VE1", "so_ghe": "A1", "trang_thai": "da_thanh_toan", "gia": __import__("decimal").Decimal("360000"),
+          "ten_diem_don": "VP A", "ten_diem_tra": "VP B"}
+    monkeypatch.setattr(cs.repo, "tim_chuyen_theo_id_ql", lambda _id: chuyen)
+    monkeypatch.setattr(cs.xe_repo, "tim_loai_xe_theo_id", lambda _id: {"so_do_ghe": so_do})
+    monkeypatch.setattr(cs.repo, "danh_sach_ve_dang_chiem_ghe", lambda _id: [ve])
+    da_goi = {}
+    monkeypatch.setattr(cs.gia_ve_service, "bang_gia_cua_chuyen", lambda *a: da_goi.update(args=a) or {"cac_chang": []})
+    kq = cs.chi_tiet_chuyen("c-1")
+    assert kq["so_tang"] == 2
+    assert [(g["ma_ghe"], g["he_so"]) for g in kq["so_do_ghe"]] == [("A1", 1.2), ("B1", 1)]
+    assert kq["cac_ve_tren_ghe"][0]["gia"] == 360000 and isinstance(kq["cac_ve_tren_ghe"][0]["gia"], int)
+    assert da_goi["args"][4] == ["A1", "B1"] and da_goi["args"][5] == {"A1": 1.2}  # đúng danh sách ghế + hệ số đã chốt vào chuyến

@@ -67,7 +67,7 @@ _CTE_DIEM = """
 
 _SELECT_KET_QUA = """
     SELECT c.id, c.ma, c.tuyen_id, c.chieu, c.gio_khoi_hanh, c.dang_hoan,
-           lx.ma AS ma_loai_xe, lx.ten AS ten_loai_xe, lx.he_so_gia,
+           lx.ma AS ma_loai_xe, lx.ten AS ten_loai_xe, c.he_so_gia, c.he_so_ghe,
            jsonb_array_length(lx.so_do_ghe) AS tong_ghe, lx.so_do_ghe,
            don.diem_id AS diem_don_id, don.ten AS ten_diem_don, don.hl AS hl_don, don.phut AS phut_don,
            tra.diem_id AS diem_tra_id, tra.ten AS ten_diem_tra, tra.hl AS hl_tra, tra.phut AS phut_tra,
@@ -187,8 +187,8 @@ def tim_doan_ve_dang_giu(chuyen_ids: list[str]) -> list[dict]:
 
 
 def danh_sach_gia_ve(tuyen_ids: list[str], khu_vuc_a: str, khu_vuc_b: str) -> list[dict]:
-    """Mọi dòng giá của các tuyến cho cặp khu vực (a,b) ở cả 2 thứ tự — chọn giá đúng chiều/đúng ngày
-    thuộc Service."""
+    """Mỗi (tuyến, bộ giá) 1 dòng: khoảng ngày áp dụng của bộ + giá của cặp khu vực (a,b) ở 1 trong 2 thứ tự (NULL nếu bộ đó
+    không có giá cho cặp này). Bộ nào áp dụng cho ngày nào, và chiều đúng hay sai, thuộc Service."""
     if not tuyen_ids:
         return []
     conn = get_connection()
@@ -196,12 +196,13 @@ def danh_sach_gia_ve(tuyen_ids: list[str], khu_vuc_a: str, khu_vuc_b: str) -> li
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT tuyen_id, diem_di_id, diem_den_id, gia_goc, ap_dung_tu, ap_dung_den
-                FROM gia_ve
-                WHERE tuyen_id = ANY(%s::uuid[])
-                  AND ((diem_di_id = %s AND diem_den_id = %s) OR (diem_di_id = %s AND diem_den_id = %s))
+                SELECT b.tuyen_id, b.ap_dung_tu, b.ap_dung_den, g.diem_di_id, g.diem_den_id, g.gia_goc
+                FROM bo_gia_ve b
+                LEFT JOIN gia_ve g ON g.bo_gia_id = b.id
+                     AND ((g.diem_di_id = %s AND g.diem_den_id = %s) OR (g.diem_di_id = %s AND g.diem_den_id = %s))
+                WHERE b.tuyen_id = ANY(%s::uuid[])
                 """,
-                (tuyen_ids, khu_vuc_a, khu_vuc_b, khu_vuc_b, khu_vuc_a),
+                (khu_vuc_a, khu_vuc_b, khu_vuc_b, khu_vuc_a, tuyen_ids),
             )
             return _thanh_list(cur, cur.fetchall())
     finally:

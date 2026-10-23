@@ -6,6 +6,8 @@ từ góc nhìn quản lý (UC-18, cuối file — gọi từ lich_chay_service.
 (UC-44), đổi xe khi hỏng (UC-19/20/40) thuộc điều độ viên, chưa cài đặt ở đây.
 """
 
+import json
+
 from app.db import get_connection, release_connection
 from app.repositories import ma_repository
 from app.utils import ma_tu_sinh
@@ -323,43 +325,46 @@ def gan_co_xung_dot_vi_tri_cho_chuyen_tuong_lai(xe_id: str, chuyen_id_hien_tai: 
 # ---------------------------------------------------------
 # Sinh chuyến theo khoảng ngày (UC-18)
 # ---------------------------------------------------------
-def da_co_chuyen_theo_ngay(lich_chay_dinh_ky_id: str, ngay) -> bool:
-    """True nếu lịch này đã có chuyến sinh cho đúng ngày `ngay` (date, giờ địa
-    phương) — chống sinh trùng khi quản lý bấm "Sinh chuyến" nhiều lần cho các
-    khoảng ngày chồng nhau."""
+def sinh_nhieu_chuyen_tu_lich(ke_hoach: list[dict]) -> list[dict]:
+    """Sinh chuyến cho nhiều (lịch, ngày) trong 1 giao dịch — lỗi ở đâu thì hủy hết, không để cặp bị sinh dở.
+    ke_hoach: [{lich: dict lịch chạy, ngay: date, gio_khoi_hanh: datetime có múi giờ}]. Ngày của lịch đã có chuyến
+    thì bỏ qua. Trả về cùng danh sách, mỗi phần tử thêm khóa `da_sinh` (bool)."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT 1 FROM chuyen_xe
-                WHERE lich_chay_dinh_ky_id = %s AND (gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = %s
-                LIMIT 1
-                """,
-                (lich_chay_dinh_ky_id, ngay),
-            )
-            return cur.fetchone() is not None
-    finally:
-        release_connection(conn)
-
-
-def tao_chuyen_tu_lich_dinh_ky(tuyen_id: str, chieu: str, loai_xe_id: str, lich_chay_dinh_ky_id: str, gio_khoi_hanh) -> str:
-    """xe_id để trống — điều độ viên gán sau qua UC-44 (mục 3.5 NGHIEP_VU.md)."""
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            ma_tuyen, ma_loai_xe = ma_repository.lay_ma_tuyen_va_loai_xe(cur, tuyen_id, loai_xe_id)
-            cur.execute(
-                """
-                INSERT INTO chuyen_xe (ma, tuyen_id, chieu, loai_xe_id, lich_chay_dinh_ky_id, gio_khoi_hanh)
-                VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
-                """,
-                (ma_tu_sinh.ma_chuyen(ma_tuyen, ma_loai_xe, gio_khoi_hanh, chieu), tuyen_id, chieu, loai_xe_id,
-                 lich_chay_dinh_ky_id, gio_khoi_hanh),
-            )
-            chuyen_id = cur.fetchone()[0]
+            # Hệ số ghế của từng loại xe đọc MỘT LẦN cho cả lô (FOR SHARE: người đang sửa hệ số phải chờ lô này xong) — nếu mỗi
+            # chuyến tự đọc lại thì ở mức cô lập Read Committed, sửa hệ số giữa chừng sẽ làm chuyến đầu/cuối lô lệch nhau.
+            cac_loai_xe = sorted({str(muc["lich"]["loai_xe_id"]) for muc in ke_hoach})
+            he_so_ghe_theo_loai: dict[str, str] = {}
+            if cac_loai_xe:
+                cur.execute("SELECT id, he_so_ghe FROM loai_xe WHERE id = ANY(%s::uuid[]) ORDER BY id FOR SHARE", (cac_loai_xe,))
+                he_so_ghe_theo_loai = {str(i): json.dumps(h) for i, h in cur.fetchall()}
+            for muc in ke_hoach:
+                lich = muc["lich"]
+                cur.execute(
+                    """
+                    SELECT 1 FROM chuyen_xe
+                    WHERE lich_chay_dinh_ky_id = %s AND (gio_khoi_hanh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = %s
+                    LIMIT 1
+                    """,
+                    (str(lich["id"]), muc["ngay"]),
+                )
+                if cur.fetchone() is not None:
+                    muc["da_sinh"] = False
+                    continue
+                ma_tuyen, ma_loai_xe = ma_repository.lay_ma_tuyen_va_loai_xe(cur, str(lich["tuyen_id"]), str(lich["loai_xe_id"]))
+                cur.execute(
+                    """
+                    INSERT INTO chuyen_xe (ma, tuyen_id, chieu, loai_xe_id, lich_chay_dinh_ky_id, gio_khoi_hanh, he_so_gia, he_so_ghe)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (ma_tu_sinh.ma_chuyen(ma_tuyen, ma_loai_xe, muc["gio_khoi_hanh"], lich["chieu"]), str(lich["tuyen_id"]),
+                     lich["chieu"], str(lich["loai_xe_id"]), str(lich["id"]), muc["gio_khoi_hanh"], lich["he_so_gia"],
+                     he_so_ghe_theo_loai.get(str(lich["loai_xe_id"]), "{}")),
+                )
+                muc["da_sinh"] = True
         conn.commit()
-        return chuyen_id
+        return ke_hoach
     except Exception:
         conn.rollback()
         raise
@@ -374,7 +379,7 @@ def tao_chuyen_tu_lich_dinh_ky(tuyen_id: str, chieu: str, loai_xe_id: str, lich_
 # ---------------------------------------------------------
 _SELECT_CHUYEN_QL = """
     SELECT c.id, c.ma, c.tuyen_id, t.ma AS ma_tuyen, t.ten AS ten_tuyen, c.chieu, c.gio_khoi_hanh,
-           c.loai_xe_id, lx.ma AS ma_loai_xe, lx.ten AS ten_loai_xe, c.trang_thai,
+           c.loai_xe_id, lx.ma AS ma_loai_xe, lx.ten AS ten_loai_xe, c.he_so_gia, c.he_so_ghe, c.trang_thai,
            c.xe_id, x.bien_so AS bien_so_xe, c.lich_chay_dinh_ky_id,
            (SELECT count(*) FROM ve v WHERE v.chuyen_id = c.id AND v.trang_thai IN ('giu_cho', 'da_thanh_toan')) AS so_ve_dang_hoat_dong
     FROM chuyen_xe c
@@ -434,6 +439,30 @@ def tim_chuyen_theo_id_ql(chuyen_id: str) -> dict | None:
         with conn.cursor() as cur:
             cur.execute(_SELECT_CHUYEN_QL + " WHERE c.id = %s", (chuyen_id,))
             return _thanh_dict(cur, cur.fetchone())
+    finally:
+        release_connection(conn)
+
+
+def danh_sach_ve_dang_chiem_ghe(chuyen_id: str) -> list[dict]:
+    """Vé đang chiếm ghế của 1 chuyến: giữ chỗ còn hạn, đã thanh toán, đã lên/xuống xe — để vẽ trạng thái ghế ở chi tiết chuyến."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT v.ma_ve, v.so_ghe, v.trang_thai, v.gia, dd.ten AS ten_diem_don, dt.ten AS ten_diem_tra
+                FROM ve v
+                JOIN diem_don_tra dd ON dd.id = v.diem_don_id
+                JOIN diem_don_tra dt ON dt.id = v.diem_tra_id
+                WHERE v.chuyen_id = %s
+                  AND (v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe')
+                       OR (v.trang_thai = 'giu_cho' AND (v.han_giu_cho_den IS NULL OR v.han_giu_cho_den > now())))
+                ORDER BY v.so_ghe, v.ma_ve
+                """,
+                (chuyen_id,),
+            )
+            cols = [d[0] for d in cur.description]
+            return [dict(zip(cols, row)) for row in cur.fetchall()]
     finally:
         release_connection(conn)
 

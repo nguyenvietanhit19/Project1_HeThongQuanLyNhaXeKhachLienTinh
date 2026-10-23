@@ -45,6 +45,10 @@ SELECT_DON_HANG_FULL = """
         dn.sdt_lien_he AS sdt_diem_nhan,
         c.ma AS ma_chuyen,
         c.gio_khoi_hanh AS gio_khoi_hanh,
+        c.trang_thai AS trang_thai_chuyen,
+        c.dang_hoan AS chuyen_dang_hoan,
+        c.loai_su_co AS loai_su_co_chuyen,
+        c.ly_do_su_co AS ly_do_su_co_chuyen,
         x.bien_so AS bien_so_xe,
         nvh.ho_ten AS ten_nhan_vien_huy,
         (SELECT count(*) FROM bao_cao_su_co_hang bc WHERE bc.don_hang_id = d.id)::int AS so_bao_cao_su_co,
@@ -339,7 +343,10 @@ def huy_don(
 
 
 def cap_nhat_do_hang_tai_diem(don_hang_id: str, chuyen_id: str, nguoi_dung_id: str | None = None) -> dict | None:
-    """UC-27 (Phụ xe): Dỡ hàng xuống văn phòng điểm nhận, bắt đầu tính hạn lưu kho."""
+    """UC-27 (Phụ xe): Dỡ hàng xuống văn phòng điểm nhận, bắt đầu tính hạn lưu kho.
+
+    Mốc tính hạn bắt đầu lại từ đầu thì 2 cờ của job (nhắc 24 giờ, cảnh báo 7 ngày) cũng về false — đơn bị
+    hoàn tác dỡ rồi dỡ lại (chuyến hoan_thanh vẫn đứng ở điểm cuối nên có thể cách nhau nhiều ngày) vẫn được nhắc đúng mốc."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -348,7 +355,9 @@ def cap_nhat_do_hang_tai_diem(don_hang_id: str, chuyen_id: str, nguoi_dung_id: s
                 """
                 UPDATE don_hang
                 SET trang_thai = 'cho_lay',
-                    thoi_gian_den_diem_nhan = now()
+                    thoi_gian_den_diem_nhan = now(),
+                    da_nhac_goi_bao = false,
+                    co_canh_bao_cho_lau = false
                 WHERE id = %s
                   AND trang_thai = 'da_len_xe'
                   AND chuyen_id = %s
@@ -369,6 +378,10 @@ def cap_nhat_do_hang_tai_diem(don_hang_id: str, chuyen_id: str, nguoi_dung_id: s
 # 4. Liên hệ người nhận / người gửi / báo quản lý (UC-25, mục 10.3.1)
 # ====================================================================
 
+class DonKhongConChoLay(Exception):
+    """Đơn không còn chờ lấy / hàng tồn (vừa được giao) — không ghi liên hệ nữa."""
+
+
 def ghi_lien_he(
     don_hang_id: str,
     nhan_vien_id: str,
@@ -382,12 +395,19 @@ def ghi_lien_he(
     """Ghi lịch sử liên hệ + bật cờ 'đã thông báo được người nhận' + tạo thông
     báo (báo quản lý) trong CÙNG 1 transaction — không để lệch dữ liệu khi lỗi giữa chừng.
 
-    Cờ da_thong_bao_nguoi_nhan chỉ đi lên true, không bao giờ hạ về false
-    (mục 10.3.1 điểm 2: tích khi đã gọi báo được người nhận).
+    Ở đây cờ da_thong_bao_nguoi_nhan chỉ đi lên true (mục 10.3.1 điểm 2: tích khi đã gọi báo được người nhận);
+    chỉ hạ về false khi SĐT người nhận bị sửa (sua_thong_tin_lien_he).
+
+    Khóa dòng đơn rồi kiểm tra lại trạng thái: người khác vừa giao xong thì ném DonKhongConChoLay,
+    không ghi liên hệ / báo quản lý cho đơn đã giao.
     """
     conn = get_connection()
     try:
         with conn.cursor() as cur:
+            cur.execute("SELECT trang_thai FROM don_hang WHERE id = %s FOR UPDATE", (don_hang_id,))
+            row = cur.fetchone()
+            if not row or row[0] not in ("cho_lay", "qua_han_luu_kho"):
+                raise DonKhongConChoLay()
             cur.execute(
                 """INSERT INTO lich_su_lien_he_don_hang
                    (don_hang_id, nhan_vien_id, doi_tuong, ket_qua, ghi_chu)
@@ -449,6 +469,7 @@ def sua_thong_tin_lien_he(don_hang_id: str, thay_doi: dict, nguoi_dung_id: str, 
     Khóa dòng đơn (FOR UPDATE) rồi mới kiểm tra trạng thái: nếu người khác vừa giao đơn thì
     không sửa lọt sang đơn đã giao. Trả None nếu không có đơn; chỉ ghi trường thực sự đổi
     (gõ lại đúng giá trị cũ thì không tạo nhật ký thừa). Ném DonDaGiao khi đơn đã giao.
+    Đổi SĐT người nhận thì hạ cờ da_thong_bao_nguoi_nhan / da_nhac_goi_bao về false.
     Tên cột lấy từ khóa của `thay_doi` nên service chỉ được truyền các khóa trong TRUONG_LIEN_HE.
     """
     cac_truong = tuple(thay_doi)
@@ -474,8 +495,13 @@ def sua_thong_tin_lien_he(don_hang_id: str, thay_doi: dict, nguoi_dung_id: str, 
             hien_tai = dict(zip(cac_truong, row[1:]))
             doi = {t: v for t, v in thay_doi.items() if hien_tai[t] != v}
             if doi:
+                cac_gan = [f"{t} = %s" for t in doi]
+                if "sdt_nguoi_nhan" in doi:
+                    # Đã báo cho số CŨ không có nghĩa số mới đã được báo: đơn quay về "cần gọi báo" (lịch sử liên hệ
+                    # cũ vẫn giữ nguyên) và được nhắc lại 24 giờ theo cờ mới.
+                    cac_gan += ["da_thong_bao_nguoi_nhan = false", "da_nhac_goi_bao = false"]
                 cur.execute(
-                    f"UPDATE don_hang SET {', '.join(f'{t} = %s' for t in doi)} WHERE id = %s",
+                    f"UPDATE don_hang SET {', '.join(cac_gan)} WHERE id = %s",
                     (*doi.values(), don_hang_id),
                 )
                 for truong, moi in doi.items():
@@ -898,10 +924,15 @@ def luu_bao_cao_su_co_hang(don_hang_id: str, nguoi_bao_cao_id: str, mo_ta: str, 
 # 7. Hàng đến văn phòng nhận (UC-24, UC-25, mục 10.4.2)
 # ====================================================================
 
+SO_HANG_DEN_TOI_DA = 500  # khớp GIOI_HAN_HANG_DEN ở frontend/nhan-vien/gui-hang/hang-den.js
+
+
 def lay_hang_den(diem_nhan_id: str | None = None) -> list[dict]:
     """Mọi đơn đang hướng về / đang nằm ở văn phòng nhận và chưa giao xong:
     sắp đến (da_len_xe), chờ lấy (cho_lay), hàng tồn (qua_han_luu_kho).
-    diem_nhan_id=None: toàn hệ thống (quản lý xem để xử lý hàng tồn, UC-25)."""
+    diem_nhan_id=None: toàn hệ thống (quản lý xem để xử lý hàng tồn, UC-25).
+    Tối đa SO_HANG_DEN_TOI_DA đơn. Thứ tự ở đây chỉ quyết định phần nào bị cắt khi quá giới hạn (giao diện tự
+    sắp xếp lại): hàng tồn → chờ quá 7 ngày → chờ lấy → sắp đến, để hàng cần xử lý gấp (và CSV hàng tồn) không bị mất."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -911,11 +942,16 @@ def lay_hang_den(diem_nhan_id: str | None = None) -> list[dict]:
                 WHERE d.trang_thai IN ('da_len_xe', 'cho_lay', 'qua_han_luu_kho')
                   AND (%(vp)s::uuid IS NULL OR d.diem_nhan_id = %(vp)s::uuid)
                 ORDER BY
-                    CASE d.trang_thai WHEN 'cho_lay' THEN 0 WHEN 'qua_han_luu_kho' THEN 1 ELSE 2 END,
+                    CASE
+                        WHEN d.trang_thai = 'qua_han_luu_kho' THEN 0
+                        WHEN d.trang_thai = 'cho_lay' AND d.co_canh_bao_cho_lau THEN 1
+                        WHEN d.trang_thai = 'cho_lay' THEN 2
+                        ELSE 3
+                    END,
                     d.da_thong_bao_nguoi_nhan ASC,
                     d.thoi_gian_den_diem_nhan ASC NULLS LAST,
                     c.gio_khoi_hanh ASC NULLS LAST
-                LIMIT 500
+                LIMIT {SO_HANG_DEN_TOI_DA}
                 """,
                 {"vp": diem_nhan_id},
             )
@@ -998,6 +1034,22 @@ def quet_canh_bao_7_ngay(tao_noi_dung) -> tuple[int, list[tuple[str, str]]]:
     )
 
 
+def quet_nhac_goi_bao_24h(tao_noi_dung) -> tuple[int, list[tuple[str, str]]]:
+    """Hàng tới văn phòng nhận đã >= 24 giờ mà chưa gọi báo được người nhận → nhắc lại nhân viên 1 lần
+    (da_nhac_goi_bao). Chỉ trong khoảng 24 giờ – 7 ngày: từ mốc 7 ngày đã có cảnh báo riêng, nên job chạy
+    bù sau vài ngày ngừng không gửi thêm lời nhắc đã lỗi thời."""
+    return _quet_va_thong_bao(
+        """UPDATE don_hang
+           SET da_nhac_goi_bao = true
+           WHERE trang_thai = 'cho_lay' AND da_thong_bao_nguoi_nhan = false
+             AND da_nhac_goi_bao = false AND co_canh_bao_cho_lau = false
+             AND thoi_gian_den_diem_nhan <= now() - INTERVAL '24 hours'
+             AND thoi_gian_den_diem_nhan > now() - INTERVAL '7 days'
+           RETURNING id, ma_van_don, diem_nhan_id, ten_nguoi_nhan, sdt_nguoi_nhan""",
+        tao_noi_dung,
+    )
+
+
 def quet_chuyen_hang_ton_14_ngay(tao_noi_dung) -> tuple[int, list[tuple[str, str]]]:
     """UC-46 mốc 14 ngày: chuyển qua_han_luu_kho ("hàng tồn", KHÔNG tự hủy) + nhắc nhân viên."""
     return _quet_va_thong_bao(
@@ -1013,6 +1065,13 @@ def quet_chuyen_hang_ton_14_ngay(tao_noi_dung) -> tuple[int, list[tuple[str, str
 # ====================================================================
 # 9. Danh sách đơn tại quầy (có phân trang server) & Thống kê (UC-39)
 # ====================================================================
+
+def mau_tim_ilike(tu_khoa: str) -> str:
+    """'%từ khóa%' cho ILIKE, coi % và _ người dùng gõ là chữ thường (không phải ký tự đại diện).
+    Dấu \\ là ký tự escape mặc định của LIKE trong PostgreSQL."""
+    s = tu_khoa.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{s}%"
+
 
 def lay_danh_sach_don(
     van_phong_id: str | None = None,
@@ -1049,7 +1108,7 @@ def lay_danh_sach_don(
         params.append(phuong_thuc_thanh_toan)
 
     if tu_khoa and tu_khoa.strip():
-        kw = f"%{tu_khoa.strip()}%"
+        kw = mau_tim_ilike(tu_khoa)
         clauses.append(
             "(d.ma_van_don ILIKE %s OR d.ten_nguoi_gui ILIKE %s OR d.sdt_nguoi_gui ILIKE %s"
             " OR d.ten_nguoi_nhan ILIKE %s OR d.sdt_nguoi_nhan ILIKE %s)"

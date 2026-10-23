@@ -37,6 +37,7 @@ async function apiFetch(duongDan, tuyChon = {}) {
     // 403 khác (sai phạm vi văn phòng, không đủ quyền) chỉ báo lỗi, không đăng xuất.
     if (res.status === 401 || (res.status === 403 && thongBaoLoi === "Tài khoản đã bị khóa")) {
       alert(res.status === 401 ? "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại." : thongBaoLoi);
+      window.boQuaCanhBaoRoiTrang = true; // bị buộc đăng xuất: không hỏi "rời trang?" vì đơn dở cũng không gửi được nữa
       if (typeof dangXuatNhanVien === "function") dangXuatNhanVien();
     }
     throw new LoiApi(thongBaoLoi, res.status);

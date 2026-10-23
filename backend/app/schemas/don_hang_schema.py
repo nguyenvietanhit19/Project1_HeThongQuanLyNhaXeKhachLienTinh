@@ -239,6 +239,11 @@ class DonHangResponse(BaseModel):
     ma_chuyen: str | None = None
     bien_so_xe: str | None = None
     gio_khoi_hanh: datetime | None = None
+    # Tình trạng chuyến đang chở — để văn phòng nhận biết hàng sẽ tới trễ (chuyến gặp sự cố / đang hoãn / bị hủy)
+    trang_thai_chuyen: str | None = None
+    chuyen_dang_hoan: bool | None = None
+    loai_su_co_chuyen: str | None = None
+    ly_do_su_co_chuyen: str | None = None
 
     ngay_tao: datetime
     ngay_giao: datetime | None = None

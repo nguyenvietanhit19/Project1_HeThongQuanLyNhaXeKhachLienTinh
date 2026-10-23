@@ -4,7 +4,7 @@ xe), UC-18 (lịch chạy định kỳ). Route chỉ mỏng: nhận request, g�
 trả response (ARCHITECTURE.md mục 2) — mọi route ở đây yêu cầu vai_tro = quan_ly.
 """
 
-from datetime import date
+from datetime import date, time
 from typing import Literal
 from uuid import UUID
 
@@ -22,14 +22,22 @@ from app.schemas.dia_diem_schema import (
     TuyenChiTietResponse,
     TuyenResponse,
 )
-from app.schemas.gia_ve_schema import GiaVeRequest, GiaVeResponse, SuaGiaVeRequest
+from app.schemas.gia_ve_schema import (
+    BoGiaRequest,
+    BoGiaResponse,
+    SuaBoGiaRequest,
+    XemTruocBoGiaResponse,
+    XemTruocSuaBoGiaRequest,
+)
 from app.schemas.lich_chay_schema import (
+    CapLichChayResponse,
     DoiApDungRequest,
-    LichChayRequest,
-    LichChayResponse,
+    DoiHeSoGiaRequest,
     SinhChuyenRequest,
     SinhChuyenResponse,
     SuaLichChayRequest,
+    TaoCapLichChayRequest,
+    XemTruocCapResponse,
 )
 from app.schemas.xe_schema import (
     BienCheItem,
@@ -150,12 +158,14 @@ def chi_tiet_tuyen(tuyen_id: UUID):
 # ---------------------------------------------------------
 @router.post("/loai-xe", response_model=LoaiXeResponse, status_code=201)
 def tao_loai_xe(du_lieu: LoaiXeRequest):
-    return xe_service.tao_loai_xe(du_lieu.ten, du_lieu.he_so_gia, [g.model_dump() for g in du_lieu.so_do_ghe])
+    return xe_service.tao_loai_xe(du_lieu.ten, [g.model_dump() for g in du_lieu.so_do_ghe], du_lieu.he_so_ghe)
 
 
 @router.put("/loai-xe/{loai_xe_id}")
 def sua_loai_xe(loai_xe_id: UUID, du_lieu: LoaiXeRequest):
-    xe_service.sua_loai_xe(str(loai_xe_id), du_lieu.ten, du_lieu.he_so_gia, [g.model_dump() for g in du_lieu.so_do_ghe])
+    xe_service.sua_loai_xe(
+        str(loai_xe_id), du_lieu.ten, [g.model_dump() for g in du_lieu.so_do_ghe], du_lieu.he_so_ghe, du_lieu.phien_ban
+    )
     return {"thong_bao": "Cập nhật loại xe thành công"}
 
 
@@ -173,33 +183,43 @@ def xoa_loai_xe(loai_xe_id: UUID):
 # ---------------------------------------------------------
 # 5. Giá vé (UC-33)
 # ---------------------------------------------------------
-@router.post("/gia-ve", response_model=GiaVeResponse, status_code=201)
-def tao_gia_ve(du_lieu: GiaVeRequest):
-    return gia_ve_service.tao_gia_ve(
-        str(du_lieu.tuyen_id),
-        str(du_lieu.diem_di_id),
-        str(du_lieu.diem_den_id),
-        du_lieu.gia_goc,
-        du_lieu.ap_dung_tu,
-        du_lieu.ap_dung_den,
+@router.get("/bo-gia", response_model=list[BoGiaResponse])
+def danh_sach_bo_gia(tuyen_id: UUID | None = None):
+    return gia_ve_service.danh_sach_bo(str(tuyen_id) if tuyen_id else None)
+
+
+@router.post("/bo-gia", response_model=BoGiaResponse, status_code=201)
+def tao_bo_gia(du_lieu: BoGiaRequest):
+    return gia_ve_service.tao_bo(
+        str(du_lieu.tuyen_id), du_lieu.ap_dung_tu, du_lieu.ap_dung_den, [g.model_dump() for g in du_lieu.danh_sach_gia], du_lieu.xac_nhan_canh_bao
     )
 
 
-@router.put("/gia-ve/{gia_ve_id}")
-def sua_gia_ve(gia_ve_id: UUID, du_lieu: SuaGiaVeRequest):
-    gia_ve_service.sua_gia_ve(str(gia_ve_id), du_lieu.gia_goc, du_lieu.ap_dung_tu, du_lieu.ap_dung_den)
-    return {"thong_bao": "Cập nhật giá vé thành công"}
+@router.post("/bo-gia/xem-truoc", response_model=XemTruocBoGiaResponse)
+def xem_truoc_tao_bo_gia(du_lieu: BoGiaRequest):
+    return gia_ve_service.xem_truoc_tao_bo(
+        str(du_lieu.tuyen_id), du_lieu.ap_dung_tu, du_lieu.ap_dung_den, [g.model_dump() for g in du_lieu.danh_sach_gia]
+    )
 
 
-@router.get("/gia-ve", response_model=list[GiaVeResponse])
-def danh_sach_gia_ve(tuyen_id: UUID | None = None):
-    return gia_ve_service.danh_sach_gia_ve(str(tuyen_id) if tuyen_id else None)
+@router.put("/bo-gia/{bo_gia_id}", response_model=BoGiaResponse)
+def sua_bo_gia(bo_gia_id: UUID, du_lieu: SuaBoGiaRequest):
+    return gia_ve_service.sua_bo(
+        str(bo_gia_id), du_lieu.ap_dung_tu, du_lieu.ap_dung_den, [g.model_dump() for g in du_lieu.danh_sach_gia], du_lieu.xac_nhan_canh_bao
+    )
 
 
-@router.delete("/gia-ve/{gia_ve_id}")
-def xoa_gia_ve(gia_ve_id: UUID):
-    gia_ve_service.xoa_gia_ve(str(gia_ve_id))
-    return {"thong_bao": "Xóa giá vé thành công"}
+@router.post("/bo-gia/{bo_gia_id}/xem-truoc", response_model=XemTruocBoGiaResponse)
+def xem_truoc_sua_bo_gia(bo_gia_id: UUID, du_lieu: XemTruocSuaBoGiaRequest):
+    return gia_ve_service.xem_truoc_sua_bo(
+        str(bo_gia_id), du_lieu.ap_dung_tu, du_lieu.ap_dung_den, [g.model_dump() for g in du_lieu.danh_sach_gia]
+    )
+
+
+@router.delete("/bo-gia/{bo_gia_id}")
+def xoa_bo_gia(bo_gia_id: UUID):
+    gia_ve_service.xoa_bo(str(bo_gia_id))
+    return {"thong_bao": "Xóa bộ giá vé thành công"}
 
 
 # ---------------------------------------------------------
@@ -265,37 +285,50 @@ def go_bien_che(xe_nhan_su_id: UUID):
 # ---------------------------------------------------------
 # 8. Lịch chạy định kỳ (UC-18)
 # ---------------------------------------------------------
-@router.post("/lich-chay", response_model=LichChayResponse, status_code=201)
-def tao_lich_chay(du_lieu: LichChayRequest):
-    return lich_chay_service.tao_lich_chay(
-        str(du_lieu.tuyen_id), du_lieu.chieu, du_lieu.gio_khoi_hanh, str(du_lieu.loai_xe_id)
+@router.post("/lich-chay", response_model=CapLichChayResponse, status_code=201)
+def tao_cap_lich_chay(du_lieu: TaoCapLichChayRequest):
+    return lich_chay_service.tao_cap_lich_chay(
+        str(du_lieu.tuyen_id),
+        {"gio_khoi_hanh": du_lieu.gio_xuoi, "loai_xe_id": str(du_lieu.loai_xe_id)},
+        {"gio_khoi_hanh": du_lieu.gio_nguoc, "loai_xe_id": str(du_lieu.loai_xe_id)},
+        du_lieu.he_so_gia,
     )
 
 
-@router.put("/lich-chay/{lich_id}", response_model=LichChayResponse)
+@router.get("/lich-chay/xem-truoc", response_model=XemTruocCapResponse)
+def xem_truoc_cap_lich_chay(tuyen_id: UUID, gio_xuoi: time, gio_nguoc: time):
+    return lich_chay_service.xem_truoc_cap(str(tuyen_id), gio_xuoi, gio_nguoc)
+
+
+@router.put("/lich-chay/{lich_id}", response_model=CapLichChayResponse)
 def sua_lich_chay(lich_id: UUID, du_lieu: SuaLichChayRequest):
-    return lich_chay_service.sua_lich_chay(str(lich_id), du_lieu.chieu, du_lieu.gio_khoi_hanh, str(du_lieu.loai_xe_id))
+    return lich_chay_service.sua_lich_chay(str(lich_id), du_lieu.gio_khoi_hanh, str(du_lieu.loai_xe_id))
 
 
-@router.patch("/lich-chay/{lich_id}/ap-dung", response_model=LichChayResponse)
-def doi_ap_dung_lich_chay(lich_id: UUID, du_lieu: DoiApDungRequest):
-    return lich_chay_service.doi_ap_dung(str(lich_id), du_lieu.dang_ap_dung)
+@router.patch("/lich-chay/cap/{cap_id}/he-so-gia", response_model=CapLichChayResponse)
+def doi_he_so_gia_cap_lich_chay(cap_id: UUID, du_lieu: DoiHeSoGiaRequest):
+    return lich_chay_service.doi_he_so_gia_cap(str(cap_id), du_lieu.he_so_gia)
 
 
-@router.get("/lich-chay", response_model=list[LichChayResponse])
-def danh_sach_lich_chay(tuyen_id: UUID | None = None):
-    return lich_chay_service.danh_sach_lich_chay(str(tuyen_id) if tuyen_id else None)
+@router.patch("/lich-chay/cap/{cap_id}/ap-dung", response_model=CapLichChayResponse)
+def doi_ap_dung_cap_lich_chay(cap_id: UUID, du_lieu: DoiApDungRequest):
+    return lich_chay_service.doi_ap_dung_cap(str(cap_id), du_lieu.dang_ap_dung)
 
 
-@router.delete("/lich-chay/{lich_id}")
-def xoa_lich_chay(lich_id: UUID):
-    lich_chay_service.xoa_lich_chay(str(lich_id))
-    return {"thong_bao": "Xóa lịch chạy thành công"}
+@router.get("/lich-chay", response_model=list[CapLichChayResponse])
+def danh_sach_cap_lich_chay(tuyen_id: UUID | None = None):
+    return lich_chay_service.danh_sach_cap(str(tuyen_id) if tuyen_id else None)
 
 
-@router.post("/lich-chay/{lich_id}/sinh-chuyen", response_model=SinhChuyenResponse)
-def sinh_chuyen(lich_id: UUID, du_lieu: SinhChuyenRequest):
-    return lich_chay_service.sinh_chuyen_theo_khoang_ngay(str(lich_id), du_lieu.tu_ngay, du_lieu.den_ngay)
+@router.delete("/lich-chay/cap/{cap_id}")
+def xoa_cap_lich_chay(cap_id: UUID):
+    lich_chay_service.xoa_cap(str(cap_id))
+    return {"thong_bao": "Xóa cặp lịch chạy thành công"}
+
+
+@router.post("/lich-chay/sinh-chuyen", response_model=SinhChuyenResponse)
+def sinh_chuyen(du_lieu: SinhChuyenRequest):
+    return lich_chay_service.sinh_chuyen_cho_cac_cap([str(c) for c in du_lieu.cap_ids], du_lieu.tu_ngay, du_lieu.den_ngay)
 
 
 # ---------------------------------------------------------

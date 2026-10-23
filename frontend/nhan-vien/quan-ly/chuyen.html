@@ -15,14 +15,6 @@
     <div class="nv-main">
       <header class="nv-topbar">
         <h1>Chuyến</h1>
-        <div class="nv-topbar__user">
-          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
-          <div class="nv-topbar__identity">
-            <span class="ho-ten" id="topbar-ho-ten"></span>
-            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
-          </div>
-          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
-        </div>
       </header>
 
       <main class="nv-content">
@@ -72,14 +64,13 @@
   <script src="/nhan-vien/quan-ly/api-client.js"></script>
   <script src="/nhan-vien/quan-ly/auth-check.js"></script>
   <script src="/nhan-vien/quan-ly/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/tai-khoan.js"></script>
   <script src="/nhan-vien/quan-ly/chuyen-chi-tiet.js"></script>
   <script>
     const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
     if (nguoiDung) {
       renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-ly/chuyen.html");
-      renderTopbarUser();
     }
-    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
 
     const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     const pad2 = (n) => String(n).padStart(2, "0");
@@ -90,8 +81,9 @@
     const cyDs = document.getElementById("cy-ds");
     let dsTuyen = [];
     let dsChuyenDaTai = [];
-    let boLocChieu = ""; // "" | xuoi | nguoc  (gửi lên API)
-    let boLocNhanh = ""; // "" | chua_khoi_hanh | chua_gan_xe | dang | xong  (lọc nhanh phía client, bấm ở các ô thống kê)
+    const ttTrang = TrangThaiTrang.doc(); // bộ lọc đã nhớ từ lần xem trước
+    let boLocChieu = ttTrang.chieu || ""; // "" | xuoi | nguoc  (gửi lên API)
+    let boLocNhanh = ttTrang.nhanh || ""; // "" | chua_khoi_hanh | chua_gan_xe | dang | xong  (lọc nhanh phía client, bấm ở các ô thống kê)
 
     // Các nhóm ở thanh thống kê. "Chưa gán xe" = chuyến còn chờ điều độ viên gán xe.
     const NHOM_NHANH = {
@@ -107,6 +99,19 @@
       const selectTuyen = document.getElementById("loc-tuyen");
       selectTuyen.innerHTML =
         '<option value="">Tất cả tuyến</option>' + dsTuyen.map((t) => `<option value="${t.id}">${esc(t.ma)} · ${esc(t.ten)}</option>`).join("");
+    }
+
+    // Lưu toàn bộ bộ lọc hiện tại để quay lại trang vẫn thấy đúng danh sách đang xem
+    function luuBoLoc() {
+      TrangThaiTrang.luu({
+        chieu: boLocChieu,
+        nhanh: boLocNhanh,
+        ma: document.getElementById("loc-ma").value,
+        tuyen: document.getElementById("loc-tuyen").value,
+        tuNgay: document.getElementById("loc-tu-ngay").value,
+        denNgay: document.getElementById("loc-den-ngay").value,
+        trangThai: document.getElementById("loc-trang-thai").value,
+      });
     }
 
     function renderChipChieu() {
@@ -169,6 +174,7 @@
 
     // Lọc theo mã chuyến + nhóm nhanh ở phía client trên danh sách đã tải (các bộ lọc còn lại gọi API).
     function hienThiDanhSach() {
+      luuBoLoc();
       const tk = document.getElementById("loc-ma").value.trim().toLowerCase();
       const theoMa = tk ? dsChuyenDaTai.filter((c) => c.ma.toLowerCase().includes(tk)) : dsChuyenDaTai;
       renderThongKe(theoMa);
@@ -179,6 +185,7 @@
     document.getElementById("loc-ma").addEventListener("input", hienThiDanhSach);
 
     async function taiDanhSach() {
+      luuBoLoc();
       cyDs.innerHTML = '<div class="kv-trong">Đang tải...</div>';
       try {
         dsChuyenDaTai = await apiGet(`/quan-ly/chuyen${locHienTai() ? "?" + locHienTai() : ""}`);
@@ -237,13 +244,13 @@
       const d = new Date(c.gio_khoi_hanh);
       const gio = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
       return `
-        <button type="button" class="cyn-the" data-id="${c.id}" style="--mau:${mauTrangThai(c.trang_thai)}">
+        <button type="button" class="cyn-the" data-id="${c.id}" style="--mau:${mauTrangThai(c.trang_thai)}; --chieu:${ChuyenChiTiet.mauChieu(c.chieu)}">
           <span class="cyn-the__gio"><b>${gio}</b><small>${NHAN_TRANG_THAI[c.trang_thai] || c.trang_thai}</small></span>
           <span class="cyn-the__chinh">
             <span class="cyn-the__tuyen">${esc(c.ten_tuyen)}</span>
             <span class="cyn-the__phu">
               ${htmlMa(esc(c.ma))}
-              <span class="pill pill--nho ${c.chieu === "xuoi" ? "pill--khu-vuc" : "pill--gia-thoi-han"}">${c.chieu === "xuoi" ? "Xuôi" : "Ngược"}</span>
+              ${ChuyenChiTiet.htmlChieu(c.chieu)}
               <span class="cyn-the__loai">${esc(c.ma_loai_xe)} · ${esc(c.ten_loai_xe)}</span>
             </span>
           </span>
@@ -273,11 +280,17 @@
       });
     }
 
+    // Khôi phục các ô lọc tĩnh ngay; ô lọc tuyến phải đợi nạp danh sách tuyến
+    document.getElementById("loc-ma").value = ttTrang.ma || "";
+    document.getElementById("loc-tu-ngay").value = ttTrang.tuNgay || "";
+    document.getElementById("loc-den-ngay").value = ttTrang.denNgay || "";
+    TrangThaiTrang.chonLaiSelect(document.getElementById("loc-trang-thai"), ttTrang.trangThai);
     renderChipChieu();
 
     (async () => {
       try {
         await naploadDauVao();
+        TrangThaiTrang.chonLaiSelect(document.getElementById("loc-tuyen"), ttTrang.tuyen);
         await taiDanhSach();
       } catch (err) {
         cyDs.innerHTML = `<div class="text-error">${esc(err.message)}</div>`;

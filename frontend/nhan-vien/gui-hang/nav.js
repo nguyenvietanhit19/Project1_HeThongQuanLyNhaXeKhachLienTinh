@@ -31,7 +31,7 @@ const TAB_METADATA = {
   "hang-den": {
     title: "Hàng đến & Giao hàng",
     introTitle: "Hàng gửi tới văn phòng — gọi báo người nhận & bàn giao",
-    introDesc: "Theo dõi hàng sắp đến, gọi báo người nhận ngay khi hàng tới, tra cứu theo mã vận đơn hoặc SĐT, thu COD và xác nhận giao hàng.",
+    introDesc: "Theo dõi hàng sắp đến, gọi báo người nhận ngay khi hàng tới, tra cứu theo mã vận đơn hoặc SĐT, thu cước người nhận trả và xác nhận giao hàng.",
     icon: ICON.xe, statLabel: "kiện chờ giao", statId: "stat-hang-den-count",
   },
   "don-gui": {
@@ -147,7 +147,25 @@ function renderTopbar() {
       </div>
     </div>
   `;
-  document.getElementById("btn-dang-xuat").addEventListener("click", dangXuatNhanVien);
+  document.getElementById("btn-dang-xuat").addEventListener("click", moXacNhanDangXuat);
+  document.getElementById("btnXacNhanDangXuat")?.addEventListener("click", () => {
+    window.boQuaCanhBaoRoiTrang = true; // đã cảnh báo đơn dở ngay trong hộp này — không để trình duyệt hỏi thêm lần nữa
+    dangXuatNhanVien();
+  });
+  // Tự đóng được bằng "Ở lại" / Esc kể cả khi trang khởi tạo lỗi hoặc tài khoản chưa gán văn phòng
+  // (lúc đó ganSuKien / khoiTaoPhimTat chưa chạy nên data-dong và phím Esc chung chưa hoạt động).
+  document.getElementById("btnODaiDangXuat")?.addEventListener("click", () => dongModal("modalDangXuat"));
+  document.getElementById("modalDangXuat")?.addEventListener("keydown", e => {
+    if (e.key === "Escape") dongModal("modalDangXuat");
+  });
+}
+
+/** Bấm "Đăng xuất" → hỏi lại trước khi thoát; có đơn đang nhập dở thì nói rõ sẽ mất. Mặc định chọn sẵn "Ở lại". */
+function moXacNhanDangXuat() {
+  const coDonDo = typeof formTaoDonDangNhapDo === "function" && !laQuanLyXem() && formTaoDonDangNhapDo();
+  $("dxCanhBao").hidden = !coDonDo;
+  moModal("modalDangXuat");
+  $("btnODaiDangXuat").focus();
 }
 
 function renderPageIntro(tabDangMo) {

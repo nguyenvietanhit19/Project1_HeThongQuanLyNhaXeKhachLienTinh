@@ -15,14 +15,6 @@
     <div class="nv-main">
       <header class="nv-topbar">
         <h1>Loại xe</h1>
-        <div class="nv-topbar__user">
-          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
-          <div class="nv-topbar__identity">
-            <span class="ho-ten" id="topbar-ho-ten"></span>
-            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
-          </div>
-          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
-        </div>
       </header>
 
       <main class="nv-content">
@@ -34,7 +26,7 @@
           </div>
           <div class="nv-page-intro__body">
             <p class="nv-page-intro__title">Loại xe</p>
-            <p class="nv-page-intro__desc">Quyết định hệ số giá và sơ đồ ghế dùng chung cho mọi xe cùng loại — 2 xe cùng loại xe giống hệt nhau, chỉ khác biển số.</p>
+            <p class="nv-page-intro__desc">Quyết định sơ đồ ghế dùng chung cho mọi xe cùng loại — 2 xe cùng loại xe giống hệt nhau, chỉ khác biển số.</p>
           </div>
           <div class="nv-page-intro__stat">
             <span class="nv-page-intro__stat-num" id="stat-so-luong">—</span>
@@ -68,15 +60,12 @@
         </div>
         <div class="nv-modal__body">
           <input type="hidden" id="loai_xe_id" />
+          <input type="hidden" id="phien_ban" />
 
           <div class="nv-loaixe-body">
             <div class="nv-loaixe-meta">
               <label class="nv-label" for="ten" style="margin-top:0;">Tên loại xe</label>
               <input class="input-field" type="text" id="ten" placeholder='VD "Giường nằm 40 chỗ"' required />
-
-              <label class="nv-label" for="he_so_gia">Hệ số giá</label>
-              <input class="input-field" type="number" id="he_so_gia" step="0.01" min="0.01" placeholder="VD 1.2" required />
-              <p class="nv-hint">Giá bán = giá gốc (mục Giá vé) × hệ số này.</p>
 
               <label class="nv-label" for="so_tang">Số tầng</label>
               <select class="input-field" id="so_tang">
@@ -88,9 +77,24 @@
               <div id="loi-form" class="text-error" hidden></div>
             </div>
 
-            <div class="nv-loaixe-builder">
-              <label style="font-weight:600; font-size:14px; display:block; margin:0 0 8px;">Sơ đồ ghế</label>
-              <div class="nv-so-do-ghe-toolbar">
+            <div class="nv-loaixe-builder" id="khung-so-do">
+              <p class="nv-hint" id="ghi-chu-khoa-so-do" hidden style="margin:0 0 8px;">Đã có xe hoặc chuyến thuộc loại xe này nên không sửa được sơ đồ ghế — chỉ sửa được tên và hệ số giá từng ghế (tab "Giá ghế").</p>
+              <div class="nv-che-do" role="tablist">
+                <button type="button" class="nv-che-do__nut is-active" data-che-do="so-do" role="tab">Sơ đồ ghế</button>
+                <button type="button" class="nv-che-do__nut" data-che-do="gia-ghe" role="tab">Giá ghế</button>
+              </div>
+              <div class="nv-so-do-ghe-toolbar" id="thanh-gia-ghe" hidden>
+                <span class="gg-so-chon">Đã chọn <b id="gg-so-chon">0</b> ghế</span>
+                <button type="button" class="nv-btn-so-do" id="gg-chon-tat-ca">Chọn tất cả</button>
+                <button type="button" class="nv-btn-so-do" id="gg-bo-chon">Bỏ chọn</button>
+                <div class="nv-so-do-ghe-toolbar__ghe-chon">
+                  <label class="nv-label" for="gg-he-so" style="margin:0;">Hệ số</label>
+                  <input class="input-field" type="number" id="gg-he-so" step="0.01" min="0.01" max="99.99" placeholder="VD 1.1" />
+                  <button type="button" class="nv-btn-so-do nv-btn-so-do--active" id="gg-ap-dung" disabled>Áp dụng</button>
+                  <button type="button" class="nv-btn-so-do" id="gg-ve-1" disabled>Về 1</button>
+                </div>
+              </div>
+              <div class="nv-so-do-ghe-toolbar" id="thanh-so-do">
                 <button type="button" class="nv-btn-so-do" id="btn-them-ghe">+ Thêm ghế</button>
                 <button type="button" class="nv-btn-so-do" id="btn-xoa-ghe" disabled>Xóa ghế</button>
                 <button type="button" class="nv-btn-so-do" id="btn-toggle-luoi">Dịch theo lưới nhỏ: Tắt</button>
@@ -119,6 +123,7 @@
                   </div>
                 </div>
               </div>
+              <div class="gg-xem-truoc" id="xem-truoc-gia-ghe" hidden></div>
             </div>
           </div>
 
@@ -131,16 +136,41 @@
     </div>
   </div>
 
+  <div class="nv-modal-overlay" id="modal-xac-nhan" hidden>
+    <div class="nv-modal">
+      <div class="nv-modal__header">
+        <div class="nv-modal__header-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17.5v.01"/>
+          </svg>
+        </div>
+        <h2>Kiểm tra lại sơ đồ ghế</h2>
+      </div>
+      <div class="nv-modal__body">
+        <p style="margin:0 0 8px;">Sơ đồ ghế <strong>không sửa được nữa</strong> sau khi có xe thuộc loại xe này (hệ số giá từng ghế thì vẫn sửa được).</p>
+        <p style="margin:0 0 4px;">Hãy xem lại trước khi lưu:</p>
+        <ul style="margin:0 0 16px; padding-left:20px; line-height:1.6;">
+          <li>Mã ghế — <strong id="xn-so-ghe">0</strong> ghế, không sai hoặc thiếu</li>
+          <li>Vị trí từng ghế trên sơ đồ</li>
+          <li>Số tầng</li>
+        </ul>
+        <div class="nv-modal__actions">
+          <button type="button" class="nv-btn-secondary" id="btn-xn-quay-lai">Quay lại kiểm tra</button>
+          <button type="button" class="btn-primary" id="btn-xn-luu">Đã kiểm tra, lưu</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="/nhan-vien/quan-ly/api-client.js"></script>
   <script src="/nhan-vien/quan-ly/auth-check.js"></script>
   <script src="/nhan-vien/quan-ly/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/tai-khoan.js"></script>
   <script>
     const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
     if (nguoiDung) {
       renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-ly/loai-xe.html");
-      renderTopbarUser();
     }
-    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
 
     const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     const boDau = (s) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
@@ -155,6 +185,12 @@
     let gheState = [];
     let gheDangChon = null; // {idx, tang} hoặc null — ghế đang chọn (idx trong gheState)
     let dichTheoLuoi = false;
+    let soDoKhoa = false; // true khi sửa loại xe đã có xe/chuyến dùng — sơ đồ chỉ xem, không sửa (hệ số ghế vẫn sửa được)
+    let cheDo = "so-do"; // so-do | gia-ghe
+    let gheGiaChon = new Set(); // "idx:tang" — các ghế đang chọn ở chế độ Giá ghế
+    // Phải khớp backend (app/utils/gia.py): làm tròn nửa-lên tới bội số của 10.000đ, tối thiểu 10.000đ
+    const lamTronGia = (n) => Math.max(1, Math.round(n / 10000)) * 10000;
+    const heSoCuaGhe = (ghe, tang) => Number(ghe.heSo?.[tang] ?? 1);
 
     // Mọi kích thước đều là BỘI SỐ của 1 ô lưới (DON_VI_LUOI = 10px) — ghế
     // cao 3 ô (30px) × rộng 4 ô (40px), khe hở tối thiểu đúng 1 ô lưới (10px)
@@ -265,6 +301,7 @@
 
     // ---------- Kéo thả — chỉ gắn cho ghế ở tầng 1 ----------
     function ganKeoTha(btn, idx) {
+      if (soDoKhoa || cheDo === "gia-ghe") return;
       btn.addEventListener("pointerdown", (e) => {
         e.preventDefault();
         const ghe = gheState[idx];
@@ -332,10 +369,14 @@
           "nv-ghe-tu-do" + (gheDangChon && gheDangChon.idx === idx && gheDangChon.tang === 1 ? " nv-ghe-tu-do--chon" : "");
         btn.style.left = `${ghe.x}px`;
         btn.style.top = `${ghe.y}px`;
-        btn.textContent = ghe.ma[1] || "?";
-        btn.title = ghe.ma[1];
         btn.dataset.idx = idx;
-        ganKeoTha(btn, idx);
+        if (cheDo === "gia-ghe") {
+          dungNutGiaGhe(btn, ghe, idx, 1);
+        } else {
+          btn.textContent = ghe.ma[1] || "?";
+          btn.title = ghe.ma[1];
+          ganKeoTha(btn, idx);
+        }
         canvas.appendChild(btn);
       });
     }
@@ -372,18 +413,129 @@
           (gheDangChon && gheDangChon.idx === idx && gheDangChon.tang === 2 ? " nv-ghe-tu-do--chon" : "");
         btn.style.left = `${ghe.x}px`;
         btn.style.top = `${ghe.y}px`;
-        btn.textContent = ghe.ma[2] || "?";
-        btn.title = ghe.ma[2];
         btn.dataset.idx = idx;
-        btn.addEventListener("click", () => chonGhe(idx, 2));
+        if (cheDo === "gia-ghe") {
+          dungNutGiaGhe(btn, ghe, idx, 2);
+        } else {
+          btn.textContent = ghe.ma[2] || "?";
+          btn.title = ghe.ma[2];
+          btn.addEventListener("click", () => {
+            if (!soDoKhoa) chonGhe(idx, 2);
+          });
+        }
         canvas.appendChild(btn);
       });
     }
+
+    // ---------- Chế độ "Giá ghế": bấm để chọn nhiều ghế rồi nhập hệ số 1 lần ----------
+    function dungNutGiaGhe(btn, ghe, idx, tang) {
+      const heSo = heSoCuaGhe(ghe, tang);
+      btn.classList.add("nv-ghe-tu-do--gia");
+      if (heSo > 1) btn.classList.add("nv-ghe-tu-do--dat");
+      if (heSo < 1) btn.classList.add("nv-ghe-tu-do--re");
+      if (gheGiaChon.has(`${idx}:${tang}`)) btn.classList.add("nv-ghe-tu-do--chon-gia");
+      btn.innerHTML = `<span>${esc(ghe.ma[tang] || "?")}</span>${heSo !== 1 ? `<small>×${heSo}</small>` : ""}`;
+      btn.title = `${ghe.ma[tang] || "?"} — hệ số ${heSo}`;
+      btn.addEventListener("click", () => {
+        const k = `${idx}:${tang}`;
+        if (gheGiaChon.has(k)) gheGiaChon.delete(k);
+        else gheGiaChon.add(k);
+        renderTatCa();
+      });
+    }
+
+    function renderGiaGhe() {
+      document.getElementById("gg-so-chon").textContent = gheGiaChon.size;
+      document.getElementById("gg-ap-dung").disabled = gheGiaChon.size === 0;
+      document.getElementById("gg-ve-1").disabled = gheGiaChon.size === 0;
+
+      const o = document.getElementById("xem-truoc-gia-ghe");
+      if (cheDo !== "gia-ghe") {
+        o.hidden = true;
+        return;
+      }
+      const soTang = Number(document.getElementById("so_tang").value);
+      const khacNhau = new Set();
+      gheState.forEach((g) => {
+        for (let t = 1; t <= soTang; t++) if (heSoCuaGhe(g, t) !== 1) khacNhau.add(heSoCuaGhe(g, t));
+      });
+      const MOC = [100000, 300000, 500000];
+      const tien = (n) => n.toLocaleString("vi-VN") + "đ";
+      const canhBao = [];
+      const dong = [...khacNhau]
+        .sort((a, b) => a - b)
+        .map((h) => {
+          const gia = MOC.map((m) => lamTronGia(m * h));
+          if (h < 0.5 || h > 3) canhBao.push(`Hệ số ×${h} khác thường (dưới 0,5 hoặc trên 3) — kiểm tra lại.`);
+          else if (gia.every((g, i) => g === MOC[i])) canhBao.push(`Hệ số ×${h} không tạo chênh lệch ở các mức giá mẫu (bị làm tròn mất) — nên tăng hoặc giảm nhiều hơn.`);
+          return `<tr><td>×${h}</td>${gia.map((g) => `<td>${tien(g)}</td>`).join("")}</tr>`;
+        })
+        .join("");
+      o.innerHTML = `
+        <p class="nv-hint" style="margin:0 0 6px;">Giá ghế = giá gốc × hệ số của lịch chạy × hệ số ghế, làm tròn 10.000đ. <strong>Chỉ áp dụng cho chuyến sinh từ bây giờ.</strong></p>
+        ${
+          khacNhau.size
+            ? `<table class="gg-bang"><thead><tr><th>Hệ số ghế</th>${MOC.map((m) => `<th>Giá gốc ${tien(m)}</th>`).join("")}</tr></thead><tbody>${dong}</tbody></table>
+               <p class="nv-hint" style="margin:4px 0 0;">Bảng trên tính với hệ số lịch chạy = 1.</p>`
+            : '<p class="nv-hint" style="margin:0;">Chưa ghế nào khác hệ số 1 — mọi ghế cùng giá. Bấm chọn ghế rồi nhập hệ số.</p>'
+        }
+        ${canhBao.map((c) => `<div class="text-error">⚠ ${esc(c)}</div>`).join("")}`;
+      o.hidden = false;
+    }
+
+    function datCheDo(cd) {
+      cheDo = cd;
+      gheDangChon = null;
+      gheGiaChon.clear();
+      document.querySelectorAll("[data-che-do]").forEach((b) => b.classList.toggle("is-active", b.dataset.cheDo === cd));
+      document.getElementById("thanh-so-do").hidden = cd !== "so-do";
+      document.getElementById("thanh-gia-ghe").hidden = cd !== "gia-ghe";
+      document.getElementById("gg-he-so").value = "";
+      renderTatCa();
+    }
+
+    document.querySelectorAll("[data-che-do]").forEach((b) => b.addEventListener("click", () => datCheDo(b.dataset.cheDo)));
+
+    document.getElementById("gg-chon-tat-ca").addEventListener("click", () => {
+      const soTang = Number(document.getElementById("so_tang").value);
+      gheState.forEach((_, idx) => {
+        for (let t = 1; t <= soTang; t++) gheGiaChon.add(`${idx}:${t}`);
+      });
+      renderTatCa();
+    });
+    document.getElementById("gg-bo-chon").addEventListener("click", () => {
+      gheGiaChon.clear();
+      renderTatCa();
+    });
+
+    function datHeSoChoGheDaChon(heSo) {
+      gheGiaChon.forEach((k) => {
+        const [idx, tang] = k.split(":").map(Number);
+        const g = gheState[idx];
+        g.heSo = g.heSo || { 1: 1, 2: 1 };
+        g.heSo[tang] = heSo;
+      });
+      gheGiaChon.clear();
+      renderTatCa();
+    }
+
+    document.getElementById("gg-ap-dung").addEventListener("click", () => {
+      loiForm.hidden = true;
+      const v = Number(document.getElementById("gg-he-so").value);
+      if (!(v > 0) || v > 99.99 || Math.round(v * 100) / 100 !== v) {
+        loiForm.textContent = "Hệ số phải lớn hơn 0, tối đa 99,99 và không quá 2 chữ số thập phân";
+        loiForm.hidden = false;
+        return;
+      }
+      datHeSoChoGheDaChon(v);
+    });
+    document.getElementById("gg-ve-1").addEventListener("click", () => datHeSoChoGheDaChon(1));
 
     function renderTatCa() {
       renderCanvasTang1();
       renderCanvasTang2();
       renderKhungMaGhe();
+      renderGiaGhe();
       // gheState là số VỊ TRÍ (dùng chung mọi tầng) — tổng số ghế thật phải
       // nhân theo số tầng, vì mỗi tầng có 1 ghế riêng tại đúng vị trí đó.
       const soTang = Number(document.getElementById("so_tang").value);
@@ -431,7 +583,7 @@
       const soTang = Number(document.getElementById("so_tang").value);
       const ma = { 1: noiTiepMaGhe(gheTruoc, 1, x) };
       if (soTang === 2) ma[2] = maMirrorTuTang1(ma[1], 2);
-      gheState.push({ x, y, ma });
+      gheState.push({ x, y, ma, heSo: { 1: 1, 2: 1 } });
       chonGhe(gheState.length - 1, 1);
     });
 
@@ -526,7 +678,6 @@
                 <div class="lx-the__chi-so">
                   <span class="lx-chi-so"><strong>${l.so_do_ghe.length}</strong> ghế</span>
                   <span class="lx-chi-so"><strong>${soTang}</strong> tầng</span>
-                  <span class="lx-chi-so lx-chi-so--gia">Hệ số giá <strong>×${l.he_so_gia}</strong></span>
                 </div>
               </div>
               <div class="lx-the__chan">
@@ -546,7 +697,11 @@
       });
     }
 
-    document.getElementById("lx-tim").addEventListener("input", renderDanhSach);
+    document.getElementById("lx-tim").value = TrangThaiTrang.doc().tim || "";
+    document.getElementById("lx-tim").addEventListener("input", (e) => {
+      TrangThaiTrang.luu({ tim: e.target.value });
+      renderDanhSach();
+    });
     taiDanhSach();
 
     async function xoaLoaiXe(loaiXe) {
@@ -570,15 +725,33 @@
 
     // Backend lưu dạng phẳng [{ma_ghe, tang, x, y}] — ghép cặp tầng 1/tầng 2
     // lại theo đúng (x, y) trùng nhau (luôn trùng vì tầng 2 khóa theo tầng 1).
-    function unflattenSoDoGhe(list) {
+    function unflattenSoDoGhe(list, heSoGhe = {}) {
       const tang1 = list.filter((g) => g.tang === 1);
       const tang2 = list.filter((g) => g.tang === 2);
       return tang1.map((g1) => {
         const g2 = tang2.find((g) => g.x === g1.x && g.y === g1.y);
         const ma = { 1: g1.ma_ghe };
-        if (g2) ma[2] = g2.ma_ghe;
-        return { x: g1.x, y: g1.y, ma };
+        const heSo = { 1: Number(heSoGhe[g1.ma_ghe] ?? 1), 2: 1 };
+        if (g2) {
+          ma[2] = g2.ma_ghe;
+          heSo[2] = Number(heSoGhe[g2.ma_ghe] ?? 1);
+        }
+        return { x: g1.x, y: g1.y, ma, heSo };
       });
+    }
+
+    // {mã ghế: hệ số} của các ghế khác 1 — hệ số đi theo ghế (đổi mã ghế ở tab Sơ đồ thì hệ số đi theo)
+    function flattenHeSoGhe() {
+      const soTang = Number(document.getElementById("so_tang").value);
+      const kq = {};
+      gheState.forEach((g) => {
+        for (let t = 1; t <= soTang; t++) {
+          const ma = (g.ma[t] || "").trim();
+          const h = heSoCuaGhe(g, t);
+          if (ma && h !== 1) kq[ma] = h;
+        }
+      });
+      return kq;
     }
 
     function flattenSoDoGhe() {
@@ -589,6 +762,13 @@
         if (soTang === 2) ds.push({ ma_ghe: (g.ma[2] || "").trim(), tang: 2, x: g.x, y: g.y });
       });
       return ds;
+    }
+
+    function datKhoaSoDo(khoa) {
+      soDoKhoa = khoa;
+      // Chỉ khóa các thao tác trên SƠ ĐỒ; tab "Giá ghế" vẫn dùng được (hệ số ghế luôn sửa được)
+      ["btn-them-ghe", "btn-toggle-luoi", "input-ma-ghe", "so_tang"].forEach((id) => (document.getElementById(id).disabled = khoa));
+      document.getElementById("ghi-chu-khoa-so-do").hidden = !khoa;
     }
 
     function resetTrangThaiSoDoGhe() {
@@ -604,8 +784,11 @@
       document.getElementById("modal-tieu-de").textContent = "Thêm loại xe";
       form.reset();
       document.getElementById("loai_xe_id").value = "";
+      document.getElementById("phien_ban").value = "";
       document.getElementById("so_tang").value = "1";
       gheState = [];
+      datCheDo("so-do");
+      datKhoaSoDo(false);
       resetTrangThaiSoDoGhe();
       moModal();
     }
@@ -614,17 +797,36 @@
       document.getElementById("modal-tieu-de").textContent = "Sửa loại xe";
       document.getElementById("loai_xe_id").value = loaiXe.id;
       document.getElementById("ten").value = loaiXe.ten;
-      document.getElementById("he_so_gia").value = loaiXe.he_so_gia;
 
       const coTang2 = loaiXe.so_do_ghe.some((g) => g.tang === 2);
       document.getElementById("so_tang").value = coTang2 ? "2" : "1";
-      gheState = unflattenSoDoGhe(loaiXe.so_do_ghe);
+      gheState = unflattenSoDoGhe(loaiXe.so_do_ghe, loaiXe.he_so_ghe || {});
+      document.getElementById("phien_ban").value = loaiXe.phien_ban;
+      datCheDo("so-do");
+      datKhoaSoDo(!!loaiXe.khoa_so_do_ghe);
       resetTrangThaiSoDoGhe();
       moModal();
     }
 
     document.getElementById("btn-them").addEventListener("click", moModalThem);
     document.getElementById("btn-huy").addEventListener("click", () => { modalOverlay.hidden = true; });
+
+    // Hộp xác nhận (modal HTML) — resolve true khi bấm "Đã kiểm tra, lưu", false khi quay lại
+    function xacNhanSoDoGhe(soGhe) {
+      const overlay = document.getElementById("modal-xac-nhan");
+      document.getElementById("xn-so-ghe").textContent = soGhe;
+      overlay.hidden = false;
+      return new Promise((resolve) => {
+        const dong = (kq) => {
+          overlay.hidden = true;
+          document.getElementById("btn-xn-luu").onclick = null;
+          document.getElementById("btn-xn-quay-lai").onclick = null;
+          resolve(kq);
+        };
+        document.getElementById("btn-xn-luu").onclick = () => dong(true);
+        document.getElementById("btn-xn-quay-lai").onclick = () => dong(false);
+      });
+    }
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -650,10 +852,13 @@
       }
 
       const id = document.getElementById("loai_xe_id").value;
+      // Loại xe mới: sơ đồ ghế sẽ bị chốt ngay khi có xe đầu tiên, nên bắt xem lại lần cuối
+      if (!id && !(await xacNhanSoDoGhe(soDoGheGuiDi.length))) return;
       const duLieu = {
         ten: document.getElementById("ten").value.trim(),
-        he_so_gia: Number(document.getElementById("he_so_gia").value),
         so_do_ghe: soDoGheGuiDi,
+        he_so_ghe: flattenHeSoGhe(),
+        phien_ban: id ? Number(document.getElementById("phien_ban").value) : undefined, // khóa lạc quan: lệch = người khác đã sửa
       };
 
       const btnSubmit = form.querySelector("button[type=submit]");

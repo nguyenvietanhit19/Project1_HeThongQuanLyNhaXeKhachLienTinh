@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Hồ sơ nhân sự — Quản lý nhân sự</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<!-- Dùng chung bộ khung "nv-*" với frontend/nhan-vien/quan-ly/ — xem ghi chú ở nav.js -->
+<link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+</head>
+<body class="nhan-vien-shell">
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
+
+    <div class="nv-main">
+      <header class="nv-topbar">
+        <h1>Hồ sơ nhân sự</h1>
+        <div class="nv-topbar__user">
+          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
+          <div class="nv-topbar__identity">
+            <span class="ho-ten" id="topbar-ho-ten"></span>
+            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
+          </div>
+          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
+        </div>
+      </header>
+
+      <main class="nv-content">
+        <div class="nv-page-intro">
+          <div class="nv-page-intro__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5a3 3 0 0 1 0 6M18 14c1.8.6 3 2.3 3 4"/>
+            </svg>
+          </div>
+          <div class="nv-page-intro__body">
+            <p class="nv-page-intro__title">Hồ sơ nhân sự vận hành</p>
+            <p class="nv-page-intro__desc">Tài xế và phụ xe, kèm giấy tờ (bằng lái, giấy khám sức khỏe). Tài xế không có tài khoản đăng nhập — chỉ phụ xe mới cần chọn tài khoản đã tạo trước.</p>
+          </div>
+          <div class="nv-page-intro__stat">
+            <span class="nv-page-intro__stat-num" id="stat-so-luong">—</span>
+            <span class="nv-page-intro__stat-label">hồ sơ</span>
+          </div>
+        </div>
+
+        <div class="kv-thanh-cong">
+          <div class="kv-tim">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input type="search" id="hs-tim" placeholder="Tìm theo họ tên hoặc số điện thoại..." autocomplete="off" />
+          </div>
+          <div class="dd-chips" id="hs-chips"></div>
+          <label style="display:flex; align-items:center; gap:6px; font-size:14px; white-space:nowrap;">
+            <input type="checkbox" id="hs-chi-dang-lam" checked />
+            Chỉ đang làm
+          </label>
+          <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Thêm hồ sơ</button>
+        </div>
+        <div id="bang-ho-so">Đang tải...</div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal thêm/sửa hồ sơ -->
+  <div class="nv-modal-overlay" id="modal-overlay" hidden>
+    <div class="nv-modal" style="max-width:680px;">
+      <form id="form-ho-so">
+        <div class="nv-modal__header">
+          <div class="nv-modal__header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/>
+            </svg>
+          </div>
+          <h2 id="modal-tieu-de">Thêm hồ sơ</h2>
+        </div>
+        <div class="nv-modal__body">
+          <input type="hidden" id="nhan_su_id" />
+
+          <!-- Ảnh hồ sơ — chỉ bật khi đã có id (sửa hồ sơ có sẵn), vì endpoint upload cần hồ sơ tồn tại trước -->
+          <div id="khoi-anh-ho-so" hidden style="display:flex; align-items:center; gap:14px; margin-bottom:14px;">
+            <img id="anh-ho-so-xem-truoc" alt="Ảnh hồ sơ" style="width:64px; height:64px; border-radius:50%; object-fit:cover; background:#EEE; border:1px solid #E5E5E8;" />
+            <div>
+              <input type="file" id="anh_ho_so_file" accept="image/*" style="font-size:13px;" />
+              <button type="button" class="nv-btn-secondary" id="btn-tai-anh" style="margin-left:6px;">Tải ảnh lên</button>
+              <div id="anh-trang-thai" class="nv-text-phu" style="margin-top:4px;"></div>
+            </div>
+          </div>
+
+          <div class="nv-form-row">
+            <div>
+              <label class="nv-label" for="ho_ten">Họ tên</label>
+              <input class="input-field" type="text" id="ho_ten" required />
+            </div>
+            <div>
+              <label class="nv-label" for="so_dien_thoai">Số điện thoại</label>
+              <input class="input-field" type="text" id="so_dien_thoai" required />
+            </div>
+          </div>
+
+          <div class="nv-form-row">
+            <div>
+              <label class="nv-label" for="chuc_danh">Chức danh</label>
+              <select class="input-field" id="chuc_danh" required>
+                <option value="tai_xe">Tài xế</option>
+                <option value="phu_xe">Phụ xe</option>
+              </select>
+            </div>
+            <div id="khoi-tai-khoan">
+              <label class="nv-label" for="nguoi_dung_id">Tài khoản phụ xe</label>
+              <select class="input-field" id="nguoi_dung_id"></select>
+            </div>
+          </div>
+          <p class="nv-text-phu" id="ghi-chu-chuc-danh" style="margin-top:-8px; margin-bottom:12px;"></p>
+
+          <div class="nv-form-row">
+            <div>
+              <label class="nv-label" for="so_cccd">Số CCCD</label>
+              <input class="input-field" type="text" id="so_cccd" />
+            </div>
+            <div>
+              <label class="nv-label" for="ngay_sinh">Ngày sinh</label>
+              <input class="input-field" type="date" id="ngay_sinh" />
+            </div>
+          </div>
+
+          <label class="nv-label" for="ngay_vao_lam">Ngày vào làm</label>
+          <input class="input-field" type="date" id="ngay_vao_lam" />
+
+          <hr style="border:none; border-top:1px solid #E5E5E8; margin:18px 0;" />
+          <p style="font-weight:700; margin:0 0 10px;">Giấy tờ</p>
+
+          <p class="nv-label" style="margin-top:0;">Bằng lái <span id="nhan-bat-buoc-bang-lai" class="nv-text-phu" hidden>(bắt buộc với tài xế)</span></p>
+          <div class="nv-form-row">
+            <div>
+              <label class="nv-label" for="bl_so_giay_to">Số bằng lái</label>
+              <input class="input-field" type="text" id="bl_so_giay_to" />
+            </div>
+            <div>
+              <label class="nv-label" for="bl_hang">Hạng</label>
+              <input class="input-field" type="text" id="bl_hang" placeholder="VD B2, D, E" />
+            </div>
+          </div>
+          <div class="nv-form-row">
+            <div>
+              <label class="nv-label" for="bl_ngay_cap">Ngày cấp</label>
+              <input class="input-field" type="date" id="bl_ngay_cap" />
+            </div>
+            <div>
+              <label class="nv-label" for="bl_ngay_het_han">Ngày hết hạn</label>
+              <input class="input-field" type="date" id="bl_ngay_het_han" />
+            </div>
+          </div>
+          <div class="khoi-anh-giay-to" id="anh-bl" hidden></div>
+
+          <p class="nv-label">Giấy khám sức khỏe</p>
+          <div class="nv-form-row">
+            <div>
+              <label class="nv-label" for="kk_so_giay_to">Số giấy khám</label>
+              <input class="input-field" type="text" id="kk_so_giay_to" />
+            </div>
+            <div>
+              <label class="nv-label" for="kk_ngay_cap">Ngày cấp</label>
+              <input class="input-field" type="date" id="kk_ngay_cap" />
+            </div>
+          </div>
+          <label class="nv-label" for="kk_ngay_het_han">Ngày hết hạn</label>
+          <input class="input-field" type="date" id="kk_ngay_het_han" />
+          <div class="khoi-anh-giay-to" id="anh-kk" hidden></div>
+
+          <div id="loi-form" class="text-error" hidden style="margin-top:12px;"></div>
+          <div class="nv-modal__actions">
+            <button type="button" class="nv-btn-secondary" id="btn-huy">Hủy</button>
+            <button type="submit" class="btn-primary">Lưu</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/nhan-vien/quan-li-nhan-su/api-client.js"></script>
+  <script src="/nhan-vien/quan-li-nhan-su/auth-check.js"></script>
+  <script src="/nhan-vien/quan-li-nhan-su/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/data-table.js"></script>
+  <script>
+    const nguoiDung = yeuCauVaiTro("quan_ly_nhan_su", "quan_ly");
+    if (nguoiDung) {
+      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-li-nhan-su/ho-so.html");
+      renderTopbarUser();
+    }
+    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const boDau = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+
+    const NHAN_CHUC_DANH = {
+      tai_xe: { nhan: "Tài xế", lop: "pill--diem-dung" },
+      phu_xe: { nhan: "Phụ xe", lop: "pill--khu-vuc" },
+    };
+    const NHAN_TRANG_THAI = {
+      dang_lam: { nhan: "Đang làm", lop: "pill--success" },
+      da_nghi_viec: { nhan: "Đã nghỉ việc", lop: "pill--xam" },
+    };
+    function htmlPill(lop, nhan) {
+      return `<span class="pill ${lop}">${nhan}</span>`;
+    }
+
+    let boLocChucDanh = "tat_ca"; // tat_ca | tai_xe | phu_xe
+    let dsHoSo = [];
+
+    const bangHoSo = document.getElementById("bang-ho-so");
+    const oTim = document.getElementById("hs-tim");
+    const oChiDangLam = document.getElementById("hs-chi-dang-lam");
+
+    function renderChips() {
+      const dem = { tat_ca: dsHoSo.length, tai_xe: 0, phu_xe: 0 };
+      dsHoSo.forEach((h) => dem[h.chuc_danh]++);
+      const cacChip = [["tat_ca", "Tất cả"], ["tai_xe", "Tài xế"], ["phu_xe", "Phụ xe"]];
+      const o = document.getElementById("hs-chips");
+      o.innerHTML = cacChip
+        .map(([gt, nhan]) => `<button type="button" class="dd-chip${boLocChucDanh === gt ? " is-active" : ""}" data-cd="${gt}">${nhan} <span>${dem[gt]}</span></button>`)
+        .join("");
+      o.querySelectorAll("[data-cd]").forEach((b) =>
+        b.addEventListener("click", () => {
+          boLocChucDanh = b.dataset.cd;
+          renderDanhSach();
+        })
+      );
+    }
+
+    async function taiDanhSach() {
+      try {
+        dsHoSo = await apiGet(`/quan-ly-nhan-su/ho-so?chi_dang_lam=${oChiDangLam.checked}`);
+        document.getElementById("stat-so-luong").textContent = dsHoSo.length;
+        renderDanhSach();
+      } catch (err) {
+        bangHoSo.innerHTML = `<div class="text-error">${esc(err.message)}</div>`;
+      }
+    }
+
+    function renderDanhSach() {
+      renderChips();
+      const tk = boDau(oTim.value.trim());
+      const loc = dsHoSo.filter((h) => {
+        if (boLocChucDanh !== "tat_ca" && h.chuc_danh !== boLocChucDanh) return false;
+        if (!tk) return true;
+        return boDau(`${h.ho_ten} ${h.so_dien_thoai}`).includes(tk);
+      });
+
+      renderDataTable(
+        bangHoSo,
+        [
+          { key: "ho_ten", label: "Họ tên" },
+          { key: "so_dien_thoai", label: "Số điện thoại" },
+          { key: "chuc_danh", label: "Chức danh", render: (r) => htmlPill(NHAN_CHUC_DANH[r.chuc_danh].lop, NHAN_CHUC_DANH[r.chuc_danh].nhan) },
+          { key: "trang_thai", label: "Trạng thái", render: (r) => htmlPill(NHAN_TRANG_THAI[r.trang_thai].lop, NHAN_TRANG_THAI[r.trang_thai].nhan) },
+          { key: "co_tai_khoan", label: "Tài khoản", render: (r) => (r.co_tai_khoan ? "Có" : "—") },
+        ],
+        loc,
+        { onEdit: moModalSua, editLabel: "Sửa", tenXoa: (r) => r.ho_ten }
+      );
+    }
+
+    oTim.addEventListener("input", renderDanhSach);
+    oChiDangLam.addEventListener("change", taiDanhSach);
+    taiDanhSach();
+
+    // ---------- Modal thêm/sửa ----------
+    const modalOverlay = document.getElementById("modal-overlay");
+    const form = document.getElementById("form-ho-so");
+    const loiForm = document.getElementById("loi-form");
+    const oChucDanh = document.getElementById("chuc_danh");
+    const khoiTaiKhoan = document.getElementById("khoi-tai-khoan");
+    const nhanBatBuocBangLai = document.getElementById("nhan-bat-buoc-bang-lai");
+
+    function capNhatTheoChucDanh() {
+      const laPhuXe = oChucDanh.value === "phu_xe";
+      khoiTaiKhoan.style.display = laPhuXe ? "" : "none";
+      nhanBatBuocBangLai.hidden = laPhuXe;
+      document.getElementById("ghi-chu-chuc-danh").textContent = laPhuXe
+        ? "Phụ xe bắt buộc có tài khoản đăng nhập — tài khoản phải được tạo trước (UC-36) và chưa gắn hồ sơ nào khác."
+        : "Tài xế không có tài khoản đăng nhập hệ thống.";
+    }
+    oChucDanh.addEventListener("change", capNhatTheoChucDanh);
+
+    function moModal() {
+      loiForm.hidden = true;
+      modalOverlay.hidden = false;
+    }
+
+    const oTaiKhoan = document.getElementById("nguoi_dung_id");
+
+    // Đổ ô chọn tài khoản bằng các tài khoản phu_xe chưa gắn hồ sơ nào
+    async function taiDanhSachTaiKhoanPhuXe() {
+      oTaiKhoan.innerHTML = '<option value="">Đang tải...</option>';
+      try {
+        const ds = await apiGet("/quan-ly-nhan-su/tai-khoan-phu-xe-chua-gan");
+        oTaiKhoan.innerHTML =
+          `<option value="">${ds.length ? "— Chọn tài khoản phụ xe —" : "Không còn tài khoản phụ xe nào chưa gắn hồ sơ"}</option>` +
+          ds.map((t) => `<option value="${esc(t.id)}">${esc(t.ho_ten)} — ${esc(t.email)}</option>`).join("");
+      } catch (err) {
+        oTaiKhoan.innerHTML = `<option value="">${esc(err.message)}</option>`;
+      }
+    }
+
+    // ---------- Giấy tờ: nhãn hạn + ảnh ----------
+    const NGUONG_SAP_HET_HAN_NGAY = 30; // khớp NGUONG_CANH_BAO_GIAY_TO_NGAY ở backend/app/config.py
+    const LOAI_GIAY_TO = { bl: "bang_lai", kk: "giay_kham_suc_khoe" };
+
+    function nhanHanGiayTo(ngayHetHan) {
+      const homNay = new Date(); homNay.setHours(0, 0, 0, 0);
+      const conLai = Math.round((new Date(ngayHetHan + "T00:00:00") - homNay) / 86400000);
+      if (conLai < 0) return htmlPill("pill--do", "Đã hết hạn");
+      if (conLai <= NGUONG_SAP_HET_HAN_NGAY) return htmlPill("pill--gia-thoi-han", `Sắp hết hạn (${conLai} ngày)`);
+      return htmlPill("pill--success", "Còn hạn");
+    }
+
+    // Khối dưới mỗi giấy tờ: nhãn hạn + xem ảnh + chọn/tải ảnh. Chỉ hiện khi đang sửa hồ sơ
+    // và giấy tờ đã lưu (endpoint upload ảnh giấy tờ yêu cầu giấy tờ tồn tại trước).
+    function renderKhoiAnhGiayTo(prefix, nhanSuId, gt) {
+      const el = document.getElementById(`anh-${prefix}`);
+      if (!gt || !nhanSuId) { el.style.display = "none"; el.innerHTML = ""; return; }
+      el.style.cssText = "display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:-4px 0 12px;";
+      el.innerHTML = `
+        ${nhanHanGiayTo(gt.ngay_het_han)}
+        ${gt.anh_url ? `<a href="${esc(gt.anh_url)}" target="_blank" rel="noopener">Xem ảnh giấy tờ</a>` : '<span class="nv-text-phu">Chưa có ảnh</span>'}
+        <input type="file" accept="image/*" style="font-size:13px;" />
+        <button type="button" class="nv-btn-secondary">Tải ảnh lên</button>
+        <span class="nv-text-phu"></span>`;
+      const [oFile, nut, oTrangThai] = [el.querySelector("input"), el.querySelector("button"), el.querySelector("span:last-child")];
+      nut.addEventListener("click", async () => {
+        if (!oFile.files[0]) { oTrangThai.textContent = "Chọn 1 ảnh trước."; return; }
+        oTrangThai.textContent = "Đang tải lên...";
+        try {
+          const kq = await apiUploadAnh(`/quan-ly-nhan-su/ho-so/${nhanSuId}/giay-to/${LOAI_GIAY_TO[prefix]}/anh`, oFile.files[0]);
+          renderKhoiAnhGiayTo(prefix, nhanSuId, { ...gt, anh_url: kq.url });
+        } catch (err) {
+          oTrangThai.textContent = err.message;
+        }
+      });
+    }
+
+    function dienGiayTo(prefix, gt, nhanSuId) {
+      document.getElementById(`${prefix}_so_giay_to`).value = gt?.so_giay_to || "";
+      document.getElementById(`${prefix}_ngay_cap`).value = gt?.ngay_cap || "";
+      document.getElementById(`${prefix}_ngay_het_han`).value = gt?.ngay_het_han || "";
+      if (prefix === "bl") document.getElementById("bl_hang").value = gt?.hang || "";
+      renderKhoiAnhGiayTo(prefix, nhanSuId, gt);
+    }
+
+    function moModalThem() {
+      document.getElementById("modal-tieu-de").textContent = "Thêm hồ sơ";
+      form.reset();
+      document.getElementById("nhan_su_id").value = "";
+      oChucDanh.disabled = false;
+      oTaiKhoan.disabled = false;
+      document.getElementById("khoi-anh-ho-so").hidden = true;
+      dienGiayTo("bl", null, "");
+      dienGiayTo("kk", null, "");
+      capNhatTheoChucDanh();
+      taiDanhSachTaiKhoanPhuXe();
+      moModal();
+    }
+
+    async function moModalSua(row) {
+      try {
+        const hoSo = await apiGet(`/quan-ly-nhan-su/ho-so/${row.id}`);
+        document.getElementById("modal-tieu-de").textContent = "Sửa hồ sơ";
+        document.getElementById("nhan_su_id").value = hoSo.id;
+        document.getElementById("ho_ten").value = hoSo.ho_ten;
+        document.getElementById("so_dien_thoai").value = hoSo.so_dien_thoai;
+        oChucDanh.value = hoSo.chuc_danh;
+        oChucDanh.disabled = true; // không đổi chức danh sau khi tạo (NGHIEP_VU.md UC-49)
+        // Không đổi tài khoản gắn sẵn qua màn sửa — chỉ hiện 1 lựa chọn đã gắn, khóa lại
+        oTaiKhoan.innerHTML = hoSo.nguoi_dung_id ? `<option value="${esc(hoSo.nguoi_dung_id)}">Đã gắn tài khoản đăng nhập</option>` : '<option value=""></option>';
+        oTaiKhoan.value = hoSo.nguoi_dung_id || "";
+        oTaiKhoan.disabled = true;
+        document.getElementById("so_cccd").value = hoSo.so_cccd || "";
+        document.getElementById("ngay_sinh").value = hoSo.ngay_sinh || "";
+        document.getElementById("ngay_vao_lam").value = hoSo.ngay_vao_lam || "";
+        capNhatTheoChucDanh();
+
+        dienGiayTo("bl", hoSo.giay_to.find((g) => g.loai === "bang_lai"), hoSo.id);
+        dienGiayTo("kk", hoSo.giay_to.find((g) => g.loai === "giay_kham_suc_khoe"), hoSo.id);
+
+        document.getElementById("khoi-anh-ho-so").hidden = false;
+        document.getElementById("anh-ho-so-xem-truoc").src = hoSo.anh_url || "/shared/assets/favicon.png";
+        document.getElementById("anh-trang-thai").textContent = "";
+
+        moModal();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    document.getElementById("btn-them").addEventListener("click", moModalThem);
+    document.getElementById("btn-huy").addEventListener("click", () => { modalOverlay.hidden = true; });
+
+    document.getElementById("btn-tai-anh").addEventListener("click", async () => {
+      const id = document.getElementById("nhan_su_id").value;
+      const file = document.getElementById("anh_ho_so_file").files[0];
+      if (!id || !file) return;
+      const trangThaiEl = document.getElementById("anh-trang-thai");
+      trangThaiEl.textContent = "Đang tải lên...";
+      try {
+        const ketQua = await apiUploadAnh(`/quan-ly-nhan-su/ho-so/${id}/anh`, file);
+        document.getElementById("anh-ho-so-xem-truoc").src = ketQua.url;
+        trangThaiEl.textContent = "Đã cập nhật ảnh.";
+      } catch (err) {
+        trangThaiEl.textContent = err.message;
+      }
+    });
+
+    function layGiayTo(prefix, loai) {
+      const ngayHetHan = document.getElementById(`${prefix}_ngay_het_han`).value;
+      if (!ngayHetHan) return null; // chưa nhập ngày hết hạn = coi như chưa nhập giấy tờ này
+      return {
+        loai,
+        so_giay_to: document.getElementById(`${prefix}_so_giay_to`).value.trim() || null,
+        hang: prefix === "bl" ? (document.getElementById("bl_hang").value.trim() || null) : null,
+        ngay_cap: document.getElementById(`${prefix}_ngay_cap`).value || null,
+        ngay_het_han: ngayHetHan,
+      };
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loiForm.hidden = true;
+
+      const id = document.getElementById("nhan_su_id").value;
+      const chucDanh = oChucDanh.value;
+      const nguoiDungId = oTaiKhoan.value;
+
+      if (!id) {
+        // Kiểm tra trước khi gửi — khớp đúng quy tắc backend để khỏi tốn 1 lượt gọi API vô ích
+        if (chucDanh === "phu_xe" && !nguoiDungId) {
+          loiForm.textContent = "Hồ sơ phụ xe bắt buộc chọn tài khoản phụ xe.";
+          loiForm.hidden = false;
+          return;
+        }
+      }
+
+      const giayTo = [layGiayTo("bl", "bang_lai"), layGiayTo("kk", "giay_kham_suc_khoe")].filter(Boolean);
+
+      if (!id && chucDanh === "tai_xe" && !giayTo.some((g) => g.loai === "bang_lai")) {
+        loiForm.textContent = "Tài xế bắt buộc nhập thông tin bằng lái (ít nhất ngày hết hạn).";
+        loiForm.hidden = false;
+        return;
+      }
+
+      const duLieuChung = {
+        ho_ten: document.getElementById("ho_ten").value.trim(),
+        so_dien_thoai: document.getElementById("so_dien_thoai").value.trim(),
+        so_cccd: document.getElementById("so_cccd").value.trim() || null,
+        ngay_sinh: document.getElementById("ngay_sinh").value || null,
+        ngay_vao_lam: document.getElementById("ngay_vao_lam").value || null,
+        giay_to: giayTo,
+      };
+
+      const btnSubmit = form.querySelector("button[type=submit]");
+      btnSubmit.classList.add("is-loading");
+      try {
+        if (id) {
+          await apiPut(`/quan-ly-nhan-su/ho-so/${id}`, duLieuChung);
+        } else {
+          await apiPost("/quan-ly-nhan-su/ho-so", {
+            ...duLieuChung,
+            chuc_danh: chucDanh,
+            nguoi_dung_id: chucDanh === "phu_xe" ? nguoiDungId : null,
+          });
+        }
+        modalOverlay.hidden = true;
+        taiDanhSach();
+      } catch (err) {
+        loiForm.textContent = err.message;
+        loiForm.hidden = false;
+      } finally {
+        btnSubmit.classList.remove("is-loading");
+      }
+    });
+  </script>
+</body>
+</html>

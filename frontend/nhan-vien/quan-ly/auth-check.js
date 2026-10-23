@@ -31,6 +31,12 @@ function yeuCauVaiTro(...vaiTroChoPhep) {
 }
 
 function dangXuat() {
+  // Xóa trạng thái các trang đã nhớ (xem TrangThaiTrang trong nav.js) để người đăng nhập sau không thấy tuyến/bộ lọc của người trước
+  try {
+    Object.keys(sessionStorage).filter((k) => k.startsWith("nv_tt:")).forEach((k) => sessionStorage.removeItem(k));
+  } catch (e) {
+    /* bỏ qua */
+  }
   localStorage.removeItem("token");
   localStorage.removeItem("vai_tro");
   localStorage.removeItem("ho_ten");

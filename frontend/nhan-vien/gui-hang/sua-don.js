@@ -56,15 +56,23 @@ async function luuSuaLienHe(e) {
     showToast("info", "Chưa có thay đổi", "Bạn chưa sửa thông tin nào.");
     return;
   }
+  const lyDo = $("slLyDo").value.trim();
+  if (thayDoi.sdt_nguoi_nhan && !lyDo) {
+    showToast("warning", "Thiếu lý do", "Đổi SĐT người nhận phải ghi lý do / căn cứ xác minh (vd: người gửi gọi báo số mới).");
+    $("slLyDo").focus();
+    return;
+  }
 
   const btn = $("btnLuuSuaLienHe");
   state.dangSua = true;
   btn.disabled = true;
   try {
-    await apiPut(`/gui-hang/don-hang/${encodeURIComponent(don.id)}/thong-tin-lien-he`,
-      { ...thayDoi, ly_do: $("slLyDo").value.trim() || null });
+    await apiPut(`/gui-hang/don-hang/${encodeURIComponent(don.id)}/thong-tin-lien-he`, { ...thayDoi, ly_do: lyDo || null });
     dongModal("modalSuaLienHe");
-    showToast("success", "Đã cập nhật", `Đã sửa thông tin liên hệ đơn ${don.ma_van_don}.`);
+    const phaiGoiLai = thayDoi.sdt_nguoi_nhan && ["cho_lay", "qua_han_luu_kho"].includes(don.trang_thai);
+    showToast("success", "Đã cập nhật", phaiGoiLai
+      ? `Đã đổi SĐT người nhận đơn ${don.ma_van_don} — đơn chuyển về "Cần gọi báo", hãy gọi số mới.`
+      : `Đã sửa thông tin liên hệ đơn ${don.ma_van_don}.`);
     lamMoiTabHienTai();
     if (quayLaiChiTiet) moChiTietDon(don.ma_van_don);
   } catch (err) {

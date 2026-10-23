@@ -25,18 +25,18 @@ def _thanh_list(cur, rows):
 # ---------------------------------------------------------
 # Loại xe (UC-32)
 # ---------------------------------------------------------
-def tao_loai_xe(ten: str, he_so_gia, so_do_ghe: list[dict]) -> dict:
+def tao_loai_xe(ten: str, so_do_ghe: list[dict], he_so_ghe: dict) -> dict:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             ma = ma_tu_sinh.ma_loai_xe(ma_repository.so_tiep_theo(cur, "loai_xe"))
             cur.execute(
                 """
-                INSERT INTO loai_xe (ma, ten, he_so_gia, so_do_ghe)
+                INSERT INTO loai_xe (ma, ten, so_do_ghe, he_so_ghe)
                 VALUES (%s, %s, %s, %s)
-                RETURNING id, ma, ten, he_so_gia, so_do_ghe
+                RETURNING id, ma, ten, so_do_ghe, he_so_ghe, phien_ban
                 """,
-                (ma, ten, he_so_gia, json.dumps(so_do_ghe)),
+                (ma, ten, json.dumps(so_do_ghe), json.dumps(he_so_ghe)),
             )
             ket_qua = _thanh_dict(cur, cur.fetchone())
         conn.commit()
@@ -48,15 +48,34 @@ def tao_loai_xe(ten: str, he_so_gia, so_do_ghe: list[dict]) -> dict:
         release_connection(conn)
 
 
-def sua_loai_xe(loai_xe_id: str, ten: str, he_so_gia, so_do_ghe: list[dict]) -> None:
+def sua_loai_xe(loai_xe_id: str, ten: str, so_do_ghe: list[dict], he_so_ghe: dict, kiem_tra) -> bool:
+    """Khóa dòng loại xe (FOR UPDATE) rồi gọi `kiem_tra(hien_tai)` (service quyết định có được sửa không — ném GiaTriLoi/XungDot
+    nếu không) và ghi, tất cả trong 1 giao dịch. Nhờ khóa dòng, việc "kiểm tra rồi mới ghi" không bị người khác chen vào giữa
+    (VD tạo xe thuộc loại này ngay sau lúc kiểm tra "chưa có xe"): tao_xe/sua_xe/sinh chuyến lấy FOR SHARE trên cùng dòng này.
+    Trả về False nếu không có loại xe này."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE loai_xe SET ten = %s, he_so_gia = %s, so_do_ghe = %s WHERE id = %s",
-                (ten, he_so_gia, json.dumps(so_do_ghe), loai_xe_id),
+                """
+                SELECT id, ma, ten, so_do_ghe, he_so_ghe, phien_ban,
+                       (EXISTS (SELECT 1 FROM xe WHERE xe.loai_xe_id = loai_xe.id)
+                        OR EXISTS (SELECT 1 FROM chuyen_xe WHERE chuyen_xe.loai_xe_id = loai_xe.id)) AS khoa_so_do_ghe
+                FROM loai_xe WHERE id = %s FOR UPDATE
+                """,
+                (loai_xe_id,),
+            )
+            hien_tai = _thanh_dict(cur, cur.fetchone())
+            if hien_tai is None:
+                conn.rollback()
+                return False
+            kiem_tra(hien_tai)
+            cur.execute(
+                "UPDATE loai_xe SET ten = %s, so_do_ghe = %s, he_so_ghe = %s, phien_ban = phien_ban + 1 WHERE id = %s",
+                (ten, json.dumps(so_do_ghe), json.dumps(he_so_ghe), loai_xe_id),
             )
         conn.commit()
+        return True
     except Exception:
         conn.rollback()
         raise
@@ -68,7 +87,10 @@ def tim_loai_xe_theo_id(loai_xe_id: str) -> dict | None:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, ma, ten, he_so_gia, so_do_ghe FROM loai_xe WHERE id = %s", (loai_xe_id,))
+            cur.execute("""SELECT id, ma, ten, so_do_ghe, he_so_ghe, phien_ban,
+                       (EXISTS (SELECT 1 FROM xe WHERE xe.loai_xe_id = loai_xe.id)
+                        OR EXISTS (SELECT 1 FROM chuyen_xe WHERE chuyen_xe.loai_xe_id = loai_xe.id)) AS khoa_so_do_ghe
+                FROM loai_xe WHERE id = %s""", (loai_xe_id,))
             return _thanh_dict(cur, cur.fetchone())
     finally:
         release_connection(conn)
@@ -78,7 +100,10 @@ def danh_sach_loai_xe() -> list[dict]:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, ma, ten, he_so_gia, so_do_ghe FROM loai_xe ORDER BY ten")
+            cur.execute("""SELECT id, ma, ten, so_do_ghe, he_so_ghe, phien_ban,
+                       (EXISTS (SELECT 1 FROM xe WHERE xe.loai_xe_id = loai_xe.id)
+                        OR EXISTS (SELECT 1 FROM chuyen_xe WHERE chuyen_xe.loai_xe_id = loai_xe.id)) AS khoa_so_do_ghe
+                FROM loai_xe ORDER BY ten""")
             return _thanh_list(cur, cur.fetchall())
     finally:
         release_connection(conn)
@@ -121,6 +146,7 @@ def tao_xe(bien_so: str, loai_xe_id: str, diem_goc_id: str, tuyen_id: str | None
     conn = get_connection()
     try:
         with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM loai_xe WHERE id = %s FOR SHARE", (loai_xe_id,))  # chờ nếu đang có người sửa sơ đồ loại xe
             cur.execute(
                 """
                 INSERT INTO xe (bien_so, loai_xe_id, diem_goc_id, tuyen_id, trang_thai)
@@ -142,6 +168,7 @@ def sua_xe(xe_id: str, bien_so: str, loai_xe_id: str, diem_goc_id: str, tuyen_id
     conn = get_connection()
     try:
         with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM loai_xe WHERE id = %s FOR SHARE", (loai_xe_id,))  # xem tao_xe
             cur.execute(
                 """
                 UPDATE xe SET bien_so = %s, loai_xe_id = %s, diem_goc_id = %s, tuyen_id = %s, trang_thai = %s

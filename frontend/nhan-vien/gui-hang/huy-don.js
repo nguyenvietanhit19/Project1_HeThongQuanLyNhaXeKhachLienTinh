@@ -34,14 +34,14 @@ function moModalHuyDon(don) {
     ${dong("Người nhận:", `${don.ten_nguoi_nhan} — ${don.sdt_nguoi_nhan}`)}
     ${dong("Văn phòng nhận:", don.ten_diem_nhan || "--")}
     ${dong("Hàng hóa:", moTaHang(don))}
-    ${dong("Cước:", `${dinhDangTien(don.gia_cuoc)} — ${laCod(don) ? "COD (chưa thu)" : "trả trước"}`)}`;
+    ${dong("Cước:", `${dinhDangTien(don.gia_cuoc)} — ${laCod(don) ? "người nhận trả (chưa thu)" : "trả trước"}`)}`;
 
   const hoan = tienSeHoan(don);
   const box = $("hdHoanTien");
   box.className = hoan ? "modal-cod-alert" : "goi-y-box";
   box.textContent = hoan
     ? `💵 Hoàn lại cho người gửi: ${dinhDangTien(hoan)} tiền mặt (cước đã thu lúc tạo đơn).`
-    : "Không hoàn tiền: đơn COD hoặc chưa thu cước tại quầy.";
+    : "Không hoàn tiền: đơn người nhận trả cước hoặc chưa thu cước tại quầy.";
 
   $("formHuyDon").reset();
   capNhatGhiChuHuy();
