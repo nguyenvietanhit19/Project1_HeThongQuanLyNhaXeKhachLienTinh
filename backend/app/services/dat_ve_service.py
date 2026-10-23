@@ -178,6 +178,9 @@ def _kiem_tra_diem_don_tra(chuyen_id: str, khu_vuc_di_id: str, khu_vuc_den_id: s
         raise GiaTriLoi("Điểm trả phải thuộc khu vực điểm đến bạn đã chọn")
     if don["hl"] >= tra["hl"]:
         raise GiaTriLoi("Điểm trả phải đứng sau điểm đón")
+    # Xe liên tỉnh: không bán vé đón và trả trong cùng một tỉnh/thành
+    if don.get("tinh_thanh") and don.get("tinh_thanh") == tra.get("tinh_thanh"):
+        raise GiaTriLoi("Xe liên tỉnh: điểm đón và điểm trả phải ở hai tỉnh/thành khác nhau")
 
 
 def giu_cho(

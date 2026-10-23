@@ -65,10 +65,14 @@ def danh_sach_khu_vuc() -> list[dict]:
 def _kiem_tra_cap_khu_vuc(khu_vuc_di_id: str, khu_vuc_den_id: str) -> None:
     if str(khu_vuc_di_id) == str(khu_vuc_den_id):
         raise GiaTriLoi("Điểm đi và điểm đến phải khác nhau")
-    if not repo.tim_khu_vuc_theo_id(khu_vuc_di_id):
+    di = repo.tim_khu_vuc_theo_id(khu_vuc_di_id)
+    if not di:
         raise GiaTriLoi("Điểm đi không tồn tại")
-    if not repo.tim_khu_vuc_theo_id(khu_vuc_den_id):
+    den = repo.tim_khu_vuc_theo_id(khu_vuc_den_id)
+    if not den:
         raise GiaTriLoi("Điểm đến không tồn tại")
+    if di.get("tinh_thanh") and di.get("tinh_thanh") == den.get("tinh_thanh"):
+        raise GiaTriLoi("Xe liên tỉnh: điểm đi và điểm đến phải ở hai tỉnh/thành khác nhau")
 
 
 def _dung_the_chuyen(r: dict, gia: int, so_ghe_trong: int) -> dict:

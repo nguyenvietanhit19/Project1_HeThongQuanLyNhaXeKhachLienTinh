@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Báo thất lạc/hư hỏng — Phụ xe</title>
 <link rel="stylesheet" href="/shared/design-tokens.css?v=2" />
-<link rel="stylesheet" href="phu-xe.css?v=14" />
+<link rel="stylesheet" href="phu-xe.css?v=19" />
 </head>
 <body class="phu-xe-page">
   <div class="app-shell">
@@ -42,6 +42,7 @@
   <script src="/shared/api-client.js"></script>
   <script src="../shared/auth-check.js"></script>
   <script src="tai-khoan-menu.js?v=2"></script>
+  <script src="thong-bao.js?v=2"></script>
   <script>
     requireRole("phu_xe");
 
@@ -56,11 +57,12 @@
 
     document.getElementById("ma-van-don").textContent = maVanDon;
     if (chuyenId) {
-      document.getElementById("lien-ket-quay-lai").href = `chuyen-dang-chay.html?chuyen_id=${chuyenId}`;
+      document.getElementById("lien-ket-quay-lai").href = `chuyen-dang-chay.html?chuyen_id=${chuyenId}&phan=hang`;
     }
 
     document.getElementById("form-bao-cao").addEventListener("submit", async (e) => {
       e.preventDefault();
+      if (!(await window.thongBao.xacNhan({ tieuDe: "Gửi báo cáo?", noiDung: "Báo cáo này sẽ được gửi cho nhân viên gửi hàng và quản lý.", nhan: "Gửi báo cáo" }))) return;
       const loiEl = document.getElementById("loi");
       const thanhCongEl = document.getElementById("thanh-cong");
       const nutGui = document.getElementById("nut-gui");

@@ -349,11 +349,13 @@ def tim_ve_chua_len_tai_diem(chuyen_id: str, diem_don_id: str) -> list[dict]:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT v.id AS ve_id, v.khach_hang_id, v.so_ghe, v.trang_thai,
+                SELECT v.id, v.id AS ve_id, v.khach_hang_id, v.ma_ve, v.so_ghe, v.trang_thai,
                        COALESCE(nd.ho_ten, v.ten_khach_vang_lai) AS ho_ten
                 FROM ve v
                 LEFT JOIN nguoi_dung nd ON nd.id = v.khach_hang_id
-                WHERE v.chuyen_id = %s AND v.diem_don_id = %s AND v.trang_thai IN ('da_thanh_toan', 'giu_cho')
+                WHERE v.chuyen_id = %s AND v.diem_don_id = %s
+                  AND (v.trang_thai = 'da_thanh_toan'
+                       OR (v.trang_thai = 'giu_cho' AND (v.han_giu_cho_den IS NULL OR v.han_giu_cho_den > now())))
                 ORDER BY length(v.so_ghe), v.so_ghe
                 """,
                 (chuyen_id, diem_don_id),

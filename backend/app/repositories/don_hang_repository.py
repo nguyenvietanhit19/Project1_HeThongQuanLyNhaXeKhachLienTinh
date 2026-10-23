@@ -94,6 +94,21 @@ def _ghi_nguoi_thuc_hien(cur: Any, nguoi_dung_id: str | None) -> None:
         cur.execute("SELECT set_config('app.nguoi_dung_id', %s, true)", (str(nguoi_dung_id),))
 
 
+def _go_moc_hoan_tac(cur: Any, don_hang_id: str) -> None:
+    """Hoàn tác = đơn quay về trạng thái trước như chưa từng chuyển: trigger vừa ghi mốc đảo ngược (A → B rồi B → A),
+    nên gỡ cả cặp mốc đó khỏi lịch sử — không để lại "Đang trên xe" thừa sau khi đã hoàn tác chất hàng."""
+    cur.execute(
+        """
+        SELECT id, tu_trang_thai, den_trang_thai FROM lich_su_trang_thai_don
+        WHERE don_hang_id = %s ORDER BY thoi_gian DESC, id DESC LIMIT 2
+        """,
+        (don_hang_id,),
+    )
+    cac_moc = cur.fetchall()
+    if len(cac_moc) == 2 and cac_moc[0][1] == cac_moc[1][2] and cac_moc[0][2] == cac_moc[1][1]:
+        cur.execute("DELETE FROM lich_su_trang_thai_don WHERE id = ANY(%s::uuid[])", ([str(cac_moc[0][0]), str(cac_moc[1][0])],))
+
+
 def tim_theo_khoa_chong_trung(nhan_vien_id: str, khoa: str) -> dict | None:
     conn = get_connection()
     try:
@@ -726,7 +741,7 @@ def tim_don_can_do_tai_diem(chuyen_id: str, diem_nhan_id: str) -> list[dict]:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, ma_van_don, ten_nguoi_nhan, can_nang_kg
+                SELECT id, ma_van_don, ten_nguoi_nhan, can_nang_kg, ngay_tao
                 FROM don_hang
                 WHERE chuyen_id = %s AND diem_nhan_id = %s AND trang_thai = 'da_len_xe'
                 ORDER BY ngay_tao ASC
@@ -776,6 +791,8 @@ def hoan_tac_chat_hang(don_hang_id: str, chuyen_id: str, nguoi_dung_id: str | No
                 (don_hang_id, chuyen_id),
             )
             da_sua = cur.fetchone() is not None
+            if da_sua:
+                _go_moc_hoan_tac(cur, don_hang_id)
         conn.commit()
         return da_sua
     finally:
@@ -797,6 +814,8 @@ def hoan_tac_do_hang(don_hang_id: str, chuyen_id: str, nguoi_dung_id: str | None
                 (don_hang_id, chuyen_id),
             )
             da_sua = cur.fetchone() is not None
+            if da_sua:
+                _go_moc_hoan_tac(cur, don_hang_id)
         conn.commit()
         return da_sua
     finally:
@@ -811,7 +830,7 @@ def tim_hang_hoa_cua_chuyen(chuyen_id: str) -> list[dict]:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT d.id, d.ma_van_don, d.trang_thai, d.can_nang_kg,
+                SELECT d.id, d.ma_van_don, d.trang_thai, d.can_nang_kg, d.ngay_tao, d.diem_nhan_id::text AS diem_nhan_id,
                        d.ten_nguoi_gui, d.sdt_nguoi_gui, d.ten_nguoi_nhan, d.sdt_nguoi_nhan,
                        dg.ten AS ten_diem_gui, dn.ten AS ten_diem_nhan, lh.ten AS ten_loai_hang,
                        (SELECT count(*) FROM bao_cao_su_co_hang bc WHERE bc.don_hang_id = d.id)::int AS so_bao_cao_su_co,

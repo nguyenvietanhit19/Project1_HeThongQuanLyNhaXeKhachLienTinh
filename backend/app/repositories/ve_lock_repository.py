@@ -173,11 +173,12 @@ def tim_diem_cua_chuyen(chuyen_id: str) -> list[dict]:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT d.id::text AS diem_id, d.ten, d.loai, d.khu_vuc_id::text AS khu_vuc_id,
+                SELECT d.id::text AS diem_id, d.ten, d.loai, d.khu_vuc_id::text AS khu_vuc_id, kv.tinh_thanh,
                        CASE WHEN c.chieu = 'xuoi' THEN tdt.thu_tu ELSE -tdt.thu_tu END AS hl
                 FROM chuyen_xe c
                 JOIN tuyen_diem_don_tra tdt ON tdt.tuyen_id = c.tuyen_id
                 JOIN diem_don_tra d ON d.id = tdt.diem_don_tra_id
+                JOIN khu_vuc kv ON kv.id = d.khu_vuc_id
                 WHERE c.id = %s
                 ORDER BY hl
                 """,

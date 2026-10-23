@@ -197,13 +197,14 @@ def test_hoan_tac_len_xe_repo_khong_sua_duoc_thi_bao_loi(monkeypatch):
         svc.hoan_tac_len_xe("chuyen-1", "ve-1", "nguoi-dung-1")
 
 
-def test_hoan_tac_xuong_xe_thanh_cong_ca_khi_chuyen_hoan_thanh(monkeypatch):
+def test_hoan_tac_xuong_xe_bi_chan_khi_chuyen_da_hoan_thanh(monkeypatch):
     _chuyen_dang_chay(monkeypatch, "diem-d", trang_thai="hoan_thanh")
     monkeypatch.setattr(svc.ve_repo, "tim_theo_id", lambda vid: _ve(trang_thai="da_xuong_xe", diem_tra_id="diem-d"))
     goi = {}
     monkeypatch.setattr(svc.ve_repo, "hoan_tac_xuong_xe", lambda vid: goi.setdefault("vid", vid) and True)
-    svc.hoan_tac_xuong_xe("chuyen-1", "ve-1", "nguoi-dung-1")
-    assert goi["vid"] == "ve-1"
+    with pytest.raises(GiaTriLoi, match="hoàn thành"):
+        svc.hoan_tac_xuong_xe("chuyen-1", "ve-1", "nguoi-dung-1")
+    assert "vid" not in goi
 
 
 def test_hoan_tac_xuong_xe_bi_chan_khi_xe_da_roi_diem_tra(monkeypatch):

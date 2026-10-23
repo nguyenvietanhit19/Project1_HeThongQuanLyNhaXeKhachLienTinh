@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Thống kê — Phụ xe</title>
 <link rel="stylesheet" href="/shared/design-tokens.css?v=2" />
-<link rel="stylesheet" href="phu-xe.css?v=14" />
+<link rel="stylesheet" href="phu-xe.css?v=21" />
 <style>
   /* Lưới thẻ số liệu/ô ngày đã chuyển sang phu-xe.css (2 cột điện thoại, 4 cột tablet) */
 </style>
@@ -26,6 +26,13 @@
         <input class="input-field" type="date" id="den_ngay" required />
         <button class="btn-primary" type="submit">Xem</button>
       </form>
+      <div class="hang-loc" id="nhanh-ngay" role="toolbar" aria-label="Chọn nhanh khoảng ngày">
+        <button type="button" class="hang-loc__chip" data-ngay="0">Hôm nay</button>
+        <button type="button" class="hang-loc__chip" data-ngay="7">7 ngày</button>
+        <button type="button" class="hang-loc__chip" data-ngay="30">30 ngày</button>
+        <button type="button" class="hang-loc__chip" data-ngay="thang">Tháng này</button>
+        <button type="button" class="hang-loc__chip" data-ngay="thang-truoc">Tháng trước</button>
+      </div>
 
       <div id="loi" class="text-error" hidden></div>
 
@@ -52,6 +59,30 @@
     <!-- Chi tiết từng chuyến trong khoảng ngày đã chọn — bấm 1 chuyến để xem khách, hàng, hành trình -->
     <div class="card trip-history" id="khu-chuyen-da-chay" hidden>
       <h2 class="trip-history__tieu-de">Chuyến đã chạy <span class="count-badge" id="dem-chuyen">0</span></h2>
+      <!-- Lọc/sắp xếp ngay trên danh sách đã tải (không gọi lại server): giữ nguyên khi trang tự làm mới -->
+      <div class="tk-loc" id="tk-loc" hidden>
+        <input class="input-field tk-loc__tim" type="search" id="tk-tim" autocomplete="off"
+               placeholder="Tìm mã chuyến, tuyến..." aria-label="Tìm chuyến" />
+        <select class="input-field" id="tk-chieu" aria-label="Chiều chạy">
+          <option value="">Mọi chiều</option>
+          <option value="xuoi">Chiều xuôi</option>
+          <option value="nguoc">Chiều ngược</option>
+        </select>
+        <select class="input-field" id="tk-trang-thai" aria-label="Trạng thái chuyến">
+          <option value="">Mọi trạng thái</option>
+          <option value="hoan_thanh">Hoàn thành</option>
+          <option value="dang_chay">Đang chạy</option>
+          <option value="gap_su_co">Gặp sự cố</option>
+          <option value="da_huy">Đã hủy</option>
+        </select>
+        <select class="input-field" id="tk-sap-xep" aria-label="Sắp xếp">
+          <option value="moi">Mới nhất trước</option>
+          <option value="cu">Cũ nhất trước</option>
+          <option value="doanh-thu">Doanh thu cao nhất</option>
+          <option value="ve">Nhiều vé nhất</option>
+          <option value="hang">Nhiều đơn hàng nhất</option>
+        </select>
+      </div>
       <div id="ds-chuyen-da-chay"></div>
     </div>
   </div>
@@ -94,7 +125,8 @@
         ketQuaEl.hidden = false;
 
         const dsChuyen = await apiGet(`/phu-xe/chuyen-da-chay?tu_ngay=${tuNgay}&den_ngay=${denNgay}`);
-        veChuyenDaChay(dsChuyen);
+        dsGoc = dsChuyen;
+        locChuyen();
       } catch (err) {
         loiEl.textContent = err.message;
         loiEl.hidden = false;
@@ -114,10 +146,51 @@
       da_huy: ["Đã hủy", "badge--loi"],
     };
 
+    // Bỏ dấu + chữ thường để ô tìm khớp "ha noi" với "Hà Nội"
+    function chuanHoa(s) {
+      return String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+    }
+
+    let dsGoc = [];   // danh sách chuyến server trả về cho khoảng ngày đang chọn
+    const SAP_XEP = {
+      moi: (a, b) => new Date(b.gio_khoi_hanh) - new Date(a.gio_khoi_hanh),
+      cu: (a, b) => new Date(a.gio_khoi_hanh) - new Date(b.gio_khoi_hanh),
+      "doanh-thu": (a, b) => Number(b.doanh_thu) - Number(a.doanh_thu),
+      ve: (a, b) => b.so_ve_ban - a.so_ve_ban,
+      hang: (a, b) => b.so_don_hang - a.so_don_hang,
+    };
+
+    function locChuyen() {
+      const tuKhoa = chuanHoa(document.getElementById("tk-tim").value.trim());
+      const chieu = document.getElementById("tk-chieu").value;
+      const trangThai = document.getElementById("tk-trang-thai").value;
+      const ds = dsGoc
+        .filter((c) => (!tuKhoa || chuanHoa([c.ma, c.tuyen_ten].join(" ")).includes(tuKhoa)) && (!chieu || c.chieu === chieu) && (!trangThai || c.trang_thai === trangThai))
+        .sort(SAP_XEP[document.getElementById("tk-sap-xep").value]);
+      veChuyenDaChay(ds, dsGoc.length);
+    }
+    ["tk-tim", "tk-chieu", "tk-trang-thai", "tk-sap-xep"].forEach((id) => document.getElementById(id).addEventListener("input", locChuyen));
+
+    // Chọn nhanh khoảng ngày → điền 2 ô ngày rồi tải lại
+    document.getElementById("nhanh-ngay").addEventListener("click", (e) => {
+      const nut = e.target.closest("[data-ngay]");
+      if (!nut) return;
+      const nay = new Date();
+      let tu = new Date(nay), den = new Date(nay);
+      const k = nut.dataset.ngay;
+      if (k === "thang") tu = new Date(nay.getFullYear(), nay.getMonth(), 1);
+      else if (k === "thang-truoc") { tu = new Date(nay.getFullYear(), nay.getMonth() - 1, 1); den = new Date(nay.getFullYear(), nay.getMonth(), 0); }
+      else tu.setDate(nay.getDate() - Number(k) + (k === "0" ? 0 : 1));
+      document.getElementById("tu_ngay").value = dinhDangNgay(tu);
+      document.getElementById("den_ngay").value = dinhDangNgay(den);
+      taiThongKe();
+    });
+
     // Mỗi chuyến 1 dòng gọn (tuyến, giờ, số vé, doanh thu); bấm vào mở trang tổng quan của chuyến đó.
-    function veChuyenDaChay(ds) {
+    function veChuyenDaChay(ds, tong = ds.length) {
       document.getElementById("khu-chuyen-da-chay").hidden = false;
-      document.getElementById("dem-chuyen").textContent = ds.length;
+      document.getElementById("tk-loc").hidden = tong === 0;
+      document.getElementById("dem-chuyen").textContent = ds.length === tong ? tong : `${ds.length}/${tong}`;
       document.getElementById("ds-chuyen-da-chay").innerHTML = ds.length
         ? ds.map((c) => {
             const [nhan, lop] = NHAN_CHUYEN[c.trang_thai] || [c.trang_thai, ""];
@@ -126,12 +199,13 @@
               <a class="row-btn" href="chi-tiet-chuyen.html?chuyen_id=${encodeURIComponent(c.id)}&ve=thong-ke" style="text-decoration:none;">
                 <span class="row-btn__chinh">
                   <span class="name">${esc(c.tuyen_ten)} · ${c.chieu === "nguoc" ? "chiều ngược" : "chiều xuôi"}</span>
+                  ${c.ma ? `<span class="sub">Mã ${esc(c.ma)}</span>` : ""}
                   <span class="sub">${esc(gio)} · ${c.so_ve_ban}${c.tong_ghe ? "/" + c.tong_ghe : ""} vé · ${Number(c.doanh_thu).toLocaleString("vi-VN")}đ · ${c.so_don_hang} đơn hàng</span>
                 </span>
                 <span class="badge ${lop}">${esc(nhan)}</span>
               </a>`;
           }).join("")
-        : '<p class="empty-state">Không có chuyến nào trong khoảng ngày này.</p>';
+        : `<p class="empty-state">${tong ? "Không có chuyến nào khớp bộ lọc." : "Không có chuyến nào trong khoảng ngày này."}</p>`;
     }
 
     document.getElementById("form-loc").addEventListener("submit", (e) => {
