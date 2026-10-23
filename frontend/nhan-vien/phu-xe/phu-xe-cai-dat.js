@@ -38,8 +38,17 @@
     noiDung.innerHTML = html;
     hop.hidden = false;
   }
+  let dangDong = false;
   function dong() {
-    if (!hop || hop.hidden) return;
+    if (!hop || hop.hidden || dangDong) return;
+    dangDong = true;
+    hop.classList.add("dang-dong");   // mờ dần + sheet trượt xuống rồi mới ẩn (xem phu-xe-pro.css mục 12)
+    const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    setTimeout(xongDong, reduce ? 0 : 200);
+  }
+  function xongDong() {
+    hop.classList.remove("dang-dong");
+    dangDong = false;
     hop.hidden = true;
     noiDung.innerHTML = "";
     if (khiDong) { khiDong(); khiDong = null; }

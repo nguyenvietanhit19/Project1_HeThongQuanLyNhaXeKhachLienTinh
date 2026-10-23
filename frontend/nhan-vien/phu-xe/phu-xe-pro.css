@@ -629,3 +629,109 @@ body.phu-xe-page {
 .sd-ghe--sau { color: var(--px-sau-chu); }
 .sd-dau { color: var(--px-dau-xe); }
 .tk-cd__con .tk-menu__muc--con { white-space: nowrap; }
+
+/* ============ 12. Chuyển động mượt ============ */
+:root { --px-ease: cubic-bezier(0.22, 1, 0.36, 1); --px-ease-inout: cubic-bezier(0.65, 0, 0.35, 1); }
+
+/* Chuyển trang: mờ chéo giữa hai trang (Chrome/Edge mới; trình duyệt khác bỏ qua) */
+@view-transition { navigation: auto; }
+::view-transition-old(root) { animation: px-trang-ra 0.16s ease both; }
+::view-transition-new(root) { animation: px-trang-vao 0.28s var(--px-ease) both; }
+@keyframes px-trang-ra { to { opacity: 0; } }
+@keyframes px-trang-vao { from { opacity: 0; transform: translateY(6px); } }
+
+/* Menu ☰: bung ra từ góc trên phải, từng mục trượt vào lần lượt; đóng thì co lại + mờ */
+.tk-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  z-index: 15;
+  min-width: 230px;
+  padding: 6px 0;
+  border-radius: var(--radius-button);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-soft), 0 0 0 1px rgba(20, 20, 30, 0.06);
+  transform-origin: top right;
+  transition: opacity 0.18s ease, transform 0.28s var(--px-ease), visibility 0s linear 0s;
+}
+.tk-menu[hidden] {
+  display: block;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-8px) scale(0.94);
+  transition: opacity 0.14s ease, transform 0.18s ease, visibility 0s linear 0.18s;
+}
+.tk-menu:not([hidden]) > * { animation: px-muc-vao 0.34s var(--px-ease) both; }
+.tk-menu:not([hidden]) > :nth-child(1) { animation-delay: 0.02s; }
+.tk-menu:not([hidden]) > :nth-child(2) { animation-delay: 0.05s; }
+.tk-menu:not([hidden]) > :nth-child(3) { animation-delay: 0.08s; }
+.tk-menu:not([hidden]) > :nth-child(4) { animation-delay: 0.11s; }
+.tk-menu:not([hidden]) > :nth-child(5) { animation-delay: 0.14s; }
+.tk-menu:not([hidden]) > :nth-child(n + 6) { animation-delay: 0.17s; }
+@keyframes px-muc-vao { from { opacity: 0; transform: translateY(-6px); } }
+
+/* Mục "Cài đặt" xổ ra / thu vào theo chiều cao thật của nội dung */
+.tk-cd__con {
+  display: grid;
+  grid-template-rows: 1fr;
+  padding-bottom: 0;
+  transition: grid-template-rows 0.34s var(--px-ease), opacity 0.25s ease, visibility 0s linear 0s;
+}
+.tk-cd__con[hidden] {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition: grid-template-rows 0.26s var(--px-ease-inout), opacity 0.15s ease, visibility 0s linear 0.26s;
+}
+.tk-cd__in { display: grid; min-height: 0; overflow: hidden; padding-bottom: 4px; }
+.tk-cd__con[hidden] .tk-cd__in { padding-bottom: 0; }
+.tk-cd__mui { transition: transform 0.3s var(--px-ease); }
+
+/* Chuyển tab ở Tổng quan: thanh tím trượt theo tab, nội dung trượt vào từ phía tab mới */
+.tabs { position: relative; }
+.tabs__thumb {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-secondary);
+  box-shadow: 0 4px 12px rgba(91, 62, 150, 0.35);
+  transition: transform 0.38s var(--px-ease), width 0.38s var(--px-ease);
+  will-change: transform, width;
+  z-index: 0;
+}
+.tabs.co-thumb .tab { position: relative; z-index: 1; transition: color 0.25s ease; }
+.tabs.co-thumb .tab.is-active { background: transparent; }
+.px-vao-phai { animation: px-vao-phai 0.36s var(--px-ease) both; }
+.px-vao-trai { animation: px-vao-trai 0.36s var(--px-ease) both; }
+@keyframes px-vao-phai { from { opacity: 0; transform: translateX(28px); } }
+@keyframes px-vao-trai { from { opacity: 0; transform: translateX(-28px); } }
+
+/* Hộp thoại: mờ dần khi đóng (mở đã có sẵn) */
+.modal-overlay.dang-dong { animation: px-nen-ra 0.2s ease forwards; }
+.modal-overlay.dang-dong .modal-sheet { animation: px-sheet-ra 0.22s var(--px-ease-inout) forwards; }
+.tb-overlay.dang-dong { animation: px-nen-ra 0.16s ease forwards; }
+.tb-overlay.dang-dong .tb-hop { animation: px-hop-ra 0.16s ease forwards; }
+@keyframes px-nen-ra { to { opacity: 0; } }
+@keyframes px-sheet-ra { to { transform: translateY(40px); opacity: 0.6; } }
+@keyframes px-hop-ra { to { transform: scale(0.94); opacity: 0; } }
+
+/* Phản hồi chạm: nhấn xuống nhẹ, thả ra bật lại */
+.btn-primary, .btn-confirm, .btn-icon-circle, .row-btn, .trip-card, .chuyen-the, .filter-chip, .tab, .hs-but, .cd-the, .cd-thu__nut,
+.tk-menu__muc, .hang-loc__chip, .diem-nhom__dau, .hs-doi-mk-nut {
+  transition: transform 0.18s var(--px-ease), background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+.btn-primary:active:not(:disabled), .btn-confirm:active:not(:disabled), .btn-icon-circle:active, .filter-chip:active, .tab:active,
+.hs-but:active, .cd-the:active, .cd-thu__nut:active, .hang-loc__chip:active, .hs-doi-mk-nut:active { transform: scale(0.96); }
+.row-btn:active, .diem-nhom__dau:active { transform: scale(0.992); }
+.tk-menu__muc:active { transform: translateX(2px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .tk-menu, .tk-menu[hidden], .tk-cd__con, .tk-cd__con[hidden], .tabs__thumb, .tk-cd__mui { transition: none; }
+  .tk-menu:not([hidden]) > *, .px-vao-phai, .px-vao-trai, ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+  .modal-overlay.dang-dong, .modal-overlay.dang-dong .modal-sheet, .tb-overlay.dang-dong, .tb-overlay.dang-dong .tb-hop { animation: none; }
+}

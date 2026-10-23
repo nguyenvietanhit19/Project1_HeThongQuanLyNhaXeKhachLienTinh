@@ -50,7 +50,8 @@
       const truoc = document.activeElement;
       const dong = (giaTri) => {
         document.removeEventListener("keydown", phim, true);
-        ov.remove();
+        ov.classList.add("dang-dong");
+        setTimeout(() => ov.remove(), 170);
         dangMo = null;
         if (truoc && truoc.focus && document.body.contains(truoc)) truoc.focus();
         xong(giaTri);

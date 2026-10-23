@@ -82,6 +82,7 @@
           Cài đặt <span class="tk-cd__mui" aria-hidden="true">▾</span>
         </button>
         <div class="tk-cd__con" id="tk-cd-con" role="group" aria-label="Cài đặt" hidden>
+          <div class="tk-cd__in">
           <button type="button" class="tk-menu__muc tk-menu__muc--con" data-cd="giao-dien" role="menuitem">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
             Giao diện <span class="tk-menu__gt" id="px-giao-dien-gt"></span>
@@ -94,6 +95,7 @@
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="7.5" r="4.2"/><path d="M3.8 21c0-4.2 3.6-7 8.2-7s8.2 2.8 8.2 7c0 .6-.4 1-1 1H4.8c-.6 0-1-.4-1-1Z"/></svg>
             Hồ sơ
           </button>
+          </div>
         </div>
       </div>
       <button type="button" class="tk-menu__muc tk-menu__muc--dang-xuat" id="tk-dang-xuat" role="menuitem">
