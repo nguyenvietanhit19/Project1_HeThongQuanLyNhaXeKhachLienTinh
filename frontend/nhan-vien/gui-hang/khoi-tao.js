@@ -5,7 +5,7 @@ function hienThongBaoChuaGanVanPhong() {
     <div class="nv-card blocking-card">
       <h2 class="card-title">🏢 Tài khoản chưa được gán văn phòng</h2>
       <p>Nhân viên gửi hàng chỉ thao tác tại văn phòng được phân công.
-      Vui lòng liên hệ quản lý để được gán văn phòng phụ trách, sau đó đăng nhập lại.</p>
+      Vui lòng liên hệ quản lý hoặc quản lý nhân sự để được gán văn phòng phụ trách, sau đó tải lại trang.</p>
     </div>`;
 }
 

@@ -19,6 +19,7 @@ from app.repositories import don_hang_repository as don_hang_repo
 from app.repositories import nguoi_dung_repository as nguoi_dung_repo
 from app.repositories import thong_bao_repository as thong_bao_repo
 from app.schemas.don_hang_schema import TRUONG_LIEN_HE, HuyDonRequest, SuaThongTinLienHeRequest, TaoDonHangRequest
+from app.schemas.tai_khoan_can_bo_schema import VAI_TRO_CAN_VAN_PHONG
 from app.services import chuyen_xe_service
 from app.services.chuyen_xe_service import XeDangDiChuyen, diem_hien_tai, kiem_tra_ben_da_mo, lay_chuyen_cua_phu_xe
 from app.services.websocket_manager import broadcast_sync
@@ -82,9 +83,11 @@ def lay_danh_sach_loai_hang() -> list[dict]:
 
 
 def gan_van_phong_can_bo(nguoi_dung_id: str, van_phong_id: str) -> None:
-    """Chỉ gán hồ sơ văn phòng cho các vai trò nhân viên có phạm vi theo điểm."""
+    """Gán/đổi văn phòng cho quầy vé, gửi hàng (dùng chung quy tắc UC-36: VAI_TRO_CAN_VAN_PHONG).
+    Tạm giữ làm đường sửa văn phòng tới khi có nhánh "Đổi văn phòng" của UC-36 rồi xóa
+    (UC36_THAY_THE_GAN_VAN_PHONG_VA_DOI_VAN_PHONG.md mục 3.5)."""
     can_bo = nguoi_dung_repo.tim_theo_id(nguoi_dung_id)
-    if not can_bo or can_bo["vai_tro"] not in ("nhan_vien_quay_ve", "nhan_vien_gui_hang", "dieu_do_vien"):
+    if not can_bo or can_bo["vai_tro"] not in VAI_TRO_CAN_VAN_PHONG:
         raise GiaTriLoi("Tài khoản không thuộc nhóm cán bộ cần gán văn phòng")
     van_phong = dia_diem_repo.tim_diem_don_tra_theo_id(van_phong_id)
     if not van_phong or van_phong.get("loai") != "van_phong":

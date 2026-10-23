@@ -14,7 +14,7 @@
 
 *(Nguồn: `NGHIEP_VU.md` mục 2, 8.5, 10)*
 
-Vai trò **tách riêng** khỏi `nhan_vien_quay_ve` — không bán vé, không soát vé hành khách. Mỗi nhân viên được gán **1 văn phòng**, chỉ thao tác trong phạm vi văn phòng đó: điểm gửi khi tạo đơn tự lấy theo văn phòng của tài khoản, không chọn lại.
+Vai trò **tách riêng** khỏi `nhan_vien_quay_ve` — không bán vé, không soát vé hành khách. Mỗi nhân viên được gán **1 văn phòng tại mỗi thời điểm** (chọn bắt buộc lúc tạo tài khoản — UC-36; đổi được khi điều chuyển — nhánh "Đổi văn phòng" kèm UC-36), chỉ thao tác trong phạm vi văn phòng đó: điểm gửi khi tạo đơn tự lấy theo văn phòng của tài khoản, không chọn lại. Khi đổi văn phòng: đơn đã xử lý **giữ nguyên ở văn phòng cũ** (đơn thuộc văn phòng, không thuộc người), từ request kế tiếp nhân viên chỉ thấy đơn và nhận thông báo của văn phòng mới.
 
 Dịch vụ gửi hàng là hàng hóa **độc lập**: người gửi mang hàng tới quầy, không cần đi cùng chuyến; người nhận là người khác, ra nhận tại điểm đến. Không nói tới hành lý xách tay của hành khách. Mảng này tách khỏi vé nhưng **dùng chung tuyến/chuyến/điểm đi-đến/điểm đón-trả** đã có.
 
@@ -177,7 +177,7 @@ Hỗ trợ tại quầy (đã có trong code): gợi ý tên khách quen theo S�
 |---|---|
 | Phụ xe | Chất hàng (UC-26), dỡ hàng (UC-27), báo thất lạc/hư hỏng (UC-28) — tự quyết đơn nào lên xe. Đơn đã hủy tự biến mất khỏi danh sách chờ chất |
 | `quan_ly` | Cấu hình danh mục loại hàng / hàng cấm; **chỉ xem** đơn, hàng đến, hàng tồn, thống kê (không tạo/giao/hủy); nhận báo cáo hàng tồn để thanh lý; nhận báo cáo sự cố hàng |
-| `quan_ly_nhan_su` | Tạo/khóa tài khoản nhân viên gửi hàng; xem thống kê |
+| `quan_ly_nhan_su` | Tạo/khóa tài khoản nhân viên gửi hàng (UC-36: chọn văn phòng lúc tạo, mật khẩu ban đầu mặc định, nhân viên đổi sau khi đăng nhập); đổi văn phòng khi điều chuyển (chưa có code); xem thống kê. `quan_ly` cũng tạo/đổi được |
 | Kế toán | **Không liên quan.** Hoàn tiền hủy đơn hàng trả tiền mặt ngay tại quầy, khác luồng hoàn tiền vé (UC-22) |
 | Điều độ viên | Không theo dõi khối lượng hàng (đã bỏ từ thiết kế lại 16/09) |
 

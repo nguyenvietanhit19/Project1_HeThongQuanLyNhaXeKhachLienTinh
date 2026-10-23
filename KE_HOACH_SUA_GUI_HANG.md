@@ -286,7 +286,7 @@ Mỗi đợt nên là **1 commit/PR riêng** để dễ review. Thứ tự đợ
 
 | # | Việc | Ai | Ghi chú |
 |---|---|---|---|
-| P1 | Tạo tài khoản `nhan_vien_gui_hang` **kèm** `van_phong_id` (UC-36), cho cả `quan_ly_nhan_su` gán | Người làm tài khoản cán bộ | Hiện chỉ có `PUT /quan-ly/ho-so-can-bo-diem` không có UI. Nhân viên chưa được gán văn phòng thì bị khóa hoàn toàn. Bạn có thể đưa sẵn hàm `gan_van_phong_can_bo` để họ gọi. |
+| P1 | Tạo tài khoản `nhan_vien_gui_hang` **kèm** `van_phong_id` (UC-36), cho cả `quan_ly_nhan_su` gán | Người làm tài khoản cán bộ (Nghĩa) | ✅ Phần tạo đã xong (#38, 23/10): UC-36 tự ghi `ho_so_can_bo_diem` cùng transaction, không gọi `gan_van_phong_can_bo`. Còn "đổi văn phòng" chưa code — xem mục 7.6. |
 | P2 | CRUD danh mục `loai_hang` / hàng cấm (mục 8.7 điểm 1, 10.5) | Người làm quản lý | Hiện chỉ có seed cứng. Không cho xóa loại đã có đơn tham chiếu. |
 | P3 | Trang công khai tra cứu mã vận đơn | Người làm FE khách hàng (hoặc bạn tự làm) | BE `/gui-hang/tra-cuu/{ma}` đã có. Nên thêm rate-limit. |
 | P4 | Trang đăng nhập cán bộ thiếu điều hướng `phu_xe` (bản `9a6fb60` có `phu_xe: "phu-xe/chuyen-cua-toi.html"`, nay đã mất) | tuanhdung | Bạn đang sửa `dang-nhap.html` nên có thể thêm luôn 1 dòng và báo họ. |
@@ -602,8 +602,8 @@ Ký hiệu: 🟢 tự làm được ngay · 🟡 cần bạn quyết trước ·
 
 | # | Việc | Công | Chi tiết |
 |---|---|---|---|
-| A1 🟢 | **Commit + mở PR** nhánh `feature/Trinh-chot-ca` | S | Working tree đang chưa commit: nhắc 24 giờ (migration `20261021_0900`), hàng trên chuyến có vấn đề, cảnh báo rời trang, xác nhận đăng xuất, CSS mới, biểu đồ, 6 sửa lỗi rà soát, nhóm "làm ngay" (đổi SĐT, chốt ca 2 cửa sổ, giới hạn 500, nhãn COD). Gợi ý tách 3 commit: (1) cảnh báo/thông báo + migration, (2) giao diện (CSS, biểu đồ, đăng xuất, nhãn), (3) sửa lỗi + góp ý. PR vào `integration/gop-nhanh-thanh-vien`, squash-merge. Trong mô tả PR ghi rõ: **thành viên khác phải `yoyo apply`** migration `20261021_0900`; **API đổi**: `PUT …/thong-tin-lien-he` bắt buộc `ly_do` khi đổi SĐT người nhận (chốt ca đã tạm bỏ 22/10 nên không còn trong PR). Chạy lại trước khi đẩy: unit, E2E gửi hàng, E2E chốt ca (bản script đã cập nhật nằm ở scratchpad phiên 21/10, bản cũ không còn đúng). |
-| A2 🔵 | Báo **tuanhdung**: 2 test no-show fail | S | `tests/unit/test_thong_bao_khach.py::test_job_khong_den_*` — #33 bỏ mất thông báo "không đến" cho khách trong `quet_no_show.py`. Không thuộc role, nhưng làm CI đỏ. |
+| A1 ✅ | **Commit + mở PR** nhánh `feature/Trinh-chot-ca` — **xong 23/10: PR #37 đã squash-merge vào integration** | S | Working tree đang chưa commit: nhắc 24 giờ (migration `20261021_0900`), hàng trên chuyến có vấn đề, cảnh báo rời trang, xác nhận đăng xuất, CSS mới, biểu đồ, 6 sửa lỗi rà soát, nhóm "làm ngay" (đổi SĐT, chốt ca 2 cửa sổ, giới hạn 500, nhãn COD). Gợi ý tách 3 commit: (1) cảnh báo/thông báo + migration, (2) giao diện (CSS, biểu đồ, đăng xuất, nhãn), (3) sửa lỗi + góp ý. PR vào `integration/gop-nhanh-thanh-vien`, squash-merge. Trong mô tả PR ghi rõ: **thành viên khác phải `yoyo apply`** migration `20261021_0900`; **API đổi**: `PUT …/thong-tin-lien-he` bắt buộc `ly_do` khi đổi SĐT người nhận (chốt ca đã tạm bỏ 22/10 nên không còn trong PR). Chạy lại trước khi đẩy: unit, E2E gửi hàng, E2E chốt ca (bản script đã cập nhật nằm ở scratchpad phiên 21/10, bản cũ không còn đúng). |
+| A2 🔵 | Báo **tuanhdung**: 2 test no-show fail | S | `tests/unit/test_thong_bao_khach.py::test_job_khong_den_*` — #33 bỏ mất thông báo "không đến" cho khách trong `quet_no_show.py`. Không thuộc role, nhưng làm CI đỏ. **23/10:** thêm 7 test vé lẻ/VNPay fail sau #39 (`test_ve_le.py` ×6, `test_thong_bao_khach.py::test_ipn_ve_le_thanh_cong_bao_khach`) — #39 thêm kiểm tra `ma_tham_chieu_vnpay` trong `_ap_dung_ket_qua_ve` nhưng vé giả trong test chưa có trường này → báo người làm quầy vé (#39). Tin nhắn mẫu: mục 7.7. |
 | A3 🟢 | Kiểm thử **đồng thời** trên PostgreSQL thật | M | Góp ý nêu: test hiện tại chưa chứng minh các tình huống tranh chấp. Viết 1 script chạy 2 luồng cùng lúc cho: 2 nhân viên cùng giao 1 đơn; hủy đơn đúng lúc phụ xe chất hàng; 2 lần chốt ca cùng lúc; ghi liên hệ đúng lúc giao. Kỳ vọng: mỗi cặp chỉ 1 bên thành công, bên kia nhận 400. Không cần sửa code nếu pass. |
 
 #### B. Trong role, cần bạn quyết trước
@@ -672,7 +672,7 @@ Ký hiệu: 🟢 tự làm được ngay · 🟡 cần bạn quyết trước ·
 
 | # | Trạng thái 21/10 | Việc còn lại |
 |---|---|---|
-| P1 | 🔵 BE có `PUT /quan-ly/ho-so-can-bo-diem/{id}`, **chưa có giao diện** | Người làm tài khoản cán bộ thêm ô chọn văn phòng khi tạo/sửa tài khoản `nhan_vien_gui_hang`. Chưa gán thì nhân viên bị khóa hoàn toàn. |
+| P1 | 🟡 Tạo kèm văn phòng ✅ (UC-36, #38); **đổi văn phòng chưa có** (cập nhật 23/10) | Chờ nhóm chốt 2 quy tắc đổi văn phòng; khi có rồi thì xóa chuỗi `gan_van_phong_can_bo` — mục 7.6. |
 | P2 | 🔵 Chưa có | CRUD loại hàng / hàng cấm cho quản lý; không cho xóa loại đã có đơn. |
 | P3 | 🔵 BE `/gui-hang/tra-cuu/{ma}` có, **chưa có trang** | Trang tra cứu mã vận đơn cho khách + rate-limit endpoint công khai. |
 | P4 | ✅ Đã có (`dang-nhap.html` điều hướng `phu_xe`) | — |
@@ -686,3 +686,52 @@ Ký hiệu: 🟢 tự làm được ngay · 🟡 cần bạn quyết trước ·
 3. Trong lúc chờ: B1 (chọn phương án a/b/c), A3 (kiểm thử đồng thời), B2.
 4. Sau khi nhóm chốt: C1 → C3 → C2 → C5 → C4.
 5. B3, B4: chỉ làm nếu còn thời gian.
+
+### 7.5. Dữ liệu test trên DB local (22/10/2026)
+
+Script `backend/scripts/seed_gui_hang_demo.py` (cùng kiểu `seed_phu_xe_demo.py`, chỉ chạy khi `DATABASE_URL` trỏ DB local):
+
+```
+docker compose exec backend python scripts/seed_gui_hang_demo.py
+```
+
+- **Hạ tầng** (giữ giữa các lần chạy): thêm VP Yên Bái, VP Sa Pa, điểm dừng Km 140, tuyến "Mỹ Đình -> Sa Pa (qua Yên Bái)" — cặp Mỹ Đình ↔ Lào Cai có 2 tuyến; 4 xe `…888.0x`; 4 tài khoản nhân viên gửi hàng (mỗi văn phòng 1, mật khẩu `GuiHang@123`) + 1 phụ xe `phuxe.guihang@demo.nhaxe.vn` (`PhuXe@123`) gắn xe đang chạy sắp tới Lào Cai.
+- **Đơn** (xóa và tạo lại mỗi lần chạy — chỉ đơn do 4 tài khoản demo tạo): đủ tình huống chờ xếp xe, hủy (có/không hoàn), sắp đến (chuyến gặp sự cố / đang hoãn), chờ gọi báo, đã nhắc 24 giờ, cảnh báo 7 ngày (đã/chưa từng báo), hàng tồn (chưa/đã báo quản lý, đã thỏa thuận), báo cáo hư hỏng, sửa SĐT, đã giao hôm nay + ~75 đơn lịch sử 14 ngày cho thống kê. Cờ và thông báo dựng đúng như job UC-46 đã chạy; riêng 1 đơn mốc 24 giờ và 1 đơn mốc 7 ngày để **chờ job** (lần quét kế tiếp sẽ nhắc + đẩy real-time).
+- Cuối script in mã vận đơn nổi bật theo từng văn phòng kèm việc nên thử.
+
+### 7.6. Khớp với UC-36 của quản lý nhân sự (23/10/2026)
+
+Sau khi gộp integration #37–#39. Nguồn: `KE_HOACH_UC36_TAO_TAI_KHOAN_CAN_BO.md`, `UC36_THAY_THE_GAN_VAN_PHONG_VA_DOI_VAN_PHONG.md`, `NGHIEP_VU.md` mục 2 + UC-36.
+
+**Quy tắc mới phía QLNS đã chốt, ảnh hưởng gửi hàng:**
+- `nhan_vien_gui_hang` bắt buộc chọn văn phòng lúc tạo (UC-36, `POST /quan-ly-nhan-su/tai-khoan`, cả `quan_ly_nhan_su` lẫn `quan_ly`); mật khẩu ban đầu mặc định, không gửi email/OTP.
+- Văn phòng "1 tại mỗi thời điểm", đổi được khi điều chuyển (nhánh kèm UC-36 — **chưa code**). Đơn cũ giữ ở văn phòng cũ.
+- `dieu_do_vien` **không gắn văn phòng** nữa (đề xuất điều độ theo tuyến đã duyệt).
+
+**Đã sửa:**
+
+| File | Sửa |
+|---|---|
+| `services/gui_hang_service.py` `gan_van_phong_can_bo` | Bỏ `dieu_do_vien`; dùng chung hằng số `VAI_TRO_CAN_VAN_PHONG` của `schemas/tai_khoan_can_bo_schema.py` (nhóm đổi quy tắc chỉ sửa 1 chỗ) |
+| `routes/quan_ly.py`, `repositories/nguoi_dung_repository.py` | Docstring bỏ "điều độ viên" |
+| `tests/unit/test_gui_hang_service.py` | +5 ca: quầy vé/gửi hàng gán được; điều độ viên/phụ xe/kế toán bị chặn |
+| `frontend/nhan-vien/gui-hang/khoi-tao.js` | Màn hình chặn: "liên hệ quản lý **hoặc quản lý nhân sự**", "tải lại trang" (middleware đọc `van_phong_id` mỗi request, không cần đăng nhập lại) |
+| `NGHIEP_VU_GUI_HANG.md` mục 1, mục 7 | Văn phòng chọn lúc tạo / đổi khi điều chuyển; vai trò `quan_ly_nhan_su` |
+| Mục 2 (P1) và 7.4 D (P1) | Cập nhật trạng thái |
+
+**Không cần sửa:** `_pham_vi_van_phong` (`routes/gui_hang.py`), các câu tìm nhân viên văn phòng để thông báo (`don_hang_repository.py`), `seed_gui_hang_demo.py` — chỉ đọc/ghi thẳng `ho_so_can_bo_diem`. `DATABASE.md` mục 1.3 phía QLNS đã sửa.
+
+**Còn chờ (theo thứ tự an toàn của QLNS, mục 3.5 file UC36):**
+1. **Giữ** chuỗi `gan_van_phong_can_bo` (route `PUT /quan-ly/ho-so-can-bo-diem`, `GanVanPhongCanBoRequest`, service, `nguoi_dung_repo.gan_van_phong`) — hiện là đường duy nhất sửa văn phòng gán nhầm.
+2. Nhóm chốt 2 quy tắc đổi văn phòng. Góc nhìn gửi hàng: **không chặn** khi còn đơn dở (quyền theo văn phòng, chốt ca tiền mặt đã tạm bỏ nên không có tiền treo theo người); lý do đổi **bắt buộc** cho nhất quán UC-51.
+3. QLNS code "đổi văn phòng" + merge → gửi hàng xóa chuỗi 4 hàm (PR nhỏ riêng), tìm lại `gan_van_phong` / `GanVanPhongCanBoRequest` toàn dự án, xóa 2 test gán văn phòng ở `test_gui_hang_service.py`.
+
+### 7.7. Tin nhắn báo test fail ngoài role (23/10/2026)
+
+Trạng thái unit test trên integration sau #39: **9 fail** (không có test gửi hàng nào). Tin nhắn mẫu:
+
+**Gửi tuanhdung (#33):**
+> Trên integration có 2 test no-show đang fail từ #33: `tests/unit/test_thong_bao_khach.py::test_job_khong_den_bao_khach_kem_so_lan` và `::test_job_khong_den_du_nguong_khoa_va_bao_khoa`. Test mong job `quet_no_show.py` gửi thông báo "Vé … bị ghi nhận là không đến … (hiện 2/3)" cho khách, nhưng job không gửi gì (`[]`) — có vẻ lúc sửa `quet_no_show.py` ở #33 bị mất đoạn gọi `thong_bao_khach_service` (`nd_khong_den`). Bạn xem lại giúp: nếu bỏ có chủ ý thì sửa test, còn không thì thêm lại lời gọi. Chạy thử: `python -m pytest tests/unit/test_thong_bao_khach.py -k khong_den`.
+
+**Gửi Sơn (#39, quầy vé):**
+> Sau #39 có 7 test vé lẻ / VNPay fail: `tests/unit/test_ve_le.py` (`test_ipn_ve_thanh_cong`, `test_ipn_ve_that_bai_khong_doi_gi`, `test_ipn_ve_sai_so_tien`, `test_ipn_ve_da_thanh_toan_roi`, `test_ipn_ve_da_bi_huy_trong_luc_thanh_toan_can_hoan_tien_tay`, `test_truy_van_ve_thanh_cong`) và `tests/unit/test_thong_bao_khach.py::test_ipn_ve_le_thanh_cong_bao_khach`. Nguyên nhân: `thanh_toan_service._ap_dung_ket_qua_ve` mới so `ve["ma_tham_chieu_vnpay"]` với `vnp_TxnRef`, còn vé giả trong các test cũ chưa có trường `ma_tham_chieu_vnpay` → trả `01 Transaction reference mismatch` thay vì `00`. Code đúng, chỉ cần thêm `ma_tham_chieu_vnpay` (bằng mã giao dịch test dùng) vào vé giả, và cập nhật mock `ghi_nhan_thanh_toan_ve_le` theo chữ ký mới 3 tham số. Chạy thử: `python -m pytest tests/unit/test_ve_le.py tests/unit/test_thong_bao_khach.py`.
