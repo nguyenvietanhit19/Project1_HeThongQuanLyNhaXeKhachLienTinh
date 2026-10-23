@@ -6,7 +6,7 @@
 <title>Tổng quan chuyến — Phụ xe</title>
 <link rel="stylesheet" href="/shared/design-tokens.css?v=2" />
 <link rel="stylesheet" href="phu-xe.css?v=19" />
-<link rel="stylesheet" href="phu-xe-pro.css?v=16" />
+<link rel="stylesheet" href="phu-xe-pro.css?v=17" />
 <link rel="manifest" href="manifest.webmanifest" />
 <script src="phu-xe-theme.js?v=1"></script>
 </head>
@@ -377,24 +377,39 @@
     }
     document.querySelectorAll("#tabs .tab").forEach((t) => t.addEventListener("click", () => chonTab(t.dataset.tab)));
 
-    // Vuốt ngang để chuyển Hành khách ⇄ Hàng hóa ⇄ Hành trình (bỏ qua khi vuốt trên ô nhập / hàng lọc cuộn ngang / hộp chi tiết)
+    // Vuốt ngang để chuyển Hành khách ⇄ Hàng hóa ⇄ Hành trình.
+    // Dùng Pointer Events + `touch-action: pan-y` trên vùng danh sách (phu-xe-pro.css): trình duyệt chỉ giữ cuộn DỌC, cử chỉ ngang giao hẳn cho trang —
+    // cách cũ (touchstart/touchend) hay bị trình duyệt "nuốt" khi ngón tay hơi lệch xuống. Chuột kéo ngang trên máy tính cũng dùng được.
     (function () {
       const THU_TU = ["khach", "hang", "hanh-trinh"];
-      let x0 = null, y0 = null;
-      document.addEventListener("touchstart", (e) => {
-        if (e.touches.length !== 1 || e.target.closest("input, textarea, .filter-row, .tabs, .modal-overlay, #sheet")) { x0 = null; return; }
-        x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
-      }, { passive: true });
-      document.addEventListener("touchend", (e) => {
-        if (x0 === null) return;
-        const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
-        x0 = null;
-        if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.5) return;   // phải đủ dài và đủ ngang, tránh nhầm với cuộn dọc
+      let bd = null;
+      ["ds-khach", "ds-hang", "ds-hanh-trinh"].forEach((id) => {
+        document.getElementById(id).addEventListener("pointerdown", (e) => {
+          if (e.pointerType === "mouse" && e.button !== 0) return;
+          if (e.target.closest("input, textarea, select")) return;
+          bd = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() };
+        });
+      });
+      window.addEventListener("pointerup", (e) => {
+        if (!bd || e.pointerId !== bd.id) return;
+        const dx = e.clientX - bd.x, dy = e.clientY - bd.y, dt = performance.now() - bd.t;
+        bd = null;
+        if (Math.abs(dx) < 56 || Math.abs(dx) < Math.abs(dy) * 1.2 || dt > 1000) return;   // đủ dài, đủ ngang, không phải kéo giữ lâu
         const tab = document.querySelector("#tabs .tab.is-active");
         if (!tab || document.getElementById("tabs").hidden) return;
         const i = THU_TU.indexOf(tab.dataset.tab) + (dx < 0 ? 1 : -1);
         if (i >= 0 && i < THU_TU.length) chonTab(THU_TU[i]);
-      }, { passive: true });
+      });
+      window.addEventListener("pointercancel", () => { bd = null; });
+      // Bàn phím: ← → trên thanh tab
+      document.getElementById("tabs").addEventListener("keydown", (e) => {
+        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+        const i = THU_TU.indexOf(tabHienTai) + (e.key === "ArrowRight" ? 1 : -1);
+        if (i < 0 || i >= THU_TU.length) return;
+        e.preventDefault();
+        chonTab(THU_TU[i]);
+        document.querySelector(`#tabs .tab[data-tab="${THU_TU[i]}"]`).focus();
+      });
     })();
     document.getElementById("tim-khach").addEventListener("input", () => duLieu && veKhach());
 
