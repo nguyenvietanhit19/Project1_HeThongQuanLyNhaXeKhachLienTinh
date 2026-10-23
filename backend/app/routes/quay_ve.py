@@ -83,6 +83,14 @@ def tao_link_thanh_toan(ve_id: UUID, body: TaoLinkThanhToanRequest, nguoi_dung: 
     return {"duong_dan_thanh_toan": service.tao_link_thanh_toan(nguoi_dung, str(ve_id), body.frontend_origin, ip)}
 
 
+@router.post("/dat-cho/{ma_dat_cho}/duong-dan-thanh-toan")
+def tao_link_thanh_toan_dat_cho(ma_dat_cho: str, body: TaoLinkThanhToanRequest,
+                                nguoi_dung: NhanVienQuayVe, request: Request):
+    ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "127.0.0.1")).split(",")[0].strip()
+    return {"duong_dan_thanh_toan": service.tao_link_thanh_toan_dat_cho(
+        nguoi_dung, ma_dat_cho, body.frontend_origin, ip)}
+
+
 @router.post("/dat-cho/{ma_dat_cho}/huy")
 def huy_dat_cho(ma_dat_cho: str, nguoi_dung: NhanVienQuayVe):
     return service.huy_dat_cho(nguoi_dung, ma_dat_cho)
@@ -132,6 +140,6 @@ def du_lieu_in_ve(ve_id: UUID, nguoi_dung: NhanVienQuayVe):
     ve = repo.ve_va_chuyen(str(ve_id), str(vp["id"]))
     if not ve:
         raise KhongTimThay("Không tìm thấy vé thuộc văn phòng này")
-    if ve["trang_thai"] != "da_thanh_toan":
+    if ve["trang_thai"] not in ("da_thanh_toan", "da_len_xe", "da_xuong_xe", "khong_den"):
         raise GiaTriLoi("Chỉ được in vé đã thanh toán")
     return ve

@@ -7,6 +7,7 @@
     <title>Bán vé</title>
     <link rel="stylesheet" href="/shared/design-tokens.css" />
     <link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+    <link rel="stylesheet" href="/nhan-vien/quan-ly/thong-bao.css" />
     <link rel="stylesheet" href="/nhan-vien/quay-ve/style.css" />
   </head>
   <body class="nhan-vien-shell">
@@ -128,6 +129,7 @@
     </div>
     <script src="api-client.js"></script>
     <script src="auth-check.js"></script>
+    <script src="/nhan-vien/quan-ly/thong-bao.js"></script>
     <script src="nav.js"></script>
     <script>
 let qvOffice=null, qvTrip=null, qvDetail=null, qvSeatSelection=new Set(), qvAccountId=null, qvOriginArea=null, qvDestinationArea=null;
@@ -363,13 +365,16 @@ $("#submit-sale").addEventListener("click",async()=>{
       phuong_thuc:$("#payment-method").value
     };
     const tienMatDaThu=payload.kenh_ban==="tai_quay"&&payload.phuong_thuc==="tien_mat";
+    const thanhToanQr=payload.phuong_thuc==="chuyen_khoan";
     const tongTien=[...qvSeatSelection].reduce((sum,seat)=>sum+Number(qvDetail.so_do_ghe.find(g=>g.ma_ghe===seat)?.gia||0),0);
     const xacNhan=await qvConfirm(
       tienMatDaThu
         ? `Bạn đã nhận đủ ${dinhDangTien(tongTien)} từ khách cho ${payload.danh_sach_ghe.length} vé? Xác nhận sẽ tạo vé ở trạng thái đã thanh toán.`
-        : `Tạo ${payload.danh_sach_ghe.length} vé chờ thanh toán cho khách ${payload.ten_khach}? Vé sẽ tự hủy nếu chưa thanh toán khi chuyến đã chạy.`,
-      tienMatDaThu?"Xác nhận đã thanh toán":"Xác nhận tạo vé",
-      "Tạo vé"
+        : thanhToanQr
+          ? `Giữ ${payload.danh_sach_ghe.length} ghế trong 5 phút và tạo một mã QR thanh toán ${dinhDangTien(tongTien)} cho cả lượt? Vé chỉ được phát hành sau khi VNPay xác nhận thành công.`
+          : `Tạo ${payload.danh_sach_ghe.length} vé chờ thanh toán cho khách ${payload.ten_khach}? Vé sẽ tự hủy nếu chưa thanh toán khi chuyến đã chạy.`,
+      tienMatDaThu?"Xác nhận đã thanh toán":thanhToanQr?"Xác nhận giữ chỗ":"Xác nhận tạo vé",
+      tienMatDaThu?"Tạo vé":thanhToanQr?"Giữ chỗ":"Tạo vé"
     );
     if(!xacNhan)return;
     $("#submit-sale").disabled=true;
@@ -377,22 +382,24 @@ $("#submit-sale").addEventListener("click",async()=>{
     const tatCaDaThanhToan=result.ve.every(ve=>ve.trang_thai==="da_thanh_toan");
     const veChoThanhToan=result.ve.filter(ve=>ve.trang_thai==="giu_cho");
     const rows=result.ve.map(ve=>`<tr>
-      <td>${escapeHtml(ve.ma_ve)}</td>
+      <td>${thanhToanQr?"Chưa phát hành":escapeHtml(ve.ma_ve)}</td>
       <td>${escapeHtml(ve.so_ghe)}</td>
       <td>${dinhDangTien(ve.gia)}</td>
       <td>${ve.trang_thai==="giu_cho"?'<span class="qv-badge orange">Chờ thanh toán</span>':escapeHtml(ve.trang_thai)}</td>
       <td>${ve.trang_thai==="da_thanh_toan"
         ? `<button class="qv-btn secondary print-ticket" type="button" data-id="${escapeHtml(ve.id)}">In vé</button>`
-        : `<button class="qv-btn secondary pay-link" type="button" data-id="${escapeHtml(ve.id)}">Mở link thanh toán</button>`}</td>
+        : thanhToanQr?"Thanh toán chung cả lượt":"Tra cứu lượt đặt"}</td>
     </tr>`).join("");
     $("#sale-result").innerHTML=`
       <div class="qv-toolbar">
         <div>
-          <h2>Đã tạo lượt vé ${escapeHtml(result.ma_dat_cho)}</h2>
+          <h2>${thanhToanQr?"Đang giữ chỗ cho lượt":"Đã tạo lượt vé"} ${escapeHtml(result.ma_dat_cho)}</h2>
           <p class="qv-muted">Khách: ${escapeHtml(result.ten_khach||payload.ten_khach)}</p>
           <p class="qv-muted">Tổng tiền ${dinhDangTien(result.tong_tien)} · ${escapeHtml(result.trang_thai)}</p>
+          ${thanhToanQr?`<p class="qv-muted">Giữ chỗ đến ${dinhDangNgay(result.ve[0].han_giu_cho_den)}</p>`:""}
         </div>
         <div class="qv-actions-inline">
+          ${thanhToanQr?'<button class="qv-btn" id="pay-booking-qr" type="button">Mở QR thanh toán cả lượt</button>':""}
           ${tatCaDaThanhToan && result.ve.length>1
             ? '<button class="qv-btn" id="print-all-sold-tickets" type="button">In tất cả vé</button>'
             : !tatCaDaThanhToan
@@ -402,8 +409,8 @@ $("#submit-sale").addEventListener("click",async()=>{
         </div>
       </div>
       ${veChoThanhToan.length?`<div class="qv-pending-summary">
-        <strong>${veChoThanhToan.length} vé chờ thanh toán trong lượt này</strong>
-        <ul>${veChoThanhToan.map(ve=>`<li><b>${escapeHtml(ve.ma_ve)}</b> · Ghế ${escapeHtml(ve.so_ghe)} · ${dinhDangTien(ve.gia)}</li>`).join("")}</ul>
+        <strong>${veChoThanhToan.length} ghế chờ thanh toán trong lượt này${thanhToanQr?" · Hết hạn sau 5 phút":""}</strong>
+        <ul>${veChoThanhToan.map(ve=>`<li>${thanhToanQr?"":"<b>"+escapeHtml(ve.ma_ve)+"</b> · "}Ghế ${escapeHtml(ve.so_ghe)} · ${dinhDangTien(ve.gia)}</li>`).join("")}</ul>
       </div>`:""}
       <div class="qv-table-wrap"><table class="qv-table">
         <thead><tr><th>Mã vé</th><th>Ghế</th><th>Giá</th><th>Trạng thái</th><th>Tác vụ</th></tr></thead>
@@ -415,21 +422,25 @@ $("#submit-sale").addEventListener("click",async()=>{
     const urlTraCuu=`/nhan-vien/quay-ve/tra-cuu-ve.html?ma_dat_cho=${encodeURIComponent(result.ma_dat_cho)}`;
     $("#print-all-sold-tickets")?.addEventListener("click",()=>window.open(urlInLuot,"_blank","noopener"));
     $("#view-sold-booking")?.addEventListener("click",()=>window.open(urlTraCuu,"_blank","noopener"));
-    $("#new-sale").addEventListener("click",()=>location.reload());
-    $("#sale-result").querySelectorAll(".pay-link").forEach(button=>button.onclick=async()=>{
+    $("#pay-booking-qr")?.addEventListener("click",async()=>{
+      const button=$("#pay-booking-qr");
+      button.disabled=true;
       try{
-        const data=await apiPost(`/quay-ve/ve/${encodeURIComponent(button.dataset.id)}/duong-dan-thanh-toan`,{frontend_origin:location.origin});
+        const data=await apiPost(`/quay-ve/dat-cho/${encodeURIComponent(result.ma_dat_cho)}/duong-dan-thanh-toan`,{frontend_origin:location.origin});
         window.open(data.duong_dan_thanh_toan,"_blank","noopener");
-      }catch(e){showError(error,e.message);}
+      }catch(e){showError(error,e.message);}finally{button.disabled=false;}
     });
+    $("#new-sale").addEventListener("click",()=>location.reload());
     $("#sale-result").querySelectorAll(".print-ticket").forEach(button=>button.onclick=()=>
       window.open(`/nhan-vien/quay-ve/tra-cuu-ve.html?in=${encodeURIComponent(button.dataset.id)}`,"_blank","noopener")
     );
     await qvAlert(
       tatCaDaThanhToan
         ? `Đã tạo ${result.ve.length} vé và ghi nhận khách đã thanh toán ${dinhDangTien(result.tong_tien)}. Mã đặt chỗ: ${result.ma_dat_cho}.`
-        : `Đã tạo ${result.ve.length} vé chờ thanh toán. Mã đặt chỗ: ${result.ma_dat_cho}. Vé sẽ tự hủy nếu quá giờ khởi hành mà chưa thanh toán.`,
-      tatCaDaThanhToan?"Bán vé thành công":"Đã tạo vé chờ thanh toán",
+        : thanhToanQr
+          ? `Đã giữ ${result.ve.length} ghế. Mã đặt chỗ: ${result.ma_dat_cho}. Mở QR để khách thanh toán một lần cho cả lượt trong 5 phút; vé sẽ tự phát hành khi giao dịch thành công.`
+          : `Đã tạo ${result.ve.length} vé chờ thanh toán. Mã đặt chỗ: ${result.ma_dat_cho}. Vé sẽ tự hủy nếu quá giờ khởi hành mà chưa thanh toán.`,
+      tatCaDaThanhToan?"Bán vé thành công":thanhToanQr?"Đã giữ chỗ chờ QR":"Đã tạo vé chờ thanh toán",
       tatCaDaThanhToan?"success":"warning"
     );
   }catch(e){showError(error,e.message);$("#submit-sale").disabled=false;}

@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import CORS_ORIGINS
-from app.jobs import canh_bao_giay_to, nhac_quan_ly, quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han
+from app.jobs import canh_bao_giay_to, nhac_khach_quay_ve, nhac_quan_ly, quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han
 from app.jobs import quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han, quet_ve_qua_gio_chay
 from app.jobs import canh_bao_giay_to, quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han
 from app.routes.auth import router as auth_router
@@ -41,6 +41,8 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(quet_hang_ton.chay_job_quet_hang_ton, "interval", hours=1, id="quet_hang_ton")
     # Nhắc khách "sắp đến giờ đi" (NGHIEP_VU.md mục 8.1 điểm 4) — mỗi vé nhắc đúng 1 lần
     scheduler.add_job(quet_nhac_sap_di.chay, "interval", minutes=5, id="quet_nhac_sap_di")
+    # Nhắc nhân viên quầy vé liên hệ khách trả tại quầy trong 2 giờ trước giờ xuất phát.
+    scheduler.add_job(nhac_khach_quay_ve.chay, "interval", minutes=1, id="nhac_khach_quay_ve")
     # Nhánh kèm theo UC-49 (trước đây UC-50, ⏱) — cảnh báo giấy tờ nhân sự vận hành sắp/đã hết hạn, mốc tính theo ngày nên quét 1 lần/ngày là đủ
     scheduler.add_job(canh_bao_giay_to.chay, "interval", hours=24, id="canh_bao_giay_to")
     # Nhắc quản lý sinh thêm chuyến / tạo bộ giá nối tiếp (jobs/nhac_quan_ly.py) — mỗi sáng 07:00 giờ Việt Nam, và chạy thêm 1 lần

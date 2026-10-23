@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, Query
 
 from app.middleware.auth_middleware import NguoiDungHienTai, yeu_cau_dang_nhap
 from app.repositories import thong_bao_repository as thong_bao_repo
-from app.utils.loi import KhongTimThay
+from app.utils.loi import GiaTriLoi, KhongTimThay
 
 router = APIRouter(prefix="/thong-bao", tags=["thong-bao"])
 
@@ -36,6 +36,9 @@ def danh_dau_tat_ca_da_doc(nguoi_dung: NguoiDungHienTai = Depends(yeu_cau_dang_n
 
 @router.put("/{thong_bao_id}/da-doc")
 def danh_dau_da_doc(thong_bao_id: UUID, nguoi_dung: NguoiDungHienTai = Depends(yeu_cau_dang_nhap)):
-    if not thong_bao_repo.danh_dau_da_doc(str(thong_bao_id), nguoi_dung.id):
+    ket_qua = thong_bao_repo.danh_dau_da_doc(str(thong_bao_id), nguoi_dung.id)
+    if ket_qua == "not_found":
         raise KhongTimThay("Không tìm thấy thông báo")
+    if ket_qua == "locked":
+        raise GiaTriLoi("Không thể ẩn cảnh báo: chỉ xác nhận đã xử lý khi chuyến xe đã khởi hành và tất cả vé đã thanh toán")
     return {"thong_bao": "Đã đánh dấu đã đọc"}

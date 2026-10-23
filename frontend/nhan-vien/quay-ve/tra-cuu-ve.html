@@ -7,6 +7,7 @@
     <title>Tra cứu vé</title>
     <link rel="stylesheet" href="/shared/design-tokens.css" />
     <link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+    <link rel="stylesheet" href="/nhan-vien/quan-ly/thong-bao.css" />
     <link rel="stylesheet" href="/nhan-vien/quay-ve/style.css" />
   </head>
   <body class="nhan-vien-shell">
@@ -103,6 +104,7 @@
     </div>
     <script src="api-client.js"></script>
     <script src="auth-check.js"></script>
+    <script src="/nhan-vien/quan-ly/thong-bao.js"></script>
     <script src="nav.js"></script>
     <script src="/nhan-vien/gui-hang/vendor/JsBarcode.code128.min.js"></script>
     <script>
@@ -163,6 +165,11 @@ function veMaVachVe(svg, ma) {
   }
 }
 function mauVe(t) {
+  const daTraTien=["da_thanh_toan","da_len_xe","da_xuong_xe","khong_den"].includes(t.trang_thai);
+  const daHuy=t.trang_thai==="da_huy";
+  const daThanhToan=daTraTien?Number(t.gia||0):0;
+  const stamp=daHuy?"ĐÃ HỦY":daTraTien?"ĐÃ THANH TOÁN":"CHỜ THANH TOÁN";
+  const stampClass=daHuy?"qv-ticket__stamp--cancelled":daTraTien?"":"qv-ticket__stamp--pending";
   return `
     <div class="qv-ticket" aria-label="Vé xe khách ${escapeHtml(t.ma_ve)}">
       <div class="qv-ticket__main">
@@ -176,7 +183,7 @@ function mauVe(t) {
         <div class="qv-ticket__body">
           <div class="qv-ticket__route">
             <h2>${escapeHtml(t.ten_tuyen)}</h2>
-            <span class="qv-ticket__stamp">ĐÃ THANH TOÁN</span>
+            <span class="qv-ticket__stamp ${stampClass}">${stamp}</span>
           </div>
           <div class="qv-ticket__stops">
             <div><small>ĐIỂM ĐÓN</small><strong>${escapeHtml(t.ten_diem_don)}</strong><span>${gioTrenVe(t.gio_don_du_kien)} · ${ngayTrenVe(t.gio_don_du_kien)}</span></div>
@@ -187,8 +194,8 @@ function mauVe(t) {
             <div><dt>LOẠI XE</dt><dd>${escapeHtml(t.ten_loai_xe)}</dd></div>
             <div><dt>BIỂN SỐ</dt><dd>${escapeHtml(t.bien_so || "Chưa gán xe")}</dd></div>
             <div><dt>GIÁ VÉ</dt><dd>${dinhDangTien(t.gia)}</dd></div>
-            <div><dt>ĐÃ THANH TOÁN</dt><dd>${dinhDangTien(t.gia)}</dd></div>
-            <div><dt>CÒN LẠI</dt><dd>0 ₫</dd></div>
+            <div><dt>ĐÃ THANH TOÁN</dt><dd>${dinhDangTien(daThanhToan)}</dd></div>
+            <div><dt>CÒN LẠI</dt><dd>${dinhDangTien(Math.max(0,Number(t.gia||0)-daThanhToan))}</dd></div>
             <div><dt>MÃ ĐẶT CHỖ</dt><dd>${escapeHtml(t.ma_dat_cho)}</dd></div>
           </dl>
           <div class="qv-ticket__passenger"><span>HÀNH KHÁCH <strong>${escapeHtml(t.ten_khach || "Khách vãng lai")}${t.sdt_khach ? ` · ${escapeHtml(t.sdt_khach)}` : ""}</strong></span><span>CHUYẾN <strong>${escapeHtml(t.ma_chuyen)}</strong></span></div>
@@ -243,26 +250,27 @@ async function loadResults(params){
   currentTickets=tickets;
   $("#ticket-card").classList.remove("qv-hidden");
   $("#result-note").textContent=tickets.length?`${tickets.length} vé tại văn phòng này`:"Không tìm thấy vé thuộc văn phòng của bạn.";
-  $("#ticket-rows").innerHTML=tickets.map(t=>`<tr data-ma-ve="${escapeHtml(t.ma_ve)}" data-ngay-khoi-hanh="${ngayKhoiHanhVN(t.gio_khoi_hanh)}">
-    <td><b>${escapeHtml(t.ma_ve)}</b><br><small>${escapeHtml(t.ma_dat_cho)}</small></td>
+  $("#ticket-rows").innerHTML=tickets.map(t=>{const dangChoQr=t.trang_thai==="giu_cho"&&t.loai_hinh_thanh_toan==="thanh_toan_ngay";return `<tr data-ticket-id="${escapeHtml(t.id)}" data-ma-ve="${dangChoQr?"":escapeHtml(t.ma_ve)}" data-ngay-khoi-hanh="${ngayKhoiHanhVN(t.gio_khoi_hanh)}">
+    <td><b>${dangChoQr?"Chưa phát hành":escapeHtml(t.ma_ve)}</b><br><small>${escapeHtml(t.ma_dat_cho)}</small></td>
     <td>${escapeHtml(t.ten_khach)}<br><small>${escapeHtml(t.sdt_khach)}</small></td>
     <td>${escapeHtml(t.ma_chuyen)}<br><small>${dinhDangNgay(t.gio_khoi_hanh)}</small></td>
     <td>${escapeHtml(t.so_ghe)}<br><small>${escapeHtml(t.ten_diem_don)} → ${escapeHtml(t.ten_diem_tra)}</small></td>
     <td>${dinhDangTien(t.gia)}<br>${statusBadge(t.trang_thai,t)}<br><small>${escapeHtml(t.phuong_thuc_thanh_toan||"Chưa thanh toán")}</small></td>
     <td><div class="qv-actions-inline">
       ${t.co_the_in?`<button class="qv-btn secondary print-btn" type="button" data-id="${escapeHtml(t.id)}">In vé</button>`:""}
-      ${t.co_the_thanh_toan?`<button class="qv-btn cash-btn" type="button" data-booking="${escapeHtml(t.ma_dat_cho)}">Thu tiền mặt</button><button class="qv-btn secondary qr-btn" type="button" data-id="${escapeHtml(t.id)}">Tạo link QR</button>`:""}
+      ${t.co_the_thanh_toan?`<button class="qv-btn cash-btn" type="button" data-booking="${escapeHtml(t.ma_dat_cho)}">Thu tiền mặt</button>`:""}
+      ${t.co_the_tao_qr&&tickets.find(x=>x.ma_dat_cho===t.ma_dat_cho)===t?`<button class="qv-btn secondary qr-btn" type="button" data-booking="${escapeHtml(t.ma_dat_cho)}">${dangChoQr?"Mở lại QR":"Tạo QR cả lượt"}</button>`:""}
       ${t.co_the_huy_giu_cho?`<button class="qv-btn danger cancel-btn" type="button" data-booking="${escapeHtml(t.ma_dat_cho)}">Hủy giữ chỗ</button>`:""}
       ${t.co_the_huy_hoan_tien?`<button class="qv-btn danger refund-btn" type="button" data-id="${escapeHtml(t.id)}">Hủy vé / yêu cầu hoàn</button>`:""}
     </div></td>
-  </tr>`).join("")||'<tr><td colspan="6" class="qv-empty">Không tìm thấy vé.</td></tr>';
+  </tr>`}).join("")||'<tr><td colspan="6" class="qv-empty">Không tìm thấy vé.</td></tr>';
   if(tickets.length)$("#ticket-rows").insertAdjacentHTML("beforeend",'<tr id="filter-empty" class="qv-hidden"><td colspan="6" class="qv-empty">Không có vé khớp bộ lọc.</td></tr>');
   $("#ticket-filter-form").classList.toggle("qv-hidden",!tickets.length);
   const choThanhToan=tickets.filter(ticket=>ticket.trang_thai==="giu_cho");
   $("#lookup-pending-summary").classList.toggle("qv-hidden",!choThanhToan.length);
   $("#lookup-pending-summary").innerHTML=choThanhToan.length?`
     <strong>${choThanhToan.length} vé chờ thanh toán trong kết quả tra cứu</strong>
-    <ul>${choThanhToan.map(ticket=>`<li><b>${escapeHtml(ticket.ma_ve)}</b> · Mã đặt chỗ ${escapeHtml(ticket.ma_dat_cho)} · Ghế ${escapeHtml(ticket.so_ghe)} · ${dinhDangTien(ticket.gia)}</li>`).join("")}</ul>`:"";
+    <ul>${choThanhToan.map(ticket=>`<li>${ticket.loai_hinh_thanh_toan==="thanh_toan_ngay"?"":"<b>"+escapeHtml(ticket.ma_ve)+"</b> · "}Mã đặt chỗ ${escapeHtml(ticket.ma_dat_cho)} · Ghế ${escapeHtml(ticket.so_ghe)} · ${dinhDangTien(ticket.gia)}</li>`).join("")}</ul>`:"";
   apDungBoLoc();
 const booking=[...new Set(tickets.map(t=>t.ma_dat_cho))];
 $("#booking-actions").innerHTML=booking.length===1
@@ -281,7 +289,7 @@ $("#ticket-rows").querySelectorAll(".cash-btn").forEach(b=>b.onclick=async()=>{
 });
 $("#ticket-rows").querySelectorAll(".qr-btn").forEach(b=>b.onclick=async()=>{
   try{
-    const r=await apiPost(`/quay-ve/ve/${encodeURIComponent(b.dataset.id)}/duong-dan-thanh-toan`,{frontend_origin:location.origin});
+    const r=await apiPost(`/quay-ve/dat-cho/${encodeURIComponent(b.dataset.booking)}/duong-dan-thanh-toan`,{frontend_origin:location.origin});
     window.open(r.duong_dan_thanh_toan,"_blank","noopener");
   }catch(e){await qvAlert(e.message,"Không tạo được link thanh toán","danger");}
 });

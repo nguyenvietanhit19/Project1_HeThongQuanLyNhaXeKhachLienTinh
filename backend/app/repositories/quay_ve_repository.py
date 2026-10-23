@@ -143,10 +143,12 @@ def tra_cuu(van_phong_id: str, ma_dat_cho: str | None = None, sdt: str | None = 
         with conn.cursor() as cur:
             cur.execute(
                 """SELECT v.id, v.ma_ve, v.ma_dat_cho, v.so_ghe, v.gia, v.trang_thai, v.gio_huy,
-                          v.phuong_thuc_thanh_toan, v.loai_hinh_thanh_toan, v.han_giu_cho_den,
+                          v.ngay_tao, v.gio_thanh_toan,
+                          v.phuong_thuc_thanh_toan, v.loai_hinh_thanh_toan, v.han_giu_cho_den, v.kenh_ban,
                           v.ma_tham_chieu_vnpay, v.ma_giao_dich_cong_thanh_toan,
                           COALESCE(nd.ho_ten, v.ten_khach_vang_lai, '') AS ten_khach,
                           COALESCE(nd.so_dien_thoai, v.sdt_khach_vang_lai, '') AS sdt_khach,
+                          nv.ho_ten AS nhan_vien_ban,
                           c.id AS chuyen_id, c.ma AS ma_chuyen, c.gio_khoi_hanh,
                           c.trang_thai AS trang_thai_chuyen, c.dang_hoan, c.loai_su_co,
                           tu.ten AS ten_tuyen, lx.ten AS ten_loai_xe, x.bien_so,
@@ -162,6 +164,7 @@ def tra_cuu(van_phong_id: str, ma_dat_cho: str | None = None, sdt: str | None = 
                           ht.thoi_gian_xac_dinh, ht.thoi_gian_hoan_xong
                    FROM ve v
                    LEFT JOIN nguoi_dung nd ON nd.id = v.khach_hang_id
+                   LEFT JOIN nguoi_dung nv ON nv.id = v.nhan_vien_ban_id
                    JOIN chuyen_xe c ON c.id = v.chuyen_id
                    JOIN tuyen tu ON tu.id = c.tuyen_id
                    JOIN loai_xe lx ON lx.id = c.loai_xe_id
@@ -213,6 +216,40 @@ def ve_cho_thanh_toan(van_phong_id: str, trang: int, kich_thuoc_trang: int) -> d
                 (van_phong_id, kich_thuoc_trang, (trang - 1) * kich_thuoc_trang),
             )
             return {"tong_so": tong_so, "trang": trang, "kich_thuoc_trang": kich_thuoc_trang, "ve": _rows(cur)}
+    finally:
+        release_connection(conn)
+
+
+def cac_luot_tra_tai_quay_sap_chay() -> list[dict]:
+    """Các lượt giữ chỗ trả tại quầy trong 2 giờ trước giờ xuất phát, theo nhân viên phụ trách văn phòng."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT nd.id AS nguoi_nhan_id, v.ma_dat_cho, c.ma AS ma_chuyen,
+                          c.gio_khoi_hanh,
+                          MIN(COALESCE(kh.ho_ten, v.ten_khach_vang_lai, '')) AS ten_khach,
+                          MIN(COALESCE(kh.so_dien_thoai, v.sdt_khach_vang_lai, '')) AS sdt_khach,
+                          COUNT(*)::int AS so_ve,
+                          STRING_AGG(v.so_ghe, ', ' ORDER BY v.so_ghe) AS cac_ghe,
+                          SUM(v.gia)::bigint AS tong_tien
+                   FROM ve v
+                   JOIN chuyen_xe c ON c.id = v.chuyen_id
+                   JOIN ho_so_can_bo_diem hs ON hs.van_phong_id = v.diem_don_id
+                   JOIN nguoi_dung nd ON nd.id = hs.nguoi_dung_id
+                   LEFT JOIN nguoi_dung kh ON kh.id = v.khach_hang_id
+                   WHERE nd.vai_tro = 'nhan_vien_quay_ve'
+                     AND nd.dang_hoat_dong = true
+                     AND v.trang_thai = 'giu_cho'
+                     AND v.loai_hinh_thanh_toan = 'thanh_toan_tai_quay'
+                     AND v.han_giu_cho_den IS NULL
+                     AND c.trang_thai = 'chua_khoi_hanh'
+                     AND c.gio_khoi_hanh > now()
+                     AND c.gio_khoi_hanh <= now() + interval '2 hours'
+                   GROUP BY nd.id, v.ma_dat_cho, c.id, c.ma, c.gio_khoi_hanh
+                   ORDER BY c.gio_khoi_hanh, v.ma_dat_cho, nd.id"""
+            )
+            return _rows(cur)
     finally:
         release_connection(conn)
 

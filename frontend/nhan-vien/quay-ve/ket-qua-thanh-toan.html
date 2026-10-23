@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+    <title>Kết quả thanh toán VNPay · GoBus</title>
+    <link rel="stylesheet" href="/shared/design-tokens.css" />
+    <link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+    <link rel="stylesheet" href="/nhan-vien/quay-ve/style.css" />
+    <style>
+      .qv-payment-result { width: min(720px, 100%); margin: 48px auto; padding: clamp(24px, 5vw, 48px); text-align: center; }
+      .qv-payment-result__icon { width: 72px; height: 72px; display: grid; place-items: center; margin: 0 auto 18px; border-radius: 50%; background: #e8f7ef; color: #16834b; }
+      .qv-payment-result__icon svg { width: 36px; height: 36px; }
+      .qv-payment-result.error .qv-payment-result__icon { background: #fff0f1; color: #c9364b; }
+      .qv-payment-result h1 { margin: 0 0 10px; color: var(--color-secondary-dark); font-size: clamp(23px, 4vw, 32px); }
+      .qv-payment-result p { color: var(--color-text-muted); line-height: 1.6; }
+      .qv-payment-result__code { display: inline-block; margin: 6px 0 20px; padding: 10px 16px; border-radius: 12px; background: #f3effa; color: #4c2f83; font-size: 19px; font-weight: 800; }
+      .qv-payment-result__actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+    </style>
+  </head>
+  <body class="nhan-vien-shell">
+    <div class="nv-layout">
+      <main class="nv-main">
+        <header class="nv-topbar"><h1>Kết quả thanh toán tại quầy</h1></header>
+        <section class="nv-content">
+          <article class="nv-card qv-payment-result" id="payment-result" aria-live="polite">
+            <div class="qv-payment-result__icon" id="payment-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 9.5 17 19 7.5"/></svg>
+            </div>
+            <h1 id="payment-title">Đang xác minh giao dịch…</h1>
+            <p id="payment-message">Vui lòng đợi trong khi hệ thống kiểm tra kết quả VNPay.</p>
+            <div id="booking-code" class="qv-payment-result__code" hidden></div>
+            <div class="qv-payment-result__actions" id="payment-actions" hidden>
+              <a class="qv-btn" id="lookup-link" href="/nhan-vien/quay-ve/tra-cuu-ve.html">Tra cứu lượt vé</a>
+              <a class="qv-btn secondary" href="/nhan-vien/quay-ve/index.html">Về tổng quan</a>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+    <script src="api-client.js"></script>
+    <script>
+      function quayVeDangXuat() {
+        location.href = "/nhan-vien/dang-nhap.html";
+      }
+    </script>
+    <script>
+      const query = location.search;
+      const params = new URLSearchParams(query);
+      const ref = params.get("vnp_TxnRef");
+      const title = document.querySelector("#payment-title");
+      const message = document.querySelector("#payment-message");
+      const card = document.querySelector("#payment-result");
+      const icon = document.querySelector("#payment-icon");
+      const code = document.querySelector("#booking-code");
+      const actions = document.querySelector("#payment-actions");
+
+      function showError(heading, detail) {
+        card.classList.add("error");
+        icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m7 7 10 10M17 7 7 17"/></svg>';
+        title.textContent = heading;
+        message.textContent = detail;
+        actions.hidden = false;
+      }
+
+      (async () => {
+        if (!ref) return showError("Thiếu mã giao dịch", "Không tìm thấy mã giao dịch VNPay trong đường dẫn trả về.");
+        try {
+          await apiPost("/thanh-toan/vnpay/xac-nhan", { ma_giao_dich: ref });
+        } catch (_) {
+          // VNPay IPN vẫn là nguồn cập nhật chính; tiếp tục đọc kết quả trả về đã ký.
+        }
+        try {
+          const result = await apiGet(`/thanh-toan/vnpay/ket-qua${query}`);
+          if (!result.hop_le) return showError("Không xác thực được giao dịch", "Thông tin VNPay trả về không hợp lệ. Vui lòng tra cứu trạng thái vé trước khi thu tiền lại.");
+          if (!result.thanh_cong) return showError("Thanh toán chưa hoàn tất", `VNPay trả mã ${result.ma_phan_hoi || "không xác định"}. Vui lòng kiểm tra trạng thái vé trước khi thử lại.`);
+          title.textContent = "VNPay báo thanh toán thành công";
+          message.textContent = "Hệ thống đang xác nhận và phát hành vé cho cả lượt đặt chỗ.";
+          if (result.ma_dat_cho) {
+            code.textContent = `Mã đặt chỗ: ${result.ma_dat_cho}`;
+            code.hidden = false;
+            document.querySelector("#lookup-link").href = `/nhan-vien/quay-ve/tra-cuu-ve.html?ma_dat_cho=${encodeURIComponent(result.ma_dat_cho)}`;
+          }
+          actions.hidden = false;
+          if (result.ma_dat_cho && localStorage.getItem("token")) {
+            try {
+              for (let attempt = 0; attempt < 5; attempt++) {
+                const ve = await apiGet(`/quay-ve/tra-cuu?ma_dat_cho=${encodeURIComponent(result.ma_dat_cho)}`);
+                if (ve.length && ve.every(item => item.trang_thai === "da_thanh_toan")) {
+                  title.textContent = `Đã thanh toán và phát hành ${ve.length} vé`;
+                  message.textContent = "Một lần thanh toán đã hoàn tất cho toàn bộ lượt. Mở tra cứu để in các vé.";
+                  return;
+                }
+                if (ve.some(item => item.trang_thai === "het_han" || item.trang_thai === "da_huy")) {
+                  return showError("Cần đối soát giao dịch", "VNPay báo thành công nhưng chỗ đã hết hạn hoặc bị hủy. Không thu tiền lại trước khi kiểm tra giao dịch.");
+                }
+                if (attempt < 4) await new Promise(resolve => setTimeout(resolve, 1200));
+              }
+            } catch (_) {
+              // Nhân viên có thể tra cứu lại sau khi đăng nhập.
+            }
+          }
+          message.textContent = "VNPay đã nhận thanh toán, hệ thống đang cập nhật vé. Vui lòng tra cứu trạng thái trước khi in.";
+        } catch (error) {
+          showError("Chưa đọc được kết quả", error.message || "Vui lòng quay lại tra cứu lượt vé.");
+        }
+      })();
+    </script>
+  </body>
+</html>
