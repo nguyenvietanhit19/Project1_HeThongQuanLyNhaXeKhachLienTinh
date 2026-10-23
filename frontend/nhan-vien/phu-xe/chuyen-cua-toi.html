@@ -21,6 +21,10 @@
 
   <div class="container container--pull-up">
     <div class="card">
+      <div class="search-box" style="position:static;padding:0 0 12px;">
+        <input class="input-field" type="search" id="o-tim-kiem" inputmode="search" autocomplete="off"
+               placeholder="Tìm tuyến, biển số, giờ, trạng thái..." aria-label="Tìm chuyến xe" />
+      </div>
       <div id="danh-sach-chuyen" class="trip-list">
         <p class="empty-state">Đang tải...</p>
       </div>
@@ -62,16 +66,31 @@
       return d.toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
     }
 
-    async function taiDanhSach() {
-      const el = document.getElementById("danh-sach-chuyen");
-      try {
-        const chuyenList = await apiGet("/phu-xe/chuyen-cua-toi");
-        if (chuyenList.length === 0) {
-          el.innerHTML = '<p class="empty-state" style="grid-column:1/-1;">Hiện không có chuyến nào đang/sắp chạy thuộc xe bạn phụ trách.</p>';
-          return;
-        }
+    // Bỏ dấu + hạ chữ thường để gõ "chua khoi hanh" vẫn ra "Chưa khởi hành"
+    function chuanHoa(s) {
+      return String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+    }
 
-        el.innerHTML = chuyenList
+    let danhSachChuyen = [];
+
+    function veDanhSach() {
+      const el = document.getElementById("danh-sach-chuyen");
+      if (danhSachChuyen.length === 0) {
+        el.innerHTML = '<p class="empty-state" style="grid-column:1/-1;">Hiện không có chuyến nào đang/sắp chạy thuộc xe bạn phụ trách.</p>';
+        return;
+      }
+      const tuKhoa = chuanHoa(document.getElementById("o-tim-kiem").value).trim();
+      const hienThi = !tuKhoa
+        ? danhSachChuyen
+        : danhSachChuyen.filter((c) =>
+            chuanHoa(`${c.tuyen_ten} ${c.bien_so} ${c.ma ?? ""} ${dinhDangGio(c.gio_khoi_hanh)} ${nhanChuyen(c)[0]}`).includes(tuKhoa)
+          );
+      if (hienThi.length === 0) {
+        el.innerHTML = '<p class="empty-state" style="grid-column:1/-1;">Không tìm thấy chuyến phù hợp.</p>';
+        return;
+      }
+      {
+        el.innerHTML = hienThi
           .map(
             (c) => `
           <a class="trip-card" href="chuyen-dang-chay.html?chuyen_id=${encodeURIComponent(c.id)}">
@@ -84,12 +103,23 @@
           </a>`
           )
           .join("");
-      } catch (err) {
-        el.innerHTML = `<p class="text-error">${esc(err.message)}</p>`;
       }
     }
 
+    async function taiDanhSach() {
+      try {
+        danhSachChuyen = await apiGet("/phu-xe/chuyen-cua-toi");
+        veDanhSach();
+      } catch (err) {
+        document.getElementById("danh-sach-chuyen").innerHTML = `<p class="text-error">${esc(err.message)}</p>`;
+      }
+    }
+
+    document.getElementById("o-tim-kiem").addEventListener("input", veDanhSach);
     taiDanhSach();
+    // Nhãn "Bến đã mở / Đến giờ chạy" đổi theo giờ → tự làm mới mỗi 30 giây và khi quay lại tab
+    setInterval(() => { if (document.visibilityState === "visible") taiDanhSach(); }, 30000);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") taiDanhSach(); });
   </script>
 </body>
 </html>

@@ -78,7 +78,9 @@ def hoan_tac_xuong_xe(chuyen_id: str, ve_id: str, nguoi_dung_id: str) -> None:
     """Phụ xe bấm nhầm "xuống xe": đưa vé về `da_len_xe`. Chỉ làm được khi xe
     còn đứng ở điểm trả của vé."""
     chuyen = lay_chuyen_cua_phu_xe(chuyen_id, nguoi_dung_id)
-    if chuyen["trang_thai"] not in ("dang_chay", "hoan_thanh"):
+    if chuyen["trang_thai"] == "hoan_thanh":
+        raise GiaTriLoi("Chuyến đã hoàn thành, không thể hoàn tác")
+    if chuyen["trang_thai"] != "dang_chay":
         raise GiaTriLoi("Chuyến không ở trạng thái đang chạy, không thể hoàn tác")
     ve = _lay_ve_cua_chuyen(ve_id, chuyen_id)
     if ve["trang_thai"] != "da_xuong_xe":

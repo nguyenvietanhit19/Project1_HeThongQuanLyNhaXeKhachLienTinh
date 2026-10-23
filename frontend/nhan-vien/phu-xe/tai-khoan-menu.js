@@ -27,25 +27,39 @@
     thaoTac: '<path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/>',
     tongQuan: '<path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/>',
     thongKe: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+    hanhTrinh: '<circle cx="6" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="M8 6h6a4 4 0 0 1 0 8h-4a4 4 0 0 0 0 8"/>',
+    hangHoa: '<path d="M21 8l-9-5-9 5 9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>',
   };
 
   function veMucDieuHuong() {
     const trang = location.pathname.split("/").pop() || "";
     const chuyenId = new URLSearchParams(location.search).get("chuyen_id");
     const q = chuyenId ? `?chuyen_id=${encodeURIComponent(chuyenId)}` : "";
+    // "Thao tác chuyến này" chia 2 phần cùng trang chuyen-dang-chay.html, phân biệt bằng ?phan=
+    const phanDangXem = new URLSearchParams(location.search).get("phan") === "hang" ? "hang" : "khach";
     const muc = [
       { file: "chuyen-cua-toi.html", nhan: "Chuyến của tôi", icon: ICON.chuyen },
-      chuyenId && { file: "chuyen-dang-chay.html", nhan: "Thao tác chuyến này", icon: ICON.thaoTac, q },
+      chuyenId && {
+        nhom: "Thao tác chuyến này", icon: ICON.thaoTac,
+        con: [
+          { file: "chuyen-dang-chay.html", nhan: "Hành trình chuyến xe", q, phan: "khach", icon: ICON.hanhTrinh },
+          { file: "chuyen-dang-chay.html", nhan: "Hàng hóa chuyến này", q: `${q}&phan=hang`, phan: "hang", icon: ICON.hangHoa },
+        ],
+      },
       chuyenId && { file: "chi-tiet-chuyen.html", nhan: "Tổng quan chuyến này", icon: ICON.tongQuan, q },
       { file: "thong-ke.html", nhan: "Thống kê & chuyến đã chạy", icon: ICON.thongKe },
     ].filter(Boolean);
+    const svg = (icon) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg>`;
+    const lienKet = (m, la_con) => {
+      const dang = m.file === trang && (m.phan === undefined || m.phan === phanDangXem);
+      return `<a class="tk-menu__muc${la_con ? " tk-menu__muc--con" : ""}${dang ? " tk-menu__muc--dang-chon" : ""}" role="menuitem" href="${m.file}${m.q || ""}"${dang ? ' aria-current="page"' : ""}>
+        ${svg(m.icon)}${esc(m.nhan)}
+      </a>`;
+    };
     return muc
-      .map((m) => {
-        const dang = m.file === trang;
-        return `<a class="tk-menu__muc${dang ? " tk-menu__muc--dang-chon" : ""}" role="menuitem" href="${m.file}${m.q || ""}"${dang ? ' aria-current="page"' : ""}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${m.icon}</svg>${esc(m.nhan)}
-        </a>`;
-      })
+      .map((m) => m.nhom
+        ? `<div class="tk-menu__nhom" role="group" aria-label="${esc(m.nhom)}"><div class="tk-menu__nhom-ten">${svg(m.icon)}${esc(m.nhom)}</div>${m.con.map((c) => lienKet(c, true)).join("")}</div>`
+        : lienKet(m, false))
       .join("") + '<div class="tk-menu__chia" role="separator"></div>';
   }
 

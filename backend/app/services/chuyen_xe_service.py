@@ -262,6 +262,8 @@ def hanh_trinh(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
             "da_toi": diem["diem_don_tra_id"] in da_xac_nhan,
             "gio_thuc_te": da_xac_nhan.get(diem["diem_don_tra_id"]),
             "gio_du_kien": gio_du_kien(diem),
+            "loai": diem.get("loai"),  # van_phong | diem_dung
+            "ten_khu_vuc": diem.get("ten_khu_vuc"),
         }
         for vi_tri, diem in enumerate(diem_list, start=1)
     ]
@@ -298,7 +300,7 @@ def xac_nhan_toi_diem(chuyen_id: str, diem_don_tra_id: str, nguoi_dung_id: str) 
 
     # Xe đã tới điểm kế tiếp → không còn quay lại điểm vừa rời: khách ở đó vẫn chưa lên xe là "không đến"
     for ve in ve_repo.tim_ve_chua_len_tai_diem(chuyen_id, str(diem_vua_roi["diem_don_tra_id"])):
-        quet_no_show.danh_dau_khong_den(str(ve["ve_id"]), ve["khach_hang_id"])
+        quet_no_show.danh_dau_khong_den(ve)
 
     diem_cuoi_tuyen = diem_list[-1]["diem_don_tra_id"]
     da_hoan_thanh = diem_don_tra_id == diem_cuoi_tuyen

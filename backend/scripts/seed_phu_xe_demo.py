@@ -49,6 +49,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.config import DATABASE_URL  # noqa: E402
 from app.db import get_connection, release_connection  # noqa: E402
+from app.repositories import ma_repository  # noqa: E402
+from app.utils import ma_tu_sinh  # noqa: E402
 from app.services.mat_khau_service import _pwd_context  # noqa: E402
 
 MAT_KHAU_PHU_XE = "PhuXe@123"
@@ -191,11 +193,15 @@ def main() -> None:
     def phut(so_phut):
         return now_db + timedelta(minutes=so_phut)
 
+    # Mã chuyến do ứng dụng sinh (không còn trigger) — tuyến/loại xe demo cũ có mã rỗng thì dùng "DEMO"
+    ma_tuyen = mot("SELECT ma FROM tuyen WHERE id = %s", (tuyen,))
+    ma_loai_xe = mot("SELECT ma FROM loai_xe WHERE id = %s", (loai_xe,))
+
     def tao_chuyen(chieu, gio):
         return mot(
             """INSERT INTO chuyen_xe (tuyen_id, xe_id, loai_xe_id, gio_khoi_hanh, chieu, ma)
-               VALUES (%s, %s, %s, %s, %s, '') RETURNING id""",
-            (tuyen, xe, loai_xe, gio, chieu),
+               VALUES (%s, %s, %s, %s, %s, %s) RETURNING id""",
+            (tuyen, xe, loai_xe, gio, chieu, ma_tu_sinh.ma_chuyen(ma_tuyen or "DEMO", ma_loai_xe or "DEMO", gio, chieu)),
         )
 
     def thu_tu_diem(chieu):
@@ -227,11 +233,11 @@ def main() -> None:
         ten, sdt = (None, None) if khach_id else (ten_ngau_nhien(), sdt_ngau_nhien())
         seq["ma"] += 1
         cur.execute(
-            """INSERT INTO ve (chuyen_id, so_ghe, diem_don_id, diem_tra_id, khach_hang_id, ten_khach_vang_lai, sdt_khach_vang_lai,
+            """INSERT INTO ve (ma_ve, chuyen_id, so_ghe, diem_don_id, diem_tra_id, khach_hang_id, ten_khach_vang_lai, sdt_khach_vang_lai,
                                gia, ma_dat_cho, loai_hinh_thanh_toan, phuong_thuc_thanh_toan, trang_thai,
                                gio_thanh_toan, gio_len_xe, gio_xuong_xe, gio_hoan_tac)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-            (chuyen, so_ghe, diem[don], diem[tra], khach_id, ten, sdt, 120000 * hops, f"DEMO{seq['ma']:04d}",
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (ma_tu_sinh.ma_ve(ma_repository.so_tiep_theo(cur, "ve")), chuyen, so_ghe, diem[don], diem[tra], khach_id, ten, sdt, 120000 * hops, f"DEMO{seq['ma']:04d}",
              "thanh_toan_tai_quay" if tai_quay else "thanh_toan_ngay",
              rng.choice(["tien_mat", "chuyen_khoan"]) if da_tra else None, trang_thai,
              phut(-600) if da_tra else None,

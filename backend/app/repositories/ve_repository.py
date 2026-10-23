@@ -346,7 +346,7 @@ def tim_ve_chua_len_tai_diem(chuyen_id: str, diem_don_id: str) -> list[dict]:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT v.id AS ve_id, v.khach_hang_id, v.so_ghe, v.trang_thai,
+                SELECT v.id, v.id AS ve_id, v.khach_hang_id, v.ma_ve, v.so_ghe, v.trang_thai,
                        COALESCE(nd.ho_ten, v.ten_khach_vang_lai) AS ho_ten
                 FROM ve v
                 LEFT JOIN nguoi_dung nd ON nd.id = v.khach_hang_id

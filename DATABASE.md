@@ -511,8 +511,11 @@ Không đổi `don_hang.trang_thai` — chỉ ghi nhận, không chặn UC-26/UC
 | `don_hang_id` | UUID NULLABLE, FK → `don_hang(id)` | Liên kết cảnh báo hàng chờ lâu |
 | `da_doc` | BOOLEAN NOT NULL DEFAULT false | |
 | `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+| `duong_dan` | TEXT NULLABLE | Trang frontend mở ra khi bấm vào thông báo (VD `/nhan-vien/quan-ly/lich-chay.html`) — dùng cho cán bộ; `NULL` = chỉ có chữ. Migration `20261023_0900_thong_bao_duong_dan.sql` |
 
 **Thông báo gửi cho khách hàng** (`services/thong_bao_khach_service.py`, hiển thị ở trang Thông báo, kèm đẩy real-time qua WebSocket `/ws` và huy hiệu số chưa đọc): đặt vé thành công (chốt trả tại quầy), thanh toán thành công (cả lượt hoặc riêng 1 vé), thanh toán không thành công, hết hạn giữ chỗ (`jobs/quet_ve_het_han`), không đến (`jobs/quet_no_show`, kèm số lần vi phạm), sắp đến giờ đi (`jobs/quet_nhac_sap_di`, nhắc 1 lần khi còn `NHAC_TRUOC_GIO_DON_PHUT` phút tới giờ đón tại đúng điểm đón). Thông báo về xe đến điểm/sự cố do phụ xe gửi ở `chuyen_xe_service`. Ghi DB trước rồi mới đẩy; lỗi gửi thông báo không làm hỏng nghiệp vụ chính.
+
+**Thông báo gửi cho quản lý** (chuông ở thanh trên cùng khung Quản lý, `frontend/nhan-vien/quan-ly/thong-bao.js`, dùng chung API `/thong-bao/*` với mọi vai trò): hàng tồn cần quản lý xử lý (UC-25), phụ xe báo hàng thất lạc/hư hỏng (UC-28), giấy tờ nhân sự sắp/đã hết hạn (UC-49, gửi `quan_ly_nhan_su`; chỉ tới chuông Quản lý khi chưa có tài khoản `quan_ly_nhan_su` nào đang hoạt động — `quan_ly_nhan_su` không dùng chuông này), và hai nhắc việc hằng ngày của `jobs/nhac_quan_ly.py` gửi cho mọi `quan_ly` đang hoạt động, mỗi tình trạng chỉ một lần (nội dung chứa ngày cuối cùng nên giữ nguyên khi tình trạng không đổi; so sánh bằng `thong_bao_repository.da_co_thong_bao_giong`): (1) cặp lịch chạy đang áp dụng chỉ còn chuyến đến hết `NGUONG_NHAC_SINH_CHUYEN_NGAY` (7) ngày tới, đã hết chuyến, hoặc chưa sinh chuyến nào → mở trang Lịch chạy; (2) tuyến có lịch đang áp dụng mà bộ giá cuối kết thúc trong `NGUONG_NHAC_BO_GIA_NGAY` (14) ngày, đã kết thúc, hoặc chưa có bộ giá → mở trang Giá vé. Chỉ nhắc, không tự sinh chuyến hay tạo giá. Giao diện Quản lý gồm nhiều trang .html nên chuông không dựa riêng vào WebSocket: mỗi trang tải xong là hỏi API lấy số chưa đọc, hỏi lại mỗi 60 giây và khi tab hiện lại.
 
 ### 6.2. `nhat_ky_admin`
 

@@ -10,9 +10,18 @@ from app.repositories import chuyen_xe_repository as chuyen_xe_repo
 from app.repositories import don_hang_repository as don_hang_repo
 from app.repositories import nhan_su_van_hanh_repository as nhan_su_repo
 from app.repositories import ve_repository as ve_repo
+from app.repositories import xe_repository as xe_repo
 from app.services import chuyen_xe_service
 from app.services.chuyen_xe_service import lay_chuyen_cua_phu_xe
 from app.utils.loi import CamTruyCap, GiaTriLoi, KhongDuQuyen, KhongTimThay
+
+
+def _so_do_ghe_cua_chuyen(chuyen: dict) -> list[dict]:
+    """Sơ đồ ghế (mã ghế + tầng + vị trí) của loại xe chuyến này — để phụ xe nhìn khách theo vị trí ghế."""
+    loai_xe_id = chuyen.get("loai_xe_id")
+    loai_xe = xe_repo.tim_loai_xe_theo_id(str(loai_xe_id)) if loai_xe_id else None
+    so_do = loai_xe["so_do_ghe"] if loai_xe else None
+    return [{"ma_ghe": g["ma_ghe"], "tang": g["tang"], "x": g["x"], "y": g["y"]} for g in so_do] if isinstance(so_do, list) else []
 
 
 def tong_quan_chuyen(chuyen_id: str, nguoi_dung_id: str) -> dict:
@@ -40,6 +49,7 @@ def tong_quan_chuyen(chuyen_id: str, nguoi_dung_id: str) -> dict:
         "hanh_trinh": chuyen_xe_service.hanh_trinh(chuyen_id, nguoi_dung_id),
         "hanh_khach": ve_repo.tim_hanh_khach_cua_chuyen(chuyen_id),
         "hang_hoa": don_hang_repo.tim_hang_hoa_cua_chuyen(chuyen_id),
+        "so_do_ghe": _so_do_ghe_cua_chuyen(chuyen),
     }
 
 
