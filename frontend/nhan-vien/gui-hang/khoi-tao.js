@@ -5,7 +5,7 @@ function hienThongBaoChuaGanVanPhong() {
     <div class="nv-card blocking-card">
       <h2 class="card-title">🏢 Tài khoản chưa được gán văn phòng</h2>
       <p>Nhân viên gửi hàng chỉ thao tác tại văn phòng được phân công.
-      Vui lòng liên hệ quản lý để được gán văn phòng phụ trách, sau đó đăng nhập lại.</p>
+      Vui lòng liên hệ quản lý hoặc quản lý nhân sự để được gán văn phòng phụ trách, sau đó tải lại trang.</p>
     </div>`;
 }
 
@@ -33,6 +33,7 @@ async function khoiTaoVanPhong() {
   }
 
   const me = await apiGet("/auth/me");
+  state.nguoiDungId = me.id;
   if (!me.van_phong_id) {
     hienThongBaoChuaGanVanPhong();
     return false;
@@ -228,6 +229,8 @@ async function khoiTaoTrang() {
     if (TAB_HOP_LE.includes(daLuu)) tab = daLuu;
   } catch (_) {}
   chuyenTab(tab);
+
+  if (!laQuanLyXem()) khoiPhucDonChoTao();
 }
 
 window.chuyenTab = chuyenTab;

@@ -19,6 +19,7 @@ from app.repositories import don_hang_repository as don_hang_repo
 from app.repositories import nguoi_dung_repository as nguoi_dung_repo
 from app.repositories import thong_bao_repository as thong_bao_repo
 from app.schemas.don_hang_schema import TRUONG_LIEN_HE, HuyDonRequest, SuaThongTinLienHeRequest, TaoDonHangRequest
+from app.schemas.tai_khoan_can_bo_schema import VAI_TRO_CAN_VAN_PHONG
 from app.services import chuyen_xe_service
 from app.services.chuyen_xe_service import XeDangDiChuyen, diem_hien_tai, kiem_tra_ben_da_mo, lay_chuyen_cua_phu_xe
 from app.services.websocket_manager import broadcast_sync
@@ -82,9 +83,11 @@ def lay_danh_sach_loai_hang() -> list[dict]:
 
 
 def gan_van_phong_can_bo(nguoi_dung_id: str, van_phong_id: str) -> None:
-    """Chỉ gán hồ sơ văn phòng cho các vai trò nhân viên có phạm vi theo điểm."""
+    """Gán/đổi văn phòng cho quầy vé, gửi hàng (dùng chung quy tắc UC-36: VAI_TRO_CAN_VAN_PHONG).
+    Tạm giữ làm đường sửa văn phòng tới khi có nhánh "Đổi văn phòng" của UC-36 rồi xóa
+    (UC36_THAY_THE_GAN_VAN_PHONG_VA_DOI_VAN_PHONG.md mục 3.5)."""
     can_bo = nguoi_dung_repo.tim_theo_id(nguoi_dung_id)
-    if not can_bo or can_bo["vai_tro"] not in ("nhan_vien_quay_ve", "nhan_vien_gui_hang", "dieu_do_vien"):
+    if not can_bo or can_bo["vai_tro"] not in VAI_TRO_CAN_VAN_PHONG:
         raise GiaTriLoi("Tài khoản không thuộc nhóm cán bộ cần gán văn phòng")
     van_phong = dia_diem_repo.tim_diem_don_tra_theo_id(van_phong_id)
     if not van_phong or van_phong.get("loai") != "van_phong":
@@ -124,6 +127,15 @@ def lay_diem_nhan_kha_dung(van_phong_gui_id: str) -> list[dict]:
 def lay_tuyen_phu_hop(diem_gui_id: str, diem_nhan_id: str) -> list[dict]:
     """UC-23 bước 3: các tuyến đi qua cả điểm gửi và điểm nhận (nhiều tuyến thì nhân viên chọn 1)."""
     return don_hang_repo.tim_cac_tuyen_qua_hai_diem(diem_gui_id, diem_nhan_id)
+
+
+def tim_don_theo_khoa_chong_trung(nhan_vien_id: str, khoa_chong_trung: str) -> dict:
+    """Đơn mà chính nhân viên này đã tạo bằng khóa chống trùng — FE hỏi sau khi tải lại trang
+    giữa lúc chờ phản hồi tạo đơn, để biết đơn đã vào hệ thống chưa (không tạo mới)."""
+    don = don_hang_repo.tim_theo_khoa_chong_trung(nhan_vien_id, khoa_chong_trung)
+    if not don:
+        raise KhongTimThay("Chưa có đơn nào được tạo với khóa này")
+    return don
 
 
 def tao_don_hang(

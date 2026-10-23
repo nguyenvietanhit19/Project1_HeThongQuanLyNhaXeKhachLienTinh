@@ -61,7 +61,7 @@ router = APIRouter(prefix="/quan-ly", tags=["quan-ly"], dependencies=[Depends(ye
 
 @router.put("/ho-so-can-bo-diem/{nguoi_dung_id}")
 def gan_van_phong_can_bo(nguoi_dung_id: UUID, du_lieu: GanVanPhongCanBoRequest):
-    """Gán/cập nhật văn phòng cho nhân viên quầy vé, gửi hàng hoặc điều độ."""
+    """Gán/cập nhật văn phòng cho nhân viên quầy vé hoặc gửi hàng (điều độ viên không gắn văn phòng)."""
     gui_hang_service.gan_van_phong_can_bo(str(nguoi_dung_id), str(du_lieu.van_phong_id))
     return {"thong_bao": "Đã gán văn phòng phụ trách"}
 

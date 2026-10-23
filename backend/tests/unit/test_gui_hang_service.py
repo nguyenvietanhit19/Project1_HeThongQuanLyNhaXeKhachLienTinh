@@ -519,6 +519,21 @@ def test_tao_don_hang_khong_khoa_khong_tra_cuu_khoa(du_lieu_tao_don_mau):
             m.stop()
 
 
+# Tải lại trang khi chưa nhận được phản hồi tạo đơn: FE hỏi khóa cũ đã tạo đơn chưa (B2).
+def test_tim_don_theo_khoa_tra_don_cua_dung_nhan_vien():
+    nhan_vien_id = str(uuid4())
+    don_cu = {"id": str(uuid4()), "ma_van_don": "DH-CU"}
+    with patch("app.repositories.don_hang_repository.tim_theo_khoa_chong_trung", return_value=don_cu) as mock_tim:
+        assert gui_hang_service.tim_don_theo_khoa_chong_trung(nhan_vien_id, "khoa-12345678") is don_cu
+        mock_tim.assert_called_once_with(nhan_vien_id, "khoa-12345678")
+
+
+def test_tim_don_theo_khoa_chua_tao_bao_khong_tim_thay():
+    with patch("app.repositories.don_hang_repository.tim_theo_khoa_chong_trung", return_value=None):
+        with pytest.raises(KhongTimThay):
+            gui_hang_service.tim_don_theo_khoa_chong_trung(str(uuid4()), "khoa-12345678")
+
+
 def test_lich_su_trang_thai_chan_van_phong_khac():
     don = {"id": str(uuid4()), "diem_gui_id": str(uuid4()), "diem_nhan_id": str(uuid4())}
     with patch("app.repositories.don_hang_repository.tim_theo_id", return_value=don),          patch("app.repositories.don_hang_repository.lay_lich_su_trang_thai") as mock_ls:
@@ -1013,3 +1028,23 @@ def test_sua_lien_he_chan_khi_don_vua_bi_huy_giua_chung():
                side_effect=don_hang_repository.DonDaHuy()):
         with pytest.raises(GiaTriLoi, match="hủy"):
             gui_hang_service.sua_thong_tin_lien_he(don["id"], "nv", gui, SuaThongTinLienHeRequest(ten_nguoi_gui="X"))
+
+
+# Gán văn phòng: chỉ quầy vé và gửi hàng gắn văn phòng (NGHIEP_VU.md mục 2, UC-36) —
+# điều độ viên đã chuyển sang phụ trách theo tuyến.
+@pytest.mark.parametrize("vai_tro", ["nhan_vien_quay_ve", "nhan_vien_gui_hang"])
+def test_gan_van_phong_cho_quay_ve_va_gui_hang(vai_tro):
+    with patch("app.repositories.nguoi_dung_repository.tim_theo_id", return_value={"vai_tro": vai_tro}), \
+         patch("app.repositories.dia_diem_repository.tim_diem_don_tra_theo_id", return_value={"loai": "van_phong"}), \
+         patch("app.repositories.nguoi_dung_repository.gan_van_phong") as mock_gan:
+        gui_hang_service.gan_van_phong_can_bo("nv", "vp")
+        mock_gan.assert_called_once_with("nv", "vp")
+
+
+@pytest.mark.parametrize("vai_tro", ["dieu_do_vien", "phu_xe", "ke_toan"])
+def test_gan_van_phong_chan_vai_tro_khong_gan_van_phong(vai_tro):
+    with patch("app.repositories.nguoi_dung_repository.tim_theo_id", return_value={"vai_tro": vai_tro}), \
+         patch("app.repositories.nguoi_dung_repository.gan_van_phong") as mock_gan:
+        with pytest.raises(GiaTriLoi):
+            gui_hang_service.gan_van_phong_can_bo("nv", "vp")
+        mock_gan.assert_not_called()

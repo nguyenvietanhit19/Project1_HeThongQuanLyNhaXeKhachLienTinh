@@ -286,7 +286,7 @@ Mỗi đợt nên là **1 commit/PR riêng** để dễ review. Thứ tự đợ
 
 | # | Việc | Ai | Ghi chú |
 |---|---|---|---|
-| P1 | Tạo tài khoản `nhan_vien_gui_hang` **kèm** `van_phong_id` (UC-36), cho cả `quan_ly_nhan_su` gán | Người làm tài khoản cán bộ | Hiện chỉ có `PUT /quan-ly/ho-so-can-bo-diem` không có UI. Nhân viên chưa được gán văn phòng thì bị khóa hoàn toàn. Bạn có thể đưa sẵn hàm `gan_van_phong_can_bo` để họ gọi. |
+| P1 | Tạo tài khoản `nhan_vien_gui_hang` **kèm** `van_phong_id` (UC-36), cho cả `quan_ly_nhan_su` gán | Người làm tài khoản cán bộ (Nghĩa) | ✅ Phần tạo đã xong (#38, 23/10): UC-36 tự ghi `ho_so_can_bo_diem` cùng transaction, không gọi `gan_van_phong_can_bo`. Còn "đổi văn phòng" chưa code — xem mục 7.6. |
 | P2 | CRUD danh mục `loai_hang` / hàng cấm (mục 8.7 điểm 1, 10.5) | Người làm quản lý | Hiện chỉ có seed cứng. Không cho xóa loại đã có đơn tham chiếu. |
 | P3 | Trang công khai tra cứu mã vận đơn | Người làm FE khách hàng (hoặc bạn tự làm) | BE `/gui-hang/tra-cuu/{ma}` đã có. Nên thêm rate-limit. |
 | P4 | Trang đăng nhập cán bộ thiếu điều hướng `phu_xe` (bản `9a6fb60` có `phu_xe: "phu-xe/chuyen-cua-toi.html"`, nay đã mất) | tuanhdung | Bạn đang sửa `dang-nhap.html` nên có thể thêm luôn 1 dòng và báo họ. |
@@ -602,9 +602,9 @@ Ký hiệu: 🟢 tự làm được ngay · 🟡 cần bạn quyết trước ·
 
 | # | Việc | Công | Chi tiết |
 |---|---|---|---|
-| A1 🟢 | **Commit + mở PR** nhánh `feature/Trinh-chot-ca` | S | Working tree đang chưa commit: nhắc 24 giờ (migration `20261021_0900`), hàng trên chuyến có vấn đề, cảnh báo rời trang, xác nhận đăng xuất, CSS mới, biểu đồ, 6 sửa lỗi rà soát, nhóm "làm ngay" (đổi SĐT, chốt ca 2 cửa sổ, giới hạn 500, nhãn COD). Gợi ý tách 3 commit: (1) cảnh báo/thông báo + migration, (2) giao diện (CSS, biểu đồ, đăng xuất, nhãn), (3) sửa lỗi + góp ý. PR vào `integration/gop-nhanh-thanh-vien`, squash-merge. Trong mô tả PR ghi rõ: **thành viên khác phải `yoyo apply`** migration `20261021_0900`; **API đổi**: `PUT …/thong-tin-lien-he` bắt buộc `ly_do` khi đổi SĐT người nhận (chốt ca đã tạm bỏ 22/10 nên không còn trong PR). Chạy lại trước khi đẩy: unit, E2E gửi hàng, E2E chốt ca (bản script đã cập nhật nằm ở scratchpad phiên 21/10, bản cũ không còn đúng). |
-| A2 🔵 | Báo **tuanhdung**: 2 test no-show fail | S | `tests/unit/test_thong_bao_khach.py::test_job_khong_den_*` — #33 bỏ mất thông báo "không đến" cho khách trong `quet_no_show.py`. Không thuộc role, nhưng làm CI đỏ. |
-| A3 🟢 | Kiểm thử **đồng thời** trên PostgreSQL thật | M | Góp ý nêu: test hiện tại chưa chứng minh các tình huống tranh chấp. Viết 1 script chạy 2 luồng cùng lúc cho: 2 nhân viên cùng giao 1 đơn; hủy đơn đúng lúc phụ xe chất hàng; 2 lần chốt ca cùng lúc; ghi liên hệ đúng lúc giao. Kỳ vọng: mỗi cặp chỉ 1 bên thành công, bên kia nhận 400. Không cần sửa code nếu pass. |
+| A1 ✅ | **Commit + mở PR** nhánh `feature/Trinh-chot-ca` — **xong 23/10: PR #37 đã squash-merge vào integration** | S | Working tree đang chưa commit: nhắc 24 giờ (migration `20261021_0900`), hàng trên chuyến có vấn đề, cảnh báo rời trang, xác nhận đăng xuất, CSS mới, biểu đồ, 6 sửa lỗi rà soát, nhóm "làm ngay" (đổi SĐT, chốt ca 2 cửa sổ, giới hạn 500, nhãn COD). Gợi ý tách 3 commit: (1) cảnh báo/thông báo + migration, (2) giao diện (CSS, biểu đồ, đăng xuất, nhãn), (3) sửa lỗi + góp ý. PR vào `integration/gop-nhanh-thanh-vien`, squash-merge. Trong mô tả PR ghi rõ: **thành viên khác phải `yoyo apply`** migration `20261021_0900`; **API đổi**: `PUT …/thong-tin-lien-he` bắt buộc `ly_do` khi đổi SĐT người nhận (chốt ca đã tạm bỏ 22/10 nên không còn trong PR). Chạy lại trước khi đẩy: unit, E2E gửi hàng, E2E chốt ca (bản script đã cập nhật nằm ở scratchpad phiên 21/10, bản cũ không còn đúng). |
+| A2 🔵 | ~~Báo **tuanhdung**: 2 test no-show fail~~ (đã sửa ở #40) — còn báo **Sơn** 7 test #39 | S | `tests/unit/test_thong_bao_khach.py::test_job_khong_den_*` — #33 bỏ mất thông báo "không đến" cho khách trong `quet_no_show.py`. Không thuộc role, nhưng làm CI đỏ. **23/10:** thêm 7 test vé lẻ/VNPay fail sau #39 (`test_ve_le.py` ×6, `test_thong_bao_khach.py::test_ipn_ve_le_thanh_cong_bao_khach`) — #39 thêm kiểm tra `ma_tham_chieu_vnpay` trong `_ap_dung_ket_qua_ve` nhưng vé giả trong test chưa có trường này → báo người làm quầy vé (#39). Tin nhắn mẫu: mục 7.7. |
+| A3 ✅ | Kiểm thử **đồng thời** trên PostgreSQL thật — **xong 23/10, xem mục 7.8** | M | Góp ý nêu: test hiện tại chưa chứng minh các tình huống tranh chấp. Viết 1 script chạy 2 luồng cùng lúc cho: 2 nhân viên cùng giao 1 đơn; hủy đơn đúng lúc phụ xe chất hàng; 2 lần chốt ca cùng lúc; ghi liên hệ đúng lúc giao. Kỳ vọng: mỗi cặp chỉ 1 bên thành công, bên kia nhận 400. Không cần sửa code nếu pass. |
 
 #### B. Trong role, cần bạn quyết trước
 
@@ -618,7 +618,7 @@ Ký hiệu: 🟢 tự làm được ngay · 🟡 cần bạn quyết trước ·
   - **(b) Quản lý két đầy đủ**: tiền đầu ca, cấp thêm, nộp/rút, người nhận bàn giao — bảng mới, nhiều màn hình. Đúng thực tế hơn nhưng to so với đồ án.
   - **(c) Chỉ đổi nhãn**: "Thu ròng trong ca", cho phép số âm và giải thích trên phiếu. Ít công nhất nhưng chênh lệch vẫn sai khi ca chỉ có hoàn.
 
-**B2 🟡 — Chống tạo trùng khi tải lại trang (góp ý điểm 6)** · Công S–M
+**B2 ✅ — Chống tạo trùng khi tải lại trang (góp ý điểm 6)** · Công S–M · **xong 23/10, xem mục 7.8**
 
 - Hiện tại: khóa chống trùng chỉ nằm trong bộ nhớ (`state.khoaTaoDon`). Server đã tạo đơn nhưng mất phản hồi, nhân viên tải lại trang và nhập lại → khóa mới → đơn thứ 2. Cảnh báo "rời trang?" chỉ giảm bớt, không chặn được.
 - Làm: lưu `{khoa, noi_dung, nguoi_dung_id}` vào `sessionStorage` lúc bấm tạo; tạo xong thì xóa. Mở lại trang thấy còn khóa → gửi lại đúng nội dung đó với khóa cũ (BE trả lại đơn đã tạo nếu có) hoặc hỏi nhân viên. Tùy chọn phía BE: lưu băm nội dung kèm khóa, cùng khóa khác nội dung → 409 (cần thêm cột).
@@ -672,7 +672,7 @@ Ký hiệu: 🟢 tự làm được ngay · 🟡 cần bạn quyết trước ·
 
 | # | Trạng thái 21/10 | Việc còn lại |
 |---|---|---|
-| P1 | 🔵 BE có `PUT /quan-ly/ho-so-can-bo-diem/{id}`, **chưa có giao diện** | Người làm tài khoản cán bộ thêm ô chọn văn phòng khi tạo/sửa tài khoản `nhan_vien_gui_hang`. Chưa gán thì nhân viên bị khóa hoàn toàn. |
+| P1 | 🟡 Tạo kèm văn phòng ✅ (UC-36, #38); **đổi văn phòng chưa có** (cập nhật 23/10) | Chờ nhóm chốt 2 quy tắc đổi văn phòng; khi có rồi thì xóa chuỗi `gan_van_phong_can_bo` — mục 7.6. |
 | P2 | 🔵 Chưa có | CRUD loại hàng / hàng cấm cho quản lý; không cho xóa loại đã có đơn. |
 | P3 | 🔵 BE `/gui-hang/tra-cuu/{ma}` có, **chưa có trang** | Trang tra cứu mã vận đơn cho khách + rate-limit endpoint công khai. |
 | P4 | ✅ Đã có (`dang-nhap.html` điều hướng `phu_xe`) | — |
@@ -686,3 +686,95 @@ Ký hiệu: 🟢 tự làm được ngay · 🟡 cần bạn quyết trước ·
 3. Trong lúc chờ: B1 (chọn phương án a/b/c), A3 (kiểm thử đồng thời), B2.
 4. Sau khi nhóm chốt: C1 → C3 → C2 → C5 → C4.
 5. B3, B4: chỉ làm nếu còn thời gian.
+
+### 7.5. Dữ liệu test trên DB local (22/10/2026)
+
+Script `backend/scripts/seed_gui_hang_demo.py` (cùng kiểu `seed_phu_xe_demo.py`, chỉ chạy khi `DATABASE_URL` trỏ DB local):
+
+```
+docker compose exec backend python scripts/seed_gui_hang_demo.py
+```
+
+- **Hạ tầng** (giữ giữa các lần chạy): thêm VP Yên Bái, VP Sa Pa, điểm dừng Km 140, tuyến "Mỹ Đình -> Sa Pa (qua Yên Bái)" — cặp Mỹ Đình ↔ Lào Cai có 2 tuyến; 4 xe `…888.0x`; 4 tài khoản nhân viên gửi hàng (mỗi văn phòng 1, mật khẩu `GuiHang@123`) + 1 phụ xe `phuxe.guihang@demo.nhaxe.vn` (`PhuXe@123`) gắn xe đang chạy sắp tới Lào Cai.
+- **Đơn** (xóa và tạo lại mỗi lần chạy — chỉ đơn do 4 tài khoản demo tạo): đủ tình huống chờ xếp xe, hủy (có/không hoàn), sắp đến (chuyến gặp sự cố / đang hoãn), chờ gọi báo, đã nhắc 24 giờ, cảnh báo 7 ngày (đã/chưa từng báo), hàng tồn (chưa/đã báo quản lý, đã thỏa thuận), báo cáo hư hỏng, sửa SĐT, đã giao hôm nay + ~75 đơn lịch sử 14 ngày cho thống kê. Cờ và thông báo dựng đúng như job UC-46 đã chạy; riêng 1 đơn mốc 24 giờ và 1 đơn mốc 7 ngày để **chờ job** (lần quét kế tiếp sẽ nhắc + đẩy real-time).
+- Cuối script in mã vận đơn nổi bật theo từng văn phòng kèm việc nên thử.
+
+### 7.6. Khớp với UC-36 của quản lý nhân sự (23/10/2026)
+
+Sau khi gộp integration #37–#39. Nguồn: `KE_HOACH_UC36_TAO_TAI_KHOAN_CAN_BO.md`, `UC36_THAY_THE_GAN_VAN_PHONG_VA_DOI_VAN_PHONG.md`, `NGHIEP_VU.md` mục 2 + UC-36.
+
+**Quy tắc mới phía QLNS đã chốt, ảnh hưởng gửi hàng:**
+- `nhan_vien_gui_hang` bắt buộc chọn văn phòng lúc tạo (UC-36, `POST /quan-ly-nhan-su/tai-khoan`, cả `quan_ly_nhan_su` lẫn `quan_ly`); mật khẩu ban đầu mặc định, không gửi email/OTP.
+- Văn phòng "1 tại mỗi thời điểm", đổi được khi điều chuyển (nhánh kèm UC-36 — **chưa code**). Đơn cũ giữ ở văn phòng cũ.
+- `dieu_do_vien` **không gắn văn phòng** nữa (đề xuất điều độ theo tuyến đã duyệt).
+
+**Đã sửa:**
+
+| File | Sửa |
+|---|---|
+| `services/gui_hang_service.py` `gan_van_phong_can_bo` | Bỏ `dieu_do_vien`; dùng chung hằng số `VAI_TRO_CAN_VAN_PHONG` của `schemas/tai_khoan_can_bo_schema.py` (nhóm đổi quy tắc chỉ sửa 1 chỗ) |
+| `routes/quan_ly.py`, `repositories/nguoi_dung_repository.py` | Docstring bỏ "điều độ viên" |
+| `tests/unit/test_gui_hang_service.py` | +5 ca: quầy vé/gửi hàng gán được; điều độ viên/phụ xe/kế toán bị chặn |
+| `frontend/nhan-vien/gui-hang/khoi-tao.js` | Màn hình chặn: "liên hệ quản lý **hoặc quản lý nhân sự**", "tải lại trang" (middleware đọc `van_phong_id` mỗi request, không cần đăng nhập lại) |
+| `NGHIEP_VU_GUI_HANG.md` mục 1, mục 7 | Văn phòng chọn lúc tạo / đổi khi điều chuyển; vai trò `quan_ly_nhan_su` |
+| Mục 2 (P1) và 7.4 D (P1) | Cập nhật trạng thái |
+
+**Không cần sửa:** `_pham_vi_van_phong` (`routes/gui_hang.py`), các câu tìm nhân viên văn phòng để thông báo (`don_hang_repository.py`), `seed_gui_hang_demo.py` — chỉ đọc/ghi thẳng `ho_so_can_bo_diem`. `DATABASE.md` mục 1.3 phía QLNS đã sửa.
+
+**Còn chờ (theo thứ tự an toàn của QLNS, mục 3.5 file UC36):**
+1. **Giữ** chuỗi `gan_van_phong_can_bo` (route `PUT /quan-ly/ho-so-can-bo-diem`, `GanVanPhongCanBoRequest`, service, `nguoi_dung_repo.gan_van_phong`) — hiện là đường duy nhất sửa văn phòng gán nhầm.
+2. Nhóm chốt 2 quy tắc đổi văn phòng. Góc nhìn gửi hàng: **không chặn** khi còn đơn dở (quyền theo văn phòng, chốt ca tiền mặt đã tạm bỏ nên không có tiền treo theo người); lý do đổi **bắt buộc** cho nhất quán UC-51.
+3. QLNS code "đổi văn phòng" + merge → gửi hàng xóa chuỗi 4 hàm (PR nhỏ riêng), tìm lại `gan_van_phong` / `GanVanPhongCanBoRequest` toàn dự án, xóa 2 test gán văn phòng ở `test_gui_hang_service.py`.
+
+### 7.7. Tin nhắn báo test fail ngoài role (23/10/2026)
+
+Trạng thái unit test trên integration sau #39: **9 fail** (không có test gửi hàng nào). **Cập nhật sau #40, #42 (23/10): còn 7 fail** — 2 test no-show đã được #40 sửa nên **không cần gửi tin cho tuanhdung nữa**; chỉ còn tin cho Sơn. Tin nhắn mẫu:
+
+**~~Gửi tuanhdung (#33)~~ — đã tự sửa ở #40:**
+> Trên integration có 2 test no-show đang fail từ #33: `tests/unit/test_thong_bao_khach.py::test_job_khong_den_bao_khach_kem_so_lan` và `::test_job_khong_den_du_nguong_khoa_va_bao_khoa`. Test mong job `quet_no_show.py` gửi thông báo "Vé … bị ghi nhận là không đến … (hiện 2/3)" cho khách, nhưng job không gửi gì (`[]`) — có vẻ lúc sửa `quet_no_show.py` ở #33 bị mất đoạn gọi `thong_bao_khach_service` (`nd_khong_den`). Bạn xem lại giúp: nếu bỏ có chủ ý thì sửa test, còn không thì thêm lại lời gọi. Chạy thử: `python -m pytest tests/unit/test_thong_bao_khach.py -k khong_den`.
+
+**Gửi Sơn (#39, quầy vé):**
+> Sau #39 có 7 test vé lẻ / VNPay fail: `tests/unit/test_ve_le.py` (`test_ipn_ve_thanh_cong`, `test_ipn_ve_that_bai_khong_doi_gi`, `test_ipn_ve_sai_so_tien`, `test_ipn_ve_da_thanh_toan_roi`, `test_ipn_ve_da_bi_huy_trong_luc_thanh_toan_can_hoan_tien_tay`, `test_truy_van_ve_thanh_cong`) và `tests/unit/test_thong_bao_khach.py::test_ipn_ve_le_thanh_cong_bao_khach`. Nguyên nhân: `thanh_toan_service._ap_dung_ket_qua_ve` mới so `ve["ma_tham_chieu_vnpay"]` với `vnp_TxnRef`, còn vé giả trong các test cũ chưa có trường `ma_tham_chieu_vnpay` → trả `01 Transaction reference mismatch` thay vì `00`. Code đúng, chỉ cần thêm `ma_tham_chieu_vnpay` (bằng mã giao dịch test dùng) vào vé giả, và cập nhật mock `ghi_nhan_thanh_toan_ve_le` theo chữ ký mới 3 tham số. Chạy thử: `python -m pytest tests/unit/test_ve_le.py tests/unit/test_thong_bao_khach.py`.
+
+### 7.8. B2 + A3 (23/10/2026)
+
+**B2 — Chống tạo trùng khi tải lại trang**
+
+| Lớp | Sửa |
+|---|---|
+| BE | `GET /gui-hang/tao-don/khoa/{khoa}` (`routes/gui_hang.py`, `gui_hang_service.tim_don_theo_khoa_chong_trung`): đơn chính nhân viên đó đã tạo bằng `Idempotency-Key` này, 404 nếu chưa. Chỉ đọc, không tạo; khóa của nhân viên khác → 404 |
+| FE `tao-don.js` | Trước khi gửi tạo đơn lưu `{nguoi_dung_id, khoa, duLieu}` vào `sessionStorage` (theo từng tab → 2 tab không đè nhau). Thành công hoặc lỗi 4xx → xóa; mất mạng / 5xx → **giữ** (có thể đơn đã vào DB) |
+| FE khi mở trang | `khoiPhucDonChoTao`: còn khóa của đúng tài khoản → hỏi BE. Đã tạo → toast + biên nhận. Chưa tạo → mở lại hộp xác nhận với **đúng nội dung + khóa cũ** kèm nhắc "CHƯA được tạo, hỏi lại khách" — không tự gửi vì khách có thể đã đi. Hỏi lỗi mạng → giữ khóa, nhắc tải lại |
+| `core.js`, `khoi-tao.js` | `state.nguoiDungId` lấy từ `/auth/me` |
+| Test | +2 unit test service; thử API thật 6 ca (404 khóa mới, 201 tạo, 200 hỏi lại cùng mã, 404 nhân viên khác, 422 khóa sai định dạng, gửi lại cùng khóa → cùng đơn); mô phỏng FE bằng Node 5 ca (đã tạo / chưa tạo / mất mạng khi hỏi / khóa tài khoản khác / mất mạng vs 400 khi tạo) |
+
+Chưa thử bằng trình duyệt thật (phiên này không có công cụ trình duyệt) — nên tự thử: tạo đơn, tắt backend (`docker compose stop backend`) trước khi bấm tạo, F5, bật lại backend, F5.
+
+**A3 — Kiểm thử đồng thời:** `backend/scripts/kiem_thu_dong_thoi_gui_hang.py` (chỉ chạy DB local, tự dọn đơn thử)
+
+```
+docker compose exec backend python scripts/kiem_thu_dong_thoi_gui_hang.py 30
+```
+
+- Gọi thẳng hàm repository từ 2 luồng. Bản đầu chỉ dùng `threading.Barrier` → **1 bên luôn thắng 50/50 vòng**, tức 2 transaction không chồng nhau, test vô nghĩa. Bản cuối: kết nối "cổng" giữ khóa dòng, đợi `pg_stat_activity` thấy đủ 2 phiên chờ khóa rồi mới nhả; thứ tự khởi động đảo ngẫu nhiên.
+- Kết quả (30 vòng mỗi tình huống, cả 2 kết cục đều xảy ra):
+
+| Tình huống | Đúng | Phân bố |
+|---|---|---|
+| 2 nhân viên cùng giao 1 đơn | 30/30 | NV1 thắng 15, NV2 thắng 15 |
+| Hủy đúng lúc phụ xe chất hàng | 30/30 | hủy 15, chất 15 — dữ liệu không lai |
+| Ghi liên hệ đúng lúc giao | 30/30 | liên hệ kịp 12, bị chặn 18 — giao luôn thành công |
+| 2 nhân viên cùng hủy | 30/30 | 14 / 16 — hoàn tiền 1 lần |
+| 2 request tạo đơn cùng `Idempotency-Key` | 30/30 | luôn 1 đơn, 2 request nhận cùng đơn |
+
+- Kiểm tra ngược: thay `cap_nhat_giao_hang` bằng bản "đọc rồi mới UPDATE" (không điều kiện trong UPDATE) → script báo **SAI 0/10** (2 bên cùng giao) → script bắt được lỗi thật.
+- Chốt ca (tình huống "2 lần chốt ca cùng lúc") bỏ vì chốt ca đang tạm bỏ.
+
+**Phát hiện ngoài role (báo nhóm):** `backend/app/db.py` dùng `psycopg2.pool.SimpleConnectionPool` — theo tài liệu psycopg2 loại này **không an toàn khi dùng chung giữa nhiều luồng**, trong khi FastAPI chạy route `def` (đồng bộ) trên threadpool. Nên đổi sang `ThreadedConnectionPool` (cùng chữ ký `(minconn, maxconn, dsn=...)`, sửa 1 dòng). Ngoài ra `maxconn = 10`: quá 10 request đồng thời giữ kết nối thì `getconn()` ném `PoolError` thay vì chờ. File dùng chung → không tự sửa.
+
+### 7.9. Gộp integration #40, #42 (23/10/2026)
+
+- Merge không conflict. #40 (phụ xe) sửa file gửi hàng nhưng chỉ **thêm**: gỡ cặp mốc lịch sử khi hoàn tác chất/dỡ (`_go_moc_hoan_tac`), chặn hoàn tác khi chuyến `hoan_thanh`, thêm `diem_nhan_id` / `ngay_tao` vào danh sách chờ chất / chờ dỡ. Không đụng `tim_don_theo_khoa_chong_trung`, `gan_van_phong_can_bo`, hủy/giao/liên hệ.
+- Migration mới `20261023_0900_thong_bao_duong_dan` (thêm cột `thong_bao.duong_dan`, NULL được) — **đã `yoyo apply` DB local**.
+- Kiểm tra lại: unit **790 pass, 7 fail** (chỉ còn 7 test #39); A3 30/30 cả 5 tình huống; thử API B2 6/6.
+- `db.py` vẫn `SimpleConnectionPool` → phát hiện ở 7.8 vẫn còn.

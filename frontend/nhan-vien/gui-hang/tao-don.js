@@ -220,10 +220,15 @@ function xuLyGuiFormTaoDon(e) {
   const duLieu = thuThapDuLieuTaoDon();
   if (!duLieu) return;
   state.duLieuTaoDon = duLieu;
+  hienXacNhanTaoDon(duLieu);
+}
 
+/** Mở hộp xác nhận tạo đơn. canhBao: đoạn nhắc thêm ở đầu (đơn khôi phục sau khi tải lại trang). */
+function hienXacNhanTaoDon(duLieu, canhBao = "") {
   const b = duLieu.body;
   const dong = (nhan, giaTri) => `<div class="receipt-row"><span>${nhan}</span><strong>${escapeHtml(giaTri)}</strong></div>`;
   $("xnNoiDung").innerHTML = `
+    ${canhBao ? `<p class="card-desc"><strong>${escapeHtml(canhBao)}</strong></p>` : ""}
     ${dong("Người gửi:", `${b.ten_nguoi_gui} — ${b.sdt_nguoi_gui}`)}
     ${dong("Người nhận:", `${b.ten_nguoi_nhan} — ${b.sdt_nguoi_nhan}`)}
     ${dong("Văn phòng nhận:", duLieu.hienThi.vanPhongNhan)}
@@ -246,7 +251,10 @@ async function xacNhanTaoDon() {
     if (!state.khoaTaoDon || state.khoaTaoDon.json !== json) {
       state.khoaTaoDon = { json, khoa: taoKhoaNgauNhien() };
     }
+    // Lưu trước khi gửi: tải lại trang lúc đang chờ phản hồi vẫn biết khóa cũ để hỏi lại server.
+    luuDonChoTao(state.duLieuTaoDon, state.khoaTaoDon.khoa);
     const don = await apiPost("/gui-hang/tao-don", state.duLieuTaoDon.body, { "Idempotency-Key": state.khoaTaoDon.khoa });
+    xoaDonChoTao();
     state.khoaTaoDon = null;
     dongModal("modalXacNhanTaoDon");
     datLaiFormTaoDon();
@@ -254,10 +262,63 @@ async function xacNhanTaoDon() {
     hienThiBienNhan(don);
     capNhatSoDonHomNay();
   } catch (err) {
+    // Lỗi 4xx: server đã từ chối nên chắc chắn chưa có đơn. Mất mạng / 5xx: có thể đơn đã vào DB → giữ khóa.
+    if (err instanceof LoiApi && err.status >= 400 && err.status < 500) xoaDonChoTao();
     showToast("error", "Không tạo được đơn", err.message);
   } finally {
     state.dangTaoDon = false;
     btn.disabled = false;
+  }
+}
+
+// ====================================================================
+// Đơn đang tạo dở khi tải lại trang (chống tạo trùng — KE_HOACH_SUA_GUI_HANG.md B2)
+// Khóa chống trùng chỉ nằm trong bộ nhớ thì F5 lúc đang chờ phản hồi sẽ mất khóa: nhập lại → đơn thứ 2.
+// sessionStorage giữ theo từng tab nên 2 tab không đè đơn của nhau.
+// ====================================================================
+
+const KHOA_DON_CHO_TAO = "gui_hang_don_cho_tao";
+
+function luuDonChoTao(duLieu, khoa) {
+  try {
+    sessionStorage.setItem(KHOA_DON_CHO_TAO, JSON.stringify({ nguoi_dung_id: state.nguoiDungId, khoa, duLieu }));
+  } catch (_) {}
+}
+
+function xoaDonChoTao() {
+  try { sessionStorage.removeItem(KHOA_DON_CHO_TAO); } catch (_) {}
+}
+
+function docDonChoTao() {
+  try { return JSON.parse(sessionStorage.getItem(KHOA_DON_CHO_TAO) || "null"); } catch (_) { return null; }
+}
+
+/** Mở trang mà còn đơn đang gửi dở: hỏi server khóa đó đã tạo đơn chưa.
+ * Đã tạo → hiện biên nhận. Chưa → mở lại hộp xác nhận với ĐÚNG nội dung + khóa cũ (khách có thể đã đi nên không tự gửi). */
+async function khoiPhucDonChoTao() {
+  const cho = docDonChoTao();
+  if (!cho) return;
+  if (!cho.khoa || !cho.duLieu?.body || cho.nguoi_dung_id !== state.nguoiDungId) {
+    xoaDonChoTao();
+    return;
+  }
+  try {
+    const don = await apiGet(`/gui-hang/tao-don/khoa/${encodeURIComponent(cho.khoa)}`);
+    xoaDonChoTao();
+    showToast("success", "Đơn đã được tạo trước khi tải lại trang", `Đơn ${don.ma_van_don} đã có trong hệ thống — không cần tạo lại.`, 8000);
+    hienThiBienNhan(don);
+    capNhatSoDonHomNay();
+  } catch (err) {
+    if (!(err instanceof LoiApi && err.status === 404)) {
+      showToast("warning", "Chưa kiểm tra được đơn đang tạo dở", `${err.message}. Tải lại trang để kiểm tra lại trước khi nhập đơn mới.`, 8000);
+      return; // giữ khóa để lần sau hỏi lại
+    }
+    xoaDonChoTao();
+    state.duLieuTaoDon = cho.duLieu;
+    state.khoaTaoDon = { json: JSON.stringify(cho.duLieu.body), khoa: cho.khoa };
+    chuyenTab("tao-don");
+    hienXacNhanTaoDon(cho.duLieu,
+      "⚠️ Đơn này CHƯA được tạo: trang bị tải lại trước khi nhận được phản hồi. Hỏi lại khách — chỉ bấm tạo nếu khách vẫn gửi.");
   }
 }
 
