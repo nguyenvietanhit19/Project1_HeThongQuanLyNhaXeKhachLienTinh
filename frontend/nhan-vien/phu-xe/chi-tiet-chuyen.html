@@ -6,7 +6,7 @@
 <title>Tổng quan chuyến — Phụ xe</title>
 <link rel="stylesheet" href="/shared/design-tokens.css?v=2" />
 <link rel="stylesheet" href="phu-xe.css?v=19" />
-<link rel="stylesheet" href="phu-xe-pro.css?v=7" />
+<link rel="stylesheet" href="phu-xe-pro.css?v=8" />
 <link rel="manifest" href="manifest.webmanifest" />
 <script src="phu-xe-theme.js?v=1"></script>
 </head>
@@ -27,6 +27,12 @@
     <!-- Ba con số chính — nhìn một lần biết chuyến diễn ra thế nào -->
     <div class="quick-stats" id="so-lieu" hidden></div>
 
+    <!-- Chuyến đã hoàn thành: tóm tắt kết quả chạy (gộp từ màn thao tác cũ) -->
+    <div class="card section" id="khu-tom-tat" hidden>
+      <h2>Tóm tắt chuyến</h2>
+      <div id="noi-dung-tom-tat"></div>
+    </div>
+
     <!-- Chuyển nhanh giữa 3 mục: mặc định chỉ hiện danh sách gọn, bấm vào dòng nào mới ra chi tiết -->
     <div class="tabs" id="tabs" role="tablist" hidden>
       <button class="tab is-active" role="tab" data-tab="khach">Hành khách <span class="count-badge" id="dem-khach">0</span></button>
@@ -35,6 +41,7 @@
     </div>
 
     <div class="card section" id="tab-khach" hidden>
+      <h2>Tất cả hành khách theo điểm <span class="count-badge" id="dem-khach-diem">0</span></h2>
       <div class="filter-row" id="loc-khach"></div>
       <input class="input-field" type="search" id="tim-khach" inputmode="search" autocomplete="off"
              placeholder="Tìm ghế, tên, SĐT, mã đặt chỗ..." aria-label="Tìm hành khách" />
@@ -67,7 +74,7 @@
   </div>
 
   <script src="/shared/api-client.js"></script>
-  <script src="phu-xe-pro.js?v=2"></script>
+  <script src="phu-xe-pro.js?v=3"></script>
   <script src="../shared/auth-check.js"></script>
   <script src="tai-khoan-menu.js?v=3"></script>
   <script src="thong-bao.js?v=2"></script>
@@ -140,32 +147,95 @@
       document.querySelectorAll(`#${id} .filter-chip`).forEach((nut) => nut.addEventListener("click", () => onChon(nut.dataset.k)));
     }
 
-    // ---------- Hành khách ----------
+    // ---------- Hành khách: gom theo điểm dừng (bấm điểm để mở danh sách lên/xuống xe tại đó) ----------
+    const NHAN_LEN = {
+      da_thanh_toan: ["Chờ lên", "badge--cho"], giu_cho: ["Chưa trả tiền", "badge--cho"],
+      da_len_xe: ["Đã lên xe", "badge--xong"], da_xuong_xe: ["Đã lên xe", "badge--xong"], khong_den: ["Không đến", "badge--loi"],
+    };
+    const NHAN_XUONG = {
+      da_thanh_toan: ["Chưa lên xe", ""], giu_cho: ["Chưa lên xe", ""],
+      da_len_xe: ["Chờ xuống", "badge--cho"], da_xuong_xe: ["Đã xuống xe", "badge--xong"], khong_den: ["Không đến", "badge--loi"],
+    };
+    const nhomDangMo = new Set();   // điểm đang mở — giữ qua các lần lọc/tải lại
+
     function veKhach() {
       const ds = duLieu.hanh_khach;
+      const c = duLieu.chuyen;
       const dem = (k) => ds.filter((v) => dongNhom(k).includes(v.trang_thai)).length;
       veChip("loc-khach", [
         ["tat_ca", "Tất cả", ds.length], ["cho", "Chờ lên", dem("cho")], ["tren", "Trên xe", dem("tren")],
         ["xuong", "Đã xuống", dem("xuong")], ["khong_den", "Không đến", dem("khong_den")],
       ], locKhach, (k) => { locKhach = k; veKhach(); });
+      document.getElementById("dem-khach-diem").textContent = ds.length;
 
       const tuKhoa = chuanHoa(document.getElementById("tim-khach").value.trim());
-      const hien = ds.filter((v) =>
+      const dangLoc = locKhach !== "tat_ca" || !!tuKhoa;
+      const khop = (v) =>
         (locKhach === "tat_ca" || dongNhom(locKhach).includes(v.trang_thai)) &&
-        (!tuKhoa || chuanHoa([v.so_ghe, v.ho_ten, v.so_dien_thoai, v.ma_dat_cho].join(" ")).includes(tuKhoa))
-      );
-      document.getElementById("ds-khach").innerHTML = hien.length
-        ? hien.map((v) => `
+        (!tuKhoa || chuanHoa([v.so_ghe, v.ho_ten, v.so_dien_thoai, v.ma_dat_cho].join(" ")).includes(tuKhoa));
+
+      const xong = c.trang_thai === "hoan_thanh";
+      const daXuatPhat = ["dang_chay", "gap_su_co", "hoan_thanh"].includes(c.trang_thai);
+      const diem = duLieu.hanh_trinh;
+      let hienTai = 0;
+      diem.forEach((d, i) => { if (d.da_toi) hienTai = i; });
+
+      const dong = (v, phia) => {
+        const [chu, lop] = (phia === "len" ? NHAN_LEN : NHAN_XUONG)[v.trang_thai] || [v.trang_thai, ""];
+        const phu = phia === "len" ? `Đi tới ${esc(v.ten_diem_tra)}` : `Lên tại ${esc(v.ten_diem_don)}`;
+        return `
           <button type="button" class="row-btn" data-ve="${esc(v.ve_id)}">
             <span class="seat-code">${esc(v.so_ghe)}</span>
             <span class="row-btn__chinh">
               <span class="name">${esc(v.ho_ten)}</span>
-              <span class="sub">${esc(v.ten_diem_don)} → ${esc(v.ten_diem_tra)}</span>
+              <span class="sub">${phu}</span>
             </span>
-            ${badge(KHACH, v.trang_thai)}
-          </button>`).join("")
-        : '<p class="empty-state">Không có hành khách nào ở mục này.</p>';
-      document.querySelectorAll("#ds-khach .row-btn").forEach((nut) => nut.addEventListener("click", () => moKhach(nut.dataset.ve)));
+            <span class="badge ${lop}">${esc(chu)}</span>
+          </button>`;
+      };
+
+      const html = diem.map((d, i) => {
+        const id = d.diem_don_tra_id;
+        const lenTat = ds.filter((v) => v.diem_don_id === id);
+        const xuongTat = ds.filter((v) => v.diem_tra_id === id && v.trang_thai !== "khong_den");
+        if (!lenTat.length && !xuongTat.length) return "";
+        const len = lenTat.filter(khop), xuong = xuongTat.filter(khop);
+        if (dangLoc && !len.length && !xuong.length) return "";
+        const laHienTai = i === hienTai;
+        const daQua = d.da_toi || xong || (i === 0 && daXuatPhat);
+        const nhanDiem = laHienTai && xong ? "Đã đến điểm cuối"
+          : laHienTai ? (c.dang_di_chuyen ? "Xe vừa rời" : "Xe đang ở đây")
+          : daQua ? "Đã qua" : "Chưa tới";
+        const daLen = lenTat.filter((v) => ["da_len_xe", "da_xuong_xe"].includes(v.trang_thai)).length;
+        const daXuong = xuongTat.filter((v) => v.trang_thai === "da_xuong_xe").length;
+        const mo = nhomDangMo.has(id);
+        return `
+          <section class="diem-nhom${laHienTai ? " diem-nhom--hien-tai" : ""}${daQua && !laHienTai ? " diem-nhom--da-qua" : ""}${mo ? " is-mo" : ""}${dangLoc ? " dang-tim" : ""}" data-diem="${esc(id)}">
+            <button type="button" class="diem-nhom__dau" aria-expanded="${mo || dangLoc}">
+              <span class="diem-nhom__ten">${esc(d.ten_diem)}<small>${nhanDiem}</small></span>
+              <span class="diem-nhom__so">
+                <span title="Đã lên / tổng khách lên ở điểm này">↑ ${daLen}/${lenTat.length}</span>
+                <span title="Đã xuống / tổng khách xuống ở điểm này">↓ ${daXuong}/${xuongTat.length}</span>
+              </span>
+              <span class="diem-nhom__mui" aria-hidden="true">▾</span>
+            </button>
+            <div class="diem-nhom__than"><div class="diem-nhom__trong">
+              ${len.length ? `<h3 class="muc-nho">Lên xe tại đây (${len.length})</h3>${len.map((v) => dong(v, "len")).join("")}` : ""}
+              ${xuong.length ? `<h3 class="muc-nho">Xuống xe tại đây (${xuong.length})</h3>${xuong.map((v) => dong(v, "xuong")).join("")}` : ""}
+            </div></div>
+          </section>`;
+      }).join("");
+
+      const kho = document.getElementById("ds-khach");
+      kho.innerHTML = html || '<p class="empty-state">Không có hành khách nào ở mục này.</p>';
+      kho.querySelectorAll(".diem-nhom__dau").forEach((nut) => nut.addEventListener("click", () => {
+        const nhom = nut.closest(".diem-nhom");
+        const id = nhom.dataset.diem;
+        if (nhomDangMo.has(id)) nhomDangMo.delete(id); else nhomDangMo.add(id);
+        nhom.classList.toggle("is-mo", nhomDangMo.has(id));
+        nut.setAttribute("aria-expanded", nhomDangMo.has(id));
+      }));
+      kho.querySelectorAll(".row-btn").forEach((nut) => nut.addEventListener("click", () => moKhach(nut.dataset.ve)));
     }
 
     function moKhach(veId) {
@@ -294,6 +364,42 @@
     })();
     document.getElementById("tim-khach").addEventListener("input", () => duLieu && veKhach());
 
+
+    // ---------- Tóm tắt chuyến (khi đã hoàn thành) ----------
+    function veTomTat(t) {
+      const k = t.hanh_khach, h = t.hang_hoa, c = t.chuyen;
+      const dem = (...tt) => k.filter((v) => tt.includes(v.trang_thai)).length;
+      const demHang = (...tt) => h.filter((d) => tt.includes(d.trang_thai)).length;
+      const conTrenXe = dem("da_len_xe"), hangTrenXe = demHang("da_len_xe");
+      const hoanTac = k.filter((v) => v.da_hoan_tac).length;
+      const donHuHong = h.filter((d) => d.so_bao_hu_hong > 0).length;
+      const donThatLac = h.filter((d) => d.so_bao_that_lac > 0).length;
+
+      let thoiGian = "";
+      if (c.gio_xac_nhan_xuat_phat && c.gio_hoan_thanh) {
+        const phut = Math.max(0, Math.round((new Date(c.gio_hoan_thanh) - new Date(c.gio_xac_nhan_xuat_phat)) / 60000));
+        thoiGian = `${gio(c.gio_xac_nhan_xuat_phat)} → ${gio(c.gio_hoan_thanh)} (${Math.floor(phut / 60)}g ${phut % 60}p)`;
+      }
+      const dong = (ten, so, loi) => `<div class="tt-dong"><span>${ten}</span><b class="${loi ? "text-error" : ""}">${so}</b></div>`;
+      const canhBao = [];
+      if (conTrenXe) canhBao.push(`Còn ${conTrenXe} khách chưa được xác nhận xuống xe.`);
+      if (hangTrenXe) canhBao.push(`Còn ${hangTrenXe} đơn hàng chưa dỡ khỏi xe.`);
+      return (
+        (canhBao.length ? `<div class="status-banner status-banner--warning">${canhBao.map((x) => `<div>${esc(x)}</div>`).join("")}</div>` : "") +
+        (thoiGian ? `<p class="hint">Chạy: <b>${esc(thoiGian)}</b></p>` : "") +
+        dong("Khách có vé", k.length) +
+        dong("Đã lên xe", dem("da_len_xe", "da_xuong_xe")) +
+        dong("Đã xuống xe", dem("da_xuong_xe")) +
+        dong("Không đến", dem("khong_den")) +
+        dong("Chưa trả tiền, không lên xe", dem("giu_cho")) +
+        dong("Số lần hoàn tác lên/xuống", hoanTac) +
+        dong("Đơn hàng trên chuyến", h.length) +
+        dong("Đã dỡ / đã giao", demHang("cho_lay", "da_giao", "qua_han_luu_kho")) +
+        dong("Đơn báo hư hỏng", donHuHong, donHuHong > 0) +
+        dong("Đơn báo thất lạc", donThatLac, donThatLac > 0)
+      );
+    }
+
     // ---------- Tải dữ liệu ----------
     async function taiDuLieu() {
       duLieu = await apiGet(`/phu-xe/chuyen/${chuyenId}/tong-quan`);
@@ -331,8 +437,16 @@
       document.getElementById("dem-khach").textContent = k.length;
       document.getElementById("dem-hang").textContent = duLieu.hang_hoa.length;
 
-      // Liên kết sang màn thao tác khi chuyến còn thao tác được
-      const thaoTac = ["chua_khoi_hanh", "dang_chay", "hoan_thanh"].includes(c.trang_thai);
+      // Chuyến đã hoàn thành VÀ xử lý hết khách/hàng → màn "Thao tác" không còn việc gì: gộp vào trang này
+      // (hiện tóm tắt, bỏ liên kết + mục menu "Thao tác chuyến này"). Còn sót khách/hàng thì vẫn giữ lối sang màn thao tác để xử lý nốt.
+      const hangTrenXe = duLieu.hang_hoa.filter((d) => d.trang_thai === "da_len_xe").length;
+      const xongHet = c.trang_thai === "hoan_thanh" && dem("tren") === 0 && hangTrenXe === 0;
+      document.getElementById("khu-tom-tat").hidden = c.trang_thai !== "hoan_thanh";
+      document.getElementById("noi-dung-tom-tat").innerHTML = c.trang_thai === "hoan_thanh" ? veTomTat(duLieu) : "";
+      document.querySelectorAll(".tk-menu__nhom").forEach((e) => { e.style.display = xongHet ? "none" : ""; });
+      if (xongHet) banner.innerHTML = '<div class="status-banner status-banner--success">✓ Chuyến đã hoàn thành — khách và hàng đã xử lý xong.</div>';
+
+      const thaoTac = ["chua_khoi_hanh", "dang_chay", "hoan_thanh"].includes(c.trang_thai) && !xongHet;
       document.getElementById("khu-thao-tac").hidden = !thaoTac;
       document.getElementById("lien-ket-thao-tac").href = `chuyen-dang-chay.html?chuyen_id=${encodeURIComponent(chuyenId)}`;
 

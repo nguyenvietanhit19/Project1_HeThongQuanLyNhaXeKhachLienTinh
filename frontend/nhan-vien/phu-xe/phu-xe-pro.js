@@ -174,6 +174,7 @@
     if (!sk) return;
     const go = () => { sk.remove(); };
     const tieuDe = document.getElementById("tieu-de-tuyen");
+    if (tieuDe && tieuDe.textContent.trim() !== "Đang tải...") { go(); return; }   // dữ liệu về trước khi DOM sẵn sàng
     if (tieuDe) {
       const bd = tieuDe.textContent;
       new MutationObserver((_, ob) => { if (tieuDe.textContent !== bd) { ob.disconnect(); go(); } })

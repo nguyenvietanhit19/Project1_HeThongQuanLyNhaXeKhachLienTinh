@@ -6,7 +6,7 @@
 <title>Chuyến đang chạy — Phụ xe</title>
 <link rel="stylesheet" href="/shared/design-tokens.css?v=2" />
 <link rel="stylesheet" href="phu-xe.css?v=21" />
-<link rel="stylesheet" href="phu-xe-pro.css?v=7" />
+<link rel="stylesheet" href="phu-xe-pro.css?v=8" />
 <link rel="manifest" href="manifest.webmanifest" />
 <script src="phu-xe-theme.js?v=1"></script>
 </head>
@@ -161,7 +161,7 @@
   </div>
 
   <script src="/shared/api-client.js"></script>
-  <script src="phu-xe-pro.js?v=2"></script>
+  <script src="phu-xe-pro.js?v=3"></script>
   <script src="../shared/auth-check.js"></script>
   <script src="tai-khoan-menu.js?v=3"></script>
   <script src="thong-bao.js?v=2"></script>
@@ -1323,9 +1323,12 @@
       elHien("khu-xong", xongHet);
       // Vừa đủ điều kiện hoàn thành chuyến (xe tới điểm cuối và hết khách/hàng cần xử lý) ngay trong phiên này
       // → cuộn lên đầu trang + báo "đã hoàn thành". Mở trang khi chuyến đã xong từ trước thì không báo lại.
-      if (xongHet && daXongHetTruocDo === false) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-        hienLoi("✓ Chuyến đã hoàn thành — khách và hàng đã xử lý xong.");
+      // Đã xong HẾT → không còn thao tác nào ở màn này: phần xem lại (tóm tắt, hành khách theo điểm, hàng, hành trình) nằm ở "Tổng quan chuyến".
+      // Vừa xong ngay trong phiên này thì báo trước rồi mới chuyển; mở lại chuyến đã xong từ trước thì chuyển thẳng.
+      if (xongHet) {
+        if (daXongHetTruocDo === false) await hienLoi("✓ Chuyến đã hoàn thành — khách và hàng đã xử lý xong. Chuyển sang Tổng quan chuyến.", "thanh-cong");
+        window.location.replace(`chi-tiet-chuyen.html?chuyen_id=${encodeURIComponent(chuyenId)}`);
+        return;
       }
       daXongHetTruocDo = xongHet;
       if (hoanThanh && !xongHet) {
