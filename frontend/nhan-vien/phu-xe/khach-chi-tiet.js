@@ -57,9 +57,6 @@
     dung();
     const [tenTrangThai, lopTrangThai] = NHAN_KHACH[v.trang_thai] || [v.trang_thai, ""];
     const sdt = window.sdtSaoChep(v.so_dien_thoai);
-    // Nhiều ghế trong cùng 1 lượt đặt = nhiều vé cùng ma_dat_cho (1 vé = 1 ghế)
-    const cungDat = (tuyChon.tatCaKhach || []).filter((k) => k.ma_dat_cho === v.ma_dat_cho)
-      .sort((a, b) => String(a.so_ghe).localeCompare(String(b.so_ghe), "vi", { numeric: true }));
     const thanhToan =v.loai_hinh_thanh_toan === "thanh_toan_tai_quay" ? "thanh toán tại quầy" : "đã thanh toán online";
     noiDung.innerHTML = `
       <div class="tk-ho-so__dau">
@@ -70,10 +67,6 @@
         <dt>Số điện thoại</dt><dd>${sdt}</dd>
         <dt>Số ghế</dt><dd><b>${esc(v.so_ghe)}</b></dd>
         <dt>Mã đặt chỗ</dt><dd>${esc(v.ma_dat_cho)}</dd>
-        ${cungDat.length > 1 ? `<dt>Cùng đặt chỗ</dt><dd>${cungDat.length} ghế: ${cungDat.map((k) => {
-          const [ten] = NHAN_KHACH[k.trang_thai] || [k.trang_thai];
-          return `<span${k.ve_id === v.ve_id ? ' style="font-weight:700"' : ""}>${esc(k.so_ghe)} (${esc(ten)})</span>`;
-        }).join(", ")}</dd>` : ""}
         <dt>Điểm đón</dt><dd>${esc(v.ten_diem_don)}</dd>
         <dt>Điểm trả</dt><dd>${esc(v.ten_diem_tra)}</dd>
         <dt>Lên xe lúc</dt><dd>${gio(v.gio_len_xe)}</dd>
