@@ -54,10 +54,19 @@ def test_noi_dung_sap_di_cach_noi_thoi_gian_con_lai(con_phut, mong_doi):
 # ---------------------------------------------------------
 def test_gui_luu_roi_day_real_time(monkeypatch):
     nhat_ky = []
-    monkeypatch.setattr(tbk.thong_bao_repo, "tao", lambda nguoi, nd, ve_id=None: nhat_ky.append(("luu", nguoi, nd, ve_id)))
+    monkeypatch.setattr(tbk.thong_bao_repo, "tao", lambda nguoi, nd, ve_id=None, duong_dan=None: nhat_ky.append(("luu", nguoi, nd, ve_id)))
     monkeypatch.setattr(tbk, "broadcast_sync", lambda nguoi, nd: nhat_ky.append(("day", nguoi, nd)))
     gui_that("kh1", "xin chào", ve_id="ve-1")
     assert nhat_ky == [("luu", "kh1", "xin chào", "ve-1"), ("day", "kh1", "xin chào")]  # đúng thứ tự: lưu TRƯỚC
+
+
+def test_gui_truyen_duong_dan_xuong_repo_de_bam_vao_thong_bao_mo_dung_trang(monkeypatch):
+    da_luu = []
+    monkeypatch.setattr(tbk.thong_bao_repo, "tao", lambda nguoi, nd, ve_id=None, duong_dan=None: da_luu.append((nguoi, nd, duong_dan)))
+    monkeypatch.setattr(tbk, "broadcast_sync", lambda nguoi, nd: None)
+    gui_that("ql1", "Lịch sắp hết chuyến", duong_dan="/nhan-vien/quan-ly/lich-chay.html")
+    gui_that("ql1", "Không kèm đường dẫn")
+    assert da_luu == [("ql1", "Lịch sắp hết chuyến", "/nhan-vien/quan-ly/lich-chay.html"), ("ql1", "Không kèm đường dẫn", None)]
 
 
 def test_gui_khong_co_nguoi_nhan_thi_bo_qua(monkeypatch):
