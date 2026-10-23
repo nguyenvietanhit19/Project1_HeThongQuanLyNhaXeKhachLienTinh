@@ -62,11 +62,13 @@ def _ap_dung_ket_qua(ma_dat_cho: str, so_tien_cong: str, thanh_cong: bool, ma_gi
 TUOI_TOI_DA_DE_QUET_GIAY = 1200  # ngừng hỏi VNPay giao dịch đã quá 20 phút (vé trả tại quầy bỏ dở thì thôi, không hỏi mãi)
 
 
-def _ap_dung_ket_qua_ve(ma_ve: str, so_tien_cong: str, thanh_cong: bool, ma_giao_dich_cong: str) -> dict:
+def _ap_dung_ket_qua_ve(ma_ve: str, so_tien_cong: str, thanh_cong: bool, ma_giao_dich_cong: str, ma_tham_chieu: str) -> dict:
     """Kết quả giao dịch thanh toán riêng 1 vé: thành công → vé `da_thanh_toan`; thất bại → giữ nguyên (vẫn trả tại quầy)."""
     ve = repo.lay_ve_theo_ma_ve(ma_ve)
     if not ve:
         return _rsp("01", "Order not found")
+    if ve.get("ma_tham_chieu_vnpay") != ma_tham_chieu:
+        return _rsp("01", "Transaction reference mismatch")
     if ve["trang_thai"] == "da_thanh_toan":
         return _rsp("02", "Order already confirmed")
     try:
@@ -76,7 +78,7 @@ def _ap_dung_ket_qua_ve(ma_ve: str, so_tien_cong: str, thanh_cong: bool, ma_giao
     if so_tien != int(ve["gia"]) * 100:
         return _rsp("04", "Invalid amount")
     if thanh_cong:
-        if not repo.ghi_nhan_thanh_toan_ve_le(ma_ve, ma_giao_dich_cong):
+        if not repo.ghi_nhan_thanh_toan_ve_le(ma_ve, ma_tham_chieu, ma_giao_dich_cong):
             # Tiền đã trừ nhưng vé đã bị hủy/hết hạn trong lúc thanh toán: dừng cổng gọi lại, cần hoàn tiền thủ công (UC-22)
             return _rsp("02", "Order expired")
         thong_bao.gui(
@@ -91,6 +93,12 @@ def xu_ly_ipn(tham_so: dict) -> dict:
     thanh_cong = tham_so.get("vnp_ResponseCode") == "00" and tham_so.get("vnp_TransactionStatus", "00") == "00"
     ma_giao_dich = tham_so.get("vnp_TxnRef", "")
     ap_dung = _ap_dung_ket_qua_ve if vnpay_service.la_giao_dich_cua_ve(ma_giao_dich) else _ap_dung_ket_qua
+    if ap_dung is _ap_dung_ket_qua_ve:
+        return ap_dung(
+            vnpay_service.ma_dat_cho_tu_ma_giao_dich(ma_giao_dich),
+            tham_so.get("vnp_Amount", "0"), thanh_cong,
+            str(tham_so.get("vnp_TransactionNo", "")), ma_giao_dich,
+        )
     return ap_dung(
         vnpay_service.ma_dat_cho_tu_ma_giao_dich(ma_giao_dich),  # phần trước dấu "-": mã đặt chỗ, hoặc mã vé nếu là giao dịch 1 vé
         tham_so.get("vnp_Amount", "0"),
@@ -142,7 +150,10 @@ def xac_nhan_qua_truy_van(ma_giao_dich: str) -> dict:
     if kq is None:
         return {"trang_thai": ket_luan}
     ap_dung = _ap_dung_ket_qua_ve if cua_ve else _ap_dung_ket_qua
-    rsp = ap_dung(ma_goc, str(kq.get("vnp_Amount", "0")), ket_luan == "00", str(kq.get("vnp_TransactionNo", "")))
+    if cua_ve:
+        rsp = ap_dung(ma_goc, str(kq.get("vnp_Amount", "0")), ket_luan == "00", str(kq.get("vnp_TransactionNo", "")), ma_giao_dich)
+    else:
+        rsp = ap_dung(ma_goc, str(kq.get("vnp_Amount", "0")), ket_luan == "00", str(kq.get("vnp_TransactionNo", "")))
     if ket_luan == "00":
         if rsp["RspCode"] == "00":
             return {"trang_thai": "thanh_cong"}
