@@ -71,7 +71,7 @@ def test_tao_don_hang_chan_diem_khong_thuoc_tuyen(du_lieu_tao_don_mau):
          patch("app.repositories.dia_diem_repository.tim_tuyen_theo_id") as mock_tuyen, \
          patch("app.repositories.don_hang_repository.kiem_tra_diem_thuoc_tuyen") as mock_chk:
         mock_lh.return_value = {"id": str(du_lieu_tao_don_mau.loai_hang_id), "ten": "Quần áo", "la_hang_cam": False}
-        mock_diem.side_effect = lambda did: {"id": str(did), "ten": f"VP {did}", "loai": "van_phong"}
+        mock_diem.side_effect = lambda did: {"id": str(did), "ten": f"VP {did}", "loai": "van_phong", "khu_vuc_id": f"kv-{did}"}
         mock_tuyen.return_value = {"id": str(du_lieu_tao_don_mau.tuyen_id), "ten": "Hà Nội - SaPa"}
         mock_chk.return_value = None  # Điểm không thuộc tuyến
 
@@ -84,10 +84,23 @@ def test_tao_don_hang_tra_truoc_bat_buoc_xac_nhan_da_thu(du_lieu_tao_don_mau):
     with patch("app.repositories.don_hang_repository.tim_loai_hang_theo_id") as mock_lh, \
          patch("app.repositories.dia_diem_repository.tim_diem_don_tra_theo_id") as mock_diem:
         mock_lh.return_value = {"id": str(du_lieu_tao_don_mau.loai_hang_id), "ten": "Quần áo", "la_hang_cam": False}
-        mock_diem.side_effect = lambda did: {"id": str(did), "ten": f"VP {did}", "loai": "van_phong"}
+        mock_diem.side_effect = lambda did: {"id": str(did), "ten": f"VP {did}", "loai": "van_phong", "khu_vuc_id": f"kv-{did}"}
 
         with pytest.raises(GiaTriLoi, match="xác nhận đã thu cước"):
             gui_hang_service.tao_don_hang(du_lieu_tao_don_mau, nhan_vien_id=str(uuid4()))
+
+
+# Chỉ gửi tới văn phòng ở khu vực KHÁC văn phòng gửi (không gửi nội khu vực)
+def test_tao_don_hang_chan_van_phong_nhan_cung_khu_vuc(du_lieu_tao_don_mau):
+    with patch("app.repositories.don_hang_repository.tim_loai_hang_theo_id") as mock_lh, \
+         patch("app.repositories.dia_diem_repository.tim_diem_don_tra_theo_id") as mock_diem, \
+         patch("app.repositories.don_hang_repository.tao_don_hang") as mock_tao:
+        mock_lh.return_value = {"id": str(du_lieu_tao_don_mau.loai_hang_id), "ten": "Quần áo", "la_hang_cam": False}
+        mock_diem.side_effect = lambda did: {"id": str(did), "ten": f"VP {did}", "loai": "van_phong", "khu_vuc_id": "kv-lao-cai"}
+
+        with pytest.raises(GiaTriLoi, match="khu vực khác"):
+            gui_hang_service.tao_don_hang(du_lieu_tao_don_mau, nhan_vien_id=str(uuid4()))
+        mock_tao.assert_not_called()
 
 
 def test_lay_tuyen_phu_hop():
@@ -438,7 +451,7 @@ def _mock_tao_don_hop_le(du_lieu):
         patch("app.repositories.don_hang_repository.tim_loai_hang_theo_id",
               return_value={"id": str(du_lieu.loai_hang_id), "ten": "Quần áo", "la_hang_cam": False}),
         patch("app.repositories.dia_diem_repository.tim_diem_don_tra_theo_id",
-              side_effect=lambda did: {"id": str(did), "ten": f"VP {did}", "loai": "van_phong"}),
+              side_effect=lambda did: {"id": str(did), "ten": f"VP {did}", "loai": "van_phong", "khu_vuc_id": f"kv-{did}"}),
         patch("app.repositories.dia_diem_repository.tim_tuyen_theo_id", return_value={"id": str(du_lieu.tuyen_id)}),
         patch("app.repositories.don_hang_repository.kiem_tra_diem_thuoc_tuyen", return_value={"chieu_van_chuyen": "xuoi"}),
     ]

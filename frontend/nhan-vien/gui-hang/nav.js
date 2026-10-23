@@ -1,6 +1,10 @@
 /*
  * nav.js — Sidebar, Topbar (văn phòng + chuông thông báo) và banner giới thiệu từng tab
  * cho phân hệ Nhân viên gửi hàng (GoBus Cargo).
+ *
+ * Sidebar đồng bộ với trang Quản lý (quan-ly/nav.js): thu gọn/mở rộng được (nhớ lựa chọn trong
+ * localStorage, dùng chung khóa với Quản lý), khối tài khoản ở cuối sidebar (họ tên, vai trò, menu
+ * "Tài khoản của tôi" / "Đăng xuất"). Modal tài khoản ở tai-khoan.js.
  */
 
 const ICON = {
@@ -10,7 +14,19 @@ const ICON = {
   canhBao: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
   thongKe: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
   chuong: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  sidebar: '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/>',
+  nguoi: '<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c0-4 3.4-6.5 7.5-6.5s7.5 2.5 7.5 6.5"/>',
+  dangXuat: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/>',
+  muiLen: '<path d="M7 14l5-5 5 5"/>',
 };
+
+const NHAN_VAI_TRO = {
+  nhan_vien_gui_hang: "NV gửi hàng",
+  quan_ly: "Quản lý (chỉ xem)",
+};
+
+// Cùng khóa với quan-ly/nav.js: thu gọn ở trang Quản lý thì sang Gửi hàng (quản lý xem) cũng thu gọn.
+const KHOA_THU_GON_SIDEBAR = "nv_sidebar_thu_gon";
 
 // chiQuay: chỉ nhân viên gửi hàng (thao tác tại quầy), quản lý không thấy.
 const MENU_GUI_HANG = [
@@ -62,6 +78,24 @@ function svgIcon(path, cls = "nv-sidebar__link-icon") {
   return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
 }
 
+function docTrangThaiThuGon() {
+  try {
+    return localStorage.getItem(KHOA_THU_GON_SIDEBAR) === "1";
+  } catch (_) {
+    return false;
+  }
+}
+
+function luuTrangThaiThuGon(thuGon) {
+  try {
+    localStorage.setItem(KHOA_THU_GON_SIDEBAR, thuGon ? "1" : "0");
+  } catch (_) {
+    /* trình duyệt chặn lưu trữ — vẫn thu gọn được trong phiên này */
+  }
+}
+
+/* Dựng sidebar ngay khi mở trang (trước cả khi nạp văn phòng) để khối tài khoản / Đăng xuất
+   luôn dùng được, kể cả khi tài khoản chưa được gán văn phòng. */
 function renderSidebar(containerEl, tabDangMo) {
   if (!containerEl) return;
   const links = menuTheoVaiTro().map(muc => `
@@ -72,17 +106,33 @@ function renderSidebar(containerEl, tabDangMo) {
 
   containerEl.innerHTML = `
     <div class="nv-sidebar__brand">
-      <span class="nv-sidebar__brand-mark">
+      <button type="button" class="nv-sidebar__brand-mark" id="nv-sidebar-mo-rong" aria-label="Mở rộng thanh bên" title="Mở rộng thanh bên">
         <img src="/shared/assets/logo-mark.png" alt="Logo" onerror="this.src='../../shared/assets/logo-mark.png'" />
-      </span>
+        ${svgIcon(ICON.sidebar, "nv-sidebar__expand-icon")}
+      </button>
       <span class="nv-sidebar__brand-text">
         <strong>GoBus</strong>
         <em>Kết nối mọi hành trình</em>
       </span>
+      <button type="button" class="nv-sidebar__collapse" id="nv-sidebar-thu-gon" aria-label="Thu gọn thanh bên" title="Thu gọn thanh bên">${svgIcon(ICON.sidebar, "")}</button>
     </div>
     <div class="nv-sidebar__section-title">Nghiệp vụ gửi hàng</div>
     <nav class="nv-sidebar__nav">${links}</nav>
-    <div class="nv-sidebar__deco" aria-hidden="true"></div>
+
+    <div class="nv-sidebar__tai-khoan">
+      <div class="nv-tk-menu" id="nv-tk-menu" role="menu" hidden>
+        <button type="button" class="nv-tk-menu__muc" role="menuitem" id="nv-tk-mo-ho-so">${svgIcon(ICON.nguoi, "")}Tài khoản của tôi</button>
+        <button type="button" class="nv-tk-menu__muc nv-tk-menu__muc--nguy" role="menuitem" id="nv-tk-dang-xuat">${svgIcon(ICON.dangXuat, "")}Đăng xuất</button>
+      </div>
+      <button type="button" class="nv-tk-nut" id="nv-tk-nut" aria-haspopup="true" aria-expanded="false" title="Tài khoản">
+        <span class="nv-tk-nut__avatar" id="nv-tk-avatar"></span>
+        <span class="nv-tk-nut__ten">
+          <strong id="nv-tk-ho-ten"></strong>
+          <em id="nv-tk-vai-tro"></em>
+        </span>
+        ${svgIcon(ICON.muiLen, "nv-tk-nut__mui")}
+      </button>
+    </div>
   `;
   containerEl.querySelectorAll("[data-tab]").forEach(a => {
     a.addEventListener("click", e => {
@@ -90,18 +140,79 @@ function renderSidebar(containerEl, tabDangMo) {
       chuyenTab(a.dataset.tab);
     });
   });
+
+  const datThuGon = thuGon => {
+    containerEl.classList.toggle("is-thu-gon", thuGon);
+    luuTrangThaiThuGon(thuGon);
+    dongMenuTaiKhoan();
+  };
+  containerEl.classList.toggle("is-thu-gon", docTrangThaiThuGon());
+  $("nv-sidebar-thu-gon").addEventListener("click", () => datThuGon(true));
+  $("nv-sidebar-mo-rong").addEventListener("click", () => datThuGon(false));
+
+  ganMenuTaiKhoan();
+  renderThongTinTaiKhoan();
+}
+
+/** Họ tên / vai trò / chữ cái đầu tên (từ cuối họ tên, VD "Nguyễn Văn An" → "A") ở khối tài khoản.
+ * Gọi lại sau khi đổi họ tên trong modal tài khoản. */
+function renderThongTinTaiKhoan() {
+  const hoTen = localStorage.getItem("ho_ten") || "Nhân viên gửi hàng";
+  datText("nv-tk-ho-ten", hoTen);
+  datText("nv-tk-vai-tro", NHAN_VAI_TRO[state.vaiTro] || state.vaiTro || "");
+  datText("nv-tk-avatar", hoTen.trim().split(/\s+/).slice(-1)[0]?.charAt(0).toUpperCase() || "?");
+}
+
+// ---------- Menu tài khoản (mở lên phía trên nút ở cuối sidebar) ----------
+function dongMenuTaiKhoan() {
+  const menu = $("nv-tk-menu");
+  if (menu) menu.hidden = true;
+  $("nv-tk-nut")?.setAttribute("aria-expanded", "false");
+}
+
+function ganMenuTaiKhoan() {
+  const menu = $("nv-tk-menu");
+  const nut = $("nv-tk-nut");
+  nut.addEventListener("click", e => {
+    e.stopPropagation();
+    const mo = menu.hidden;
+    menu.hidden = !mo;
+    nut.setAttribute("aria-expanded", String(mo));
+  });
+  document.addEventListener("click", e => {
+    if (!menu.hidden && !menu.contains(e.target)) dongMenuTaiKhoan();
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") dongMenuTaiKhoan();
+  });
+  $("nv-tk-mo-ho-so").addEventListener("click", () => {
+    dongMenuTaiKhoan();
+    TaiKhoanGuiHang.mo();
+  });
+  $("nv-tk-dang-xuat").addEventListener("click", () => {
+    dongMenuTaiKhoan();
+    moXacNhanDangXuat();
+  });
+
+  $("btnXacNhanDangXuat")?.addEventListener("click", () => {
+    window.boQuaCanhBaoRoiTrang = true; // đã cảnh báo đơn dở ngay trong hộp này — không để trình duyệt hỏi thêm lần nữa
+    dangXuatNhanVien();
+  });
+  // Tự đóng được bằng "Ở lại" / Esc kể cả khi trang khởi tạo lỗi hoặc tài khoản chưa gán văn phòng
+  // (lúc đó ganSuKien / khoiTaoPhimTat chưa chạy nên data-dong và phím Esc chung chưa hoạt động).
+  $("btnODaiDangXuat")?.addEventListener("click", () => dongModal("modalDangXuat"));
+  $("modalDangXuat")?.addEventListener("keydown", e => {
+    if (e.key === "Escape") dongModal("modalDangXuat");
+  });
 }
 
 /* Topbar dựng 1 lần, khi chuyển tab chỉ đổi tiêu đề — tránh mất trạng thái
-   chuông thông báo / ô chọn văn phòng của quản lý. */
+   chuông thông báo / ô chọn văn phòng của quản lý. Tài khoản + Đăng xuất nằm ở cuối sidebar. */
 function renderTopbar() {
   const containerEl = document.getElementById("nv-topbar");
   if (!containerEl) return;
 
-  const hoTen = localStorage.getItem("ho_ten") || "Nhân viên gửi hàng";
   const laQuanLy = laQuanLyXem();
-  const vaiTroText = laQuanLy ? "Quản lý (chỉ xem)" : "NV Gửi hàng";
-  const chuCaiDau = hoTen.trim().charAt(0).toUpperCase() || "?";
 
   const oVanPhong = laQuanLy
     ? `<select id="selectVanPhongXem" class="nv-topbar__select" title="Văn phòng đang xem">
@@ -136,28 +247,8 @@ function renderTopbar() {
           <div class="nv-bell__list" id="nvBellList"><div class="nv-bell__empty">Đang tải...</div></div>
         </div>
       </div>
-
-      <div class="nv-topbar__user">
-        <div class="nv-topbar__avatar">${escapeHtml(chuCaiDau)}</div>
-        <div class="nv-topbar__identity">
-          <span class="ho-ten">${escapeHtml(hoTen)}</span>
-          <span class="nv-topbar__role">${vaiTroText}</span>
-        </div>
-        <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
-      </div>
     </div>
   `;
-  document.getElementById("btn-dang-xuat").addEventListener("click", moXacNhanDangXuat);
-  document.getElementById("btnXacNhanDangXuat")?.addEventListener("click", () => {
-    window.boQuaCanhBaoRoiTrang = true; // đã cảnh báo đơn dở ngay trong hộp này — không để trình duyệt hỏi thêm lần nữa
-    dangXuatNhanVien();
-  });
-  // Tự đóng được bằng "Ở lại" / Esc kể cả khi trang khởi tạo lỗi hoặc tài khoản chưa gán văn phòng
-  // (lúc đó ganSuKien / khoiTaoPhimTat chưa chạy nên data-dong và phím Esc chung chưa hoạt động).
-  document.getElementById("btnODaiDangXuat")?.addEventListener("click", () => dongModal("modalDangXuat"));
-  document.getElementById("modalDangXuat")?.addEventListener("keydown", e => {
-    if (e.key === "Escape") dongModal("modalDangXuat");
-  });
 }
 
 /** Bấm "Đăng xuất" → hỏi lại trước khi thoát; có đơn đang nhập dở thì nói rõ sẽ mất. Mặc định chọn sẵn "Ở lại". */
@@ -186,7 +277,7 @@ function renderPageIntro(tabDangMo) {
   `;
 }
 
-/* Sidebar dựng 1 lần; các lần chuyển tab sau chỉ đổi mục đang chọn. */
+/* Sidebar dựng 1 lần (khoiTaoTrang); các lần chuyển tab sau chỉ đổi mục đang chọn. */
 function khoiTaoNav(tabHienTai) {
   const sidebar = document.getElementById("nv-sidebar");
   if (sidebar && !sidebar.childElementCount) renderSidebar(sidebar, tabHienTai);
