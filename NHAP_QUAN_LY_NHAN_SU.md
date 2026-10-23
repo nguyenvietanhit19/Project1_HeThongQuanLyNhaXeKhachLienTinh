@@ -1,5 +1,7 @@
 # Nghiệp vụ Quản lý nhân sự (`quan_ly_nhan_su`) — tổng hợp để đọc nhanh
 
+> **Cập nhật 23/10/2026 — UC-36 bỏ cơ chế mời bằng OTP.** Email cán bộ do công ty cấp nên không cần xác minh. Khi tạo, tài khoản có mật khẩu ban đầu mặc định `12345678` (lưu bản băm; response trả `mat_khau_ban_dau` để nhắc người tạo) và **không gửi email**; cán bộ đổi mật khẩu sau khi đăng nhập. OTP chỉ dùng khi quên mật khẩu. Mọi chỗ bên dưới nhắc "mời/OTP/`da_gui_email`/mail lỗi" cho UC-36 là **bản cũ**; bản đúng ở `NGHIEP_VU.md` UC-36 và `KE_HOACH_UC36_TAO_TAI_KHOAN_CAN_BO.md` mục 2.4. Giữ lại `da_xac_nhan = true` lúc tạo (`dang_nhap` chặn mọi tài khoản chưa xác nhận).
+
 > **File này không phải tài liệu gốc.** Nó **gom 1 chỗ** mọi thứ liên quan tới `quan_ly_nhan_su` trong `NGHIEP_VU.md`, `UML_DIAGRAMS.md`, `DATABASE.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md` (nhánh `integration/gop-nhanh-thanh-vien`) để đọc cho nhanh. Nếu lệch, **file gốc luôn đúng hơn**.
 >
 > Phạm vi hồ sơ: **chỉ tài xế và phụ xe**. Đề xuất mở rộng sang hồ sơ cán bộ văn phòng đã được cân nhắc và **không làm** — lý do ở mục 2.3, ghi chép ở mục 12.
@@ -369,7 +371,7 @@ UC-49, UC-51, UC-52 (vai trò `quan_ly_nhan_su`) **chưa phân công người** 
 | Cần | Đã có | Ghi chú |
 |---|---|---|
 | Bảng tài khoản | `nguoi_dung` — `mat_khau` cho phép NULL, có `la_tai_khoan_goc`, `dang_hoat_dong` | Tài khoản gốc đã seed sẵn |
-| Gán văn phòng cho cán bộ | `nguoi_dung_repository.gan_van_phong` + bảng `ho_so_can_bo_diem` (chỉ lưu văn phòng phụ trách, không phải hồ sơ nhân sự) | Chỉ áp dụng quầy vé / gửi hàng / điều độ viên |
+| Gán văn phòng cho cán bộ | `nguoi_dung_repository.gan_van_phong` + bảng `ho_so_can_bo_diem` (chỉ lưu văn phòng phụ trách, không phải hồ sơ nhân sự) | Chỉ áp dụng quầy vé / gửi hàng (điều độ viên không còn gắn văn phòng — nhóm đã duyệt) |
 | Gửi OTP qua email, đặt mật khẩu lần đầu | `mat_khau_service.quen_mat_khau` + `dat_lai_mat_khau`, trang `quen-mat-khau.html` | Hạn mã **1 phút** |
 | Danh sách văn phòng | bảng `diem_don_tra` với `loai = 'van_phong'` | Chưa có API cho `quan_ly_nhan_su` (API cũ khóa vai trò `quan_ly`) |
 | Thông báo nội bộ | `thong_bao_khach_service.gui` (lưu DB + đẩy real-time, nuốt lỗi) | Dùng được cho mọi `nguoi_dung` |
@@ -383,7 +385,7 @@ UC-49, UC-51, UC-52 (vai trò `quan_ly_nhan_su`) **chưa phân công người** 
 | # | Vấn đề | Quyết định | Ghi vào tài liệu gốc |
 |---|---|---|---|
 | 1 | Thông tin nhập khi tạo tài khoản | Email + **họ tên + SĐT** + vai trò (+ văn phòng). Họ tên/SĐT bắt buộc vì cột `NOT NULL`; SĐT chuẩn hóa bằng `chuan_hoa_so_dien_thoai` | ✅ UC-36 bước 1, UML UC-36 |
-| 2 | Vai trò nào cần văn phòng | Chỉ **quầy vé / gửi hàng / điều độ viên**. Phụ xe không gắn văn phòng (bản cũ ghi "bắt buộc trừ kế toán/quản lý/QLNS" — vô tình gồm phụ xe) | ✅ UC-36 bước 1 |
+| 2 | Vai trò nào cần văn phòng | Chỉ **quầy vé / gửi hàng**. Phụ xe, điều độ viên, kế toán, quản lý, QLNS không gắn văn phòng (bản cũ ghi "bắt buộc trừ kế toán/quản lý/QLNS" — vô tình gồm phụ xe; điều độ viên bỏ văn phòng theo đề xuất theo tuyến đã được nhóm duyệt) | ✅ UC-36 bước 1, mục 2 và 8.7 |
 | 3 | Cơ chế "thư mời" | Tạo `nguoi_dung` với `mat_khau = NULL`, `da_xac_nhan = true`, rồi gọi `quen_mat_khau(email)` để gửi OTP. Cán bộ đặt mật khẩu ở trang **Quên mật khẩu** (không có liên kết riêng). Không viết lại email | ✅ UC-36 bước 3-4, UML UC-36 |
 | 4 | Gửi mail lỗi | Tài khoản **vẫn tạo**, API trả cờ `da_gui_email = false` để người tạo báo cán bộ tự dùng Quên mật khẩu | ✅ UC-36 rẽ nhánh |
 | 5 | Thứ tự kiểm tra khi tạo | Quyền → định dạng SĐT → email trùng → văn phòng hợp lệ → mới tạo (kiểm tra hết trước khi ghi để không tạo dở) | — |

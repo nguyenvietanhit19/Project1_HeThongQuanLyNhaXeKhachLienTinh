@@ -13,6 +13,7 @@ from app.routes.phu_xe import router as phu_xe_router
 from app.routes.gui_hang import router as gui_hang_router
 from app.routes.nhan_su import router as nhan_su_router
 from app.routes.quan_ly import router as quan_ly_router
+from app.routes.tai_khoan_can_bo import router as tai_khoan_can_bo_router
 from app.routes.thanh_toan import router as thanh_toan_router
 from app.routes.ve import router as ve_router
 from app.routes.websocket import router as websocket_router
@@ -114,6 +115,7 @@ app.include_router(websocket_router)
 app.include_router(auth_router)
 app.include_router(quan_ly_router)
 app.include_router(nhan_su_router)
+app.include_router(tai_khoan_can_bo_router)
 app.include_router(phu_xe_router)
 app.include_router(gui_hang_router)
 app.include_router(thong_bao_router)
