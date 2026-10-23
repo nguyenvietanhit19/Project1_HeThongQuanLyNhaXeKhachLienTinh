@@ -136,7 +136,13 @@
     henSnack = setTimeout(an, ms);
   }
 
-  window.phuXe = { hoanTac, phanHoi, rung: phanHoi.thanhCong };
+  // ---------- Ngày giờ: LUÔN dd/MM/yyyy HH:mm (tự ghép, không nhờ toLocaleString vì mỗi trình duyệt in một kiểu: "22-10", "10/22"...) ----------
+  const hai = (n) => String(n).padStart(2, "0");
+  const ngay = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : `${hai(d.getDate())}/${hai(d.getMonth() + 1)}/${d.getFullYear()}`; };
+  const gio = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : `${hai(d.getHours())}:${hai(d.getMinutes())}`; };
+  const ngayGio = (iso) => { const n = ngay(iso); return n ? `${n} ${gio(iso)}` : ""; };
+
+  window.phuXe = { hoanTac, phanHoi, rung: phanHoi.thanhCong, ngay, gio, ngayGio };
 
   // ---------- 5. Nút trong menu ☰ ----------
   const TEN_GD = { auto: "Tự động", sang: "Sáng", toi: "Tối" };

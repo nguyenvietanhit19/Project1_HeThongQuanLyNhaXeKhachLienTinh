@@ -161,12 +161,12 @@
   </div>
 
   <script src="/shared/api-client.js"></script>
-  <script src="phu-xe-pro.js?v=1"></script>
+  <script src="phu-xe-pro.js?v=2"></script>
   <script src="../shared/auth-check.js"></script>
-  <script src="tai-khoan-menu.js?v=2"></script>
+  <script src="tai-khoan-menu.js?v=3"></script>
   <script src="thong-bao.js?v=2"></script>
-  <script src="khach-chi-tiet.js?v=2"></script>
-  <script src="hang-chi-tiet.js?v=4"></script>
+  <script src="khach-chi-tiet.js?v=3"></script>
+  <script src="hang-chi-tiet.js?v=5"></script>
   <script>
     requireRole("phu_xe");
 
@@ -184,7 +184,7 @@
 
     function dinhDangGio(iso) {
       if (!iso) return "";
-      return new Date(iso).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+      return window.phuXe.ngayGio(iso);
     }
 
     function elHien(id, hien) {
@@ -1085,7 +1085,7 @@
       return bay < new Date(gioKhoiHanh).getTime() ? "ben_mo" : "den_gio";
     }
     function benDaMo() { return trangThaiChuyen === "dang_chay" || ["ben_mo", "den_gio"].includes(giaiDoanGio()); }
-    function gioNgan(iso) { return new Date(iso).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }); }
+    function gioNgan(iso) { return window.phuXe.gio(iso); }
 
     let giaiDoanDaVe = null;
     setInterval(() => {

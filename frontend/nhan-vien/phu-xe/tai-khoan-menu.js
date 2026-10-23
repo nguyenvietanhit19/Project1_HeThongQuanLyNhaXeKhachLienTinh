@@ -18,7 +18,7 @@
   }
 
   function dinhDangNgay(iso) {
-    return iso ? new Date(iso).toLocaleDateString("vi-VN") : "";
+    return iso ? window.phuXe.ngay(iso) : "";
   }
 
   // ---------- Điều hướng: các mục chung + các mục theo chuyến đang xem (có ?chuyen_id=) ----------

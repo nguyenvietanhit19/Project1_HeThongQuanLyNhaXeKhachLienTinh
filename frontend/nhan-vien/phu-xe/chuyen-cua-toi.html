@@ -36,9 +36,9 @@
   </div>
 
   <script src="/shared/api-client.js"></script>
-  <script src="phu-xe-pro.js?v=1"></script>
+  <script src="phu-xe-pro.js?v=2"></script>
   <script src="../shared/auth-check.js"></script>
-  <script src="tai-khoan-menu.js?v=2"></script>
+  <script src="tai-khoan-menu.js?v=3"></script>
   <script>
     const { hoTen } = requireRole("phu_xe");
     document.getElementById("loi-chao").textContent = `Xin chào, ${hoTen}`;
@@ -66,8 +66,7 @@
     }
 
     function dinhDangGio(iso) {
-      const d = new Date(iso);
-      return d.toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+      return window.phuXe.ngayGio(iso);
     }
 
     // Bỏ dấu + hạ chữ thường để gõ "chua khoi hanh" vẫn ra "Chưa khởi hành"

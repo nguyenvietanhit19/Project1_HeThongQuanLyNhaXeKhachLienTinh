@@ -21,7 +21,7 @@
   }
 
   function gio(iso) {
-    return iso ? new Date(iso).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
+    return iso ? window.phuXe.ngayGio(iso) : "—";
   }
 
   function goi(sdt) {

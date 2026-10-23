@@ -29,6 +29,8 @@
         <input class="input-field" type="date" id="den_ngay" required />
         <button class="btn-primary" type="submit">Xem</button>
       </form>
+      <!-- Ô chọn ngày của trình duyệt hiện theo ngôn ngữ máy (có thể là tháng/ngày/năm) — dòng này luôn hiện dd/mm/yyyy -->
+      <p class="hint" id="khoang-ngay" aria-live="polite"></p>
       <div class="hang-loc" id="nhanh-ngay" role="toolbar" aria-label="Chọn nhanh khoảng ngày">
         <button type="button" class="hang-loc__chip" data-ngay="0">Hôm nay</button>
         <button type="button" class="hang-loc__chip" data-ngay="7">7 ngày</button>
@@ -92,9 +94,9 @@
   </div>
 
   <script src="/shared/api-client.js"></script>
-  <script src="phu-xe-pro.js?v=1"></script>
+  <script src="phu-xe-pro.js?v=2"></script>
   <script src="../shared/auth-check.js"></script>
-  <script src="tai-khoan-menu.js?v=2"></script>
+  <script src="tai-khoan-menu.js?v=3"></script>
   <script>
     requireRole("phu_xe");
 
@@ -112,7 +114,14 @@
     document.getElementById("tu_ngay").value = dinhDangNgay(ba0NgayTruoc);
     document.getElementById("den_ngay").value = dinhDangNgay(homNay);
 
+    // "2026-10-23" (giá trị ô date) → "23/10/2026"
+    function capNhatKhoangNgay() {
+      const dang = (v) => (v ? v.split("-").reverse().join("/") : "…");
+      document.getElementById("khoang-ngay").textContent = `Từ ${dang(document.getElementById("tu_ngay").value)} đến ${dang(document.getElementById("den_ngay").value)}`;
+    }
+
     async function taiThongKe() {
+      capNhatKhoangNgay();
       const loiEl = document.getElementById("loi");
       const ketQuaEl = document.getElementById("ket-qua");
       loiEl.hidden = true;
@@ -198,7 +207,7 @@
       document.getElementById("ds-chuyen-da-chay").innerHTML = ds.length
         ? ds.map((c) => {
             const [nhan, lop] = NHAN_CHUYEN[c.trang_thai] || [c.trang_thai, ""];
-            const gio = new Date(c.gio_khoi_hanh).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+            const gio = window.phuXe.ngayGio(c.gio_khoi_hanh);
             return `
               <a class="row-btn" href="chi-tiet-chuyen.html?chuyen_id=${encodeURIComponent(c.id)}&ve=thong-ke" style="text-decoration:none;">
                 <span class="row-btn__chinh">

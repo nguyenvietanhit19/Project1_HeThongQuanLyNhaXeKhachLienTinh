@@ -67,11 +67,11 @@
   </div>
 
   <script src="/shared/api-client.js"></script>
-  <script src="phu-xe-pro.js?v=1"></script>
+  <script src="phu-xe-pro.js?v=2"></script>
   <script src="../shared/auth-check.js"></script>
-  <script src="tai-khoan-menu.js?v=2"></script>
+  <script src="tai-khoan-menu.js?v=3"></script>
   <script src="thong-bao.js?v=2"></script>
-  <script src="khach-chi-tiet.js?v=2"></script>
+  <script src="khach-chi-tiet.js?v=3"></script>
   <script>
     requireRole("phu_xe");
 
@@ -92,7 +92,7 @@
       return String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
     }
     function gio(iso) {
-      return iso ? new Date(iso).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
+      return iso ? window.phuXe.ngayGio(iso) : "—";
     }
     function tien(so) {
       return Number(so || 0).toLocaleString("vi-VN") + "đ";
