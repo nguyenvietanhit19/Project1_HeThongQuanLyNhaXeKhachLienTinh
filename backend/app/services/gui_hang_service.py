@@ -109,7 +109,7 @@ def lay_van_phong(van_phong_id: str) -> dict:
 
 def lay_diem_nhan_kha_dung(van_phong_gui_id: str) -> list[dict]:
     """UC-23 bước 2 / mục 10.4.1 bước 3: danh sách 2 tầng khu_vực → văn phòng nhận,
-    chỉ gồm văn phòng có ít nhất 1 tuyến chung với văn phòng gửi."""
+    chỉ gồm văn phòng ở khu vực khác văn phòng gửi và có ít nhất 1 tuyến chung với nó."""
     nhom: dict[str, dict] = {}
     for vp in don_hang_repo.danh_sach_diem_nhan_kha_dung(van_phong_gui_id):
         khu_vuc_id = str(vp["khu_vuc_id"])
@@ -147,7 +147,7 @@ def tao_don_hang(
     """UC-23: Nhận hàng tại quầy, tạo đơn `cho_van_chuyen` gắn tuyến (chưa gắn chuyến).
 
     - Chặn hàng cấm (bước 5).
-    - Điểm gửi và nhận bắt buộc là văn phòng, khác nhau (mục 10.1).
+    - Điểm gửi và nhận bắt buộc là văn phòng, khác nhau (mục 10.1), và ở 2 khu vực khác nhau.
     - Tuyến phải đi qua cả 2 điểm (tuyến 2 chiều).
     - Trả trước phải xác nhận đã thu; COD không được ghi nhận thu ở điểm gửi.
     """
@@ -181,6 +181,9 @@ def tao_don_hang(
 
     if str(du_lieu.diem_gui_id) == str(du_lieu.diem_nhan_id):
         raise GiaTriLoi("Điểm nhận không được trùng với điểm gửi")
+    # Chỉ gửi tới văn phòng ở khu vực khác (NGHIEP_VU_GUI_HANG.md mục 1, nguyên tắc 3b)
+    if str(diem_gui["khu_vuc_id"]) == str(diem_nhan["khu_vuc_id"]):
+        raise GiaTriLoi("Chỉ nhận gửi tới văn phòng ở khu vực khác với văn phòng gửi")
 
     if du_lieu.phuong_thuc_thanh_toan == "nguoi_gui_tra_truoc" and not du_lieu.xac_nhan_da_thu:
         raise GiaTriLoi("Cần xác nhận đã thu cước từ người gửi")
