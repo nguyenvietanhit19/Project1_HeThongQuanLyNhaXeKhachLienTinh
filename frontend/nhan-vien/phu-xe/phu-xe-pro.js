@@ -6,7 +6,7 @@
  *  2. Phản hồi khi bấm: rung nhẹ khi thao tác ghi thành công / thất bại; âm "bíp" (tùy chọn, mặc định tắt).
  *  3. Banner "Mất kết nối" + tự tải lại dữ liệu khi có mạng trở lại.
  *  4. Snackbar "Hoàn tác" ngay sau thao tác nhầm tay (phuXe.hoanTac).
- *  5. Nút đổi Giao diện (Tự động/Sáng/Tối) và Âm báo trong menu ☰.
+ *  5. (đã chuyển) Cài đặt Giao diện / Âm báo / Hồ sơ → phu-xe-cai-dat.js.
  *  6. Gỡ khung xương (skeleton) khi trang đã có dữ liệu.
  * CSS: phu-xe-pro.css.
  */
@@ -20,23 +20,72 @@
   const cho = (ms) => new Promise((r) => setTimeout(r, ms));
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-  // ---------- 2. Rung + âm báo ----------
-  const KHOA_AM = "phu_xe_am_bao";
+  // ---------- 2. Âm thanh + rung (cài đặt trong menu ☰ → Cài đặt → Âm báo) ----------
+  // 5 kiểu âm, mỗi kiểu một giai điệu riêng để nghe là biết không cần nhìn màn hình (phụ xe hay vừa làm vừa nhìn đường):
+  //   thanhCong (2 nốt đi lên) · loi (trầm, rè) · canhBao (2 tiếng đều) · hoanTac (2 nốt đi xuống) · nhacNho (chuông 3 nốt: bến mở, tới giờ chạy)
+  const K_BAT = "phu_xe_am_bao", K_LUONG = "phu_xe_am_luong", K_RUNG = "phu_xe_rung";
+  const AM = {
+    bat: () => LS.lay(K_BAT) !== "tat",                     // mặc định BẬT
+    luong: () => { const n = parseInt(LS.lay(K_LUONG), 10); return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 70; },
+    rung: () => LS.lay(K_RUNG) !== "tat",                   // mặc định BẬT
+  };
+  const GIAI_DIEU = {
+    thanhCong: [{ f: 660, t: 0, d: 0.09 }, { f: 880, t: 0.1, d: 0.16 }],
+    loi: [{ f: 220, t: 0, d: 0.18, w: "sawtooth" }, { f: 165, t: 0.22, d: 0.26, w: "sawtooth" }],
+    canhBao: [{ f: 523, t: 0, d: 0.13, w: "triangle" }, { f: 523, t: 0.2, d: 0.13, w: "triangle" }],
+    hoanTac: [{ f: 740, t: 0, d: 0.09 }, { f: 554, t: 0.1, d: 0.16 }],
+    nhacNho: [{ f: 784, t: 0, d: 0.13 }, { f: 988, t: 0.15, d: 0.13 }, { f: 1175, t: 0.3, d: 0.26 }],
+  };
+  const KIEU_RUNG = { thanhCong: [18], loi: [40, 70, 40], canhBao: [30, 50, 30], hoanTac: [14], nhacNho: [60, 40, 60, 40, 120] };
+
   let ctxAm = null;
-  function bip(tanSo, ms) {
-    if (LS.lay(KHOA_AM) !== "bat") return;
+  function layCtx() {
     try {
       ctxAm = ctxAm || new (window.AudioContext || window.webkitAudioContext)();
-      const dao = ctxAm.createOscillator(), vol = ctxAm.createGain();
-      dao.frequency.value = tanSo;
-      vol.gain.value = 0.06;
-      dao.connect(vol); vol.connect(ctxAm.destination);
-      dao.start(); dao.stop(ctxAm.currentTime + ms / 1000);
-    } catch (_) {}
+      if (ctxAm.state === "suspended") ctxAm.resume();
+      return ctxAm;
+    } catch (_) { return null; }
   }
+  // Trình duyệt chỉ cho phát âm sau khi người dùng đã chạm vào trang → "mở khóa" ở lần chạm đầu tiên
+  ["pointerdown", "keydown"].forEach((ev) => document.addEventListener(ev, () => layCtx(), { once: true, capture: true }));
+
+  function phatAm(kieu, ep) {
+    if (!ep && !AM.bat()) return;
+    const luong = AM.luong();
+    if (!luong) return;
+    const c = layCtx();
+    if (!c) return;
+    const dinh = (luong / 100) * 0.32;   // gain tối đa 0.32 — đủ to trên loa điện thoại mà không chói
+    for (const n of GIAI_DIEU[kieu] || []) {
+      const dao = c.createOscillator(), vol = c.createGain();
+      const bd = c.currentTime + n.t;
+      dao.type = n.w || "sine";
+      dao.frequency.value = n.f;
+      vol.gain.setValueAtTime(0.0001, bd);
+      vol.gain.exponentialRampToValueAtTime(dinh, bd + 0.012);
+      vol.gain.exponentialRampToValueAtTime(0.0001, bd + n.d);
+      dao.connect(vol); vol.connect(c.destination);
+      dao.start(bd); dao.stop(bd + n.d + 0.03);
+    }
+  }
+  function rungMay(kieu, ep) {
+    if (!ep && !AM.rung()) return;
+    try { navigator.vibrate && navigator.vibrate(KIEU_RUNG[kieu] || [18]); } catch (_) {}
+  }
+  // Một lệnh cho cả hai: phanHoi.bao("thanhCong")
   const phanHoi = {
-    thanhCong() { try { navigator.vibrate && navigator.vibrate(18); } catch (_) {} bip(880, 90); },
-    loi() { try { navigator.vibrate && navigator.vibrate([40, 70, 40]); } catch (_) {} bip(240, 220); },
+    bao(kieu) { rungMay(kieu); phatAm(kieu); },
+    thanhCong() { phanHoi.bao("thanhCong"); },
+    loi() { phanHoi.bao("loi"); },
+  };
+  const amThanh = {
+    lay: () => ({ bat: AM.bat(), luong: AM.luong(), rung: AM.rung() }),
+    dat({ bat, luong, rung }) {
+      if (bat !== undefined) LS.dat(K_BAT, bat ? "bat" : "tat");
+      if (luong !== undefined) LS.dat(K_LUONG, String(Math.round(luong)));
+      if (rung !== undefined) LS.dat(K_RUNG, rung ? "bat" : "tat");
+    },
+    thu(kieu) { rungMay(kieu, true); phatAm(kieu, true); },   // nghe thử: phát dù đang tắt âm báo (để biết nó kêu thế nào)
   };
 
   // ---------- 3. Mất kết nối ----------
@@ -142,31 +191,7 @@
   const gio = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : `${hai(d.getHours())}:${hai(d.getMinutes())}`; };
   const ngayGio = (iso) => { const n = ngay(iso); return n ? `${n} ${gio(iso)}` : ""; };
 
-  window.phuXe = { hoanTac, phanHoi, rung: phanHoi.thanhCong, ngay, gio, ngayGio };
-
-  // ---------- 5. Nút trong menu ☰ ----------
-  const TEN_GD = { auto: "Tự động", sang: "Sáng", toi: "Tối" };
-  function capNhatNhan() {
-    const gd = document.getElementById("px-giao-dien-gt");
-    if (gd && window.phuXeGiaoDien) gd.textContent = TEN_GD[window.phuXeGiaoDien.lay()];
-    const am = document.getElementById("px-am-bao-gt");
-    if (am) am.textContent = LS.lay(KHOA_AM) === "bat" ? "Bật" : "Tắt";
-  }
-  document.addEventListener("click", (e) => {
-    const nut = e.target.closest("[data-px]");
-    if (!nut) return;
-    e.stopPropagation();
-    if (nut.dataset.px === "giao-dien" && window.phuXeGiaoDien) {
-      const thuTu = ["auto", "sang", "toi"];
-      window.phuXeGiaoDien.dat(thuTu[(thuTu.indexOf(window.phuXeGiaoDien.lay()) + 1) % 3]);
-    } else if (nut.dataset.px === "am-bao") {
-      const bat = LS.lay(KHOA_AM) !== "bat";
-      LS.dat(KHOA_AM, bat ? "bat" : "tat");
-      if (bat) { bip(880, 90); try { navigator.vibrate && navigator.vibrate(18); } catch (_) {} }
-    }
-    capNhatNhan();
-  }, true);
-  document.addEventListener("DOMContentLoaded", capNhatNhan);
+  window.phuXe = { hoanTac, phanHoi, rung: phanHoi.thanhCong, am: phanHoi.bao, amThanh, ngay, gio, ngayGio };
 
   // ---------- 6. Gỡ khung xương ----------
   document.addEventListener("DOMContentLoaded", () => {
