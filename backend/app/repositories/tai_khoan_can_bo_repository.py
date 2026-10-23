@@ -113,3 +113,74 @@ def danh_sach_van_phong() -> list[dict]:
             return [dict(zip(cols, r)) for r in cur.fetchall()]
     finally:
         release_connection(conn)
+
+
+# ---------------------------------------------------------
+# UC-37: khóa / mở khóa tài khoản (KE_HOACH_UC37 bước 2)
+# ---------------------------------------------------------
+def tim_tai_khoan(nguoi_dung_id: str) -> dict | None:
+    """Thông tin tối thiểu để Service kiểm tra quyền khóa / mở khóa (None nếu không có tài khoản)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, email, ho_ten, vai_tro, dang_hoat_dong, la_tai_khoan_goc
+                FROM nguoi_dung
+                WHERE id = %s
+                """,
+                (nguoi_dung_id,),
+            )
+            return _thanh_dict(cur, cur.fetchone())
+    finally:
+        release_connection(conn)
+
+
+def dat_trang_thai_hoat_dong(nguoi_dung_id: str, dang_hoat_dong: bool) -> None:
+    """Khóa (false) / mở khóa (true). Chỉ đổi cờ, không xóa gì — lịch sử của tài khoản vẫn giữ nguyên."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE nguoi_dung SET dang_hoat_dong = %s WHERE id = %s", (dang_hoat_dong, nguoi_dung_id))
+        conn.commit()
+    finally:
+        release_connection(conn)
+
+
+def xe_thieu_phu_xe(nguoi_dung_id: str) -> list[dict]:
+    """Các xe mà tài khoản phụ xe này đang thuộc biên chế CỐ ĐỊNH và, khi không tính người này,
+    không còn phụ xe cố định nào đang hoạt động — NGHIEP_VU.md UC-37, hậu điều kiện.
+
+    "Đang hoạt động" = dòng `xe_nhan_su` cố định ở trạng thái `dang_hoat_dong`, hồ sơ `dang_lam`
+    VÀ tài khoản `dang_hoat_dong = true`. Gọi SAU khi đã khóa: tài khoản vừa bị khóa tự bị loại khỏi
+    phép đếm nhờ điều kiện cuối, không cần loại trừ riêng. Trả danh sách rỗng nếu người này không
+    phải phụ xe hoặc không thuộc biên chế xe nào."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT DISTINCT x.id AS xe_id, x.bien_so
+                FROM xe_nhan_su ns
+                JOIN nhan_su_van_hanh t ON t.id = ns.nhan_su_van_hanh_id
+                JOIN xe x ON x.id = ns.xe_id
+                WHERE t.nguoi_dung_id = %s
+                  AND ns.loai = 'co_dinh' AND ns.trang_thai = 'dang_hoat_dong'
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM xe_nhan_su ns2
+                      JOIN nhan_su_van_hanh p ON p.id = ns2.nhan_su_van_hanh_id
+                      JOIN nguoi_dung u ON u.id = p.nguoi_dung_id
+                      WHERE ns2.xe_id = ns.xe_id
+                        AND ns2.loai = 'co_dinh' AND ns2.trang_thai = 'dang_hoat_dong'
+                        AND p.chuc_danh = 'phu_xe' AND p.trang_thai = 'dang_lam'
+                        AND u.dang_hoat_dong = true
+                  )
+                ORDER BY x.bien_so
+                """,
+                (nguoi_dung_id,),
+            )
+            cols = [c[0] for c in cur.description]
+            return [dict(zip(cols, r)) for r in cur.fetchall()]
+    finally:
+        release_connection(conn)
