@@ -6,6 +6,9 @@
 <title>Chuyến đang chạy — Phụ xe</title>
 <link rel="stylesheet" href="/shared/design-tokens.css?v=2" />
 <link rel="stylesheet" href="phu-xe.css?v=21" />
+<link rel="stylesheet" href="phu-xe-pro.css?v=1" />
+<link rel="manifest" href="manifest.webmanifest" />
+<script src="phu-xe-theme.js?v=1"></script>
 </head>
 <body class="phu-xe-page">
   <div class="app-shell">
@@ -27,7 +30,8 @@
   </div>
 
   <div class="container container--pull-up">
-    <div id="banner-vung"></div>
+    <div id="banner-vung" aria-live="polite"></div>
+    <div class="sk-khoi" id="sk-tai" aria-hidden="true"><div class="sk-dong sk-dong--vua"></div><div class="sk-the"></div><div class="sk-the"></div><div class="sk-dong sk-dong--ngan"></div></div>
 
     <!-- Số việc đang chờ tại điểm hiện tại — nhìn 1 lần biết còn phải làm gì -->
     <div class="quick-stats" id="so-lieu-nhanh" hidden></div>
@@ -157,6 +161,7 @@
   </div>
 
   <script src="/shared/api-client.js"></script>
+  <script src="phu-xe-pro.js?v=1"></script>
   <script src="../shared/auth-check.js"></script>
   <script src="tai-khoan-menu.js?v=2"></script>
   <script src="thong-bao.js?v=2"></script>
@@ -215,7 +220,7 @@
     async function hanhDong(thucHien, nut) {
       if (dangXuLy) return;
       dangXuLy = true;
-      if (nut) nut.disabled = true;
+      if (nut) { nut.disabled = true; nut.setAttribute("aria-busy", "true"); }
       try {
         await thucHien();
       } catch (err) {
@@ -227,16 +232,17 @@
         } catch (err) {
           hienLoi(err.message, "loi");
         }
-        if (nut && document.body.contains(nut)) nut.disabled = false;
+        if (nut && document.body.contains(nut)) { nut.disabled = false; nut.removeAttribute("aria-busy"); }
       }
     }
 
     function taiLai() {
       const nut = document.getElementById("nut-tai-lai");
       nut.disabled = true;
+      nut.setAttribute("aria-busy", "true");
       taiDuLieu()
         .catch((err) => hienLoi(err.message, "loi"))
-        .finally(() => (nut.disabled = false));
+        .finally(() => { nut.disabled = false; nut.removeAttribute("aria-busy"); });
     }
 
     function xacNhanToiDiem(diemId) {
@@ -247,12 +253,22 @@
       return apiPost(`/phu-xe/chuyen/${chuyenId}/bat-dau-di-chuyen`, { bo_qua_canh_bao: boQuaCanhBao });
     }
 
-    function lenXe(veId) {
-      return apiPost(`/phu-xe/chuyen/${chuyenId}/ve/${veId}/len-xe`, {});
+    // Sau thao tác nhầm tay dễ xảy ra nhất (lên/xuống xe, chất/dỡ hàng): hiện thanh "Hoàn tác" 7 giây — bấm là gọi đúng API hoàn tác sẵn có
+    // (server vẫn kiểm điều kiện: chỉ hoàn tác được khi xe còn ở điểm đó). Hoàn tác không sinh thêm thanh hoàn tác.
+    function goiYHoanTac(noiDung, hoanTac, ...doiSo) {
+      window.phuXe.hoanTac(noiDung, () => hanhDong(() => hoanTac(...doiSo)));
     }
 
-    function xuongXe(veId) {
-      return apiPost(`/phu-xe/chuyen/${chuyenId}/ve/${veId}/xuong-xe`, {});
+    async function lenXe(veId) {
+      const kq = await apiPost(`/phu-xe/chuyen/${chuyenId}/ve/${veId}/len-xe`, {});
+      goiYHoanTac("Đã xác nhận khách lên xe", hoanTacLenXe, veId);
+      return kq;
+    }
+
+    async function xuongXe(veId) {
+      const kq = await apiPost(`/phu-xe/chuyen/${chuyenId}/ve/${veId}/xuong-xe`, {});
+      goiYHoanTac("Đã xác nhận khách xuống xe", hoanTacXuongXe, veId);
+      return kq;
     }
 
     // Hàng loạt: báo kết quả bằng thông báo nổi (hienLoi dùng chung cho cả thông báo thường)
@@ -278,12 +294,16 @@
       return apiPost(`/phu-xe/don-hang/${donHangId}/hoan-tac-do-hang`, { chuyen_id: chuyenId });
     }
 
-    function chatHang(donHangId) {
-      return apiPost(`/phu-xe/don-hang/${donHangId}/chat-len-xe`, { chuyen_id: chuyenId });
+    async function chatHang(donHangId) {
+      const kq = await apiPost(`/phu-xe/don-hang/${donHangId}/chat-len-xe`, { chuyen_id: chuyenId });
+      goiYHoanTac("Đã chất hàng lên xe", hoanTacChatHang, donHangId);
+      return kq;
     }
 
-    function doHang(donHangId) {
-      return apiPost(`/phu-xe/don-hang/${donHangId}/do-hang`, {});
+    async function doHang(donHangId) {
+      const kq = await apiPost(`/phu-xe/don-hang/${donHangId}/do-hang`, {});
+      goiYHoanTac("Đã dỡ hàng xuống", hoanTacDoHang, donHangId);
+      return kq;
     }
 
     function moModalSuCo() {

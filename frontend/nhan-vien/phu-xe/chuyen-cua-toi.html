@@ -6,6 +6,9 @@
 <title>Chuyến của tôi — Phụ xe</title>
 <link rel="stylesheet" href="/shared/design-tokens.css?v=2" />
 <link rel="stylesheet" href="phu-xe.css?v=14" />
+<link rel="stylesheet" href="phu-xe-pro.css?v=1" />
+<link rel="manifest" href="manifest.webmanifest" />
+<script src="phu-xe-theme.js?v=1"></script>
 </head>
 <body class="phu-xe-page">
   <div class="app-shell">
@@ -25,14 +28,15 @@
         <input class="input-field" type="search" id="o-tim-kiem" inputmode="search" autocomplete="off"
                placeholder="Tìm tuyến, biển số, giờ, trạng thái..." aria-label="Tìm chuyến xe" />
       </div>
-      <div id="danh-sach-chuyen" class="trip-list">
-        <p class="empty-state">Đang tải...</p>
+      <div id="danh-sach-chuyen" class="trip-list" aria-live="polite">
+        <div class="sk-khoi" aria-hidden="true"><div class="sk-the"></div><div class="sk-the"></div><div class="sk-the"></div></div>
       </div>
     </div>
   </div>
   </div>
 
   <script src="/shared/api-client.js"></script>
+  <script src="phu-xe-pro.js?v=1"></script>
   <script src="../shared/auth-check.js"></script>
   <script src="tai-khoan-menu.js?v=2"></script>
   <script>
@@ -111,7 +115,7 @@
         danhSachChuyen = await apiGet("/phu-xe/chuyen-cua-toi");
         veDanhSach();
       } catch (err) {
-        document.getElementById("danh-sach-chuyen").innerHTML = `<p class="text-error">${esc(err.message)}</p>`;
+        document.getElementById("danh-sach-chuyen").innerHTML = `<p class="text-error" role="alert">${esc(err.message)}</p>`;
       }
     }
 

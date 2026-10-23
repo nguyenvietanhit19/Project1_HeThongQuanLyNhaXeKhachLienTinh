@@ -76,6 +76,14 @@
     <div class="tk-menu" id="tk-menu" role="menu" hidden>
       <div class="tk-menu__ten"><span class="tk-menu__chu" id="tk-menu-chu"></span><span id="tk-menu-ten"></span></div>
       ${veMucDieuHuong()}
+      <button type="button" class="tk-menu__muc tk-menu__muc--tuy-chon" data-px="giao-dien" role="menuitem">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+        Giao diện <span class="tk-menu__gt" id="px-giao-dien-gt"></span>
+      </button>
+      <button type="button" class="tk-menu__muc tk-menu__muc--tuy-chon" data-px="am-bao" role="menuitem">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+        Âm báo khi xác nhận <span class="tk-menu__gt" id="px-am-bao-gt"></span>
+      </button>
       <button type="button" class="tk-menu__muc" id="tk-ho-so" role="menuitem">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="7.5" r="4.2"/><path d="M3.8 21c0-4.2 3.6-7 8.2-7s8.2 2.8 8.2 7c0 .6-.4 1-1 1H4.8c-.6 0-1-.4-1-1Z"/></svg>
         Hồ sơ
