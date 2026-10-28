@@ -27,61 +27,130 @@
               <p class="nv-page-intro__desc">Tìm chuyến, chọn ghế và lập vé cho khách tại quầy hoặc qua hotline.</p>
             </div>
           </div>
-          <article class="nv-card qv-card">
-            <div class="qv-toolbar">
-              <div>
-                <h2>1. Tìm chuyến</h2>
-                <span class="qv-muted" id="office-label">Đang tải văn phòng…</span>
+          <section class="qv-sale-search" aria-label="Tìm chuyến bán vé">
+            <div class="qv-sale-search__hero">
+              <form id="search-form" class="qv-sale-search__form">
+                <div class="qv-sale-search__field qv-sale-search__origin">
+                  <label for="origin-name">Điểm đi</label>
+                  <div class="qv-sale-search__control">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+                    <input id="origin-name" readonly placeholder="Đang tải điểm đi…" />
+                  </div>
+                </div>
+                <span class="qv-sale-search__fixed" title="Điểm đi cố định theo văn phòng được phân công" aria-label="Điểm đi cố định theo văn phòng được phân công">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+                </span>
+                <div class="qv-sale-search__field qv-sale-search__destination">
+                  <label for="destination-trigger">Điểm đến</label>
+                  <button type="button" id="destination-trigger" class="qv-sale-search__picker" aria-haspopup="listbox" aria-expanded="false" aria-controls="destination-menu" aria-required="true" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 21s7-7.2 7-12a7 7 0 1 0-14 0c0 4.8 7 12 7 12Z"/><circle cx="12" cy="9" r="2.3"/></svg>
+                    <span class="qv-sale-search__picker-copy"><strong id="destination-label" class="is-placeholder">Đang tải điểm đến…</strong><small id="destination-subtitle">Chọn khu vực khách muốn đến</small></span>
+                    <svg class="qv-sale-search__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                  </button>
+                  <select id="destination" hidden><option value="">Chọn điểm đến</option></select>
+                  <div id="destination-menu" class="qv-sale-search__popover qv-sale-search__destination-menu qv-hidden" role="listbox" aria-label="Chọn điểm đến"></div>
+                </div>
+                <div class="qv-sale-search__field qv-sale-search__date">
+                  <label for="travel-date-trigger">Ngày đi</label>
+                  <button type="button" id="travel-date-trigger" class="qv-sale-search__picker" aria-haspopup="dialog" aria-expanded="false" aria-controls="travel-date-menu" aria-required="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4m8-4v4"/></svg>
+                    <span class="qv-sale-search__picker-copy"><strong id="travel-date-label">Chọn ngày đi</strong><small id="travel-date-subtitle">Chọn ngày khởi hành</small></span>
+                    <svg class="qv-sale-search__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                  </button>
+                  <input id="travel-date" type="date" hidden />
+                  <div id="travel-date-menu" class="qv-sale-search__popover qv-sale-search__calendar qv-hidden" role="dialog" aria-label="Chọn ngày đi"></div>
+                </div>
+                <button class="qv-sale-search__submit" type="submit" id="search-submit" disabled>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+                  Tìm chuyến
+                </button>
+              </form>
+            </div>
+            <div class="qv-sale-search__foot" aria-hidden="true"></div>
+            <div id="search-error" class="qv-alert error qv-hidden" role="alert"></div>
+            <div id="trip-browser" class="qv-sale-browser qv-hidden">
+              <aside class="qv-sale-filter" aria-label="Bộ lọc chuyến">
+                <div class="qv-sale-filter__head"><h2>Bộ lọc</h2><button type="button" id="clear-trip-filters" class="qv-sale-filter__clear qv-hidden">Xóa lọc</button></div>
+                <div class="qv-sale-filter__group">
+                  <h3>Giờ khởi hành</h3>
+                  <div id="trip-time-filters"></div>
+                </div>
+                <div class="qv-sale-filter__group qv-hidden" id="trip-type-group">
+                  <h3>Loại xe</h3>
+                  <div id="trip-type-filters"></div>
+                </div>
+                <div class="qv-sale-filter__group">
+                  <label class="qv-sale-filter__switch"><input id="available-only" type="checkbox"/><span class="qv-sale-filter__track" aria-hidden="true"></span><strong>Chỉ chuyến còn ghế</strong></label>
+                </div>
+              </aside>
+              <div class="qv-sale-browser__main">
+                <div class="qv-sale-browser__head">
+                  <div><h2 id="trip-route-title"></h2><p id="trip-count"></p></div>
+                  <div class="qv-sale-sort" role="group" aria-label="Sắp xếp chuyến">
+                    <button type="button" data-sort="gio" class="is-active">Giờ sớm nhất</button>
+                    <button type="button" data-sort="gia">Giá thấp nhất</button>
+                    <button type="button" data-sort="ghe">Nhiều ghế trống</button>
+                  </div>
+                </div>
+                <div id="trip-date-tabs" class="qv-sale-dates" role="tablist" aria-label="Chọn ngày đi"></div>
+                <div id="trip-results" class="qv-sale-trip-list" aria-live="polite"></div>
               </div>
             </div>
-            <form id="search-form" class="qv-row">
-              <div class="qv-field">
-                <label for="origin-name">Điểm đi</label>
-                <input id="origin-name" readonly />
-              </div>
-              <div class="qv-field">
-                <label for="destination">Điểm đến</label>
-                <select id="destination" required>
-                  <option value="">Chọn khu vực đến</option>
-                </select>
-              </div>
-              <div class="qv-field">
-                <label for="travel-date">Ngày khởi hành</label>
-                <input id="travel-date" type="date" required />
-              </div>
-              <button class="qv-btn" type="submit">Tìm chuyến</button>
-            </form>
-            <div id="search-error" class="qv-alert error qv-hidden"></div>
-            <div id="trip-results" class="qv-trip-list"></div>
-          </article>
+          </section>
 
-          <article class="nv-card qv-card qv-hidden" id="seat-card">
-            <div class="qv-toolbar">
-              <div>
-                <h2>2. Chọn điểm trả và ghế</h2>
-                <span id="selected-trip-note" class="qv-muted"></span>
-              </div>
-              <span class="qv-badge">Điểm đón cố định: văn phòng của bạn</span>
-            </div>
-            <div class="qv-form-grid">
-              <div class="qv-field">
-                <label for="pickup-name">Điểm đón</label>
-                <input id="pickup-name" readonly />
-              </div>
-              <div class="qv-field">
-                <label for="dropoff">Điểm trả</label>
-                <select id="dropoff" required></select>
-              </div>
-            </div>
-            <div id="seat-map" class="qv-seat-map"></div>
-            <div class="qv-toolbar">
-              <span id="seat-summary" class="qv-muted">Chưa chọn ghế</span>
-              <span id="seat-total" class="qv-total">0 ₫</span>
-            </div>
-          </article>
+          <article class="nv-card qv-card qv-hidden" id="sale-result"></article>
+        </main>
+      </div>
+    </div>
 
-          <article class="nv-card qv-card qv-hidden" id="customer-card">
-            <h2>3. Thông tin khách và thanh toán</h2>
+    <dialog id="seat-dialog" class="qv-seat-dialog" aria-labelledby="seat-dialog-title">
+      <div class="qv-seat-dialog__head">
+        <div>
+          <h2 id="seat-dialog-title">Chọn chuyến</h2>
+          <p id="selected-trip-note">Đang tải sơ đồ ghế…</p>
+        </div>
+        <button type="button" id="close-seat-dialog" class="qv-seat-dialog__close" aria-label="Đóng cửa sổ chọn ghế">×</button>
+      </div>
+      <div id="seat-trip-badges" class="qv-seat-dialog__badges"></div>
+      <ol id="seat-progress" class="qv-seat-dialog__progress" aria-label="Các bước bán vé">
+        <li class="is-active"><b>1</b>Chọn ghế</li>
+        <li><b>2</b>Điểm đón, điểm trả</li>
+        <li><b>3</b>Thanh toán</li>
+      </ol>
+      <div id="seat-loading" class="qv-seat-dialog__loading">Đang tải sơ đồ ghế…</div>
+      <section id="seat-card" class="qv-seat-dialog__step qv-hidden" aria-label="Chọn ghế">
+        <div id="seat-warning" class="qv-alert error qv-hidden" role="alert"></div>
+        <div id="seat-map" class="qv-seat-map"></div>
+        <div class="qv-seat-dialog__bar">
+          <div><span id="seat-summary">Chưa chọn ghế</span><strong id="seat-total" class="qv-total">0 ₫</strong></div>
+          <button type="button" id="next-to-dropoff" class="qv-btn" disabled>Cập nhật điểm đón trả</button>
+        </div>
+        <div class="qv-seat-dialog__stops">
+          <div><h3>Điểm đón</h3><p><span id="pickup-preview">—</span><strong id="pickup-time">—</strong></p></div>
+          <div><h3>Điểm trả</h3><p><span id="dropoff-preview">—</span><strong id="dropoff-time">—</strong></p></div>
+        </div>
+      </section>
+      <section id="dropoff-card" class="qv-seat-dialog__step qv-hidden" aria-label="Chọn điểm trả">
+        <h3>Điểm đón và điểm trả</h3>
+        <p class="qv-muted">Điểm đón cố định tại văn phòng của bạn. Chọn điểm trả phù hợp cho khách.</p>
+        <div class="qv-form-grid">
+          <div class="qv-field">
+            <label for="pickup-name">Điểm đón</label>
+            <input id="pickup-name" readonly />
+          </div>
+          <div class="qv-field">
+            <label for="dropoff">Điểm trả</label>
+            <select id="dropoff" required></select>
+          </div>
+        </div>
+        <div id="dropoff-error" class="qv-alert error qv-hidden" role="alert"></div>
+        <div class="qv-seat-dialog__bar qv-seat-dialog__bar--end">
+          <button type="button" id="back-to-seats" class="qv-btn secondary">Quay lại chọn ghế</button>
+          <button type="button" id="next-to-customer" class="qv-btn">Tiếp tục thanh toán</button>
+        </div>
+      </section>
+      <section id="customer-card" class="qv-seat-dialog__step qv-hidden" aria-label="Thông tin khách và thanh toán">
+            <h3>Thông tin khách và thanh toán</h3>
             <div class="qv-form-grid">
               <div class="qv-field">
                 <label for="customer-phone">Số điện thoại</label>
@@ -116,30 +185,333 @@
               <span id="account-note" class="qv-muted"></span>
             </div>
             <div id="sale-error" class="qv-alert error qv-hidden"></div>
-            <div class="qv-row qv-submit-row">
+            <div class="qv-seat-dialog__bar qv-seat-dialog__bar--end">
+              <button id="back-to-dropoff" class="qv-btn secondary" type="button">Quay lại điểm trả</button>
               <button id="submit-sale" class="qv-btn" type="button" disabled>
                 Tạo vé
               </button>
             </div>
-          </article>
+      </section>
+    </dialog>
 
-          <article class="nv-card qv-card qv-hidden" id="sale-result"></article>
-        </main>
+    <dialog id="route-dialog" class="qv-route-dialog" aria-labelledby="route-dialog-title">
+      <div class="qv-route-dialog__head"><h2 id="route-dialog-title">Lộ trình chuyến</h2><button type="button" id="close-route-dialog" aria-label="Đóng lộ trình">×</button></div>
+      <div id="route-dialog-content" class="qv-route-dialog__content">Đang tải lộ trình…</div>
+    </dialog>
+    <dialog class="qv-history-ticket-dialog qv-print-dialog" id="print-dialog" aria-labelledby="print-dialog-title">
+      <div class="qv-history-ticket-dialog__head">
+        <div><span>XEM TRƯỚC VÉ</span><h2 id="print-dialog-title">Vé xe khách</h2></div>
+        <button class="qv-history-ticket-dialog__x" type="button" data-close-print-dialog aria-label="Đóng">×</button>
       </div>
-    </div>
+      <div class="qv-history-ticket-dialog__body" id="print-dialog-content" aria-live="polite"></div>
+      <div class="qv-history-ticket-dialog__foot">
+        <button class="qv-btn secondary" type="button" data-close-print-dialog>Đóng</button>
+        <button class="qv-btn" id="print-ticket-button" type="button" disabled>In vé</button>
+      </div>
+    </dialog>
+    <div id="print-sheet" aria-hidden="true"></div>
     <script src="api-client.js"></script>
     <script src="auth-check.js"></script>
     <script src="/nhan-vien/quan-ly/thong-bao.js"></script>
     <script src="nav.js"></script>
+    <script src="/nhan-vien/gui-hang/vendor/JsBarcode.code128.min.js"></script>
+    <script src="print-modal.js"></script>
     <script>
 let qvOffice=null, qvTrip=null, qvDetail=null, qvSeatSelection=new Set(), qvAccountId=null, qvOriginArea=null, qvDestinationArea=null;
 const $=s=>document.querySelector(s);
-function localDate(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
+function localDate(){return qvDateCode(new Date());}
 function showError(el,msg){el.textContent=msg;el.classList.toggle("qv-hidden",!msg);}
-function updateTotal(){let total=0;for(const seat of qvSeatSelection){const g=qvDetail.so_do_ghe.find(x=>x.ma_ghe===seat);total+=Number(g?.gia||0);}$("#seat-summary").textContent=qvSeatSelection.size?`Đã chọn ${qvSeatSelection.size} ghế: ${[...qvSeatSelection].join(", ")}`:"Chưa chọn ghế";$("#seat-total").textContent=dinhDangTien(total);$("#customer-card").classList.toggle("qv-hidden",!qvSeatSelection.size);$("#submit-sale").disabled=!qvSeatSelection.size;}
+function updateTotal(){let total=0;for(const seat of qvSeatSelection){const g=qvDetail?.so_do_ghe?.find(x=>x.ma_ghe===seat);total+=Number(g?.gia||0);}$("#seat-summary").textContent=qvSeatSelection.size?`Đã chọn ${qvSeatSelection.size} ghế: ${[...qvSeatSelection].join(", ")}`:"Chưa chọn ghế";$("#seat-total").textContent=dinhDangTien(total);$("#next-to-dropoff").disabled=!qvSeatSelection.size;$("#next-to-customer").disabled=!qvSeatSelection.size;$("#submit-sale").disabled=!qvSeatSelection.size;}
 let qvSeatMapRequest = 0;
 let qvTripStopsRequest = 0;
+let qvRoute = null;
+let qvSeatStep = 1;
+let qvVerifiedDropoffId = null;
+function qvShowSeatStep(step){
+  qvSeatStep=step;
+  ["seat-card","dropoff-card","customer-card"].forEach((id,index)=>$("#"+id).classList.toggle("qv-hidden",index!==step-1));
+  $("#seat-progress").querySelectorAll("li").forEach((item,index)=>{
+    item.classList.toggle("is-active",index===step-1);
+    item.classList.toggle("is-done",index<step-1);
+  });
+  $("#seat-dialog").scrollTop=0;
+}
+function qvCloseSeatDialog(){
+  ++qvTripStopsRequest;
+  ++qvSeatMapRequest;
+  if($("#route-dialog").open)$("#route-dialog").close();
+  if($("#seat-dialog").open)$("#seat-dialog").close();
+  qvTrip=null;qvDetail=null;qvRoute=null;qvVerifiedDropoffId=null;qvSeatSelection.clear();
+  document.body.classList.remove("qv-seat-modal-open");
+}
+function qvUpdateStopPreview(){
+  const option=$("#dropoff").selectedOptions[0];
+  $("#pickup-preview").textContent=qvOffice?.ten||"—";
+  $("#pickup-time").textContent=qvClock(qvTrip?.gio_don_du_kien||qvTrip?.gio_khoi_hanh);
+  $("#dropoff-preview").textContent=option?.textContent||"—";
+  const routeStop=qvRoute?.diem?.find(stop=>String(stop.diem_id)===option?.value);
+  $("#dropoff-time").textContent=qvClock(routeStop?.gio_du_kien||((option?.value===String(qvTrip?.diem_tra_id))?qvTrip?.gio_den_du_kien:null));
+}
+function qvRenderRoute(){
+  $("#route-dialog-content").innerHTML=qvRoute?.diem?.length
+    ? `<ol class="qv-route-list">${qvRoute.diem.map(stop=>`<li><time>${qvClock(stop.gio_du_kien)}</time><div><strong>${escapeHtml(stop.ten)}</strong><small>${escapeHtml(stop.ten_khu_vuc)}${stop.dia_chi?` · ${escapeHtml(stop.dia_chi)}`:""}</small></div></li>`).join("")}</ol>`
+    : '<p class="qv-muted">Chuyến này chưa có thông tin lộ trình.</p>';
+}
 let qvSearchRequest = 0;
+let qvTrips = [];
+let qvTripSort = "gio";
+let qvTripFilters = { time: new Set(), type: new Set(), available: false };
+let qvSearchedDestination = "";
+const qvTimeRanges = [
+  { id: "dem", title: "Đêm", hours: "00:00 – 05:59", start: 0, end: 6 },
+  { id: "sang", title: "Sáng", hours: "06:00 – 11:59", start: 6, end: 12 },
+  { id: "chieu", title: "Chiều", hours: "12:00 – 17:59", start: 12, end: 18 },
+  { id: "toi", title: "Tối", hours: "18:00 – 23:59", start: 18, end: 24 }
+];
+const qvTimeFormat = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+const qvDateFormat = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" });
+const qvLongDateFormat = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" });
+const qvShortDateFormat = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric" });
+const qvWeekdayFormat = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", weekday: "long" });
+let qvCalendarMonth = null;
+
+function qvCloseSearchPickers(except = null) {
+  for (const [name, trigger] of [["destination", "destination-trigger"], ["travel-date", "travel-date-trigger"]]) {
+    if (name === except) continue;
+    $("#" + name + "-menu").classList.add("qv-hidden");
+    $("#" + trigger).setAttribute("aria-expanded", "false");
+  }
+}
+
+function qvToggleSearchPicker(name) {
+  const menu = $("#" + name + "-menu");
+  const trigger = $("#" + (name === "destination" ? "destination-trigger" : "travel-date-trigger"));
+  const opening = menu.classList.contains("qv-hidden");
+  qvCloseSearchPickers();
+  if (opening) {
+    if (name === "travel-date") {
+      const [year, month] = $("#travel-date").value.split("-").map(Number);
+      qvCalendarMonth = new Date(Date.UTC(year, month - 1, 1));
+      qvRenderCalendar();
+    }
+    menu.classList.remove("qv-hidden");
+    trigger.setAttribute("aria-expanded", "true");
+  }
+}
+
+function qvUpdateDestinationLabel() {
+  const selected = $("#destination").selectedOptions[0];
+  const name = selected?.textContent?.split(" · ")[0] || "Chọn điểm đến";
+  $("#destination-label").textContent = name;
+  $("#destination-label").classList.toggle("is-placeholder", !$("#destination").value);
+  $("#destination-subtitle").textContent = $("#destination").value ? selected.textContent.split(" · ").slice(1).join(" · ") || "Khu vực đến" : "Chọn khu vực khách muốn đến";
+  $("#destination-menu").querySelectorAll("[data-area]").forEach(button =>
+    button.setAttribute("aria-selected", String(button.dataset.area === $("#destination").value))
+  );
+}
+
+function qvUpdateTravelDateLabel() {
+  const code = $("#travel-date").value;
+  if (!code) return;
+  const date = new Date(`${code}T12:00:00+07:00`);
+  $("#travel-date-label").textContent = qvShortDateFormat.format(date);
+  $("#travel-date-subtitle").textContent = qvWeekdayFormat.format(date);
+}
+
+function qvRenderCalendar() {
+  const year = qvCalendarMonth.getUTCFullYear();
+  const month = qvCalendarMonth.getUTCMonth();
+  const firstWeekday = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const today = localDate();
+  const selected = $("#travel-date").value;
+  const currentMonth = today.slice(0, 7);
+  const monthLabel = new Intl.DateTimeFormat("vi-VN", { timeZone: "UTC", month: "long", year: "numeric" }).format(qvCalendarMonth);
+  const days = Array(firstWeekday).fill('<span aria-hidden="true"></span>');
+  for (let day = 1; day <= daysInMonth; day++) {
+    const code = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    days.push(`<button type="button" data-pick-date="${code}" class="${code === selected ? "is-selected" : code === today ? "is-today" : ""}" ${code < today ? "disabled" : ""} aria-label="${day} tháng ${month + 1} năm ${year}" aria-pressed="${code === selected}">${day}</button>`);
+  }
+  $("#travel-date-menu").innerHTML = `
+    <div class="qv-sale-search__calendar-head"><button type="button" data-calendar-step="-1" aria-label="Tháng trước" ${`${year}-${String(month + 1).padStart(2, "0")}` <= currentMonth ? "disabled" : ""}>‹</button><strong>${monthLabel}</strong><button type="button" data-calendar-step="1" aria-label="Tháng sau">›</button></div>
+    <div class="qv-sale-search__weekdays"><span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span><span>CN</span></div>
+    <div class="qv-sale-search__days">${days.join("")}</div>
+    <button type="button" class="qv-sale-search__calendar-today" data-pick-date="${today}">Chọn hôm nay</button>`;
+}
+
+$("#destination-trigger").addEventListener("click", () => qvToggleSearchPicker("destination"));
+$("#travel-date-trigger").addEventListener("click", () => qvToggleSearchPicker("travel-date"));
+$("#destination-menu").addEventListener("click", event => {
+  const button = event.target.closest("[data-area]");
+  if (!button) return;
+  $("#destination").value = button.dataset.area;
+  qvUpdateDestinationLabel();
+  qvCloseSearchPickers();
+  $("#destination-trigger").focus();
+  showError($("#search-error"), "");
+});
+$("#travel-date-menu").addEventListener("click", event => {
+  const step = event.target.closest("[data-calendar-step]");
+  if (step) {
+    qvCalendarMonth = new Date(Date.UTC(qvCalendarMonth.getUTCFullYear(), qvCalendarMonth.getUTCMonth() + Number(step.dataset.calendarStep), 1));
+    qvRenderCalendar();
+    $("#travel-date-menu").querySelector(`[data-calendar-step="${step.dataset.calendarStep}"]`)?.focus();
+    return;
+  }
+  const day = event.target.closest("[data-pick-date]");
+  if (!day || day.disabled) return;
+  $("#travel-date").value = day.dataset.pickDate;
+  qvUpdateTravelDateLabel();
+  qvCloseSearchPickers();
+  $("#travel-date-trigger").focus();
+});
+$("#destination-trigger").addEventListener("keydown", event => {
+  if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+  event.preventDefault();
+  if ($("#destination-menu").classList.contains("qv-hidden")) qvToggleSearchPicker("destination");
+  const buttons = [...$("#destination-menu").querySelectorAll("[data-area]")];
+  (event.key === "ArrowDown" ? buttons[0] : buttons.at(-1))?.focus();
+});
+$("#destination-menu").addEventListener("keydown", event => {
+  if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+  event.preventDefault();
+  const buttons = [...$("#destination-menu").querySelectorAll("[data-area]")];
+  const index = buttons.indexOf(document.activeElement);
+  buttons[(index + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length]?.focus();
+});
+document.addEventListener("click", event => {
+  if (!event.target.closest(".qv-sale-search__destination, .qv-sale-search__date")) qvCloseSearchPickers();
+});
+document.addEventListener("keydown", event => {
+  if (event.key !== "Escape") return;
+  const openTrigger = document.querySelector('.qv-sale-search__picker[aria-expanded="true"]');
+  if (openTrigger) { qvCloseSearchPickers(); openTrigger.focus(); }
+});
+function qvClock(value){ return value ? qvTimeFormat.format(new Date(value)) : "—"; }
+function qvDateCode(value){
+  if (!value) return "";
+  const parts = Object.fromEntries(qvDateFormat.formatToParts(new Date(value)).map(part=>[part.type,part.value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+function qvAddDays(value, days){
+  const date = new Date(`${value}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth()+1).padStart(2,"0")}-${String(date.getUTCDate()).padStart(2,"0")}`;
+}
+function qvTimeRange(trip){
+  const hour = Number(qvClock(trip.gio_don_du_kien || trip.gio_khoi_hanh).slice(0,2));
+  return qvTimeRanges.find(range => hour >= range.start && hour < range.end)?.id;
+}
+function qvRenderDates(){
+  const selected = $("#travel-date").value;
+  if (!selected) return;
+  const today = localDate();
+  const start = qvAddDays(selected, -2) < today ? today : qvAddDays(selected, -2);
+  $("#trip-date-tabs").innerHTML = Array.from({length:7}, (_, index) => {
+    const value = qvAddDays(start, index);
+    const [,month,day] = value.split("-");
+    const weekday = value === today ? "Hôm nay" : new Intl.DateTimeFormat("vi-VN", {timeZone:"Asia/Ho_Chi_Minh",weekday:"short"}).format(new Date(`${value}T12:00:00+07:00`));
+    return `<button type="button" role="tab" aria-selected="${value===selected}" class="qv-sale-dates__day${value===selected?" is-active":""}" data-date="${value}"><small>${escapeHtml(weekday)}</small><strong>${day}/${month}</strong></button>`;
+  }).join("");
+}
+function qvRenderFilters(){
+  const filterOption = (kind, value, title, hint, count, checked) => `
+    <label class="qv-sale-filter__option${checked?" is-selected":""}${count===0?" is-empty":""}">
+      <input type="checkbox" data-filter="${kind}" value="${escapeHtml(value)}" ${checked?"checked":""} ${count===0&&!checked?"disabled":""}/>
+      <span><strong>${escapeHtml(title)}</strong>${hint?`<small>${escapeHtml(hint)}</small>`:""}</span><em>${count}</em>
+    </label>`;
+  $("#trip-time-filters").innerHTML = qvTimeRanges.map(range =>
+    filterOption("time", range.id, range.title, range.hours, qvTrips.filter(trip=>qvTimeRange(trip)===range.id).length, qvTripFilters.time.has(range.id))
+  ).join("");
+  const types = [...new Set(qvTrips.map(trip=>trip.ten_loai_xe))].sort((a,b)=>a.localeCompare(b,"vi"));
+  $("#trip-type-group").classList.toggle("qv-hidden", types.length < 2);
+  $("#trip-type-filters").innerHTML = types.map(type =>
+    filterOption("type", type, type, "", qvTrips.filter(trip=>trip.ten_loai_xe===type).length, qvTripFilters.type.has(type))
+  ).join("");
+  $("#available-only").checked = qvTripFilters.available;
+  $("#clear-trip-filters").classList.toggle("qv-hidden", !qvTripFilters.time.size && !qvTripFilters.type.size && !qvTripFilters.available);
+}
+function qvTripCard(trip){
+  const soldOut = Number(trip.so_ghe_trong) <= 0;
+  const free = Math.max(0, Number(trip.so_ghe_trong) || 0);
+  const capacity = Math.max(0, Number(trip.tong_ghe) || 0);
+  const ratio = capacity ? Math.min(100, Math.round(free/capacity*100)) : 0;
+  const departure = trip.gio_don_du_kien || trip.gio_khoi_hanh;
+  const arrival = trip.gio_den_du_kien;
+  const minutes = arrival && departure ? Math.max(0, Math.round((new Date(arrival)-new Date(departure))/60000)) : 0;
+  const daysLater = arrival && departure ? Math.max(0, Math.round((new Date(`${qvDateCode(arrival)}T00:00:00Z`)-new Date(`${qvDateCode(departure)}T00:00:00Z`))/86400000)) : 0;
+  const priceLabel = Number(trip.gia)===Number(trip.gia_cao_nhat) ? "Giá vé" : "Giá từ";
+  return `<article class="qv-sale-trip${soldOut?" is-sold-out":""}" ${soldOut?'aria-disabled="true"':`role="button" tabindex="0" data-trip="${escapeHtml(trip.id)}" aria-label="Chọn chuyến ${escapeHtml(trip.ma)} lúc ${qvClock(departure)}, còn ${free} ghế"`}>
+    <div class="qv-sale-trip__body">
+      <div class="qv-sale-trip__tags"><span>${escapeHtml(trip.ten_loai_xe)}</span>${trip.bien_so?`<span class="qv-sale-trip__plate">Xe ${escapeHtml(trip.bien_so)}</span>`:""}${trip.dang_hoan?'<span class="qv-sale-trip__delay">Đang hoãn</span>':""}</div>
+      <div class="qv-sale-trip__journey">
+        <div class="qv-sale-trip__stop"><strong>${qvClock(departure)}</strong><span>${escapeHtml(trip.ten_diem_don)}</span></div>
+        <div class="qv-sale-trip__duration"><small>${minutes>=60?`${Math.floor(minutes/60)} giờ${minutes%60?` ${minutes%60} phút`:""}`:`${minutes} phút`}</small><i aria-hidden="true"></i></div>
+        <div class="qv-sale-trip__stop qv-sale-trip__stop--arrival"><strong>${qvClock(arrival)}${daysLater?`<sup>+${daysLater}</sup>`:""}</strong><span>${escapeHtml(trip.ten_diem_tra)}</span></div>
+      </div>
+      <div class="qv-sale-trip__availability${soldOut?" is-empty":ratio<=20?" is-low":""}"><i><b style="width:${soldOut?100:Math.max(4,ratio)}%"></b></i><span>${soldOut?"Hết chỗ":`Còn <strong>${free}</strong>/${capacity} ghế`}</span></div>
+    </div>
+    <div class="qv-sale-trip__price"><small>${priceLabel}</small><strong>${dinhDangTien(trip.gia)}</strong><span aria-hidden="true">${soldOut?"Hết chỗ":"›"}</span></div>
+  </article>`;
+}
+function qvRenderTrips(){
+  qvRenderDates();
+  qvRenderFilters();
+  const destination = $("#destination").selectedOptions[0]?.textContent?.split(" · ")[0] || "Điểm đến";
+  $("#trip-route-title").innerHTML = `${escapeHtml(qvOffice?.ten_khu_vuc || "Điểm đi")} <span aria-hidden="true">→</span> ${escapeHtml(destination)}`;
+  const filtered = qvTrips.filter(trip =>
+    (!qvTripFilters.time.size || qvTripFilters.time.has(qvTimeRange(trip))) &&
+    (!qvTripFilters.type.size || qvTripFilters.type.has(trip.ten_loai_xe)) &&
+    (!qvTripFilters.available || Number(trip.so_ghe_trong)>0)
+  );
+  const byTime = (a,b) => new Date(a.gio_don_du_kien||a.gio_khoi_hanh)-new Date(b.gio_don_du_kien||b.gio_khoi_hanh);
+  if (qvTripSort==="gia") filtered.sort((a,b)=>Number(a.gia)-Number(b.gia)||byTime(a,b));
+  else if (qvTripSort==="ghe") filtered.sort((a,b)=>Number(b.so_ghe_trong)-Number(a.so_ghe_trong)||byTime(a,b));
+  else filtered.sort(byTime);
+  $("#trip-count").textContent = `${filtered.length===qvTrips.length?`${qvTrips.length} chuyến`:`${filtered.length}/${qvTrips.length} chuyến`} · ${qvLongDateFormat.format(new Date(`${$("#travel-date").value}T12:00:00+07:00`))}`;
+  $("#trip-results").innerHTML = filtered.length ? filtered.map(qvTripCard).join("") :
+    `<div class="qv-sale-trip-empty">${qvTrips.length?"Không có chuyến khớp bộ lọc. Hãy đổi bộ lọc để xem các chuyến khác.":"Không có chuyến phù hợp trong ngày đã chọn. Hãy thử ngày khác."}</div>`;
+  document.querySelectorAll(".qv-sale-sort button").forEach(button=>{
+    button.classList.toggle("is-active", button.dataset.sort===qvTripSort);
+    button.setAttribute("aria-pressed", String(button.dataset.sort===qvTripSort));
+  });
+}
+async function qvChooseTrip(trip){
+  const destinationArea = $("#destination").value;
+  const stopsId = ++qvTripStopsRequest;
+  ++qvSeatMapRequest;
+  qvTrip=trip;
+  qvDestinationArea=destinationArea;
+  qvDetail=null;
+  qvRoute=null;
+  qvVerifiedDropoffId=null;
+  qvSeatSelection.clear();
+  updateTotal();
+  qvShowSeatStep(1);
+  $("#seat-card").classList.add("qv-hidden");
+  $("#seat-loading").classList.remove("qv-hidden");
+  $("#seat-loading").textContent="Đang tải sơ đồ ghế…";
+  showError($("#seat-warning"),"");
+  $("#seat-dialog-title").textContent=`${trip.ten_diem_don} → ${trip.ten_diem_tra}`;
+  $("#selected-trip-note").textContent=`${qvLongDateFormat.format(new Date(trip.gio_don_du_kien||trip.gio_khoi_hanh))} · ${qvClock(trip.gio_don_du_kien||trip.gio_khoi_hanh)} → ${qvClock(trip.gio_den_du_kien)} · ${trip.ma}`;
+  $("#seat-trip-badges").innerHTML=`<span>${escapeHtml(trip.ten_loai_xe)}</span><span>${dinhDangTien(trip.gia)}${Number(trip.gia)!==Number(trip.gia_cao_nhat)?" trở lên":""}/ghế</span><span class="qv-seat-dialog__available">Còn ${Number(trip.so_ghe_trong)}/${Number(trip.tong_ghe)} ghế</span>${trip.bien_so?`<span>Xe ${escapeHtml(trip.bien_so)}</span>`:""}<button type="button" id="view-trip-route" class="qv-seat-dialog__route">Xem lộ trình</button>`;
+  if(!$("#seat-dialog").open)$("#seat-dialog").showModal();
+  document.body.classList.add("qv-seat-modal-open");
+  showError($("#search-error"), "");
+  try {
+    const [stops, route] = await Promise.all([
+      apiGet(`/quay-ve/chuyen/${trip.id}/diem-tra?${queryString({diem_den_id: destinationArea})}`),
+      apiGet(`/chuyen/${trip.id}/lo-trinh`).catch(()=>null)
+    ]);
+    if (stopsId !== qvTripStopsRequest) return;
+    if (!stops.length) throw new Error("Chuyến không có điểm trả phù hợp.");
+    qvRoute=route;
+    $("#dropoff").innerHTML = stops.map(stop => `<option value="${escapeHtml(stop.diem_id)}">${escapeHtml(stop.ten)}</option>`).join("");
+    await loadSeatMap(trip, destinationArea, stops[0].diem_id);
+  } catch (error) {
+    if (stopsId === qvTripStopsRequest){$("#seat-loading").textContent=`Không tải được sơ đồ ghế: ${error.message}`;$("#seat-loading").classList.remove("qv-hidden");}
+  }
+}
 
 function renderSeatMap(detail) {
   const seats = detail.so_do_ghe || [];
@@ -200,25 +572,112 @@ function renderSeatMap(detail) {
 
 async function loadSeatMap(trip, destinationArea, dropoffId) {
   const requestId = ++qvSeatMapRequest;
-  qvSeatSelection.clear();
-  qvDetail = null;
-  $("#seat-card").classList.add("qv-hidden");
-  $("#customer-card").classList.add("qv-hidden");
-  $("#submit-sale").disabled = true;
+  const previousSeats=[...qvSeatSelection];
+  $("#next-to-customer").disabled=true;
+  showError($("#dropoff-error"),"");
+  showError($("#seat-warning"),"");
   const params = queryString({ diem_den_id: destinationArea, diem_tra_id: dropoffId });
-  const detail = await apiGet(`/quay-ve/chuyen/${trip.id}/so-do-ghe?${params}`);
+  let detail;
+  try {detail = await apiGet(`/quay-ve/chuyen/${trip.id}/so-do-ghe?${params}`);}
+  catch(error){if(requestId===qvSeatMapRequest)$("#next-to-customer").disabled=!qvSeatSelection.size;throw error;}
   if (requestId !== qvSeatMapRequest) return;
   qvTrip = trip;
   qvDestinationArea = destinationArea;
   qvDetail = detail;
+  qvVerifiedDropoffId=dropoffId;
+  qvSeatSelection=new Set(previousSeats.filter(seat=>detail.so_do_ghe.some(item=>item.ma_ghe===seat&&item.trang_thai==="trong")));
   updateTotal();
-  $("#selected-trip-note").textContent = `${trip.ma} · ${dinhDangNgay(trip.gio_khoi_hanh)} · ${trip.ten_loai_xe} · ${dinhDangTien(trip.gia)}–${dinhDangTien(trip.gia_cao_nhat)}`;
   $("#pickup-name").value = qvOffice.ten;
   renderSeatMap(detail);
-  $("#seat-card").classList.remove("qv-hidden");
-  $("#seat-card").scrollIntoView({ behavior: "smooth", block: "start" });
+  $("#seat-map").querySelectorAll("[data-seat]").forEach(button=>{
+    const selected=qvSeatSelection.has(button.dataset.seat);
+    button.classList.toggle("selected",selected);
+    if(!button.disabled)button.setAttribute("aria-pressed",String(selected));
+  });
+  qvUpdateStopPreview();
+  $("#seat-loading").classList.add("qv-hidden");
+  if(previousSeats.length!==qvSeatSelection.size){
+    qvShowSeatStep(1);
+    showError($("#seat-warning"),"Một số ghế đã có người đặt ở điểm trả mới. Vui lòng chọn lại ghế.");
+  }else qvShowSeatStep(qvSeatStep);
 }
-if(quayVeKiemTraQuyen()){renderQuayVeNav(location.pathname);qvPageHeader("Bán vé","Tạo vé trực tiếp cho khách tại quầy hoặc hỗ trợ qua hotline.");$("#travel-date").value=localDate();(async()=>{try{qvOffice=await apiGet("/quay-ve/van-phong-cua-toi");qvOriginArea=qvOffice.khu_vuc_id;$("#office-label").textContent=`Văn phòng: ${qvOffice.ten} · ${qvOffice.dia_chi}`;$("#origin-name").value=qvOffice.ten_khu_vuc;const areas=await apiGet("/chuyen/khu-vuc");$("#destination").innerHTML='<option value="">Chọn khu vực đến</option>'+areas.filter(a=>a.id!==qvOriginArea).map(a=>`<option value="${a.id}">${escapeHtml(a.ten)} · ${escapeHtml(a.tinh_thanh)}</option>`).join("");}catch(e){showError($("#search-error"),e.message);}})();
+if(quayVeKiemTraQuyen()){
+  renderQuayVeNav(location.pathname);
+  qvPageHeader("Bán vé", "Tạo vé trực tiếp cho khách tại quầy hoặc hỗ trợ qua hotline.");
+  $("#close-seat-dialog").addEventListener("click",qvCloseSeatDialog);
+  $("#seat-dialog").addEventListener("cancel",event=>{event.preventDefault();qvCloseSeatDialog();});
+  $("#seat-dialog").addEventListener("click",event=>{if(event.target===$("#seat-dialog"))qvCloseSeatDialog();});
+  $("#close-route-dialog").addEventListener("click",()=>$("#route-dialog").close());
+  $("#route-dialog").addEventListener("click",event=>{if(event.target===$("#route-dialog"))$("#route-dialog").close();});
+  $("#seat-trip-badges").addEventListener("click",event=>{
+    if(!event.target.closest("#view-trip-route"))return;
+    qvRenderRoute();
+    $("#route-dialog").showModal();
+  });
+  $("#next-to-dropoff").addEventListener("click",()=>{if(qvSeatSelection.size)qvShowSeatStep(2);});
+  $("#back-to-seats").addEventListener("click",()=>qvShowSeatStep(1));
+  $("#next-to-customer").addEventListener("click",()=>{if(qvSeatSelection.size&&qvDetail)qvShowSeatStep(3);});
+  $("#back-to-dropoff").addEventListener("click",()=>qvShowSeatStep(2));
+  $("#dropoff").addEventListener("change",async()=>{
+    const trip=qvTrip;
+    if(!trip)return;
+    const selected=$("#dropoff").value;
+    try{await loadSeatMap(trip,qvDestinationArea,selected);}
+    catch(error){
+      if(qvTrip!==trip||$("#dropoff").value!==selected)return;
+      $("#dropoff").value=qvVerifiedDropoffId||selected;
+      qvUpdateStopPreview();
+      showError($("#dropoff-error"),`Không cập nhật được điểm trả: ${error.message}`);
+    }
+  });
+  $("#travel-date").value=localDate();
+  $("#travel-date").min=localDate();
+  qvUpdateTravelDateLabel();
+  (async()=>{
+    try{
+      qvOffice=await apiGet("/quay-ve/van-phong-cua-toi");
+      qvOriginArea=qvOffice.khu_vuc_id;
+      $("#origin-name").value=qvOffice.ten_khu_vuc;
+      const areas=await apiGet("/quay-ve/khu-vuc");
+      const destinations=areas.filter(area=>area.id!==qvOriginArea);
+      $("#destination").innerHTML='<option value="">Chọn điểm đến</option>'+destinations
+        .map(area=>`<option value="${escapeHtml(area.id)}">${escapeHtml(area.ten)} · ${escapeHtml(area.tinh_thanh)}</option>`)
+        .join("");
+      $("#destination-menu").innerHTML=destinations.length
+        ? destinations.map(area=>`<button type="button" class="qv-sale-search__option" role="option" aria-selected="false" data-area="${escapeHtml(area.id)}"><span><strong>${escapeHtml(area.ten)}</strong><small>${escapeHtml(area.tinh_thanh)}</small></span></button>`).join("")
+        : '<div class="qv-empty">Chưa có điểm đến khả dụng.</div>';
+      qvUpdateDestinationLabel();
+      $("#destination-trigger").disabled=!destinations.length;
+      $("#search-submit").disabled=!destinations.length;
+      if(!destinations.length)showError($("#search-error"),"Chưa có điểm đến khả dụng từ điểm đi này.");
+    }catch(error){
+      showError($("#search-error"),error.message);
+    }
+  })();
+$("#trip-date-tabs").addEventListener("click",event=>{
+  const button=event.target.closest("[data-date]");
+  if(!button || button.dataset.date===$("#travel-date").value)return;
+  $("#travel-date").value=button.dataset.date;
+  qvUpdateTravelDateLabel();
+  $("#search-form").requestSubmit();
+});
+$("#trip-time-filters").addEventListener("change",event=>{
+  if(event.target.dataset.filter!=="time")return;
+  if(event.target.checked)qvTripFilters.time.add(event.target.value);
+  else qvTripFilters.time.delete(event.target.value);
+  qvRenderTrips();
+});
+$("#trip-type-filters").addEventListener("change",event=>{
+  if(event.target.dataset.filter!=="type")return;
+  if(event.target.checked)qvTripFilters.type.add(event.target.value);
+  else qvTripFilters.type.delete(event.target.value);
+  qvRenderTrips();
+});
+$("#available-only").addEventListener("change",event=>{qvTripFilters.available=event.target.checked;qvRenderTrips();});
+$("#clear-trip-filters").addEventListener("click",()=>{qvTripFilters={time:new Set(),type:new Set(),available:false};qvRenderTrips();});
+$(".qv-sale-sort").addEventListener("click",event=>{const button=event.target.closest("[data-sort]");if(button){qvTripSort=button.dataset.sort;qvRenderTrips();}});
+$("#trip-results").addEventListener("click",event=>{const card=event.target.closest("[data-trip]");if(card){const trip=qvTrips.find(item=>String(item.id)===card.dataset.trip);if(trip)qvChooseTrip(trip);}});
+$("#trip-results").addEventListener("keydown",event=>{if((event.key==="Enter"||event.key===" ")&&event.target.matches("[data-trip]")){event.preventDefault();const trip=qvTrips.find(item=>String(item.id)===event.target.dataset.trip);if(trip)qvChooseTrip(trip);}});
 $("#search-form").addEventListener("submit", async event => {
   event.preventDefault();
   const searchId = ++qvSearchRequest;
@@ -227,52 +686,43 @@ $("#search-form").addEventListener("submit", async event => {
   qvTrip = null;
   qvDetail = null;
   qvSeatSelection.clear();
-  $("#seat-card").classList.add("qv-hidden");
-  $("#customer-card").classList.add("qv-hidden");
-  $("#submit-sale").disabled = true;
+  if($("#seat-dialog").open)qvCloseSeatDialog();
+  updateTotal();
   showError($("#search-error"), "");
-  $("#trip-results").innerHTML = '<div class="qv-empty">Đang tìm chuyến…</div>';
   const destinationArea = $("#destination").value;
+  if (!qvOriginArea) return;
+  if (!destinationArea) {
+    showError($("#search-error"), "Vui lòng chọn điểm đến trước khi tìm chuyến.");
+    $("#destination-trigger").focus();
+    return;
+  }
+  if (!$("#travel-date").value || $("#travel-date").value < localDate()) {
+    showError($("#search-error"), "Vui lòng chọn ngày đi từ hôm nay trở đi.");
+    $("#travel-date-trigger").focus();
+    return;
+  }
+  qvCloseSearchPickers();
+  if(qvSearchedDestination!==destinationArea){qvTripFilters={time:new Set(),type:new Set(),available:false};qvSearchedDestination=destinationArea;}
+  qvTrips=[];
+  $("#trip-browser").classList.remove("qv-hidden");
+  qvRenderDates();
+  $("#trip-route-title").innerHTML=`${escapeHtml(qvOffice.ten_khu_vuc)} <span aria-hidden="true">→</span> ${escapeHtml($("#destination").selectedOptions[0]?.textContent?.split(" · ")[0]||"")}`;
+  $("#trip-count").textContent="Đang tìm chuyến…";
+  $("#trip-results").innerHTML = '<div class="qv-sale-trip-empty">Đang tìm chuyến…</div>';
+  $("#search-submit").disabled=true;
   try {
     const trips = await apiGet(`/quay-ve/tim-chuyen?${queryString({diem_di_id: qvOriginArea, diem_den_id: destinationArea, ngay: $("#travel-date").value})}`);
     if (searchId !== qvSearchRequest) return;
-    if (!trips.length) {
-      $("#trip-results").innerHTML = '<div class="qv-empty">Không có chuyến phù hợp trong ngày đã chọn.</div>';
-      return;
-    }
-    $("#trip-results").innerHTML = trips.map(trip => `
-      <div class="qv-trip">
-        <div><strong>${escapeHtml(trip.ma)} · ${escapeHtml(trip.ten_loai_xe)}</strong>
-          <small>${dinhDangNgay(trip.gio_khoi_hanh)} · ${trip.so_ghe_trong}/${trip.tong_ghe} ghế trống · ${dinhDangTien(trip.gia)}–${dinhDangTien(trip.gia_cao_nhat)}</small></div>
-        <button class="qv-btn secondary choose-trip" type="button" data-trip="${trip.id}">Chọn chuyến</button>
-      </div>`).join("");
-    $("#trip-results").querySelectorAll(".choose-trip").forEach(button => {
-      button.addEventListener("click", async () => {
-        const trip = trips.find(item => item.id === button.dataset.trip);
-        const stopsId = ++qvTripStopsRequest;
-        ++qvSeatMapRequest;
-        qvSeatSelection.clear();
-        $("#seat-card").classList.add("qv-hidden");
-        $("#customer-card").classList.add("qv-hidden");
-        $("#submit-sale").disabled = true;
-        showError($("#search-error"), "");
-        try {
-          const stops = await apiGet(`/quay-ve/chuyen/${trip.id}/diem-tra?${queryString({diem_den_id: destinationArea})}`);
-          if (stopsId !== qvTripStopsRequest) return;
-          if (!stops.length) throw new Error("Chuyến không có điểm trả phù hợp.");
-          $("#dropoff").innerHTML = stops.map(stop => `<option value="${stop.diem_id}">${escapeHtml(stop.ten)}</option>`).join("");
-          $("#dropoff").onchange = () => loadSeatMap(trip, destinationArea, $("#dropoff").value)
-            .catch(error => showError($("#search-error"), error.message));
-          await loadSeatMap(trip, destinationArea, stops[0].diem_id);
-        } catch (error) {
-          if (stopsId === qvTripStopsRequest) showError($("#search-error"), error.message);
-        }
-      });
-    });
+    qvTrips=trips;
+    qvTripFilters.type=new Set([...qvTripFilters.type].filter(type=>trips.some(trip=>trip.ten_loai_xe===type)));
+    qvRenderTrips();
   } catch (error) {
     if (searchId !== qvSearchRequest) return;
-    $("#trip-results").innerHTML = "";
+    $("#trip-results").innerHTML = '<div class="qv-sale-trip-empty">Không tải được danh sách chuyến. Vui lòng thử lại.</div>';
+    $("#trip-count").textContent="";
     showError($("#search-error"), error.message);
+  } finally {
+    if(searchId===qvSearchRequest)$("#search-submit").disabled=false;
   }
 });
 $("#sales-channel").addEventListener("change",()=>{$("#payment-method").innerHTML=$("#sales-channel").value==="tai_quay"?'<option value="tien_mat">Tiền mặt tại quầy</option><option value="chuyen_khoan">VNPay QR</option>':'<option value="chuyen_khoan">Gửi link VNPay cho khách</option><option value="thanh_toan_tai_quay">Khách trả khi đến quầy</option>';});
@@ -379,6 +829,7 @@ $("#submit-sale").addEventListener("click",async()=>{
     if(!xacNhan)return;
     $("#submit-sale").disabled=true;
     const result=await apiPost("/quay-ve/ban-ve",payload);
+    qvCloseSeatDialog();
     const tatCaDaThanhToan=result.ve.every(ve=>ve.trang_thai==="da_thanh_toan");
     const veChoThanhToan=result.ve.filter(ve=>ve.trang_thai==="giu_cho");
     const rows=result.ve.map(ve=>`<tr>
@@ -418,9 +869,8 @@ $("#submit-sale").addEventListener("click",async()=>{
       </table></div>`;
     $("#sale-result").classList.remove("qv-hidden");
     $("#sale-result").scrollIntoView({behavior:"smooth"});
-    const urlInLuot=`/nhan-vien/quay-ve/tra-cuu-ve.html?in-dat-cho=${encodeURIComponent(result.ma_dat_cho)}`;
     const urlTraCuu=`/nhan-vien/quay-ve/tra-cuu-ve.html?ma_dat_cho=${encodeURIComponent(result.ma_dat_cho)}`;
-    $("#print-all-sold-tickets")?.addEventListener("click",()=>window.open(urlInLuot,"_blank","noopener"));
+    $("#print-all-sold-tickets")?.addEventListener("click",()=>qvTicketPrint.openBooking(result.ma_dat_cho));
     $("#view-sold-booking")?.addEventListener("click",()=>window.open(urlTraCuu,"_blank","noopener"));
     $("#pay-booking-qr")?.addEventListener("click",async()=>{
       const button=$("#pay-booking-qr");
@@ -431,9 +881,7 @@ $("#submit-sale").addEventListener("click",async()=>{
       }catch(e){showError(error,e.message);}finally{button.disabled=false;}
     });
     $("#new-sale").addEventListener("click",()=>location.reload());
-    $("#sale-result").querySelectorAll(".print-ticket").forEach(button=>button.onclick=()=>
-      window.open(`/nhan-vien/quay-ve/tra-cuu-ve.html?in=${encodeURIComponent(button.dataset.id)}`,"_blank","noopener")
-    );
+    $("#sale-result").querySelectorAll(".print-ticket").forEach(button=>button.onclick=()=>qvTicketPrint.openTicket(button.dataset.id));
     await qvAlert(
       tatCaDaThanhToan
         ? `Đã tạo ${result.ve.length} vé và ghi nhận khách đã thanh toán ${dinhDangTien(result.tong_tien)}. Mã đặt chỗ: ${result.ma_dat_cho}.`

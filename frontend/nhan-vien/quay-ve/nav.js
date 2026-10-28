@@ -166,7 +166,43 @@ function qvCloseAccountDetails() {
   qvAccountDialog.returnFocusTo?.focus();
 }
 
-function qvPageHeader(title) {
-  const heading = document.querySelector("#qv-header h1");
-  if (heading) heading.textContent = title;
+function qvPageHeader(title, description = "") {
+  const header = document.querySelector("#qv-header");
+  const heading = header?.querySelector("h1");
+  if (!heading) return;
+
+  header.classList.add("qv-topbar");
+  let identity = header.querySelector(".qv-topbar__identity");
+  if (!identity) {
+    identity = document.createElement("div");
+    identity.className = "qv-topbar__identity";
+    const mark = document.createElement("span");
+    mark.className = "qv-topbar__mark";
+    mark.setAttribute("aria-hidden", "true");
+    const copy = document.createElement("div");
+    copy.className = "qv-topbar__copy";
+    const eyebrow = document.createElement("span");
+    eyebrow.className = "qv-topbar__eyebrow";
+    eyebrow.textContent = "GOBUS  /  QUẦY VÉ";
+    const subtitle = document.createElement("p");
+    subtitle.className = "qv-topbar__subtitle";
+    copy.append(eyebrow, heading, subtitle);
+    identity.append(mark, copy);
+    header.prepend(identity);
+
+    const date = document.createElement("time");
+    date.className = "qv-topbar__date";
+    date.innerHTML = `${qvIcon('<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4m8-4v4"/>')}<span></span>`;
+    date.querySelector("span").textContent = new Intl.DateTimeFormat("vi-VN", {
+      timeZone: "Asia/Ho_Chi_Minh", weekday: "long", day: "2-digit", month: "2-digit", year: "numeric",
+    }).format(new Date());
+    header.insertBefore(date, header.querySelector(".nv-bell"));
+  }
+
+  const page = QV_MENU.find(item => item.label === title);
+  identity.querySelector(".qv-topbar__mark").innerHTML = qvIcon(page?.icon || '<rect x="4" y="4" width="16" height="16" rx="3"/>');
+  heading.textContent = title;
+  const subtitle = identity.querySelector(".qv-topbar__subtitle");
+  subtitle.textContent = description;
+  subtitle.hidden = !description;
 }

@@ -7,7 +7,7 @@ from app.repositories import quay_ve_repository as repo
 from app.repositories import tim_kiem_chuyen_repository as chuyen_repo
 from app.repositories import ve_lock_repository as lock_repo
 from app.repositories import ve_thanh_toan_repository as thanh_toan_repo
-from app.services import dat_ve_service, tim_kiem_chuyen_service, vnpay_service
+from app.services import dat_ve_service, thong_bao_khach_service as thong_bao, tim_kiem_chuyen_service, vnpay_service
 from app.utils.loi import CamTruyCap, GiaTriLoi, KhongTimThay
 from app.utils.so_dien_thoai import chuan_hoa_so_dien_thoai
 
@@ -28,7 +28,28 @@ def tim_chuyen(nguoi_dung, diem_di_id: str, diem_den_id: str, ngay: datetime.dat
     if str(diem_di_id) != str(vp["khu_vuc_id"]):
         raise CamTruyCap("Điểm đi phải thuộc khu vực văn phòng của bạn")
     result = tim_kiem_chuyen_service.tim_chuyen(diem_di_id, diem_den_id, ngay)
-    return [x for x in result if repo.chuyen_co_van_phong(str(x["id"]), str(vp["id"]))]
+    diem_quay = repo.thong_tin_chuyen_tai_van_phong([str(x["id"]) for x in result], str(vp["id"]), str(diem_den_id))
+    doan_ve: dict[str, list[dict]] = {}
+    for ve in chuyen_repo.tim_doan_ve_dang_giu(list(diem_quay)):
+        doan_ve.setdefault(str(ve["chuyen_id"]), []).append(ve)
+    ket_qua = []
+    for chuyen in result:
+        ma_chuyen = str(chuyen["id"])
+        if ma_chuyen not in diem_quay:
+            continue
+        diem = diem_quay[ma_chuyen]
+        ghe_bi_giu = tim_kiem_chuyen_service.tinh_ghe_dang_giu(
+            doan_ve.get(ma_chuyen, []), diem["hl_don"], diem["hl_tra"]
+        )
+        ket_qua.append({
+            **chuyen,
+            "diem_don_id": vp["id"], "ten_diem_don": vp["ten"],
+            "gio_don_du_kien": diem["gio_don_du_kien"],
+            "diem_tra_id": diem["diem_tra_id"], "ten_diem_tra": diem["ten_diem_tra"],
+            "gio_den_du_kien": diem["gio_den_du_kien"],
+            "so_ghe_trong": max(int(chuyen["tong_ghe"]) - len(ghe_bi_giu), 0),
+        })
+    return ket_qua
 
 
 def diem_tra(nguoi_dung, chuyen_id: str, diem_den_id: str) -> list[dict]:
@@ -185,6 +206,7 @@ def thu_tien(nguoi_dung, ma_dat_cho: str, phuong_thuc: str) -> dict:
     updated = lock_repo.thanh_toan_ve_quay(ma_dat_cho, str(vp["id"]), str(nguoi_dung.id), phuong_thuc, len(held))
     if updated != len(held):
         raise GiaTriLoi("Một số vé đã thay đổi trạng thái; tải lại danh sách trước khi thu tiền")
+    thong_bao.don_nhac_quay_ve(ma_dat_cho)
     return {"ma_dat_cho": ma_dat_cho, "so_ve_da_thanh_toan": updated}
 
 
@@ -282,6 +304,44 @@ def lich_su_ban_ve(
     vp = lay_van_phong(nguoi_dung)
     ma_ve = ma_ve.strip() if ma_ve else None
     return repo.lich_su_ban_ve(str(vp["id"]), tu_ngay, den_ngay, trang, kich_thuoc_trang, ma_ve or None)
+
+
+def ve_da_huy(nguoi_dung, ngay: datetime.date, trang: int = 1, kich_thuoc_trang: int = 20) -> dict:
+    vp = lay_van_phong(nguoi_dung)
+    return repo.ve_da_huy(str(vp["id"]), ngay, trang, kich_thuoc_trang)
+
+
+def ve_theo_trang_thai(nguoi_dung, trang_thai: str, tu_ngay: datetime.date,
+                       den_ngay: datetime.date, trang: int = 1,
+                       kich_thuoc_trang: int = 20, ma_ve: str | None = None) -> dict:
+    _kiem_tra_khoang_thong_ke(tu_ngay, den_ngay)
+    if trang_thai not in ("giu_cho", "da_huy"):
+        raise GiaTriLoi("Trạng thái vé không hợp lệ")
+    vp = lay_van_phong(nguoi_dung)
+    return repo.ve_theo_trang_thai(str(vp["id"]), trang_thai, tu_ngay, den_ngay,
+                                   trang, kich_thuoc_trang, ma_ve.strip() or None if ma_ve else None)
+
+
+def bieu_do_doanh_thu(nguoi_dung, tu_ngay: datetime.date, den_ngay: datetime.date,
+                      ma_ve: str | None = None) -> dict:
+    _kiem_tra_khoang_thong_ke(tu_ngay, den_ngay)
+    vp = lay_van_phong(nguoi_dung)
+    nhom = "day" if (den_ngay - tu_ngay).days <= 45 else "month"
+    rows = repo.bieu_do_doanh_thu(str(vp["id"]), tu_ngay, den_ngay,
+                                  ma_ve.strip() or None if ma_ve else None, nhom)
+    by_date = {row["moc"]: row for row in rows}
+    current = tu_ngay if nhom == "day" else tu_ngay.replace(day=1)
+    end = den_ngay if nhom == "day" else den_ngay.replace(day=1)
+    points = []
+    while current <= end:
+        row = by_date.get(current, {})
+        points.append({"moc": current.isoformat(), "so_ve": int(row.get("so_ve") or 0),
+                       "doanh_thu": int(row.get("doanh_thu") or 0)})
+        if nhom == "day":
+            current += datetime.timedelta(days=1)
+        else:
+            current = (current.replace(day=28) + datetime.timedelta(days=4)).replace(day=1)
+    return {"nhom": "ngay" if nhom == "day" else "thang", "diem": points}
 
 
 def tra_cuu_hoan_tien(nguoi_dung, ma_dat_cho: str | None = None, sdt: str | None = None) -> list[dict]:

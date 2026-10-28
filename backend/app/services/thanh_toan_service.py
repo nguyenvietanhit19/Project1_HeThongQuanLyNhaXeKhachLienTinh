@@ -56,6 +56,8 @@ def _ap_dung_ket_qua(ma_dat_cho: str, so_tien_cong: str, thanh_cong: bool,
         ):
             # Tiền đã trừ nhưng vé đã quá hạn/không còn giữ chỗ (trả đúng sát giờ): dừng cổng gọi lại, cần hoàn tiền thủ công (UC-22)
             return _rsp("02", "Order expired")
+        if la_don_quay:
+            thong_bao.don_nhac_quay_ve(ma_dat_cho)
         thong_bao.gui(
             khach_hang_id,
             thong_bao.nd_thanh_toan_thanh_cong(ma_dat_cho, [v["so_ghe"] for v in vua_tra], sum(int(v["gia"]) for v in vua_tra)),
@@ -90,6 +92,8 @@ def _ap_dung_ket_qua_ve(ma_ve: str, so_tien_cong: str, thanh_cong: bool, ma_giao
         if not repo.ghi_nhan_thanh_toan_ve_le(ma_ve, ma_tham_chieu, ma_giao_dich_cong):
             # Tiền đã trừ nhưng vé đã bị hủy/hết hạn trong lúc thanh toán: dừng cổng gọi lại, cần hoàn tiền thủ công (UC-22)
             return _rsp("02", "Order expired")
+        if ve["loai_hinh_thanh_toan"] == "thanh_toan_tai_quay":
+            thong_bao.don_nhac_quay_ve(ve["ma_dat_cho"])
         thong_bao.gui(
             ve.get("khach_hang_id"), thong_bao.nd_thanh_toan_ve_thanh_cong(ma_ve, ve.get("so_ghe", ""), int(ve["gia"])), ve_id=ve["id"]
         )

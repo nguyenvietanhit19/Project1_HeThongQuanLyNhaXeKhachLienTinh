@@ -58,6 +58,49 @@ def chuyen_co_van_phong(chuyen_id: str, van_phong_id: str) -> bool:
         release_connection(conn)
 
 
+def thong_tin_chuyen_tai_van_phong(chuyen_ids: list[str], van_phong_id: str, khu_vuc_den_id: str) -> dict[str, dict]:
+    """Điểm đón của quầy và điểm trả cuối cùng hợp lệ cho từng chuyến."""
+    if not chuyen_ids:
+        return {}
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT c.id::text AS chuyen_id,
+                       CASE WHEN c.chieu = 'xuoi' THEN don.thu_tu ELSE -don.thu_tu END AS hl_don,
+                       tra.hl_tra,
+                       tra.diem_tra_id, tra.ten_diem_tra,
+                       c.gio_khoi_hanh + make_interval(mins =>
+                           CASE WHEN c.chieu = 'xuoi' THEN don.thoi_gian_du_kien_phut
+                                ELSE tong.tong_phut - don.thoi_gian_du_kien_phut END) AS gio_don_du_kien,
+                       c.gio_khoi_hanh + make_interval(mins => tra.phut_tra) AS gio_den_du_kien
+                FROM chuyen_xe c
+                JOIN tuyen_diem_don_tra don ON don.tuyen_id = c.tuyen_id AND don.diem_don_tra_id = %s
+                JOIN (SELECT tuyen_id, MAX(thoi_gian_du_kien_phut) AS tong_phut
+                      FROM tuyen_diem_don_tra GROUP BY tuyen_id) tong ON tong.tuyen_id = c.tuyen_id
+                JOIN LATERAL (
+                    SELECT d.id AS diem_tra_id, d.ten AS ten_diem_tra,
+                           CASE WHEN c.chieu = 'xuoi' THEN dt.thu_tu ELSE -dt.thu_tu END AS hl_tra,
+                           CASE WHEN c.chieu = 'xuoi' THEN dt.thoi_gian_du_kien_phut
+                                ELSE tong.tong_phut - dt.thoi_gian_du_kien_phut END AS phut_tra
+                    FROM tuyen_diem_don_tra dt
+                    JOIN diem_don_tra d ON d.id = dt.diem_don_tra_id
+                    WHERE dt.tuyen_id = c.tuyen_id AND d.khu_vuc_id = %s
+                      AND d.loai IN ('van_phong', 'diem_dung')
+                      AND ((c.chieu = 'xuoi' AND don.thu_tu < dt.thu_tu)
+                        OR (c.chieu = 'nguoc' AND don.thu_tu > dt.thu_tu))
+                    ORDER BY hl_tra DESC LIMIT 1
+                ) tra ON true
+                WHERE c.id = ANY(%s::uuid[])
+                """,
+                (van_phong_id, khu_vuc_den_id, chuyen_ids),
+            )
+            return {row["chuyen_id"]: row for row in _rows(cur)}
+    finally:
+        release_connection(conn)
+
+
 def khach_hang(khach_hang_id: str) -> dict | None:
     conn = get_connection()
     try:
@@ -240,6 +283,7 @@ def cac_luot_tra_tai_quay_sap_chay() -> list[dict]:
                    LEFT JOIN nguoi_dung kh ON kh.id = v.khach_hang_id
                    WHERE nd.vai_tro = 'nhan_vien_quay_ve'
                      AND nd.dang_hoat_dong = true
+                     AND (v.kenh_ban IS NULL OR v.kenh_ban = 'hotline')
                      AND v.trang_thai = 'giu_cho'
                      AND v.loai_hinh_thanh_toan = 'thanh_toan_tai_quay'
                      AND v.han_giu_cho_den IS NULL
@@ -265,8 +309,14 @@ def thong_ke(van_phong_id: str, tu_ngay, den_ngay, ma_ve: str | None = None) -> 
                           COUNT(*) FILTER (WHERE v.trang_thai = 'da_huy')::int AS so_ve_da_huy,
                           COUNT(*) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den') AND v.phuong_thuc_thanh_toan = 'tien_mat')::int AS so_ve_tien_mat,
                           COUNT(*) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den') AND v.phuong_thuc_thanh_toan = 'chuyen_khoan')::int AS so_ve_chuyen_khoan,
-                          COUNT(*) FILTER (WHERE v.kenh_ban = 'tai_quay')::int AS so_ve_tai_quay,
-                          COUNT(*) FILTER (WHERE v.kenh_ban = 'hotline')::int AS so_ve_hotline
+                          COALESCE(SUM(v.gia) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den') AND v.phuong_thuc_thanh_toan = 'tien_mat'), 0)::bigint AS doanh_thu_tien_mat,
+                          COALESCE(SUM(v.gia) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den') AND v.phuong_thuc_thanh_toan = 'chuyen_khoan'), 0)::bigint AS doanh_thu_chuyen_khoan,
+                          COUNT(*) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den') AND v.kenh_ban = 'tai_quay')::int AS so_ve_tai_quay,
+                          COUNT(*) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den') AND v.kenh_ban = 'hotline')::int AS so_ve_hotline,
+                          COUNT(*) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den') AND v.kenh_ban IS NULL)::int AS so_ve_truc_tuyen,
+                          COALESCE(SUM(v.gia) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den') AND v.kenh_ban = 'tai_quay'), 0)::bigint AS doanh_thu_tai_quay,
+                          COALESCE(SUM(v.gia) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den') AND v.kenh_ban = 'hotline'), 0)::bigint AS doanh_thu_hotline,
+                          COALESCE(SUM(v.gia) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den') AND v.kenh_ban IS NULL), 0)::bigint AS doanh_thu_truc_tuyen
                    FROM ve v
                    WHERE v.diem_don_id = %s
                      AND v.ngay_tao >= (%s::date::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
@@ -311,6 +361,102 @@ def lich_su_ban_ve(van_phong_id: str, tu_ngay, den_ngay, trang: int, kich_thuoc_
                 (*tham_so, kich_thuoc_trang, (trang - 1) * kich_thuoc_trang),
             )
             return {"tong_so": tong_so, "trang": trang, "kich_thuoc_trang": kich_thuoc_trang, "ve": _rows(cur)}
+    finally:
+        release_connection(conn)
+
+
+def ve_da_huy(van_phong_id: str, ngay, trang: int, kich_thuoc_trang: int) -> dict:
+    """Chi tiết chỉ số vé lập trong ngày hiện đã hủy tại văn phòng này."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            dieu_kien = """v.diem_don_id = %s AND v.trang_thai = 'da_huy'
+                AND v.ngay_tao >= (%s::date::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
+                AND v.ngay_tao < ((%s::date + 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')"""
+            params = (van_phong_id, ngay, ngay)
+            cur.execute(f"SELECT COUNT(*) FROM ve v WHERE {dieu_kien}", params)
+            tong_so = int(cur.fetchone()[0])
+            cur.execute(
+                f"""SELECT v.id, v.ma_ve, v.ma_dat_cho, v.so_ghe, v.gia, v.ngay_tao, v.gio_huy,
+                           COALESCE(kh.ho_ten, v.ten_khach_vang_lai, '') AS ten_khach,
+                           COALESCE(kh.so_dien_thoai, v.sdt_khach_vang_lai, '') AS sdt_khach,
+                           c.ma AS ma_chuyen, c.gio_khoi_hanh,
+                           don.ten AS ten_diem_don, tra.ten AS ten_diem_tra
+                    FROM ve v
+                    JOIN chuyen_xe c ON c.id = v.chuyen_id
+                    JOIN diem_don_tra don ON don.id = v.diem_don_id
+                    JOIN diem_don_tra tra ON tra.id = v.diem_tra_id
+                    LEFT JOIN nguoi_dung kh ON kh.id = v.khach_hang_id
+                    WHERE {dieu_kien}
+                    ORDER BY v.gio_huy DESC NULLS LAST, v.ngay_tao DESC, v.id DESC
+                    LIMIT %s OFFSET %s""",
+                (*params, kich_thuoc_trang, (trang - 1) * kich_thuoc_trang),
+            )
+            return {"tong_so": tong_so, "trang": trang, "kich_thuoc_trang": kich_thuoc_trang, "ve": _rows(cur)}
+    finally:
+        release_connection(conn)
+
+
+def ve_theo_trang_thai(
+    van_phong_id: str, trang_thai: str, tu_ngay, den_ngay, trang: int, kich_thuoc_trang: int,
+    ma_ve: str | None = None,
+) -> dict:
+    """Chi tiết vé chờ/hủy khớp ngày lập vé, mã vé và văn phòng của thống kê."""
+    if trang_thai not in ("giu_cho", "da_huy"):
+        raise ValueError("Trạng thái vé không hợp lệ")
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            dieu_kien = """v.diem_don_id = %s AND v.trang_thai = %s
+                AND v.ngay_tao >= (%s::date::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
+                AND v.ngay_tao < ((%s::date + 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
+                AND (%s::text IS NULL OR v.ma_ve ILIKE %s::text)"""
+            mau_ma_ve = f"%{ma_ve}%" if ma_ve else None
+            params = (van_phong_id, trang_thai, tu_ngay, den_ngay, ma_ve, mau_ma_ve)
+            cur.execute(f"SELECT COUNT(*) FROM ve v WHERE {dieu_kien}", params)
+            tong_so = int(cur.fetchone()[0])
+            cur.execute(
+                f"""SELECT v.id, v.ma_ve, v.ma_dat_cho, v.so_ghe, v.gia, v.ngay_tao,
+                           v.gio_huy, v.han_giu_cho_den, v.loai_hinh_thanh_toan,
+                           COALESCE(kh.ho_ten, v.ten_khach_vang_lai, '') AS ten_khach,
+                           COALESCE(kh.so_dien_thoai, v.sdt_khach_vang_lai, '') AS sdt_khach,
+                           c.ma AS ma_chuyen, c.gio_khoi_hanh,
+                           don.ten AS ten_diem_don, tra.ten AS ten_diem_tra
+                    FROM ve v
+                    JOIN chuyen_xe c ON c.id = v.chuyen_id
+                    JOIN diem_don_tra don ON don.id = v.diem_don_id
+                    JOIN diem_don_tra tra ON tra.id = v.diem_tra_id
+                    LEFT JOIN nguoi_dung kh ON kh.id = v.khach_hang_id
+                    WHERE {dieu_kien}
+                    ORDER BY v.ngay_tao DESC, v.id DESC
+                    LIMIT %s OFFSET %s""",
+                (*params, kich_thuoc_trang, (trang - 1) * kich_thuoc_trang),
+            )
+            return {"tong_so": tong_so, "trang": trang, "kich_thuoc_trang": kich_thuoc_trang, "ve": _rows(cur)}
+    finally:
+        release_connection(conn)
+
+
+def bieu_do_doanh_thu(van_phong_id: str, tu_ngay, den_ngay, ma_ve: str | None, nhom: str) -> list[dict]:
+    """Doanh thu và số vé đã bán theo ngày/tháng trong cùng phạm vi của thống kê."""
+    if nhom not in ("day", "month"):
+        raise ValueError("Nhóm thời gian không hợp lệ")
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""SELECT date_trunc('{nhom}', v.ngay_tao AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AS moc,
+                           COUNT(*)::int AS so_ve, COALESCE(SUM(v.gia), 0)::bigint AS doanh_thu
+                    FROM ve v
+                    WHERE v.diem_don_id = %s
+                      AND v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den')
+                      AND v.ngay_tao >= (%s::date::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
+                      AND v.ngay_tao < ((%s::date + 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
+                      AND (%s::text IS NULL OR v.ma_ve ILIKE %s::text)
+                    GROUP BY 1 ORDER BY 1""",
+                (van_phong_id, tu_ngay, den_ngay, ma_ve, f"%{ma_ve}%" if ma_ve else None),
+            )
+            return _rows(cur)
     finally:
         release_connection(conn)
 

@@ -27,21 +27,29 @@
               <p class="nv-page-intro__desc">Tra cứu vé của văn phòng, nhận thanh toán và in vé cho hành khách.</p>
             </div>
           </div>
-          <article class="nv-card qv-card qv-no-print">
-            <h2>Tra cứu vé / đặt chỗ</h2>
-            <form id="lookup-form" class="qv-row">
-              <div class="qv-field">
+          <article class="nv-card qv-card qv-no-print qv-lookup-card">
+            <div class="qv-lookup-card__body">
+              <form id="lookup-form" class="qv-lookup-phone-form">
+                <label for="phone">Số điện thoại khách hàng</label>
+                <div class="qv-lookup-phone-form__row">
+                  <span class="qv-lookup-phone-form__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h3l1.3 4-2 1.7a15 15 0 0 0 6 6l1.7-2L21 14v3a3 3 0 0 1-3.2 3A17 17 0 0 1 4 6.2 3 3 0 0 1 7 3Z" /></svg>
+                  </span>
+                  <input id="phone" type="tel" inputmode="numeric" autocomplete="tel" maxlength="10" placeholder="Nhập số điện thoại 10 chữ số" aria-describedby="lookup-phone-hint" />
+                  <button class="qv-btn qv-lookup-phone-form__submit" type="submit">Tìm vé theo SĐT <span aria-hidden="true">→</span></button>
+                </div>
+                <p id="lookup-phone-hint">Xem mọi vé của khách thuộc văn phòng này chỉ với một số điện thoại.</p>
+              </form>
+              <div class="qv-lookup-divider"><span>HOẶC TRA CỨU BẰNG MÃ</span></div>
+              <form id="booking-lookup-form" class="qv-lookup-code-form">
                 <label for="booking-code">Mã đặt chỗ</label>
-                <input id="booking-code" placeholder="VD: DC1234AB" />
-              </div>
-              <span class="qv-muted">hoặc</span>
-              <div class="qv-field">
-                <label for="phone">Số điện thoại khách</label>
-                <input id="phone" inputmode="tel" placeholder="0xxxxxxxxx" />
-              </div>
-              <button class="qv-btn" type="submit">Tra cứu</button>
-            </form>
-            <div id="lookup-error" class="qv-alert error qv-hidden"></div>
+                <div class="qv-lookup-code-form__row">
+                  <input id="booking-code" autocomplete="off" placeholder="VD: DC1234AB" />
+                  <button class="qv-btn secondary" type="submit">Tra cứu mã</button>
+                </div>
+              </form>
+              <div id="lookup-error" class="qv-alert error qv-hidden" role="alert"></div>
+            </div>
           </article>
 
           <article class="nv-card qv-card qv-no-print qv-hidden" id="ticket-card">
@@ -65,7 +73,7 @@
             </form>
             <div id="lookup-pending-summary" class="qv-pending-summary qv-hidden"></div>
             <div class="qv-table-wrap">
-              <table class="qv-table">
+              <table class="qv-table qv-lookup-results">
                 <thead>
                   <tr>
                     <th>Mã vé</th>
@@ -98,10 +106,21 @@
               </table>
             </div>
           </article>
-          <article class="nv-card qv-card qv-hidden" id="print-card"></article>
         </main>
       </div>
     </div>
+    <dialog class="qv-history-ticket-dialog qv-print-dialog" id="print-dialog" aria-labelledby="print-dialog-title">
+      <div class="qv-history-ticket-dialog__head">
+        <div><span>XEM TRƯỚC VÉ</span><h2 id="print-dialog-title">Vé xe khách</h2></div>
+        <button class="qv-history-ticket-dialog__x" type="button" data-close-print-dialog aria-label="Đóng">×</button>
+      </div>
+      <div class="qv-history-ticket-dialog__body" id="print-dialog-content" aria-live="polite"></div>
+      <div class="qv-history-ticket-dialog__foot">
+        <button class="qv-btn secondary" type="button" data-close-print-dialog>Đóng</button>
+        <button class="qv-btn" id="print-ticket-button" type="button" disabled>In vé</button>
+      </div>
+    </dialog>
+    <div id="print-sheet" aria-hidden="true"></div>
     <script src="api-client.js"></script>
     <script src="auth-check.js"></script>
     <script src="/nhan-vien/quan-ly/thong-bao.js"></script>
@@ -208,44 +227,56 @@ function mauVe(t) {
       </aside>
     </div>`;
 }
+function moModalInVe() {
+  $("#print-dialog-title").textContent="Đang tải vé…";
+  $("#print-dialog-content").innerHTML='<p class="qv-history-ticket-dialog__loading">Đang tải vé để in…</p>';
+  $("#print-ticket-button").disabled=true;
+  $("#print-sheet").innerHTML="";
+  document.body.classList.remove("qv-print-ready");
+  if(!$("#print-dialog").open)$("#print-dialog").showModal();
+}
+function hienThiLoiInVe(error) {
+  $("#print-dialog-title").textContent="Không tải được vé";
+  $("#print-dialog-content").innerHTML=`<div class="qv-history-ticket-dialog__error"><strong>Không thể in vé</strong><span>${escapeHtml(error.message||"Vui lòng thử lại.")}</span></div>`;
+  $("#print-ticket-button").disabled=true;
+}
 function hienThiVeIn(danhSachVe, { maDatCho = "", tongSoVe = danhSachVe.length } = {}) {
-  const card = $("#print-card");
+  const content = $("#print-dialog-content");
   const soVeKhongDuDieuKien = tongSoVe - danhSachVe.length;
-  card.innerHTML = `
-    <div class="qv-print-summary qv-no-print">
-      <h2>${maDatCho ? `Lượt vé ${escapeHtml(maDatCho)}` : `Vé ${escapeHtml(danhSachVe[0].ma_ve)}`}</h2>
-      <p>${danhSachVe.length} vé đã thanh toán sẵn sàng in.${soVeKhongDuDieuKien ? ` Còn ${soVeKhongDuDieuKien} vé không đủ điều kiện in, không có trong bản in.` : ""}</p>
-    </div>
-    <div class="qv-ticket-stack">${danhSachVe.map(mauVe).join("")}</div>
-    <div class="qv-ticket__actions qv-no-print"><button class="qv-btn" type="button" id="print-ticket-button">In ${danhSachVe.length} vé</button></div>`;
-  card.querySelectorAll(".qv-ticket__barcode").forEach((svg, index) => veMaVachVe(svg, danhSachVe[index].ma_ve));
-  card.classList.remove("qv-hidden");
-  $("#print-ticket-button").addEventListener("click", () => window.print());
-  card.scrollIntoView({ behavior: "smooth" });
+  const veHtml=danhSachVe.map(mauVe).join("");
+  $("#print-dialog-title").textContent=maDatCho?`Lượt vé ${maDatCho}`:`Vé ${danhSachVe[0].ma_ve}`;
+  content.innerHTML=`<p class="qv-print-dialog__note">${danhSachVe.length} vé đã thanh toán sẵn sàng in.${soVeKhongDuDieuKien?` ${soVeKhongDuDieuKien} vé chưa đủ điều kiện sẽ không có trong bản in.`:""}</p><div class="qv-ticket-stack">${veHtml}</div>`;
+  $("#print-sheet").innerHTML=`<div class="qv-ticket-stack">${veHtml}</div>`;
+  [content,$("#print-sheet")].forEach(container=>container.querySelectorAll(".qv-ticket__barcode").forEach((svg,index)=>veMaVachVe(svg,danhSachVe[index].ma_ve)));
+  $("#print-ticket-button").textContent=`In ${danhSachVe.length} vé`;
+  $("#print-ticket-button").disabled=false;
+  document.body.classList.add("qv-print-ready");
 }
 async function printTicket(id) {
   const request=++qvPrintRequest;
-  $("#print-card").classList.add("qv-hidden");
-  const ve = await apiGet(`/quay-ve/ve/${encodeURIComponent(id)}/in`);
-  if(request!==qvPrintRequest)return;
-  hienThiVeIn([ve]);
+  moModalInVe();
+  try {
+    const ve = await apiGet(`/quay-ve/ve/${encodeURIComponent(id)}/in`);
+    if(request===qvPrintRequest)hienThiVeIn([ve]);
+  } catch(error) {if(request===qvPrintRequest)hienThiLoiInVe(error);}
 }
 async function printBooking(maDatCho, veTraCuu = null) {
   const request=++qvPrintRequest;
-  $("#print-card").classList.add("qv-hidden");
-  const danhSach = veTraCuu || await apiGet(`/quay-ve/tra-cuu?${queryString({ ma_dat_cho: maDatCho })}`);
-  if(request!==qvPrintRequest)return;
-  const veCuaLuot = danhSach.filter(ve => ve.ma_dat_cho === maDatCho);
-  if (!veCuaLuot.length) throw new Error("Không tìm thấy vé thuộc lượt đặt chỗ này tại văn phòng của bạn.");
-  const veDaThanhToan = veCuaLuot.filter(ve => ve.co_the_in && ve.trang_thai === "da_thanh_toan");
-  if (!veDaThanhToan.length) throw new Error("Lượt này chưa có vé đã thanh toán để in.");
-  const duLieuIn = await Promise.all(veDaThanhToan.map(ve => apiGet(`/quay-ve/ve/${encodeURIComponent(ve.id)}/in`)));
-  if(request!==qvPrintRequest)return;
-  hienThiVeIn(duLieuIn, { maDatCho, tongSoVe: veCuaLuot.length });
+  moModalInVe();
+  try {
+    const danhSach = veTraCuu || await apiGet(`/quay-ve/tra-cuu?${queryString({ ma_dat_cho: maDatCho })}`);
+    if(request!==qvPrintRequest)return;
+    const veCuaLuot = danhSach.filter(ve => ve.ma_dat_cho === maDatCho);
+    if (!veCuaLuot.length) throw new Error("Không tìm thấy vé thuộc lượt đặt chỗ này tại văn phòng của bạn.");
+    const veDaThanhToan = veCuaLuot.filter(ve => ve.co_the_in && ve.trang_thai === "da_thanh_toan");
+    if (!veDaThanhToan.length) throw new Error("Lượt này chưa có vé đã thanh toán để in.");
+    const duLieuIn = await Promise.all(veDaThanhToan.map(ve => apiGet(`/quay-ve/ve/${encodeURIComponent(ve.id)}/in`)));
+    if(request===qvPrintRequest)hienThiVeIn(duLieuIn, { maDatCho, tongSoVe: veCuaLuot.length });
+  } catch(error) {if(request===qvPrintRequest)hienThiLoiInVe(error);}
 }
 async function loadResults(params){
   ++qvPrintRequest;
-  $("#print-card").classList.add("qv-hidden");
+  if($("#print-dialog").open)$("#print-dialog").close();
   const tickets=await apiGet(`/quay-ve/tra-cuu?${queryString(params)}`);
   currentTickets=tickets;
   $("#ticket-card").classList.remove("qv-hidden");
@@ -313,6 +344,15 @@ const refunds=await apiGet(`/quay-ve/hoan-tien?${queryString(params)}`);$("#refu
 if(quayVeKiemTraQuyen()){
   renderQuayVeNav(location.pathname);
   qvPageHeader("Tra cứu / in vé","Tra vé thuộc văn phòng, nhận thanh toán và in vé cứng cho hành khách.");
+  $("#print-dialog").querySelectorAll("[data-close-print-dialog]").forEach(button=>button.addEventListener("click",()=>$("#print-dialog").close()));
+  $("#print-dialog").addEventListener("click",event=>{if(event.target===$("#print-dialog"))$("#print-dialog").close();});
+  $("#print-dialog").addEventListener("close",()=>{
+    if($("#print-dialog").open)return;
+    ++qvPrintRequest;
+    document.body.classList.remove("qv-print-ready");
+    $("#print-sheet").innerHTML="";
+  });
+  $("#print-ticket-button").addEventListener("click",()=>{if(!$("#print-ticket-button").disabled)window.print();});
   const baoLoi=error=>{$("#lookup-error").textContent=error.message;$("#lookup-error").classList.remove("qv-hidden");};
   $("#ticket-filter-form").addEventListener("submit",event=>{event.preventDefault();apDungBoLoc();});
   $("#filter-ticket-code").addEventListener("input",apDungBoLoc);
@@ -322,17 +362,28 @@ if(quayVeKiemTraQuyen()){
     $("#filter-trip-date").value="";
     apDungBoLoc();
   });
-  $("#lookup-form").addEventListener("submit",async e=>{
-    e.preventDefault();
-    const code=$("#booking-code").value.trim();
-    const phone=$("#phone").value.trim();
-    if(!code&&!phone){baoLoi(new Error("Nhập mã đặt chỗ hoặc số điện thoại."));return;}
+  const traCuu=async params=>{
     try{
       $("#lookup-error").classList.add("qv-hidden");
       $("#filter-ticket-code").value="";
       $("#filter-trip-date").value="";
-      await loadResults(code?{ma_dat_cho:code}:{sdt:phone});
+      await loadResults(params);
     }catch(error){baoLoi(error);}
+  };
+  $("#phone").addEventListener("input",event=>{
+    event.target.value=event.target.value.replace(/\D/g,"").slice(0,10);
+  });
+  $("#lookup-form").addEventListener("submit",e=>{
+    e.preventDefault();
+    const phone=$("#phone").value.trim();
+    if(!/^0\d{9}$/.test(phone)){baoLoi(new Error("Nhập số điện thoại gồm 10 chữ số, bắt đầu bằng 0."));$("#phone").focus();return;}
+    traCuu({sdt:phone});
+  });
+  $("#booking-lookup-form").addEventListener("submit",e=>{
+    e.preventDefault();
+    const code=$("#booking-code").value.trim();
+    if(!code){baoLoi(new Error("Nhập mã đặt chỗ để tra cứu."));$("#booking-code").focus();return;}
+    traCuu({ma_dat_cho:code});
   });
   const params=new URLSearchParams(location.search);
   const maDatChoIn=params.get("in-dat-cho");

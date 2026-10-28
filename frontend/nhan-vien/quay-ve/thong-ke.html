@@ -49,25 +49,38 @@
           </article>
 
           <div class="qv-grid">
-            <article class="qv-stat"><span>Vé đã bán</span><strong id="sold">—</strong></article>
-            <article class="qv-stat"><span>Doanh thu</span><strong id="revenue">—</strong></article>
-            <article class="qv-stat"><span>Chờ thanh toán</span><strong id="holds">—</strong><small>Trong khoảng ngày</small><a class="qv-stat-link" href="index.html#pending-tickets">Xem toàn bộ vé</a></article>
-            <article class="qv-stat"><span>Vé đã hủy</span><strong id="cancelled">—</strong></article>
+            <button type="button" class="qv-stat qv-stat-button" data-stats-detail="sold" aria-expanded="false" aria-controls="stats-detail"><span>Vé đã bán</span><strong id="sold">—</strong><small>Vé đã thanh toán</small><span class="qv-stat__hint">Xem chi tiết <span aria-hidden="true">↓</span></span></button>
+            <button type="button" class="qv-stat qv-stat-button" data-stats-detail="revenue" aria-expanded="false" aria-controls="stats-detail"><span>Doanh thu</span><strong id="revenue">—</strong><small>Vé đã thanh toán</small><span class="qv-stat__hint">Xem chi tiết <span aria-hidden="true">↓</span></span></button>
+            <button type="button" class="qv-stat qv-stat-button" data-stats-detail="holds" aria-expanded="false" aria-controls="stats-detail"><span>Chờ thanh toán</span><strong id="holds">—</strong><small>Vé đang giữ chỗ</small><span class="qv-stat__hint">Xem chi tiết <span aria-hidden="true">↓</span></span></button>
+            <button type="button" class="qv-stat qv-stat-button" data-stats-detail="cancelled" aria-expanded="false" aria-controls="stats-detail"><span>Vé đã hủy</span><strong id="cancelled">—</strong><small>Không tính doanh thu</small><span class="qv-stat__hint">Xem chi tiết <span aria-hidden="true">↓</span></span></button>
           </div>
 
-          <div class="qv-two-col">
-            <article class="nv-card qv-card">
-              <h2>Phương thức thanh toán</h2>
-              <div class="qv-grid qv-detail-grid">
-                <div><span class="qv-muted">Tiền mặt</span><h2 id="cash-count">—</h2></div>
-                <div><span class="qv-muted">Chuyển khoản</span><h2 id="transfer-count">—</h2></div>
-              </div>
+          <section class="nv-card qv-card qv-overview-detail qv-hidden" id="stats-detail" aria-live="polite">
+            <div class="qv-toolbar"><div><h2 id="stats-detail-title">Chi tiết</h2><p class="qv-muted" id="stats-detail-note"></p></div><button type="button" class="qv-overview-close" id="stats-detail-close" aria-label="Đóng chi tiết">×</button></div>
+            <div id="stats-detail-summary"></div>
+            <div id="stats-detail-error" class="qv-alert error qv-hidden" role="alert"></div>
+            <div class="qv-table-wrap"><table class="qv-table"><thead><tr><th>Ngày lập vé</th><th>Mã vé / đặt chỗ</th><th>Khách hàng</th><th>Chuyến / ghế</th><th>Giá vé</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody id="stats-detail-rows"></tbody></table></div>
+            <div class="qv-history-pagination"><span class="qv-muted" id="stats-detail-page"></span><div class="qv-actions-inline"><button type="button" class="qv-btn secondary" id="stats-detail-prev" disabled>Trang trước</button><button type="button" class="qv-btn secondary" id="stats-detail-next" disabled>Trang sau</button></div></div>
+          </section>
+
+          <section class="nv-card qv-card qv-revenue-chart-card" aria-labelledby="revenue-chart-title">
+            <div class="qv-toolbar"><div><h2 id="revenue-chart-title">Xu hướng doanh thu</h2><p class="qv-muted" id="revenue-chart-note">Doanh thu từ vé đã thanh toán theo ngày lập vé.</p></div><span class="qv-badge" id="revenue-chart-group">—</span></div>
+            <div class="qv-chart-metrics"><div><span>Tổng doanh thu</span><strong id="chart-total">—</strong></div><div><span>Trung bình mỗi kỳ</span><strong id="chart-average">—</strong></div><div><span>Kỳ cao nhất</span><strong id="chart-peak">—</strong></div></div>
+            <div id="revenue-chart" class="qv-revenue-chart" role="img" aria-label="Biểu đồ doanh thu theo thời gian">Đang tải biểu đồ…</div>
+          </section>
+
+          <div class="qv-two-col qv-stats-breakdown">
+            <article class="nv-card qv-card qv-breakdown-card">
+              <h2>Phương thức thanh toán</h2><p class="qv-muted">Cơ cấu doanh thu từ các vé đã thanh toán.</p>
+              <div class="qv-payment-layout"><div class="qv-payment-donut" id="payment-donut" role="img" aria-label="Tỷ trọng doanh thu theo phương thức"><div><strong id="cash-share">—</strong><small>tiền mặt</small></div></div>
+                <div class="qv-breakdown-list"><div class="qv-breakdown-item"><span class="qv-breakdown-dot cash"></span><div><strong>Tiền mặt</strong><small><span id="cash-count">—</span> vé</small></div><b id="cash-revenue">—</b></div><div class="qv-breakdown-item"><span class="qv-breakdown-dot transfer"></span><div><strong>Chuyển khoản</strong><small><span id="transfer-count">—</span> vé</small></div><b id="transfer-revenue">—</b></div></div></div>
             </article>
-            <article class="nv-card qv-card">
-              <h2>Kênh bán</h2>
-              <div class="qv-grid qv-detail-grid">
-                <div><span class="qv-muted">Tại quầy</span><h2 id="walkin-count">—</h2></div>
-                <div><span class="qv-muted">Hotline</span><h2 id="hotline-count">—</h2></div>
+            <article class="nv-card qv-card qv-breakdown-card">
+              <h2>Kênh bán</h2><p class="qv-muted">Doanh thu và số vé đã thanh toán theo từng kênh.</p>
+              <div class="qv-channel-list">
+                <div class="qv-channel-row"><div><strong>Tại quầy</strong><span><b id="walkin-revenue">—</b> · <span id="walkin-count">—</span> vé</span></div><div class="qv-channel-track"><span id="walkin-bar"></span></div></div>
+                <div class="qv-channel-row"><div><strong>Hotline</strong><span><b id="hotline-revenue">—</b> · <span id="hotline-count">—</span> vé</span></div><div class="qv-channel-track"><span id="hotline-bar"></span></div></div>
+                <div class="qv-channel-row"><div><strong>Trực tuyến</strong><span><b id="online-revenue">—</b> · <span id="online-count">—</span> vé</span></div><div class="qv-channel-track"><span id="online-bar"></span></div></div>
               </div>
             </article>
           </div>
@@ -93,11 +106,10 @@
                     <th>Giá vé</th>
                     <th>Thanh toán / kênh</th>
                     <th>Trạng thái / nhân viên</th>
-                    <th>Xem chi tiết</th>
                   </tr>
                 </thead>
                 <tbody id="history-rows">
-                  <tr><td colspan="9" class="qv-empty">Đang tải lịch sử vé…</td></tr>
+                  <tr><td colspan="8" class="qv-empty">Đang tải lịch sử vé…</td></tr>
                 </tbody>
               </table>
             </div>
@@ -134,6 +146,15 @@
       let statsRequest = 0;
       let historyRequest = 0;
       let historyPage = 1;
+      let chartRequest = 0;
+      let detailRequest = 0;
+      let detailMode = null;
+      let detailPage = 1;
+      let currentStats = null;
+
+      function currentFilters() {
+        return { tu_ngay: $("#from-date").value, den_ngay: $("#to-date").value, ma_ve: $("#ticket-code").value.trim() };
+      }
 
       function formatDate(date) {
         const year = date.getFullYear();
@@ -156,6 +177,7 @@
             })}`
           );
           if (requestId !== statsRequest) return;
+          currentStats = stats;
           $("#sold").textContent = stats.so_ve_da_ban;
           $("#revenue").textContent = dinhDangTien(stats.doanh_thu);
           $("#holds").textContent = stats.so_ve_cho_thanh_toan;
@@ -164,10 +186,31 @@
           $("#transfer-count").textContent = stats.so_ve_chuyen_khoan;
           $("#walkin-count").textContent = stats.so_ve_tai_quay;
           $("#hotline-count").textContent = stats.so_ve_hotline;
+          $("#online-count").textContent = stats.so_ve_truc_tuyen;
+          $("#cash-revenue").textContent = dinhDangTien(stats.doanh_thu_tien_mat);
+          $("#transfer-revenue").textContent = dinhDangTien(stats.doanh_thu_chuyen_khoan);
+          const hasPaymentRevenue = Number(stats.doanh_thu) > 0;
+          const cashShare = hasPaymentRevenue ? Math.round(Number(stats.doanh_thu_tien_mat) / Number(stats.doanh_thu) * 100) : 0;
+          $("#cash-share").textContent = hasPaymentRevenue ? `${cashShare}%` : "—";
+          $("#payment-donut").style.background = hasPaymentRevenue ? `conic-gradient(#f5a51d 0 ${cashShare}%, #5d4295 ${cashShare}% 100%)` : "#e9e4f1";
+          $("#payment-donut").setAttribute("aria-label", hasPaymentRevenue ? `Tiền mặt ${cashShare}%, chuyển khoản ${100 - cashShare}% doanh thu` : "Chưa có doanh thu thanh toán");
+          const channels = [
+            ["walkin", "doanh_thu_tai_quay"], ["hotline", "doanh_thu_hotline"], ["online", "doanh_thu_truc_tuyen"],
+          ];
+          const maxRevenue = Math.max(1, ...channels.map(([, key]) => Number(stats[key]) || 0));
+          channels.forEach(([id, key]) => {
+            const amount = Number(stats[key]) || 0;
+            $(`#${id}-revenue`).textContent = dinhDangTien(amount);
+            $(`#${id}-bar`).style.width = `${amount ? Math.max(4, amount / maxRevenue * 100) : 0}%`;
+          });
+          renderDetailSummary();
         } catch (error) {
           if (requestId !== statsRequest) return;
-          ["#sold", "#revenue", "#holds", "#cancelled", "#cash-count", "#transfer-count", "#walkin-count", "#hotline-count"]
+          currentStats = null;
+          ["#sold", "#revenue", "#holds", "#cancelled", "#cash-count", "#transfer-count", "#walkin-count", "#hotline-count", "#online-count", "#cash-revenue", "#transfer-revenue", "#walkin-revenue", "#hotline-revenue", "#online-revenue", "#cash-share"]
             .forEach(selector => { $(selector).textContent = "—"; });
+          ["#walkin-bar", "#hotline-bar", "#online-bar"].forEach(selector => { $(selector).style.width = "0"; });
+          $("#payment-donut").style.background = "#e9e4f1";
           errorMessage.textContent = error.message;
           errorMessage.classList.remove("qv-hidden");
         }
@@ -181,6 +224,137 @@
       };
       const paymentLabels = { tien_mat: "Tiền mặt", chuyen_khoan: "Chuyển khoản" };
       const channelLabels = { tai_quay: "Tại quầy", hotline: "Hotline" };
+
+      const detailConfig = {
+        sold: ["Vé đã bán", "Danh sách vé đã thanh toán trong khoảng ngày lập vé."],
+        revenue: ["Chi tiết doanh thu", "Doanh thu và từng vé đã thanh toán trong khoảng ngày lập vé."],
+        holds: ["Vé chờ thanh toán", "Các vé hiện còn giữ chỗ, được lập trong khoảng ngày đã lọc."],
+        cancelled: ["Vé đã hủy", "Các vé đã hủy, được lập trong khoảng ngày đã lọc."],
+      };
+
+      function renderDetailSummary() {
+        const stats = currentStats;
+        if (detailMode !== "revenue" || !stats) {
+          $("#stats-detail-summary").innerHTML = "";
+          return;
+        }
+        $("#stats-detail-summary").innerHTML = `<div class="qv-overview-breakdown"><div><span>Tổng doanh thu</span><strong>${dinhDangTien(stats.doanh_thu)}</strong></div><div><span>Tiền mặt · ${stats.so_ve_tien_mat} vé</span><strong>${dinhDangTien(stats.doanh_thu_tien_mat)}</strong></div><div><span>Chuyển khoản · ${stats.so_ve_chuyen_khoan} vé</span><strong>${dinhDangTien(stats.doanh_thu_chuyen_khoan)}</strong></div></div>`;
+      }
+
+      function closeDetail() {
+        detailMode = null;
+        ++detailRequest;
+        $("#stats-detail").classList.add("qv-hidden");
+        document.querySelectorAll("[data-stats-detail]").forEach(button => {
+          button.classList.remove("is-active");
+          button.setAttribute("aria-expanded", "false");
+        });
+      }
+
+      async function loadDetail(page = 1) {
+        if (!detailMode) return;
+        const mode = detailMode;
+        const requestId = ++detailRequest;
+        const errorBox = $("#stats-detail-error");
+        errorBox.classList.add("qv-hidden");
+        $("#stats-detail-rows").innerHTML = '<tr><td colspan="7" class="qv-empty">Đang tải vé…</td></tr>';
+        $("#stats-detail-prev").disabled = true;
+        $("#stats-detail-next").disabled = true;
+        try {
+          const endpoint = mode === "sold" || mode === "revenue" ? "lich-su-ban-ve" : "ve-theo-trang-thai";
+          const params = { ...currentFilters(), trang: page, kich_thuoc_trang: 10 };
+          if (endpoint === "ve-theo-trang-thai") params.trang_thai = mode === "holds" ? "giu_cho" : "da_huy";
+          const result = await apiGet(`/quay-ve/${endpoint}?${queryString(params)}`);
+          if (requestId !== detailRequest || mode !== detailMode) return;
+          detailPage = result.trang;
+          const totalPages = Math.max(1, Math.ceil(result.tong_so / result.kich_thuoc_trang));
+          $("#stats-detail-page").textContent = `${result.tong_so} vé · Trang ${detailPage}/${totalPages}`;
+          $("#stats-detail-prev").disabled = detailPage <= 1;
+          $("#stats-detail-next").disabled = detailPage >= totalPages;
+          $("#stats-detail-rows").innerHTML = result.ve.map(ticket => {
+            const status = mode === "holds" ? "Chờ thanh toán" : mode === "cancelled" ? "Đã hủy" : statusLabels[ticket.trang_thai] || ticket.trang_thai;
+            return `<tr><td>${dinhDangNgay(ticket.ngay_tao)}</td><td><strong>${escapeHtml(ticket.ma_ve)}</strong><br><small>${escapeHtml(ticket.ma_dat_cho || "—")}</small></td><td>${escapeHtml(ticket.ten_khach || "—")}<br><small>${escapeHtml(ticket.sdt_khach || "—")}</small></td><td>${escapeHtml(ticket.ma_chuyen || "—")}<br><small>${dinhDangNgay(ticket.gio_khoi_hanh)} · Ghế ${escapeHtml(ticket.so_ghe || "—")}</small></td><td><strong>${dinhDangTien(ticket.gia)}</strong></td><td><span class="qv-badge ${mode === "holds" ? "" : mode === "cancelled" ? "red" : "green"}">${escapeHtml(status)}</span></td><td><a class="qv-btn secondary qv-table-link" href="tra-cuu-ve.html?ma_dat_cho=${encodeURIComponent(ticket.ma_dat_cho || "")}">Tra cứu</a></td></tr>`;
+          }).join("") || '<tr><td colspan="7" class="qv-empty">Không có vé phù hợp bộ lọc.</td></tr>';
+        } catch (error) {
+          if (requestId !== detailRequest || mode !== detailMode) return;
+          $("#stats-detail-rows").innerHTML = '<tr><td colspan="7" class="qv-empty">Không tải được danh sách vé.</td></tr>';
+          errorBox.textContent = error.message;
+          errorBox.classList.remove("qv-hidden");
+        }
+      }
+
+      document.querySelectorAll("[data-stats-detail]").forEach(button => button.addEventListener("click", () => {
+        const mode = button.dataset.statsDetail;
+        if (detailMode === mode) return closeDetail();
+        detailMode = mode;
+        document.querySelectorAll("[data-stats-detail]").forEach(item => {
+          item.classList.toggle("is-active", item === button);
+          item.setAttribute("aria-expanded", String(item === button));
+        });
+        $("#stats-detail-title").textContent = detailConfig[mode][0];
+        $("#stats-detail-note").textContent = detailConfig[mode][1];
+        $("#stats-detail").classList.remove("qv-hidden");
+        renderDetailSummary();
+        loadDetail(1);
+        $("#stats-detail").scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }));
+      $("#stats-detail-close").addEventListener("click", closeDetail);
+      $("#stats-detail-prev").addEventListener("click", () => loadDetail(detailPage - 1));
+      $("#stats-detail-next").addEventListener("click", () => loadDetail(detailPage + 1));
+
+      async function loadRevenueChart() {
+        const requestId = ++chartRequest;
+        const chart = $("#revenue-chart");
+        chart.textContent = "Đang tải biểu đồ…";
+        try {
+          const result = await apiGet(`/quay-ve/bieu-do-doanh-thu?${queryString(currentFilters())}`);
+          if (requestId !== chartRequest) return;
+          const points = result.diem || [];
+          const values = points.map(point => Number(point.doanh_thu) || 0);
+          const total = values.reduce((sum, amount) => sum + amount, 0);
+          const peak = Math.max(0, ...values);
+          const peakIndex = values.indexOf(peak);
+          const group = result.nhom === "thang" ? "tháng" : "ngày";
+          $("#revenue-chart-group").textContent = `Theo ${group}`;
+          $("#revenue-chart-note").textContent = `Doanh thu vé đã thanh toán theo ${group} lập vé trong bộ lọc hiện tại.`;
+          $("#chart-total").textContent = dinhDangTien(total);
+          $("#chart-average").textContent = dinhDangTien(points.length ? Math.round(total / points.length) : 0);
+          $("#chart-peak").textContent = peak ? `${dinhDangTien(peak)} · ${result.nhom === "thang" ? points[peakIndex].moc.slice(0, 7) : points[peakIndex].moc.slice(5)}` : "—";
+          if (!points.length || !total) {
+            chart.innerHTML = '<div class="qv-chart-empty">Chưa có doanh thu trong khoảng ngày này.</div>';
+            chart.setAttribute("aria-label", "Chưa có doanh thu trong khoảng ngày này");
+            return;
+          }
+          const width = 1000, height = 290, left = 76, right = 18, top = 20, bottom = 48;
+          const plotWidth = width - left - right, plotHeight = height - top - bottom;
+          const ceiling = Math.max(1, peak);
+          const slot = plotWidth / points.length;
+          const barWidth = Math.max(4, Math.min(40, slot * .66));
+          const grid = [0, 1, 2, 3, 4].map(step => {
+            const y = top + plotHeight * step / 4;
+            const label = new Intl.NumberFormat("vi-VN", { notation: "compact", maximumFractionDigits: 1 }).format(ceiling * (4 - step) / 4);
+            return `<line x1="${left}" y1="${y}" x2="${width - right}" y2="${y}" class="qv-chart-grid-line"/><text x="${left - 10}" y="${y + 4}" text-anchor="end" class="qv-chart-axis-label">${escapeHtml(label)}</text>`;
+          }).join("");
+          const labelEvery = Math.max(1, Math.ceil(points.length / 8));
+          const lastIndex = points.length - 1;
+          const minLabelGap = 70;
+          const bars = points.map((point, index) => {
+            const amount = values[index];
+            const barHeight = amount ? Math.max(3, amount / ceiling * plotHeight) : 0;
+            const x = left + slot * index + (slot - barWidth) / 2;
+            const y = top + plotHeight - barHeight;
+            const label = result.nhom === "thang" ? point.moc.slice(5, 7) + "/" + point.moc.slice(2, 4) : point.moc.slice(8, 10) + "/" + point.moc.slice(5, 7);
+            const showLabel = index === lastIndex || (index % labelEvery === 0 && (lastIndex - index) * slot >= minLabelGap);
+            return `<rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="4" class="qv-chart-bar"><title>${escapeHtml(point.moc)}: ${dinhDangTien(amount)} · ${Number(point.so_ve) || 0} vé</title></rect>${showLabel ? `<text x="${x + barWidth / 2}" y="${height - 16}" text-anchor="middle" class="qv-chart-axis-label">${escapeHtml(label)}</text>` : ""}`;
+          }).join("");
+          chart.setAttribute("aria-label", `Doanh thu theo ${group}, tổng ${dinhDangTien(total)}, cao nhất ${dinhDangTien(peak)}`);
+          chart.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">${grid}${bars}</svg>`;
+        } catch (error) {
+          if (requestId !== chartRequest) return;
+          chart.textContent = `Không tải được biểu đồ: ${error.message}`;
+          ["#chart-total", "#chart-average", "#chart-peak", "#revenue-chart-group"].forEach(selector => { $(selector).textContent = "—"; });
+        }
+      }
 
       const historyTicketDialog = $("#history-ticket-dialog");
       const historyTicketContent = $("#history-ticket-content");
@@ -252,7 +426,7 @@
         const requestId = ++historyRequest;
         const errorMessage = $("#history-error");
         errorMessage.classList.add("qv-hidden");
-        $("#history-rows").innerHTML = '<tr><td colspan="9" class="qv-empty">Đang tải lịch sử vé…</td></tr>';
+        $("#history-rows").innerHTML = '<tr><td colspan="8" class="qv-empty">Đang tải lịch sử vé…</td></tr>';
         $("#history-count").textContent = "—";
         $("#history-page").textContent = "—";
         $("#history-prev").disabled = true;
@@ -281,12 +455,11 @@
               <td>${escapeHtml(ticket.ten_diem_don)} → ${escapeHtml(ticket.ten_diem_tra)}<br><small>Ghế ${escapeHtml(ticket.so_ghe)}</small></td>
               <td><strong>${dinhDangTien(ticket.gia)}</strong></td>
               <td>${escapeHtml(paymentLabels[ticket.phuong_thuc_thanh_toan] || "—")}<br><small>${escapeHtml(channelLabels[ticket.kenh_ban] || "Trực tuyến")} · ${dinhDangNgay(ticket.gio_thanh_toan)}</small></td>
-              <td><span class="qv-badge green">${escapeHtml(statusLabels[ticket.trang_thai] || ticket.trang_thai)}</span><br><small>${escapeHtml(ticket.nhan_vien_ban || (ticket.kenh_ban ? "Chưa ghi nhận nhân viên" : "Đặt trực tuyến"))}</small></td>
-              <td><button class="qv-btn secondary qv-table-link" type="button" data-view-ticket="${escapeHtml(ticket.id)}" aria-label="Xem chi tiết vé ${escapeHtml(ticket.ma_ve)}">Xem chi tiết</button></td>
-            </tr>`).join("") || '<tr><td colspan="9" class="qv-empty">Không có vé đã bán phù hợp bộ lọc.</td></tr>';
+              <td><span class="qv-badge green">${escapeHtml(statusLabels[ticket.trang_thai] || ticket.trang_thai)}</span><br><small>${escapeHtml(ticket.nhan_vien_ban || (ticket.kenh_ban ? "Chưa ghi nhận nhân viên" : "Đặt trực tuyến"))}</small><button class="qv-btn secondary qv-table-link qv-history-view-button" type="button" data-view-ticket="${escapeHtml(ticket.id)}" aria-label="Xem chi tiết vé ${escapeHtml(ticket.ma_ve)}">Xem chi tiết</button></td>
+            </tr>`).join("") || '<tr><td colspan="8" class="qv-empty">Không có vé đã bán phù hợp bộ lọc.</td></tr>';
         } catch (error) {
           if (requestId !== historyRequest) return;
-          $("#history-rows").innerHTML = '<tr><td colspan="9" class="qv-empty">Không tải được lịch sử vé.</td></tr>';
+          $("#history-rows").innerHTML = '<tr><td colspan="8" class="qv-empty">Không tải được lịch sử vé.</td></tr>';
           errorMessage.textContent = error.message;
           errorMessage.classList.remove("qv-hidden");
         }
@@ -317,6 +490,8 @@
           }
           loadStats();
           loadHistory(1);
+          loadRevenueChart();
+          if (detailMode) loadDetail(1);
         }
         $("#filter-form").addEventListener("submit", (event) => {
           event.preventDefault();

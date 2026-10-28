@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -72,6 +72,16 @@ def ve_cho_thanh_toan(
     return service.ve_cho_thanh_toan(nguoi_dung, trang, kich_thuoc_trang)
 
 
+@router.get("/ve-da-huy")
+def ve_da_huy(
+    nguoi_dung: NhanVienQuayVe,
+    ngay: date,
+    trang: int = Query(1, ge=1),
+    kich_thuoc_trang: int = Query(20, ge=1, le=50),
+):
+    return service.ve_da_huy(nguoi_dung, ngay, trang, kich_thuoc_trang)
+
+
 @router.post("/dat-cho/{ma_dat_cho}/thanh-toan")
 def thu_tien(ma_dat_cho: str, body: ThanhToanQuayRequest, nguoi_dung: NhanVienQuayVe):
     return service.thu_tien(nguoi_dung, ma_dat_cho, body.phuong_thuc)
@@ -130,6 +140,30 @@ def lich_su_ban_ve(
     ma_ve: str | None = Query(None, max_length=32),
 ):
     return service.lich_su_ban_ve(nguoi_dung, tu_ngay, den_ngay, trang, kich_thuoc_trang, ma_ve)
+
+
+@router.get("/ve-theo-trang-thai")
+def ve_theo_trang_thai(
+    nguoi_dung: NhanVienQuayVe,
+    trang_thai: Literal["giu_cho", "da_huy"],
+    tu_ngay: date,
+    den_ngay: date,
+    trang: int = Query(1, ge=1),
+    kich_thuoc_trang: int = Query(20, ge=1, le=50),
+    ma_ve: str | None = Query(None, max_length=32),
+):
+    return service.ve_theo_trang_thai(nguoi_dung, trang_thai, tu_ngay, den_ngay,
+                                     trang, kich_thuoc_trang, ma_ve)
+
+
+@router.get("/bieu-do-doanh-thu")
+def bieu_do_doanh_thu(
+    nguoi_dung: NhanVienQuayVe,
+    tu_ngay: date,
+    den_ngay: date,
+    ma_ve: str | None = Query(None, max_length=32),
+):
+    return service.bieu_do_doanh_thu(nguoi_dung, tu_ngay, den_ngay, ma_ve)
 
 
 @router.get("/ve/{ve_id}/in")

@@ -28,39 +28,62 @@
             </div>
           </div>
 
-          <div class="qv-grid">
-            <article class="qv-stat">
+          <div class="qv-grid" aria-label="Chọn chỉ số để xem chi tiết">
+            <button class="qv-stat qv-stat-button" type="button" data-overview="sold" aria-expanded="false" aria-controls="overview-detail">
               <span>Vé đã bán hôm nay</span>
               <strong id="st-sold">—</strong>
               <small>Trong ngày</small>
-            </article>
-            <article class="qv-stat">
+              <span class="qv-stat__hint"><span class="qv-stat__hint-text">Xem chi tiết</span><span aria-hidden="true">↓</span></span>
+            </button>
+            <button class="qv-stat qv-stat-button" type="button" data-overview="revenue" aria-expanded="false" aria-controls="overview-detail">
               <span>Doanh thu hôm nay</span>
               <strong id="st-revenue">—</strong>
               <small>Vé đã thanh toán</small>
-            </article>
-            <article class="qv-stat">
+              <span class="qv-stat__hint"><span class="qv-stat__hint-text">Xem chi tiết</span><span aria-hidden="true">↓</span></span>
+            </button>
+            <button class="qv-stat qv-stat-button" type="button" data-overview="pending" aria-expanded="false" aria-controls="pending-tickets">
               <span>Chờ thanh toán</span>
               <strong id="st-hold">—</strong>
               <small>Toàn bộ vé của văn phòng</small>
-              <a class="qv-stat-link" href="#pending-tickets">Xem từng vé ↓</a>
-            </article>
-            <article class="qv-stat">
+              <span class="qv-stat__hint"><span class="qv-stat__hint-text">Xem chi tiết</span><span aria-hidden="true">↓</span></span>
+            </button>
+            <button class="qv-stat qv-stat-button" type="button" data-overview="cancelled" aria-expanded="false" aria-controls="overview-detail">
               <span>Đã hủy</span>
               <strong id="st-cancel">—</strong>
               <small>Trong ngày</small>
-            </article>
+              <span class="qv-stat__hint"><span class="qv-stat__hint-text">Xem chi tiết</span><span aria-hidden="true">↓</span></span>
+            </button>
           </div>
 
-          <article class="nv-card qv-card" id="pending-tickets">
+          <article class="nv-card qv-card qv-overview-detail qv-hidden" id="overview-detail" aria-labelledby="overview-detail-title">
+            <div class="qv-toolbar">
+              <div><h2 id="overview-detail-title">Chi tiết</h2><p class="qv-muted" id="overview-detail-note"></p></div>
+              <div class="qv-actions-inline">
+                <button class="qv-btn secondary" id="overview-reload" type="button">Làm mới</button>
+                <button class="qv-overview-close" type="button" data-close-overview aria-label="Đóng chi tiết">×</button>
+              </div>
+            </div>
+            <div id="overview-error" class="qv-alert error qv-hidden" role="alert"></div>
+            <div id="overview-detail-content" aria-live="polite"></div>
+            <div class="qv-history-pagination">
+              <span class="qv-muted" id="overview-page">—</span>
+              <div class="qv-actions-inline">
+                <button type="button" class="qv-btn secondary" id="overview-prev" disabled>Trang trước</button>
+                <button type="button" class="qv-btn secondary" id="overview-next" disabled>Trang sau</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="nv-card qv-card qv-overview-detail qv-hidden" id="pending-tickets" aria-labelledby="pending-title">
             <div class="qv-toolbar">
               <div>
-                <h2>Vé chờ thanh toán</h2>
+                <h2 id="pending-title">Vé chờ thanh toán</h2>
                 <p class="qv-muted">Tất cả vé còn giữ chỗ của văn phòng, không chỉ vé lập trong hôm nay.</p>
               </div>
               <div class="qv-actions-inline">
                 <span class="qv-badge orange" id="pending-count">—</span>
                 <button class="qv-btn secondary" id="pending-reload" type="button">Làm mới</button>
+                <button class="qv-overview-close" type="button" data-close-overview aria-label="Đóng chi tiết">×</button>
               </div>
             </div>
             <div id="pending-error" class="qv-alert error qv-hidden" role="alert"></div>
@@ -117,6 +140,111 @@
     <script>
       let pendingPage = 1;
       let pendingRequest = 0;
+      let overviewMode = null;
+      let overviewPage = 1;
+      let overviewRequest = 0;
+
+      function todayCode() {
+        const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit"
+        }).formatToParts(new Date()).map(part => [part.type, part.value]));
+        return `${parts.year}-${parts.month}-${parts.day}`;
+      }
+
+      function showOverview(mode) {
+        overviewMode = overviewMode === mode ? null : mode;
+        ++overviewRequest;
+        document.querySelectorAll("[data-overview]").forEach(button => {
+          const active = button.dataset.overview === overviewMode;
+          button.classList.toggle("is-active", active);
+          button.setAttribute("aria-expanded", String(active));
+          button.querySelector(".qv-stat__hint-text").textContent = active ? "Ẩn chi tiết" : "Xem chi tiết";
+        });
+        document.querySelector("#pending-tickets").classList.toggle("qv-hidden", overviewMode !== "pending");
+        document.querySelector("#overview-detail").classList.toggle("qv-hidden", !overviewMode || overviewMode === "pending");
+        if (overviewMode === "pending") loadPendingTickets(1);
+        else if (overviewMode) loadOverviewDetail(1);
+      }
+
+      function soldRows(tickets) {
+        return tickets.map(ticket => `<tr>
+          <td><strong>${escapeHtml(ticket.ma_ve)}</strong><br><small>${escapeHtml(ticket.ma_dat_cho)}</small></td>
+          <td>${escapeHtml(ticket.ten_khach || "Khách vãng lai")}<br><small>${escapeHtml(ticket.sdt_khach || "—")}</small></td>
+          <td>${escapeHtml(ticket.ma_chuyen)}<br><small>${dinhDangNgay(ticket.gio_khoi_hanh)}</small></td>
+          <td>${escapeHtml(ticket.so_ghe)}<br><small>${escapeHtml(ticket.ten_diem_don)} → ${escapeHtml(ticket.ten_diem_tra)}</small></td>
+          <td>${ticket.phuong_thuc_thanh_toan === "tien_mat" ? "Tiền mặt" : ticket.phuong_thuc_thanh_toan === "chuyen_khoan" ? "Chuyển khoản" : "Khác"}<br><small>${ticket.gio_thanh_toan ? dinhDangNgay(ticket.gio_thanh_toan) : "—"}</small></td>
+          <td><strong>${dinhDangTien(ticket.gia)}</strong></td>
+          <td><a class="qv-btn secondary qv-table-link" href="tra-cuu-ve.html?ma_dat_cho=${encodeURIComponent(ticket.ma_dat_cho)}">Xem lượt</a></td>
+        </tr>`).join("") || '<tr><td colspan="7" class="qv-empty">Chưa có vé đã bán trong ngày.</td></tr>';
+      }
+
+      function cancelledRows(tickets) {
+        return tickets.map(ticket => {
+          const quaGio = ticket.gio_huy && new Date(ticket.gio_huy) >= new Date(ticket.gio_khoi_hanh);
+          return `<tr>
+            <td><strong>${escapeHtml(ticket.ma_ve)}</strong><br><small>${escapeHtml(ticket.ma_dat_cho)}</small></td>
+            <td>${escapeHtml(ticket.ten_khach || "Khách vãng lai")}<br><small>${escapeHtml(ticket.sdt_khach || "—")}</small></td>
+            <td>${escapeHtml(ticket.ma_chuyen)}<br><small>${dinhDangNgay(ticket.gio_khoi_hanh)}</small></td>
+            <td>${escapeHtml(ticket.so_ghe)}<br><small>${escapeHtml(ticket.ten_diem_don)} → ${escapeHtml(ticket.ten_diem_tra)}</small></td>
+            <td>${ticket.gio_huy ? dinhDangNgay(ticket.gio_huy) : "—"}</td>
+            <td><span class="qv-badge">${quaGio ? "Tự hủy quá giờ" : "Đã hủy"}</span></td>
+            <td><a class="qv-btn secondary qv-table-link" href="tra-cuu-ve.html?ma_dat_cho=${encodeURIComponent(ticket.ma_dat_cho)}">Xem lượt</a></td>
+          </tr>`;
+        }).join("") || '<tr><td colspan="7" class="qv-empty">Không có vé đã hủy trong ngày.</td></tr>';
+      }
+
+      async function loadOverviewDetail(page = 1) {
+        const mode = overviewMode;
+        if (!mode || mode === "pending") return;
+        const request = ++overviewRequest;
+        const today = todayCode();
+        const errorBox = document.querySelector("#overview-error");
+        errorBox.classList.add("qv-hidden");
+        document.querySelector("#overview-detail-title").textContent = {
+          sold: "Vé đã bán hôm nay", revenue: "Chi tiết doanh thu hôm nay", cancelled: "Vé đã hủy"
+        }[mode];
+        document.querySelector("#overview-detail-note").textContent = mode === "cancelled"
+          ? "Các vé lập trong hôm nay và hiện đã hủy tại văn phòng."
+          : "Các vé lập trong hôm nay tại văn phòng của bạn.";
+        document.querySelector("#overview-detail-content").innerHTML = '<div class="qv-empty">Đang tải chi tiết…</div>';
+        document.querySelector("#overview-page").textContent = "—";
+        document.querySelector("#overview-prev").disabled = true;
+        document.querySelector("#overview-next").disabled = true;
+        try {
+          const params = mode === "cancelled"
+            ? queryString({ ngay: today, trang: page })
+            : queryString({ tu_ngay: today, den_ngay: today, trang: page });
+          const [result, stats] = await Promise.all([
+            apiGet(mode === "cancelled" ? `/quay-ve/ve-da-huy?${params}` : `/quay-ve/lich-su-ban-ve?${params}`),
+            mode === "revenue" ? apiGet(`/quay-ve/thong-ke?${queryString({ tu_ngay: today, den_ngay: today })}`).catch(() => null) : Promise.resolve(null)
+          ]);
+          if (request !== overviewRequest || mode !== overviewMode) return;
+          overviewPage = result.trang;
+          if (mode === "cancelled") document.querySelector("#st-cancel").textContent = result.tong_so;
+          else document.querySelector("#st-sold").textContent = result.tong_so;
+          if (stats) document.querySelector("#st-revenue").textContent = dinhDangTien(stats.doanh_thu);
+          const totalPages = Math.max(1, Math.ceil(result.tong_so / result.kich_thuoc_trang));
+          document.querySelector("#overview-page").textContent = `${result.tong_so} vé · Trang ${overviewPage}/${totalPages}`;
+          document.querySelector("#overview-prev").disabled = overviewPage <= 1;
+          document.querySelector("#overview-next").disabled = overviewPage >= totalPages;
+          const otherRevenue = stats ? Math.max(0, Number(stats.doanh_thu) - Number(stats.doanh_thu_tien_mat) - Number(stats.doanh_thu_chuyen_khoan)) : 0;
+          const breakdown = stats ? `<div class="qv-overview-breakdown">
+            <div><span>Tiền mặt</span><strong>${dinhDangTien(stats.doanh_thu_tien_mat)}</strong></div>
+            <div><span>Chuyển khoản</span><strong>${dinhDangTien(stats.doanh_thu_chuyen_khoan)}</strong></div>
+            ${otherRevenue ? `<div><span>Phương thức khác</span><strong>${dinhDangTien(otherRevenue)}</strong></div>` : ""}
+            <div><span>Tổng doanh thu</span><strong>${dinhDangTien(stats.doanh_thu)}</strong></div>
+          </div>` : "";
+          const headers = mode === "cancelled"
+            ? "<th>Mã vé / đặt chỗ</th><th>Khách hàng</th><th>Chuyến / giờ chạy</th><th>Ghế, điểm đón → trả</th><th>Giờ hủy</th><th>Tình trạng</th><th>Thao tác</th>"
+            : "<th>Mã vé / đặt chỗ</th><th>Khách hàng</th><th>Chuyến / giờ chạy</th><th>Ghế, điểm đón → trả</th><th>Thanh toán</th><th>Giá vé</th><th>Thao tác</th>";
+          document.querySelector("#overview-detail-content").innerHTML = `${breakdown}<div class="qv-table-wrap"><table class="qv-table"><thead><tr>${headers}</tr></thead><tbody>${mode === "cancelled" ? cancelledRows(result.ve) : soldRows(result.ve)}</tbody></table></div>`;
+        } catch (error) {
+          if (request !== overviewRequest || mode !== overviewMode) return;
+          document.querySelector("#overview-detail-content").innerHTML = '<div class="qv-empty">Không tải được chi tiết.</div>';
+          errorBox.textContent = error.message;
+          errorBox.classList.remove("qv-hidden");
+        }
+      }
 
       async function loadPendingTickets(page = 1) {
         const request = ++pendingRequest;
@@ -160,31 +288,35 @@
       if (quayVeKiemTraQuyen()) {
         renderQuayVeNav(location.pathname);
         qvPageHeader("Tổng quan", "Hoạt động bán vé tại văn phòng của bạn.");
+        document.querySelector(".qv-grid").addEventListener("click", event => {
+          const button = event.target.closest("[data-overview]");
+          if (button) showOverview(button.dataset.overview);
+        });
+        document.querySelectorAll("[data-close-overview]").forEach(button =>
+          button.addEventListener("click", () => showOverview(null))
+        );
+        document.querySelector("#overview-prev").addEventListener("click", () => loadOverviewDetail(overviewPage - 1));
+        document.querySelector("#overview-next").addEventListener("click", () => loadOverviewDetail(overviewPage + 1));
+        document.querySelector("#overview-reload").addEventListener("click", () => loadOverviewDetail(overviewPage));
         document.querySelector("#pending-prev").addEventListener("click", () => loadPendingTickets(pendingPage - 1));
         document.querySelector("#pending-next").addEventListener("click", () => loadPendingTickets(pendingPage + 1));
         document.querySelector("#pending-reload").addEventListener("click", () => loadPendingTickets(pendingPage));
         loadPendingTickets();
 
-        (async () => {
-          try {
-            const vanPhong = await apiGet("/quay-ve/van-phong-cua-toi");
-            document.querySelector("#qv-office-title").textContent = vanPhong.ten;
-            document.querySelector("#qv-office-desc").textContent = vanPhong.dia_chi;
-
-            const homNay = new Date().toLocaleDateString("en-CA");
-            const thongKe = await apiGet(
-              `/quay-ve/thong-ke?tu_ngay=${homNay}&den_ngay=${homNay}`
-            );
-            document.querySelector("#st-sold").textContent = thongKe.so_ve_da_ban;
-            document.querySelector("#st-revenue").textContent = dinhDangTien(
-              thongKe.doanh_thu
-            );
-            document.querySelector("#st-cancel").textContent = thongKe.so_ve_da_huy;
-          } catch (error) {
-            document.querySelector("#qv-office-title").textContent =
-              "Không tải được dữ liệu";
-          }
-        })();
+        apiGet("/quay-ve/van-phong-cua-toi").then(vanPhong => {
+          document.querySelector("#qv-office-title").textContent = vanPhong.ten;
+          document.querySelector("#qv-office-desc").textContent = vanPhong.dia_chi;
+        }).catch(() => {
+          document.querySelector("#qv-office-title").textContent = "Không tải được văn phòng";
+        });
+        const today = todayCode();
+        apiGet(`/quay-ve/thong-ke?${queryString({ tu_ngay: today, den_ngay: today })}`).then(thongKe => {
+          document.querySelector("#st-sold").textContent = thongKe.so_ve_da_ban;
+          document.querySelector("#st-revenue").textContent = dinhDangTien(thongKe.doanh_thu);
+          document.querySelector("#st-cancel").textContent = thongKe.so_ve_da_huy;
+        }).catch(() => {
+          document.querySelectorAll("#st-sold, #st-revenue, #st-cancel").forEach(value => value.textContent = "Lỗi tải");
+        });
       }
     </script>
   </body>

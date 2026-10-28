@@ -10,27 +10,10 @@ token, không bao giờ đọc/đánh dấu được thông báo của người 
 from app.db import get_connection, release_connection
 
 
-# Nhắc khách đặt chỗ tại quầy là cảnh báo cần được giữ lại đến khi chuyến đã
-# khởi hành và mọi vé trong mã đặt chỗ đã thanh toán.
-# Dùng psycopg với query có tham số %s nên ký tự wildcard SQL phải viết thành %%.
+# Nhắc quầy vé được nhận diện bằng mã đặt chỗ trong đường dẫn; trạng thái đã đọc
+# không quyết định vòng đời của cảnh báo. Wildcard SQL phải viết thành %%.
+_DUONG_DAN_NHAC_QUAY_VE = "/nhan-vien/quay-ve/tra-cuu-ve.html?ma_dat_cho={}"
 _NHAC_QUAY_VE = "tb.duong_dan LIKE '/nhan-vien/quay-ve/tra-cuu-ve.html?ma_dat_cho=%%'"
-_DU_DIEU_KIEN_AN = f"""(
-    NOT ({_NHAC_QUAY_VE})
-    OR (
-        EXISTS (
-            SELECT 1 FROM ve v_nhac
-            WHERE v_nhac.ma_dat_cho = split_part(tb.duong_dan, 'ma_dat_cho=', 2)
-        )
-        AND NOT EXISTS (
-            SELECT 1
-            FROM ve v_nhac
-            LEFT JOIN chuyen_xe c_nhac ON c_nhac.id = v_nhac.chuyen_id
-            WHERE v_nhac.ma_dat_cho = split_part(tb.duong_dan, 'ma_dat_cho=', 2)
-              AND (v_nhac.trang_thai NOT IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den')
-                   OR c_nhac.gio_khoi_hanh IS NULL OR c_nhac.gio_khoi_hanh > now())
-        )
-    )
-)"""
 
 
 def _thanh_danh_sach_dict(cur, rows) -> list[dict]:
@@ -74,6 +57,168 @@ def da_co_thong_bao_giong(nguoi_nhan_id: str, noi_dung: str, trong_ngay: int = 3
         release_connection(conn)
 
 
+def tao_nhac_quay_ve(nguoi_nhan_id: str, ma_dat_cho: str, noi_dung: str) -> bool:
+    """Tạo tối đa một cảnh báo cho một nhân viên và một lượt đặt, kể cả khi nội dung thay đổi.
+
+    Khóa giao dịch theo cặp (nhân viên, mã đặt chỗ) để các worker scheduler
+    chạy đồng thời cũng không tạo thông báo trùng.
+    """
+    duong_dan = _DUONG_DAN_NHAC_QUAY_VE.format(ma_dat_cho)
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT pg_advisory_xact_lock(hashtext(%s), hashtext(%s))",
+                (nguoi_nhan_id, ma_dat_cho),
+            )
+            cur.execute(
+                """UPDATE thong_bao SET noi_dung = %s
+                   WHERE nguoi_nhan_id = %s AND duong_dan = %s
+                     AND noi_dung IS DISTINCT FROM %s""",
+                (noi_dung, nguoi_nhan_id, duong_dan, noi_dung),
+            )
+            cur.execute(
+                """INSERT INTO thong_bao (nguoi_nhan_id, noi_dung, duong_dan)
+                   SELECT %s, %s, %s
+                   WHERE NOT EXISTS (
+                       SELECT 1 FROM thong_bao
+                       WHERE nguoi_nhan_id = %s AND duong_dan = %s
+                   ) AND EXISTS (
+                       SELECT 1 FROM ve v JOIN chuyen_xe c ON c.id = v.chuyen_id
+                       WHERE v.ma_dat_cho = %s
+                         AND (v.kenh_ban IS NULL OR v.kenh_ban = 'hotline')
+                         AND v.trang_thai = 'giu_cho'
+                         AND v.loai_hinh_thanh_toan = 'thanh_toan_tai_quay'
+                         AND v.han_giu_cho_den IS NULL
+                         AND c.trang_thai = 'chua_khoi_hanh'
+                         AND c.gio_khoi_hanh > now()
+                         AND c.gio_khoi_hanh <= now() + interval '2 hours'
+                   ) RETURNING id""",
+                (nguoi_nhan_id, noi_dung, duong_dan, nguoi_nhan_id, duong_dan, ma_dat_cho),
+            )
+            da_tao = cur.fetchone() is not None
+        conn.commit()
+        return da_tao
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
+def xoa_nhac_quay_ve_neu_da_xu_ly(ma_dat_cho: str) -> list[str]:
+    """Gỡ nhắc khi mọi vé cần trả tại quầy đã được thanh toán, hoặc đã tới giờ chạy.
+
+    Không gỡ do đã đọc hoặc do khách tự hủy trước giờ khởi hành.
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                DELETE FROM thong_bao tb
+                WHERE tb.duong_dan = %s
+                  AND (
+                      EXISTS (
+                          SELECT 1 FROM ve v JOIN chuyen_xe c ON c.id = v.chuyen_id
+                          WHERE v.ma_dat_cho = %s AND c.gio_khoi_hanh <= now()
+                      )
+                      OR (
+                          EXISTS (
+                              SELECT 1 FROM ve v WHERE v.ma_dat_cho = %s
+                                AND v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den')
+                          )
+                          AND NOT EXISTS (
+                              SELECT 1 FROM ve v WHERE v.ma_dat_cho = %s
+                                AND v.trang_thai = 'giu_cho'
+                                AND v.loai_hinh_thanh_toan = 'thanh_toan_tai_quay'
+                          )
+                      )
+                  )
+                RETURNING tb.nguoi_nhan_id
+                """,
+                (_DUONG_DAN_NHAC_QUAY_VE.format(ma_dat_cho), ma_dat_cho, ma_dat_cho, ma_dat_cho),
+            )
+            nguoi_nhan = sorted({str(row[0]) for row in cur.fetchall()})
+        conn.commit()
+        return nguoi_nhan
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
+def xoa_nhac_quay_ve_da_xu_ly() -> list[str]:
+    """Đồng bộ cảnh báo sau thanh toán hoặc đến giờ chạy, kể cả khi callback/job lỡ chạy."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""DELETE FROM thong_bao tb
+                    WHERE {_NHAC_QUAY_VE}
+                      AND (
+                          EXISTS (
+                              SELECT 1 FROM ve v JOIN chuyen_xe c ON c.id = v.chuyen_id
+                              WHERE v.ma_dat_cho = split_part(tb.duong_dan, 'ma_dat_cho=', 2)
+                                AND c.gio_khoi_hanh <= now()
+                          )
+                          OR (
+                              EXISTS (
+                                  SELECT 1 FROM ve v
+                                  WHERE v.ma_dat_cho = split_part(tb.duong_dan, 'ma_dat_cho=', 2)
+                                    AND v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den')
+                              )
+                              AND NOT EXISTS (
+                                  SELECT 1 FROM ve v
+                                  WHERE v.ma_dat_cho = split_part(tb.duong_dan, 'ma_dat_cho=', 2)
+                                    AND v.trang_thai = 'giu_cho'
+                                    AND v.loai_hinh_thanh_toan = 'thanh_toan_tai_quay'
+                              )
+                          )
+                      ) RETURNING tb.nguoi_nhan_id"""
+            )
+            nguoi_nhan = sorted({str(row[0]) for row in cur.fetchall()})
+        conn.commit()
+        return nguoi_nhan
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
+def gop_nhac_quay_ve_trung() -> list[str]:
+    """Dọn nhắc trùng được tạo trước khi chống trùng theo mã đặt chỗ.
+
+    Nếu một bản đã đọc thì giữ bản đã đọc, tránh làm huy hiệu xuất hiện lại.
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""DELETE FROM thong_bao tb
+                    USING (
+                        SELECT id, row_number() OVER (
+                            PARTITION BY nguoi_nhan_id, duong_dan
+                            ORDER BY da_doc DESC, ngay_tao ASC, id ASC
+                        ) AS thu_tu
+                        FROM thong_bao tb
+                        WHERE {_NHAC_QUAY_VE}
+                    ) nhac
+                    WHERE tb.id = nhac.id AND nhac.thu_tu > 1
+                    RETURNING tb.nguoi_nhan_id"""
+            )
+            nguoi_nhan = sorted({str(row[0]) for row in cur.fetchall()})
+        conn.commit()
+        return nguoi_nhan
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
 def danh_sach_cua_toi(nguoi_nhan_id: str, chi_chua_doc: bool = False, limit: int = 30) -> list[dict]:
     conn = get_connection()
     try:
@@ -81,7 +226,6 @@ def danh_sach_cua_toi(nguoi_nhan_id: str, chi_chua_doc: bool = False, limit: int
             cur.execute(
                 f"""
                 SELECT tb.id, tb.noi_dung, tb.da_doc, tb.ngay_tao, tb.ve_id, tb.don_hang_id, tb.duong_dan,
-                       {_DU_DIEU_KIEN_AN} AS co_the_danh_dau_da_doc,
                        dh.ma_van_don, v.ma_dat_cho
                 FROM thong_bao tb
                 LEFT JOIN don_hang dh ON dh.id = tb.don_hang_id
@@ -115,16 +259,12 @@ def danh_dau_da_doc(thong_bao_id: str, nguoi_nhan_id: str) -> str:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                f"""UPDATE thong_bao tb SET da_doc = true
-                    WHERE tb.id = %s AND tb.nguoi_nhan_id = %s AND {_DU_DIEU_KIEN_AN}
+                """UPDATE thong_bao tb SET da_doc = true
+                    WHERE tb.id = %s AND tb.nguoi_nhan_id = %s
                     RETURNING tb.id""",
                 (thong_bao_id, nguoi_nhan_id),
             )
-            if cur.fetchone() is not None:
-                ket_qua = "updated"
-            else:
-                cur.execute("SELECT 1 FROM thong_bao WHERE id = %s AND nguoi_nhan_id = %s", (thong_bao_id, nguoi_nhan_id))
-                ket_qua = "locked" if cur.fetchone() is not None else "not_found"
+            ket_qua = "updated" if cur.fetchone() is not None else "not_found"
         conn.commit()
         return ket_qua
     finally:
@@ -136,8 +276,8 @@ def danh_dau_tat_ca_da_doc(nguoi_nhan_id: str) -> int:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                f"""UPDATE thong_bao tb SET da_doc = true
-                    WHERE tb.nguoi_nhan_id = %s AND tb.da_doc = false AND {_DU_DIEU_KIEN_AN}""",
+                """UPDATE thong_bao tb SET da_doc = true
+                    WHERE tb.nguoi_nhan_id = %s AND tb.da_doc = false""",
                 (nguoi_nhan_id,),
             )
             so_dong = cur.rowcount
