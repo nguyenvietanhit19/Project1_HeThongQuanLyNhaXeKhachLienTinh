@@ -55,12 +55,22 @@ def gia_lap(monkeypatch):
 # Ma trận quyền (NGHIEP_VU.md mục 2, UC-36 bước 2)
 # ---------------------------------------------------------
 @pytest.mark.parametrize("vai_tro", VAI_TRO_VAN_HANH)
-@pytest.mark.parametrize("actor", [QLNS, QL])
-def test_ca_hai_vai_tro_tao_duoc_4_vai_tro_van_hanh(gia_lap, actor, vai_tro):
+def test_qlns_tao_duoc_4_vai_tro_van_hanh(gia_lap, vai_tro):
     van_phong = str(uuid4()) if vai_tro in ("nhan_vien_quay_ve", "nhan_vien_gui_hang") else None
-    kq = svc.tao_tai_khoan(str(uuid4()), actor, _yeu_cau(vai_tro, van_phong))
+    kq = svc.tao_tai_khoan(str(uuid4()), QLNS, _yeu_cau(vai_tro, van_phong))
     assert kq["vai_tro"] == vai_tro
     assert len(gia_lap["tao"]) == 1
+
+
+# Từ 6/11/2026 quan_ly (gốc hay thường) KHÔNG còn tạo 4 vai trò vận hành — việc của quan_ly_nhan_su.
+@pytest.mark.parametrize("vai_tro", VAI_TRO_VAN_HANH)
+@pytest.mark.parametrize("la_goc", [False, True])
+def test_quan_ly_khong_tao_duoc_vai_tro_van_hanh(gia_lap, vai_tro, la_goc):
+    gia_lap["la_goc"] = la_goc
+    van_phong = str(uuid4()) if vai_tro in ("nhan_vien_quay_ve", "nhan_vien_gui_hang") else None
+    with pytest.raises(CamTruyCap, match="Không đủ quyền"):
+        svc.tao_tai_khoan(str(uuid4()), QL, _yeu_cau(vai_tro, van_phong))
+    assert gia_lap["tao"] == [] and gia_lap["nhat_ky_admin"] == []
 
 
 @pytest.mark.parametrize("vai_tro", ["ke_toan", "quan_ly", "quan_ly_nhan_su"])
@@ -128,9 +138,9 @@ def test_quay_ve_gui_hang_gan_van_phong_khi_tao(gia_lap, vai_tro):
     assert gia_lap["tao"][0][4] == van_phong
 
 
-@pytest.mark.parametrize("vai_tro", ["phu_xe", "dieu_do_vien", "ke_toan"])
-def test_vai_tro_khong_can_van_phong_khong_bi_doi_va_khong_gan(gia_lap, vai_tro):
-    svc.tao_tai_khoan(str(uuid4()), QL, _yeu_cau(vai_tro))
+@pytest.mark.parametrize("vai_tro,actor", [("phu_xe", QLNS), ("dieu_do_vien", QLNS), ("ke_toan", QL)])
+def test_vai_tro_khong_can_van_phong_khong_bi_doi_va_khong_gan(gia_lap, vai_tro, actor):
+    svc.tao_tai_khoan(str(uuid4()), actor, _yeu_cau(vai_tro))
     assert gia_lap["tao"][0][4] is None
 
 
@@ -176,7 +186,7 @@ def test_qlns_tao_tai_khoan_co_ghi_nhat_ky(gia_lap):
 
 
 def test_quan_ly_tao_tai_khoan_ghi_nhat_ky_admin_khong_ghi_bang_qlns(gia_lap):
-    svc.tao_tai_khoan(str(uuid4()), QL, _yeu_cau("phu_xe"))
+    svc.tao_tai_khoan(str(uuid4()), QL, _yeu_cau("ke_toan"))
     assert gia_lap["nhat_ky"] == []
     assert len(gia_lap["nhat_ky_admin"]) == 1
 
@@ -221,12 +231,12 @@ def test_vai_tro_duoc_tao_cua_qlns_la_4_vai_tro_van_hanh(gia_lap):
 
 def test_vai_tro_duoc_tao_cua_quan_ly_khong_goc_khong_co_quan_ly_va_qlns(gia_lap):
     gia_lap["la_goc"] = False
-    assert svc.vai_tro_duoc_tao(str(uuid4()), QL)["vai_tro"] == VAI_TRO_VAN_HANH + ["ke_toan"]
+    assert svc.vai_tro_duoc_tao(str(uuid4()), QL)["vai_tro"] == ["ke_toan"]
 
 
-def test_vai_tro_duoc_tao_cua_quan_ly_goc_co_du_7_vai_tro(gia_lap):
+def test_vai_tro_duoc_tao_cua_quan_ly_goc_chi_co_3_vai_tro_cap_cao(gia_lap):
     gia_lap["la_goc"] = True
-    assert svc.vai_tro_duoc_tao(str(uuid4()), QL)["vai_tro"] == VAI_TRO_VAN_HANH + ["ke_toan", "quan_ly", "quan_ly_nhan_su"]
+    assert svc.vai_tro_duoc_tao(str(uuid4()), QL)["vai_tro"] == ["ke_toan", "quan_ly", "quan_ly_nhan_su"]
 
 
 def test_danh_sach_cua_qlns_khong_gom_ke_toan_quan_ly(monkeypatch):
@@ -234,6 +244,29 @@ def test_danh_sach_cua_qlns_khong_gom_ke_toan_quan_ly(monkeypatch):
     monkeypatch.setattr(svc.repo, "danh_sach_tai_khoan_can_bo", lambda vt, tk: da_goi.append((vt, tk)) or [])
     svc.danh_sach_tai_khoan(QLNS)
     assert da_goi[0][0] == VAI_TRO_VAN_HANH
+
+
+def test_danh_sach_cua_quan_ly_chi_gom_3_vai_tro_cap_cao_khong_gom_vai_tro_van_hanh(monkeypatch):
+    da_goi = []
+    monkeypatch.setattr(svc.repo, "danh_sach_tai_khoan_can_bo", lambda vt, tk: da_goi.append((vt, tk)) or [])
+    svc.danh_sach_tai_khoan(QL)
+    assert da_goi[0][0] == ["ke_toan", "quan_ly", "quan_ly_nhan_su"]
+    assert not set(da_goi[0][0]) & set(VAI_TRO_VAN_HANH)
+
+
+@pytest.mark.parametrize("vai_tro", VAI_TRO_VAN_HANH)
+def test_quan_ly_loc_theo_vai_tro_van_hanh_bi_chan(monkeypatch, vai_tro):
+    monkeypatch.setattr(svc.repo, "danh_sach_tai_khoan_can_bo", lambda vt, tk: [])
+    with pytest.raises(GiaTriLoi, match="Vai trò không hợp lệ"):
+        svc.danh_sach_tai_khoan(QL, vai_tro=vai_tro)
+
+
+@pytest.mark.parametrize("vai_tro", ["ke_toan", "quan_ly", "quan_ly_nhan_su"])
+def test_quan_ly_loc_theo_vai_tro_cap_cao_duoc(monkeypatch, vai_tro):
+    da_goi = []
+    monkeypatch.setattr(svc.repo, "danh_sach_tai_khoan_can_bo", lambda vt, tk: da_goi.append(vt) or [])
+    svc.danh_sach_tai_khoan(QL, vai_tro=vai_tro)
+    assert da_goi == [[vai_tro]]
 
 
 def test_danh_sach_loc_vai_tro_ngoai_quyen_bi_chan(monkeypatch):
@@ -291,12 +324,30 @@ def _khoa(g, actor, vai_tro_muc_tieu, **kw):
 
 # ---- Ma trận quyền theo bậc ----
 @pytest.mark.parametrize("vai_tro", VAI_TRO_VAN_HANH)
-@pytest.mark.parametrize("actor,goc", [(QLNS, False), (QL, False), (QL, True)])
-def test_khoa_ba_bac_deu_khoa_duoc_4_vai_tro_van_hanh(khoa_gia_lap, actor, goc, vai_tro):
-    khoa_gia_lap["goc"] = goc
-    kq = _khoa(khoa_gia_lap, actor, vai_tro)
+def test_qlns_khoa_duoc_4_vai_tro_van_hanh(khoa_gia_lap, vai_tro):
+    kq = _khoa(khoa_gia_lap, QLNS, vai_tro)
     assert kq["dang_hoat_dong"] is False
     assert khoa_gia_lap["dat"][-1][1] is False
+
+
+# Từ 6/11/2026 quan_ly (gốc hay thường) KHÔNG còn khóa / mở khóa 4 vai trò vận hành — việc của quan_ly_nhan_su.
+@pytest.mark.parametrize("vai_tro", VAI_TRO_VAN_HANH)
+@pytest.mark.parametrize("goc", [False, True])
+def test_quan_ly_khong_khoa_duoc_vai_tro_van_hanh_va_khong_ghi_gi(khoa_gia_lap, goc, vai_tro):
+    khoa_gia_lap["goc"] = goc
+    with pytest.raises(CamTruyCap, match="Không đủ quyền"):
+        _khoa(khoa_gia_lap, QL, vai_tro)
+    assert khoa_gia_lap["dat"] == [] and khoa_gia_lap["nk_admin"] == [] and khoa_gia_lap["nk_qlns"] == []
+
+
+@pytest.mark.parametrize("vai_tro", VAI_TRO_VAN_HANH)
+@pytest.mark.parametrize("goc", [False, True])
+def test_quan_ly_khong_mo_khoa_duoc_vai_tro_van_hanh(khoa_gia_lap, goc, vai_tro):
+    khoa_gia_lap["goc"] = goc
+    khoa_gia_lap["muc_tieu"] = _tk(vai_tro, hoat_dong=False)
+    with pytest.raises(CamTruyCap, match="Không đủ quyền"):
+        svc.mo_khoa_tai_khoan(str(uuid4()), QL, khoa_gia_lap["muc_tieu"]["id"], "ly do")
+    assert khoa_gia_lap["dat"] == []
 
 
 @pytest.mark.parametrize("vai_tro", ["ke_toan", "quan_ly", "quan_ly_nhan_su"])
@@ -395,7 +446,7 @@ def test_qlns_khoa_ghi_nhat_ky_qlns_kem_ly_do_da_strip(khoa_gia_lap):
 @pytest.mark.parametrize("goc", [True, False])
 def test_quan_ly_khoa_ghi_nhat_ky_admin_khong_ghi_sang_bang_qlns(khoa_gia_lap, goc):
     khoa_gia_lap["goc"] = goc
-    _khoa(khoa_gia_lap, QL, "phu_xe")
+    _khoa(khoa_gia_lap, QL, "quan_ly_nhan_su")
     assert len(khoa_gia_lap["nk_admin"]) == 1 and khoa_gia_lap["nk_qlns"] == []
     assert khoa_gia_lap["nk_admin"][0][1] == "khoa_tai_khoan"
     assert khoa_gia_lap["nk_admin"][0][4] == "vi pham"
@@ -410,7 +461,7 @@ def test_khoa_bi_chan_thi_khong_ghi_nhat_ky(khoa_gia_lap):
 def test_tao_tai_khoan_cua_quan_ly_ghi_nhat_ky_admin(gia_lap, monkeypatch):
     ds = []
     monkeypatch.setattr(svc.nhat_ky_admin_repo, "ghi", lambda *a: ds.append(a))
-    svc.tao_tai_khoan(str(uuid4()), QL, _yeu_cau("phu_xe"))
+    svc.tao_tai_khoan(str(uuid4()), QL, _yeu_cau("ke_toan"))
     assert len(ds) == 1 and ds[0][1] == "tao_tai_khoan"
 
 

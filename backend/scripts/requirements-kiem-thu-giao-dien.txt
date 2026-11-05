@@ -1,0 +1,5 @@
+# Chi cho kiem_thu_giao_dien_gui_hang.py - cai tren MAY (khong vao image Docker, khong chay trong CI).
+# Dung Microsoft Edge co san tren Windows nen khong can `playwright install`.
+# (Chu thich khong dau: pip tren Windows doc file nay bang bang ma cp1252, chu co dau lam pip bao loi.)
+playwright==1.64.1
+openpyxl==3.1.5

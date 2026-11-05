@@ -192,7 +192,8 @@ def tra_cuu(van_phong_id: str, ma_dat_cho: str | None = None, sdt: str | None = 
                           v.ma_tham_chieu_vnpay, v.ma_giao_dich_cong_thanh_toan,
                           COALESCE(nd.ho_ten, v.ten_khach_vang_lai, '') AS ten_khach,
                           COALESCE(nd.so_dien_thoai, v.sdt_khach_vang_lai, '') AS sdt_khach,
-                          nv.ho_ten AS nhan_vien_ban,
+                          nv.ho_ten AS nhan_vien_ban, nv.ma AS ma_nhan_vien_ban,
+                          vp_ban.ten AS van_phong_nhan_vien_ban,
                           c.id AS chuyen_id, c.ma AS ma_chuyen, c.gio_khoi_hanh,
                           c.trang_thai AS trang_thai_chuyen, c.dang_hoan, c.loai_su_co,
                           tu.ten AS ten_tuyen, lx.ten AS ten_loai_xe, x.bien_so,
@@ -209,6 +210,8 @@ def tra_cuu(van_phong_id: str, ma_dat_cho: str | None = None, sdt: str | None = 
                    FROM ve v
                    LEFT JOIN nguoi_dung nd ON nd.id = v.khach_hang_id
                    LEFT JOIN nguoi_dung nv ON nv.id = v.nhan_vien_ban_id
+                   LEFT JOIN ho_so_can_bo_diem hs_ban ON hs_ban.nguoi_dung_id = nv.id
+                   LEFT JOIN diem_don_tra vp_ban ON vp_ban.id = hs_ban.van_phong_id
                    JOIN chuyen_xe c ON c.id = v.chuyen_id
                    JOIN tuyen tu ON tu.id = c.tuyen_id
                    JOIN loai_xe lx ON lx.id = c.loai_xe_id
@@ -493,6 +496,8 @@ def ve_va_chuyen(ve_id: str, van_phong_id: str) -> dict | None:
                           v.ma_tham_chieu_vnpay, v.ma_giao_dich_cong_thanh_toan,
                           COALESCE(nd.ho_ten, v.ten_khach_vang_lai, '') AS ten_khach,
                           COALESCE(nd.so_dien_thoai, v.sdt_khach_vang_lai, '') AS sdt_khach,
+                          nv.ho_ten AS nhan_vien_ban, nv.ma AS ma_nhan_vien_ban,
+                          vp_ban.ten AS van_phong_nhan_vien_ban,
                           c.ma AS ma_chuyen, c.gio_khoi_hanh, c.trang_thai AS trang_thai_chuyen,
                           c.dang_hoan, c.loai_su_co, tu.ten AS ten_tuyen,
                           lx.ten AS ten_loai_xe, x.bien_so, dd.ten AS ten_diem_don, dt.ten AS ten_diem_tra,
@@ -506,6 +511,9 @@ def ve_va_chuyen(ve_id: str, van_phong_id: str) -> dict | None:
                           ht.ly_do AS ly_do_hoan, ht.trang_thai AS trang_thai_hoan,
                           ht.thoi_gian_xac_dinh, ht.thoi_gian_hoan_xong
                    FROM ve v LEFT JOIN nguoi_dung nd ON nd.id = v.khach_hang_id
+                   LEFT JOIN nguoi_dung nv ON nv.id = v.nhan_vien_ban_id
+                   LEFT JOIN ho_so_can_bo_diem hs_ban ON hs_ban.nguoi_dung_id = nv.id
+                   LEFT JOIN diem_don_tra vp_ban ON vp_ban.id = hs_ban.van_phong_id
                    JOIN chuyen_xe c ON c.id = v.chuyen_id JOIN tuyen tu ON tu.id = c.tuyen_id
                    JOIN loai_xe lx ON lx.id = c.loai_xe_id
                    LEFT JOIN xe x ON x.id = COALESCE(c.xe_thuc_te_id, c.xe_id)

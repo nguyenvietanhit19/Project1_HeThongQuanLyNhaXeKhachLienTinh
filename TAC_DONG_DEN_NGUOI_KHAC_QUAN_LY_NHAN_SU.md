@@ -22,11 +22,13 @@ Ký hiệu trạng thái: ⏳ chưa báo · 📣 đã báo, chờ trả lời ·
 | 4 | Thêm migration mới **`nhat_ky_admin`** | **Cả nhóm** (mọi người chạy DB local) | Sau khi pull phải chạy `yoyo apply ./migrations` | UC-37 | ⏳ |
 | 5 | **Quy tắc bậc** của khóa / mở khóa (chặt hơn spec cũ "`quan_ly` bất kỳ khóa được mọi cán bộ") | Trưởng nhóm, ai dùng tài khoản `quan_ly` | Biết và đồng ý | UC-37 | ⏳ |
 | 6 | Khóa **phụ xe** gửi thông báo cho `quan_ly` + `dieu_do_vien` (dùng lại hàm chung) | Nhóm **điều độ viên**, nhóm **thông báo / biên chế phụ xe** | Cho điều độ viên chỗ xem thông báo; xem cách xử lý phụ xe đã khóa trong biên chế (mục 6) | UC-37 | ⏳ |
-| 7 | **Đổi văn phòng** (chưa code) | Phần gửi hàng, Trưởng nhóm | Chốt 2 quy tắc: còn đơn dở có chặn không; lý do có bắt buộc không | UC-36 (nhánh kèm) | ❓ |
+| 7 | **Đổi văn phòng** (đã code, chờ merge): quy tắc đã chốt 6/11; **1 migration mới** (nới `CHECK` nhật ký QLNS); ghi `ho_so_can_bo_diem` | **Cả nhóm** (chạy migration); phần **gửi hàng** (bảng `ho_so_can_bo_diem` là của họ; chuỗi hàm cũ do họ tự xóa) | Chạy `yoyo apply ./migrations` sau khi pull; phần gửi hàng tự xóa chuỗi `gan_van_phong_can_bo` khi thấy hợp lý (không còn việc của Nghĩa) | UC-36 (nhánh kèm) | ⏳ (chưa merge) |
 | 8 | Thêm file dùng chung / điểm nối | Người sở hữu các file đó | Biết khi sửa lại các file này (mục 8) | UC-49/36/37, mã nhân viên | ✅ |
 | 9 | **25 test lỗi có sẵn** ở integration (không do mình; tính 5/11/2026, trước đó 7) | Người làm **vé lẻ / quầy vé / thanh toán VNPay** | Sửa test | — | ⏳ |
 | 10 | **Mã nhân viên**: migration thêm cột `ma` vào bảng dùng chung `nguoi_dung` và `nhan_su_van_hanh`; thêm hàm vào 2 file dùng chung | **Cả nhóm**; nhóm hiển thị tên nhân viên; chủ 3 script seed demo | Chạy `yoyo apply ./migrations` sau khi pull; tùy ý hiện `ma` cạnh tên; tài khoản demo do script tạo sẽ không có mã | Mã nhân viên | ⏳ (đã merge #50; chờ nhóm biết) |
-| 11 | **UC-51 cho nghỉ việc**: ghi `xe_nhan_su.trang_thai = 'tam_nghi'` (bảng của biên chế) và gửi thông báo cho `quan_ly` + `dieu_do_vien`; thêm hàm cuối `nhan_su_van_hanh_repository.py` | Người làm **biên chế / điều độ / sinh chuyến**; nhóm điều độ viên | Hiểu dòng `tam_nghi` của người đã nghỉ việc là cố ý (không tự đổi lại `dang_hoat_dong`); điều độ viên cần chỗ xem thông báo; không có migration mới | UC-51 | ⏳ (chưa merge) |
+| 11 | **UC-51 cho nghỉ việc**: ghi `xe_nhan_su.trang_thai = 'tam_nghi'` (bảng của biên chế) và gửi thông báo cho `quan_ly` + `dieu_do_vien`; thêm hàm cuối `nhan_su_van_hanh_repository.py` | Người làm **biên chế / điều độ / sinh chuyến**; nhóm điều độ viên | Hiểu dòng `tam_nghi` của người đã nghỉ việc là cố ý (không tự đổi lại `dang_hoat_dong`); điều độ viên cần chỗ xem thông báo; không có migration mới | UC-51 | ✅ (đã merge #52; chờ nhóm biết) |
+| 13 | **Tách quyền quản lý / quản lý nhân sự** (đã code, chờ merge): `quan_ly` mất quyền tạo / khóa / quản lý vai trò vận hành, hồ sơ tài xế / phụ xe, nghỉ việc, đổi văn phòng (chỉ `quan_ly_nhan_su`); **thêm 2 mục cuối** vào `frontend/nhan-vien/quan-ly/nav.js`; không migration | **Nhóm làm phần quản lý** (file `quan-ly/nav.js`, người dùng quản lý); mọi người dùng tài khoản `quan_ly` | Biết `quan_ly` không còn tạo phụ xe / quầy vé / gửi hàng / điều độ viên (nhờ QLNS); xem 2 mục menu mới ở cuối menu quản lý; nếu có script / test dựa vào việc `quan_ly` tạo vai trò vận hành thì sửa | Tách quyền | ⏳ (chưa merge) |
+| 12 | **UC-52 xem nhật ký**: màn hình đọc `nhat_ky_admin` (bảng dùng chung) + `nhat_ky_quan_ly_nhan_su`; thêm file mới và 1 mục menu | Nhóm nào **ghi vào `nhat_ky_admin`** (tuyến, giá, xe, biên chế...) | Biết `quan_ly` thấy mọi dòng của bảng này ở màn nhật ký; `hanh_dong` / `ghi_chu` đừng chứa dữ liệu nhạy cảm; muốn hiện tên đối tượng đẹp thì báo để thêm; không có migration mới | UC-52 | ⏳ (chưa merge) |
 
 ---
 
@@ -80,8 +82,8 @@ Sau khi xóa: tìm lại toàn dự án `gan_van_phong` và `GanVanPhongCanBoReq
 
 **Thứ tự an toàn** (không có lúc nào mất khả năng gán văn phòng):
 1. Báo nhóm gửi hàng + Trưởng nhóm + nhóm điều độ viên, xin đồng ý.
-2. Nghĩa làm xong đổi văn phòng, test, merge.
-3. **Sau đó mới** xóa chuỗi cũ (PR nhỏ riêng), kèm sửa hai dòng tài liệu ở bảng trên.
+2. Nghĩa làm xong đổi văn phòng, test, merge (**đã làm, chờ merge**).
+3. **Sau đó mới** xóa chuỗi cũ (PR nhỏ riêng), kèm sửa hai dòng tài liệu ở bảng trên. **Việc này do phần gửi hàng tự làm, không thuộc phần của Nghĩa** (chốt 6/11/2026).
 
 > ⚠️ Trong lúc **chưa có đổi văn phòng** thì **không xóa** chuỗi hàm cũ: xóa trước sẽ làm mất đường sửa văn phòng gán nhầm.
 
@@ -178,16 +180,15 @@ Vì vậy đổi văn phòng là **phần bù** cho việc xóa chuỗi hàm cũ
 
 **Luật đã ghi trong `NGHIEP_VU.md`:** actor `quan_ly` hoặc `quan_ly_nhan_su`, áp dụng quầy vé và gửi hàng; điểm mới phải là `van_phong` và khác văn phòng hiện tại (chưa có thì coi là gán lần đầu, `INSERT ... ON CONFLICT DO UPDATE`); ghi nhật ký (cũ → mới) khi actor là `quan_ly_nhan_su`; đơn / vé đã xử lý giữ nguyên ở văn phòng cũ, từ lúc đổi cán bộ chỉ thấy dữ liệu văn phòng mới.
 
-### ❓ Hai quy tắc chưa chốt, cần nhóm xác nhận (chưa code)
+### ✅ Quy tắc đã chốt (Nghĩa, 6/11/2026) và đã code
 
-| Quy tắc | Đang ghi | Phương án khác |
-|---|---|---|
-| Khi cán bộ còn đơn đang xử lý | **Không chặn** (quyền xem đơn tính theo văn phòng nên đơn vẫn có người ở văn phòng cũ tiếp nhận) | Chặn đến khi xử lý xong, hoặc cho đổi kèm cảnh báo "còn N đơn" |
-| Lý do đổi | **Không bắt buộc** | Bắt buộc, giống UC-51 và UC-37 để nhật ký rõ hơn (đề xuất) |
+| Quy tắc | Chốt |
+|---|---|
+| Khi cán bộ còn đơn đang xử lý | **Không chặn**: quầy vé / gửi hàng không có trạng thái xử lý kéo dài, đơn thuộc văn phòng nên người còn lại tiếp nhận |
+| Văn phòng cũ còn đủ người | **Phải còn ≥ 1 nhân viên cùng vai trò đang hoạt động** (không tính người chuyển; quầy vé, gửi hàng đếm riêng). VD văn phòng có 2 nhân viên gửi hàng thì chỉ 1 người được chuyển |
+| Lý do đổi | **Bắt buộc**, văn bản tự do, tối đa 200 từ |
 
-Tác động lên code đổi văn phòng sau này: chặn hoặc cảnh báo thì thêm hàm đếm đơn dở ở repository, nhánh lỗi / API trả số đơn ở service, thêm test; lý do bắt buộc thì thêm `ly_do` bắt buộc ở schema và ghi vào nhật ký.
-
-Khi chốt xong: sửa nhánh "Đổi văn phòng của cán bộ" trong `NGHIEP_VU.md` (luồng chính, luồng rẽ nhánh, ghi chú) và sơ đồ trong `UML_DIAGRAMS.md`, rồi mới code.
+Đã code ở nhánh `feature/Nghia-doi-van-phong` (`PUT /quan-ly-nhan-su/tai-khoan/{id}/van-phong`, nút "Đổi văn phòng" ở `tai-khoan.html`). Chi tiết ảnh hưởng: mục 10C.
 
 ---
 
@@ -239,6 +240,41 @@ Cả bộ `tests/unit` trên integration (`24d99ba`, 5/11/2026) có **25 test l�
 
 ---
 
+## 10B. UC-52 xem nhật ký thao tác (việc #12)
+
+**Mình làm gì:** màn hình **chỉ xem** nhật ký thao tác (`quan-li-nhan-su/nhat-ky.html`): `quan_ly_nhan_su` thấy dòng của chính mình, `quan_ly` thấy toàn bộ (gộp `nhat_ky_quan_ly_nhan_su` + `nhat_ky_admin`), lọc theo ngày giờ VN / hành động / đối tượng / người, chia trang 50 dòng. Kế hoạch: `KE_HOACH_UC52_XEM_NHAT_KY.md`.
+
+**Ảnh hưởng tới người khác:**
+1. **Không migration**, không sửa hàm cũ của ai; chỉ thêm file mới (`nhat_ky_doc_repository.py`, `nhat_ky_service.py`, `nhat_ky_schema.py`, `routes/nhat_ky.py`, `nhat-ky.html`) và +2 dòng đăng ký router ở `main.py`, +1 mục menu ở `nav.js` (cả hai là file của mình / điểm nối).
+2. **Nhóm nào ghi vào `nhat_ky_admin`** (bảng dùng chung, `hanh_dong` / `doi_tuong_loai` là TEXT tự do): `quan_ly` sẽ thấy **mọi dòng đó** trong màn nhật ký. Hành động lạ hiện nguyên giá trị; đối tượng không phải người / hồ sơ nhân sự hiện **loại + 8 ký tự đầu id** (không đoán bảng để tra tên). Muốn hiện tên đẹp thì báo mình thêm nhánh tra cứu. Đừng ghi dữ liệu nhạy cảm vào `ghi_chu`.
+3. Chưa có chỉ mục `thoi_gian` riêng cho hai bảng (chỉ có chỉ mục theo người / đối tượng); dữ liệu hiện nhỏ nên chưa cần. Nếu nhật ký lớn lên thì thêm.
+
+---
+
+## 10C. Đổi văn phòng của cán bộ (việc #7, đã code)
+
+**Mình làm gì:** `PUT /quan-ly-nhan-su/tai-khoan/{id}/van-phong` + nút "Đổi văn phòng" / "Gán văn phòng" ở `tai-khoan.html` cho quầy vé và gửi hàng. Quy tắc ở mục 7. Kế hoạch: `KE_HOACH_DOI_VAN_PHONG.md`.
+
+**Ảnh hưởng tới người khác:**
+1. **Migration mới** `20261106_0900_nhat_ky_qlns_them_doi_van_phong.sql`: nới `CHECK` hành động của `nhat_ky_quan_ly_nhan_su` thêm `doi_van_phong` (không đổi dữ liệu có sẵn). **Cả nhóm chạy `yoyo apply ./migrations` sau khi pull**; quên thì QLNS đổi văn phòng bị lỗi 500 khi ghi nhật ký.
+2. **Ghi vào `ho_so_can_bo_diem`** (bảng của phần gửi hàng): chỉ `INSERT ... ON CONFLICT DO UPDATE` giống hàm cũ `gan_van_phong` của họ; không đổi cấu trúc, không sửa file của họ.
+3. **Phần gửi hàng:** văn phòng của nhân viên có thể đổi khi đang đăng nhập; quyền xem đơn đọc `van_phong_id` mỗi request nên có hiệu lực từ request kế tiếp (đã ghi ở `NGHIEP_VU.md`). Chuỗi hàm cũ `gan_van_phong_can_bo` **để họ tự xóa** khi thấy hợp lý, vì giờ đã có đường thay thế.
+4. **Nhật ký (UC-52):** màn nhật ký hiện hành động "Đổi văn phòng" với ghi chú "Đổi văn phòng A → B: lý do".
+
+---
+
+## 10D. Tách quyền quản lý / quản lý nhân sự (việc #13, đã code)
+
+**Mình làm gì:** theo quyết định của Nghĩa (6/11/2026): `quan_ly` (gốc và thường) chỉ quản lý tài khoản `ke_toan`, `quan_ly`, `quan_ly_nhan_su`; mọi việc quản lý vai trò vận hành (phụ xe, quầy vé, gửi hàng, điều độ viên), hồ sơ tài xế / phụ xe, cho nghỉ việc, đổi văn phòng **chỉ do `quan_ly_nhan_su`**. `quan_ly` vẫn xem toàn bộ nhật ký, vẫn nhận thông báo và vẫn làm biên chế xe (UC-35). Kế hoạch: `KE_HOACH_PHAN_QUYEN_QUAN_LY.md`.
+
+**Ảnh hưởng tới người khác:**
+1. **Nhóm làm phần quản lý:** (a) `frontend/nhan-vien/quan-ly/nav.js` bị **thêm 2 mục vào cuối mảng** `MENU_QUAN_LY` ("Tài khoản cán bộ", "Nhật ký thao tác" trỏ tới 2 trang của thư mục `quan-li-nhan-su`), không sửa mục cũ; (b) hai trang đó, khi vai trò là `quan_ly`, nạp `quan-ly/nav.js`, `tai-khoan.js`, `thong-bao.js` của nhóm này (không sửa file nào ngoài `nav.js`).
+2. **Mọi người dùng tài khoản `quan_ly`:** bị 403 khi tạo / khóa / mở khóa 4 vai trò vận hành và khi gọi `/quan-ly-nhan-su/ho-so*`, đổi văn phòng; việc đó nhờ `quan_ly_nhan_su`. Tài khoản vận hành tạo trước đây giữ nguyên.
+3. **Script / test của nhóm khác** nếu giả định `quan_ly` tạo được phụ xe / quầy vé / gửi hàng / điều độ viên qua `POST /quan-ly-nhan-su/tai-khoan` thì cần đổi sang QLNS (mình đã rà: giao diện `quan-ly/` không gọi API `/quan-ly-nhan-su/*` nào, không module backend nào khác import ba service này).
+4. **Không migration.** Tên `nhan_vien_van_hanh` trong tài liệu là tên nhóm gồm phụ xe và tài xế (chỉ phụ xe có tài khoản, vai trò `phu_xe`).
+
+---
+
 ## 11. Tóm tắt gửi nhóm (có thể copy)
 
 > Mình (Nghĩa, Quản lý nhân sự) báo các thay đổi ảnh hưởng đến mọi người, chi tiết ở `TAC_DONG_DEN_NGUOI_KHAC_QUAN_LY_NHAN_SU.md`:
@@ -247,7 +283,9 @@ Cả bộ `tests/unit` trên integration (`24d99ba`, 5/11/2026) có **25 test l�
 > 3. **Phần gửi hàng:** UC-36 tự gán văn phòng cho quầy vé / gửi hàng lúc tạo tài khoản. Chuỗi `gan_van_phong_can_bo` (route `PUT /quan-ly/ho-so-can-bo-diem`, schema `GanVanPhongCanBoRequest`, `gui_hang_service.gan_van_phong_can_bo`, `nguoi_dung_repository.gan_van_phong`) sẽ không còn cần. Đề xuất **xóa sau khi đổi văn phòng chạy được**, ưu tiên bạn tự xóa; phía gửi hàng chỉ sửa 2 dòng tài liệu (`DATABASE.md` mục 1.3, `KE_HOACH_SUA_GUI_HANG.md` mục P1) và kiểm tra script E2E. Bảng `ho_so_can_bo_diem` giữ nguyên.
 > 4. **Nhóm điều độ viên:** điều độ viên không gắn văn phòng (tài liệu đã sửa). Còn lệch ở `seed_phu_xe_demo.py:158` và `danh_sach_dieu_do_vien_tai_diem`. File `DIEU_DO_VIEN_THEO_TUYEN_DE_XUAT.md` của bạn đã lỡ vào integration cùng commit UC-36. Khóa phụ xe gửi thông báo cho `quan_ly` + `dieu_do_vien`: điều độ viên cần có chỗ xem thông báo.
 > 5. **Biên chế / sinh chuyến:** khóa phụ xe không tự đổi `xe_nhan_su`; phụ xe đã khóa vẫn nằm trong biên chế. Nhờ kiểm tra việc gán phụ xe cho chuyến có loại tài khoản đã khóa không.
-> 6. **Cần chốt (đổi văn phòng):** (a) còn đơn đang xử lý thì có chặn không; (b) lý do đổi có bắt buộc không.
+> 6. **Đổi văn phòng** (khi PR merge; quy tắc đã chốt: không chặn khi còn đơn; văn phòng cũ phải còn ≥ 1 nhân viên cùng vai trò; lý do bắt buộc ≤ 200 từ): thêm **1 migration** `20261106_0900_nhat_ky_qlns_them_doi_van_phong.sql` (nới `CHECK` nhật ký QLNS), nên cả nhóm cần chạy lại `yoyo apply ./migrations`, quên thì QLNS đổi văn phòng sẽ lỗi 500. Mình chỉ **ghi** `ho_so_can_bo_diem` giống hàm cũ, không sửa gì của phần gửi hàng. Chuỗi `gan_van_phong_can_bo` để **phần gửi hàng tự xóa**. Chi tiết mục 10C.
 > 7. **Vé lẻ / quầy vé / thanh toán:** 25 test lỗi có sẵn ở `test_vnpay.py`, `test_thong_bao_khach.py`, `test_ve_le.py`, `test_vnpay_truy_van.py`, `test_quay_ve_khach_hang_theo_sdt.py` (đa số `KeyError: 'kenh_ban'`), không do phần mình.
 > 8. **Mã nhân viên** (`PX0001`, `DDV0001`, `TX0001`...): cột mới `ma` ở `nguoi_dung` / `nhan_su_van_hanh`, hiện ở màn hình nhân sự. Script seed demo tạo tài khoản mới sẽ không có mã. Các nhóm khác tự quyết định có hiện mã cạnh tên nhân viên không. Chi tiết `TAC_DONG_DEN_NGUOI_KHAC_QUAN_LY_NHAN_SU.md` mục 10.
 > 9. **UC-51 cho nghỉ việc** (khi PR merge): người nghỉ bị chuyển `xe_nhan_su` sang `tam_nghi` (không xóa, không tự gỡ biên chế cố định), báo `quan_ly` + `dieu_do_vien` xe nào thiếu người; chặn nếu xe đang `dang_chay` hoặc `gap_su_co`. Không có migration mới. Chi tiết mục 10A.
+> 10. **UC-52 xem nhật ký** (khi PR merge): màn hình đọc `nhat_ky_admin` + `nhat_ky_quan_ly_nhan_su`. Ai ghi vào `nhat_ky_admin` thì `quan_ly` sẽ thấy dòng đó; đối tượng loại khác người / hồ sơ hiện loại + 8 ký tự id; đừng ghi dữ liệu nhạy cảm vào `ghi_chu`. Không migration. Chi tiết mục 10B.
+> 11. **Tách quyền quản lý / quản lý nhân sự** (khi PR merge): `quan_ly` chỉ quản lý tài khoản `ke_toan` / `quan_ly` / `quan_ly_nhan_su`; vai trò vận hành, hồ sơ tài xế / phụ xe, nghỉ việc, đổi văn phòng chỉ do `quan_ly_nhan_su`. **Nhóm làm phần quản lý:** mình thêm 2 mục vào cuối `quan-ly/nav.js` (Tài khoản cán bộ, Nhật ký thao tác), không sửa mục cũ. Không migration. Chi tiết mục 10D.

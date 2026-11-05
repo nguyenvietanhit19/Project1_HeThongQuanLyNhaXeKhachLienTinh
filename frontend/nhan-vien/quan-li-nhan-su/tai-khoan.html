@@ -8,6 +8,8 @@
 <link rel="stylesheet" href="/shared/design-tokens.css" />
 <!-- Dùng chung bộ khung "nv-*" với frontend/nhan-vien/quan-ly/ — xem ghi chú ở nav.js -->
 <link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+<link rel="stylesheet" href="/nhan-vien/quan-ly/thong-bao.css" />
+<style>.nv-btn-phu:empty { display: none; } .nv-btn-phu { white-space: nowrap; }</style>
 </head>
 <body class="nhan-vien-shell">
   <div class="nv-layout">
@@ -163,21 +165,66 @@
     </div>
   </div>
 
+  <!-- Hộp thoại đổi văn phòng (nhánh kèm UC-36): chỉ quầy vé / gửi hàng; lý do bắt buộc (tối đa 200 từ);
+       backend chặn khi văn phòng cũ không còn ai cùng chức vụ và báo lỗi ngay trong hộp thoại -->
+  <div class="nv-modal-overlay" id="modal-dvp" hidden>
+    <div class="nv-modal" style="max-width:540px;">
+      <form id="form-dvp" novalidate>
+        <div class="nv-modal__header">
+          <div class="nv-modal__header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6M9 10h.01M15 10h.01"/>
+            </svg>
+          </div>
+          <h2 id="dvp-tieu-de">Đổi văn phòng</h2>
+        </div>
+        <div class="nv-modal__body">
+          <p id="dvp-mo-ta" style="margin-top:0;"></p>
+          <label class="nv-label" for="dvp-van-phong">Văn phòng mới</label>
+          <select class="input-field" id="dvp-van-phong"></select>
+          <label class="nv-label" for="dvp-ly-do" style="margin-top:12px;">Lý do (bắt buộc)</label>
+          <textarea class="input-field" id="dvp-ly-do" rows="3" style="resize:vertical;"></textarea>
+          <p class="nv-text-phu" style="margin-top:4px;"><span id="dvp-dem">0</span>/200 từ</p>
+          <p class="nv-text-phu" id="dvp-ghi-chu">Văn phòng hiện tại phải còn ít nhất 1 nhân viên cùng chức vụ đang hoạt động. Đơn và vé đã xử lý giữ nguyên ở văn phòng cũ; lịch sử thao tác của cán bộ không đổi.</p>
+          <div id="dvp-loi" class="text-error" hidden style="margin-top:12px;"></div>
+          <div class="nv-modal__actions">
+            <button type="button" class="nv-btn-secondary" id="dvp-huy">Hủy</button>
+            <button type="submit" class="btn-primary" id="dvp-xac-nhan">Đổi văn phòng</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script src="/shared/so-dien-thoai.js"></script>
   <script src="/nhan-vien/quan-li-nhan-su/api-client.js"></script>
   <script src="/nhan-vien/quan-li-nhan-su/auth-check.js"></script>
-  <script src="/nhan-vien/quan-li-nhan-su/nav.js"></script>
+  <script>
+    // quan_ly dùng khung + menu của Quản lý (nav.js, tai-khoan.js, thong-bao.js của quan-ly); quan_ly_nhan_su dùng menu riêng.
+    // Hai bộ cùng tên hàm renderSidebar nên chỉ nạp MỘT bộ theo vai trò.
+    const LA_QUAN_LY = localStorage.getItem("vai_tro") === "quan_ly";
+    (LA_QUAN_LY
+      ? ["/nhan-vien/quan-ly/nav.js", "/nhan-vien/quan-ly/tai-khoan.js", "/nhan-vien/quan-ly/thong-bao.js"]
+      : ["/nhan-vien/quan-li-nhan-su/nav.js"]
+    ).forEach((src) => document.write(`<script src="${src}"><\/script>`));
+  </script>
   <script src="/nhan-vien/quan-ly/data-table.js"></script>
   <script>
     const nguoiDung = yeuCauVaiTro("quan_ly_nhan_su", "quan_ly");
     if (nguoiDung) {
       renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-li-nhan-su/tai-khoan.html");
-      renderTopbarUser();
+      if (LA_QUAN_LY) document.querySelector(".nv-topbar__user")?.remove(); // họ tên / đăng xuất nằm ở cuối sidebar của Quản lý
+      else renderTopbarUser();
     }
-    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+    document.getElementById("btn-dang-xuat")?.addEventListener("click", dangXuat); // quan_ly: nút đăng xuất nằm ở cuối sidebar của Quản lý
 
     const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     const boDau = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+
+    if (LA_QUAN_LY) {
+      document.querySelector(".nv-page-intro__desc").textContent =
+        "Tạo, khóa và mở khóa tài khoản kế toán, quản lý và quản lý nhân sự (chỉ quản lý gốc tạo được quản lý và quản lý nhân sự; chỉ quản lý gốc khóa được quản lý và kế toán). Tài khoản các vai trò vận hành do quản lý nhân sự lo.";
+    }
 
     const NHAN_VAI_TRO = {
       phu_xe: "Phụ xe",
@@ -248,6 +295,8 @@
         },
       ], loc, {
         extraActions: [
+          // Nút chỉ có chữ với quầy vé / gửi hàng (nút rỗng bị CSS ẩn)
+          { label: (r) => (coThoDoiVanPhong(r) ? (r.ten_van_phong ? "Đổi văn phòng" : "Gán văn phòng") : ""), onClick: moModalDoiVanPhong },
           { label: (r) => (r.dang_hoat_dong ? "Khóa" : "Mở khóa"), onClick: moModalKhoa },
         ],
       });
@@ -445,6 +494,80 @@
         hienLoiKhoa(err.message);
       } finally {
         nut.classList.remove("is-loading");
+      }
+    });
+
+    // ---------- Đổi văn phòng (nhánh kèm UC-36) ----------
+    // Chỉ quầy vé / gửi hàng. Quy tắc "văn phòng cũ còn ít nhất 1 người cùng chức vụ" do backend kiểm tra; lỗi hiện trong hộp thoại.
+    const SO_TU_TOI_DA_LY_DO = 200;
+    const modalDvp = document.getElementById("modal-dvp");
+    const formDvp = document.getElementById("form-dvp");
+    const oDvpVanPhong = document.getElementById("dvp-van-phong");
+    const oDvpLyDo = document.getElementById("dvp-ly-do");
+    const loiDvp = document.getElementById("dvp-loi");
+    const nutDvp = document.getElementById("dvp-xac-nhan");
+    let tkDoiVanPhong = null;
+
+    const demTu = (s) => s.trim().split(/\s+/).filter(Boolean).length;
+    const hienLoiDvp = (m) => { loiDvp.textContent = m; loiDvp.hidden = false; };
+    const coThoDoiVanPhong = (r) => ["nhan_vien_quay_ve", "nhan_vien_gui_hang"].includes(r.vai_tro);
+
+    function capNhatDemTu() {
+      const n = demTu(oDvpLyDo.value);
+      const el = document.getElementById("dvp-dem");
+      el.textContent = n;
+      el.style.color = n > SO_TU_TOI_DA_LY_DO ? "#d93025" : "";
+    }
+
+    async function moModalDoiVanPhong(tk) {
+      tkDoiVanPhong = tk;
+      const lanDau = !tk.ten_van_phong;
+      document.getElementById("dvp-tieu-de").textContent = lanDau ? "Gán văn phòng" : "Đổi văn phòng";
+      nutDvp.textContent = lanDau ? "Gán văn phòng" : "Đổi văn phòng";
+      document.getElementById("dvp-ghi-chu").hidden = lanDau; // chưa có văn phòng cũ nên không áp dụng quy tắc "còn người cùng chức vụ"
+      document.getElementById("dvp-mo-ta").innerHTML =
+        `<strong>${esc(tk.ho_ten)}</strong> (${tk.ma ? esc(tk.ma) + ", " : ""}${esc(NHAN_VAI_TRO[tk.vai_tro] || tk.vai_tro)}). ` +
+        (tk.ten_van_phong ? `Văn phòng hiện tại: <strong>${esc(tk.ten_van_phong)}</strong>.` : "Chưa có văn phòng, đây là lần gán đầu tiên.");
+      oDvpLyDo.value = "";
+      capNhatDemTu();
+      loiDvp.hidden = true;
+      nutDvp.disabled = true;
+      oDvpVanPhong.innerHTML = '<option value="">Đang tải...</option>';
+      modalDvp.hidden = false;
+      await taiVanPhong(); // dùng chung bộ nhớ đệm danh sách văn phòng với hộp thoại tạo tài khoản
+      if (!dsVanPhong) {
+        oDvpVanPhong.innerHTML = '<option value="">Không tải được danh sách văn phòng</option>';
+        return hienLoiDvp("Không tải được danh sách văn phòng, thử lại sau.");
+      }
+      oDvpVanPhong.innerHTML =
+        '<option value="">— Chọn văn phòng mới —</option>' +
+        dsVanPhong
+          .map((v) => `<option value="${esc(v.id)}"${v.id === tk.van_phong_id ? " disabled" : ""}>${esc(v.ten)}${v.id === tk.van_phong_id ? " (hiện tại)" : ""}</option>`)
+          .join("");
+      nutDvp.disabled = false;
+      oDvpVanPhong.focus();
+    }
+
+    oDvpLyDo.addEventListener("input", capNhatDemTu);
+    document.getElementById("dvp-huy").addEventListener("click", () => { modalDvp.hidden = true; });
+
+    formDvp.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loiDvp.hidden = true;
+      const lyDo = oDvpLyDo.value.trim();
+      if (!oDvpVanPhong.value) return hienLoiDvp("Vui lòng chọn văn phòng mới.");
+      if (!lyDo) return hienLoiDvp("Vui lòng nhập lý do.");
+      if (demTu(lyDo) > SO_TU_TOI_DA_LY_DO) return hienLoiDvp(`Lý do tối đa ${SO_TU_TOI_DA_LY_DO} từ.`);
+
+      nutDvp.classList.add("is-loading");
+      try {
+        await apiPut(`/quan-ly-nhan-su/tai-khoan/${tkDoiVanPhong.id}/van-phong`, { van_phong_id: oDvpVanPhong.value, ly_do: lyDo });
+        modalDvp.hidden = true;
+        taiDanhSach();
+      } catch (err) {
+        hienLoiDvp(err.message);
+      } finally {
+        nutDvp.classList.remove("is-loading");
       }
     });
   </script>

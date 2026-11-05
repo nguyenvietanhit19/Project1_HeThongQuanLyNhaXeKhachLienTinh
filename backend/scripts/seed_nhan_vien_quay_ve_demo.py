@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.config import DATABASE_URL  # noqa: E402
 from app.db import get_connection, release_connection  # noqa: E402
+from app.repositories import ma_repository  # noqa: E402
 from app.services.mat_khau_service import _pwd_context  # noqa: E402
 
 EMAIL = "quayve.demo@nhaxe-demo.vn"
@@ -42,19 +43,28 @@ def main() -> None:
                 sys.exit("Chưa có văn phòng thuộc tuyến. Hãy tạo tuyến và gán văn phòng trước khi seed tài khoản.")
             van_phong_id = row[0]
 
+            cur.execute("SELECT ma, vai_tro FROM nguoi_dung WHERE email = %s FOR UPDATE", (EMAIL,))
+            tai_khoan_cu = cur.fetchone()
+            if tai_khoan_cu and tai_khoan_cu[1] != "nhan_vien_quay_ve":
+                sys.exit("Email demo đã thuộc tài khoản có vai trò khác.")
+            ma_nhan_vien = (tai_khoan_cu[0] if tai_khoan_cu else None) or ma_repository.cap_ma_nhan_vien(
+                cur, "nhan_vien_quay_ve"
+            )
+
             cur.execute(
                 """INSERT INTO nguoi_dung
-                       (email, mat_khau, ho_ten, so_dien_thoai, vai_tro, da_xac_nhan, dang_hoat_dong)
-                   VALUES (%s, %s, %s, %s, 'nhan_vien_quay_ve', true, true)
+                       (email, mat_khau, ho_ten, so_dien_thoai, vai_tro, da_xac_nhan, dang_hoat_dong, ma)
+                   VALUES (%s, %s, %s, %s, 'nhan_vien_quay_ve', true, true, %s)
                    ON CONFLICT (email) DO UPDATE SET
                        mat_khau = EXCLUDED.mat_khau,
                        ho_ten = EXCLUDED.ho_ten,
                        so_dien_thoai = EXCLUDED.so_dien_thoai,
                        vai_tro = EXCLUDED.vai_tro,
+                       ma = COALESCE(nguoi_dung.ma, EXCLUDED.ma),
                        da_xac_nhan = true,
                        dang_hoat_dong = true
                    RETURNING id""",
-                (EMAIL, _pwd_context.hash(MAT_KHAU), HO_TEN, SDT),
+                (EMAIL, _pwd_context.hash(MAT_KHAU), HO_TEN, SDT, ma_nhan_vien),
             )
             nguoi_dung_id = cur.fetchone()[0]
             cur.execute(
@@ -75,6 +85,7 @@ def main() -> None:
 
     print("Đã sẵn sàng tài khoản nhân viên quầy vé demo:")
     print(f"  Email: {EMAIL}")
+    print(f"  Mã nhân viên: {ma_nhan_vien}")
     print(f"  Mật khẩu: {MAT_KHAU}")
     print(f"  Văn phòng: {ten_van_phong}")
 

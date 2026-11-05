@@ -14,6 +14,8 @@ _CAC_COT_VA_BANG = """
            v.han_giu_cho_den, v.gio_bat_dau_dem_han, v.gio_thanh_toan, v.ma_dat_cho, v.ngay_tao,
            v.chuyen_id, c.ma AS ma_chuyen, c.gio_khoi_hanh, c.trang_thai AS trang_thai_chuyen,
            lx.ten AS ten_loai_xe, tu.ten AS ten_tuyen, x.bien_so,
+           nv.ho_ten AS nhan_vien_ban, nv.ma AS ma_nhan_vien_ban,
+           vp_ban.ten AS van_phong_nhan_vien_ban,
            dd.ten AS ten_diem_don, dt.ten AS ten_diem_tra,
            c.gio_khoi_hanh + make_interval(mins =>
                CASE WHEN c.chieu = 'xuoi' THEN a.thoi_gian_du_kien_phut
@@ -23,6 +25,9 @@ _CAC_COT_VA_BANG = """
                     ELSE tong.tong_phut - b.thoi_gian_du_kien_phut END) AS gio_den_du_kien
     FROM ve v
     {them_bang}
+    LEFT JOIN nguoi_dung nv ON nv.id = v.nhan_vien_ban_id
+    LEFT JOIN ho_so_can_bo_diem hs_ban ON hs_ban.nguoi_dung_id = nv.id
+    LEFT JOIN diem_don_tra vp_ban ON vp_ban.id = hs_ban.van_phong_id
     JOIN chuyen_xe c ON c.id = v.chuyen_id
     JOIN tuyen tu ON tu.id = c.tuyen_id
     JOIN loai_xe lx ON lx.id = c.loai_xe_id

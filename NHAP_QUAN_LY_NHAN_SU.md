@@ -2,7 +2,9 @@
 
 > **Cập nhật 23/10/2026 — UC-36 bỏ cơ chế mời bằng OTP.** Email cán bộ do công ty cấp nên không cần xác minh. Khi tạo, tài khoản có mật khẩu ban đầu mặc định `12345678` (lưu bản băm; response trả `mat_khau_ban_dau` để nhắc người tạo) và **không gửi email**; cán bộ đổi mật khẩu sau khi đăng nhập. OTP chỉ dùng khi quên mật khẩu. Mọi chỗ bên dưới nhắc "mời/OTP/`da_gui_email`/mail lỗi" cho UC-36 là **bản cũ**; bản đúng ở `NGHIEP_VU.md` UC-36 và `KE_HOACH_UC36_TAO_TAI_KHOAN_CAN_BO.md` mục 2.4. Giữ lại `da_xac_nhan = true` lúc tạo (`dang_nhap` chặn mọi tài khoản chưa xác nhận).
 
-> **Cập nhật 5/11/2026 — trạng thái hiện tại:** UC-49, UC-36 và UC-37 đã làm xong (backend + frontend) và đã merge vào `integration/gop-nhanh-thanh-vien` (#36, #38, #44). **UC-51 (cho nghỉ việc) đã làm xong backend + frontend + test (nhánh `feature/Nghia-uc51-cho-nghi-viec`, chưa merge, 5/11/2026).** **Mã nhân viên** (tiền tố theo vai trò + số tự tăng, mục 13) đã làm xong backend + frontend, **chưa commit**. UC-51, UC-52 và nhánh "đổi văn phòng" **chưa code**. Các mục viết theo thiết kế ngày 21–22/10 bên dưới (mục 11, 11.1) là bản thiết kế ban đầu; chỗ nào khác với code đã ghi chú ngay tại đó.
+> **Cập nhật 6/11/2026 — TÁCH QUYỀN:** `quan_ly` (gốc và thường) **chỉ quản lý tài khoản `ke_toan`, `quan_ly`, `quan_ly_nhan_su`**; các vai trò vận hành (phụ xe, quầy vé, gửi hàng, điều độ viên), hồ sơ tài xế / phụ xe, cho nghỉ việc và đổi văn phòng **chỉ do `quan_ly_nhan_su` làm**; `quan_ly` vẫn xem toàn bộ nhật ký. Hồ sơ nhân sự trong hệ thống chỉ có tài xế và phụ xe (hồ sơ kế toán / quản lý / quản lý nhân sự do bộ phận nhân sự bên ngoài lo). Đã code ở nhánh `feature/Nghia-phan-quyen-quan-ly` (chưa merge). **Các chỗ dưới đây ghi "cả hai vai trò đều làm được" là bản cũ, đọc theo ghi chú này.**
+>
+> **Cập nhật 5/11/2026 — trạng thái hiện tại:** UC-49, UC-36 và UC-37 đã làm xong (backend + frontend) và đã merge vào `integration/gop-nhanh-thanh-vien` (#36, #38, #44). **Nhánh đổi văn phòng của UC-36 đã làm xong backend + frontend + test (nhánh `feature/Nghia-doi-van-phong`, chưa merge, 6/11/2026; có 1 migration mới).** **UC-52 (xem nhật ký) đã làm xong backend + frontend + test (nhánh `feature/Nghia-uc52-nhat-ky`, chưa merge, 5/11/2026).** **UC-51 (cho nghỉ việc) đã làm xong backend + frontend + test (nhánh `feature/Nghia-uc51-cho-nghi-viec`, chưa merge, 5/11/2026).** **Mã nhân viên** (tiền tố theo vai trò + số tự tăng, mục 13) đã làm xong backend + frontend, **chưa commit**. UC-51, UC-52 và nhánh "đổi văn phòng" **chưa code**. Các mục viết theo thiết kế ngày 21–22/10 bên dưới (mục 11, 11.1) là bản thiết kế ban đầu; chỗ nào khác với code đã ghi chú ngay tại đó.
 
 > **File này không phải tài liệu gốc.** Nó **gom 1 chỗ** mọi thứ liên quan tới `quan_ly_nhan_su` trong `NGHIEP_VU.md`, `UML_DIAGRAMS.md`, `DATABASE.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md` (nhánh `integration/gop-nhanh-thanh-vien`) để đọc cho nhanh. Nếu lệch, **file gốc luôn đúng hơn**.
 >
@@ -15,9 +17,9 @@
 | | |
 |---|---|
 | **Use case liên quan** | UC-36, UC-37 (gộp UC-38 cũ), UC-39, UC-49 (gộp UC-50 cũ), UC-51, UC-52 |
-| **Actor** | Quản lý nhân sự, và Quản lý (làm được mọi UC trên, trừ UC-52 khác phạm vi 1 chút) |
+| **Actor** | Quản lý nhân sự (vai trò vận hành + hồ sơ tài xế / phụ xe + nhật ký của mình); Quản lý (chỉ tài khoản cấp cao `ke_toan` / `quan_ly` / `quan_ly_nhan_su` + xem toàn bộ nhật ký) (chốt 6/11/2026) |
 | **Trạng thái tài liệu** | ✅ Đã chốt chính thức; các chỗ làm rõ UC-36/37/51/52 đã ghi vào `NGHIEP_VU.md`/`UML_DIAGRAMS.md` (mục 11.1) |
-| **Trạng thái code** | ✅ UC-49, UC-36, UC-37 đã xong (backend + frontend, đã merge); mã nhân viên xong, chưa commit. ✅ UC-51 xong (5/11, chưa merge). ❌ UC-52 và đổi văn phòng **chưa có**. Test tự động: UC-36/37 và mã nhân viên có; UC-49 mới có test cho phần mã |
+| **Trạng thái code** | ✅ UC-49, UC-36, UC-37 đã xong (backend + frontend, đã merge); mã nhân viên xong, chưa commit. ✅ UC-51 xong (5/11, chưa merge). ✅ Đổi văn phòng (nhánh kèm UC-36) xong (6/11, chưa merge). ✅ UC-52 xong (5/11, chưa merge) và đổi văn phòng **chưa có**. Test tự động: UC-36/37 và mã nhân viên có; UC-49 mới có test cho phần mã |
 | **Bảng DB liên quan** | `nhan_su_van_hanh` (mở rộng, thêm `ma`), `giay_to_nhan_su`, `nhat_ky_quan_ly_nhan_su`, `nhat_ky_admin` (mới, nhật ký của `quan_ly`), `nguoi_dung` (thêm `ma`) — đều đã có migration |
 | **Quyết định kiến trúc đi kèm** | Dùng lại **Cloudinary** để lưu ảnh hồ sơ/giấy tờ (mục 9) |
 
@@ -39,7 +41,7 @@
 
 ### Quan hệ với biên chế xe (`NGHIEP_VU.md` mục 3.2)
 
-> **Hồ sơ nhân sự vận hành (`nhan_su_van_hanh`) và biên chế (`xe_nhan_su`) do 2 vai trò khác nhau quản lý**: hồ sơ do `quan_ly_nhan_su` hoặc `quan_ly`; biên chế cố định do `quan_ly` (UC-35). **Chỉ hồ sơ đang làm việc (`dang_lam`) mới được đưa vào biên chế xe.** Giấy tờ hết hạn **không chặn** việc biên chế hay gán xe — hệ thống chỉ nhắc, quyết định cuối cùng là của con người.
+> **Hồ sơ nhân sự vận hành (`nhan_su_van_hanh`) và biên chế (`xe_nhan_su`) do 2 vai trò khác nhau quản lý**: hồ sơ **chỉ** do `quan_ly_nhan_su` (chốt 6/11/2026); biên chế cố định do `quan_ly` (UC-35). **Chỉ hồ sơ đang làm việc (`dang_lam`) mới được đưa vào biên chế xe.** Giấy tờ hết hạn **không chặn** việc biên chế hay gán xe — hệ thống chỉ nhắc, quyết định cuối cùng là của con người.
 
 ---
 
@@ -50,7 +52,7 @@
 | Cấp | Vai trò | Ghi chú |
 |---|---|---|
 | 1 | `quan_ly` **gốc** | Duy nhất, seed sẵn, không ai khóa được; duy nhất tạo được `quan_ly` khác và `quan_ly_nhan_su` |
-| 2 | `quan_ly` (tạo thêm) | Toàn quyền nghiệp vụ như gốc, trừ 2 việc trên; có thể bị khóa |
+| 2 | `quan_ly` (tạo thêm) | Toàn quyền nghiệp vụ như gốc, trừ 2 việc trên; có thể bị khóa. Về tài khoản chỉ quản lý 3 vai trò cấp cao (`ke_toan`, `quan_ly`, `quan_ly_nhan_su`) (chốt 6/11/2026) |
 | 3 | `quan_ly_nhan_su` | Chỉ tài khoản + hồ sơ nhân sự; không có quyền nghiệp vụ khác |
 | 4 | `ke_toan` | Ngang mức cấp 3 nhưng khác nhánh; chỉ xử lý hoàn tiền |
 | 5 | Cán bộ vận hành: phụ xe, quầy vé, gửi hàng, điều độ viên | Không quản lý tài khoản của ai |
@@ -60,6 +62,8 @@
 Nguyên tắc: vai trò càng nhạy cảm (tiền, quyền quản trị) thì càng ít người tạo/khóa được — để một tài khoản cấp cao bị lộ cũng không tự sinh/tác động lên tài khoản ngang hàng.
 
 ### 2.2. Quản lý nhân sự quản lý được gì — theo từng vai trò
+
+> Từ 6/11/2026: các vai trò vận hành và hồ sơ ở bảng dưới **chỉ** do quản lý nhân sự lo; `quan_ly` không còn làm. Ngược lại `quan_ly` lo tài khoản `ke_toan` / `quan_ly` / `quan_ly_nhan_su` (theo bậc, UC-36/37).
 
 | Vai trò bị quản lý | Tài khoản (UC-36/37) | Hồ sơ | Cho nghỉ việc (UC-51) |
 |---|---|---|---|
@@ -98,11 +102,11 @@ Cột theo thứ tự: khách hàng · phụ xe · tài xế · quầy vé · g�
 | UC | Tên | QLNS | QL |
 |---|---|---|---|
 | UC-35 | Quản lý biên chế xe | ❌ | ✅ |
-| UC-36 | Tạo tài khoản cán bộ | ✅ (4 vai trò vận hành, không `ke_toan`/`quan_ly`/`quan_ly_nhan_su`) | ✅ (mọi vai trò; `quan_ly`/`quan_ly_nhan_su` chỉ tài khoản gốc tạo được) |
-| UC-37 | Khóa / mở khóa tài khoản *(gộp từ UC-37 + UC-38 cũ)* | ✅ (chỉ 4 vai trò vận hành) | ✅ theo **bậc** (gốc khóa mọi cán bộ; `quan_ly` thường chỉ khóa `quan_ly_nhan_su` + 4 vai trò vận hành; không ai khóa gốc; không áp dụng khách hàng) |
+| UC-36 | Tạo tài khoản cán bộ | ✅ (4 vai trò vận hành) | ✅ (chỉ `ke_toan`; `quan_ly` / `quan_ly_nhan_su` chỉ tài khoản gốc tạo được; không tạo vai trò vận hành) |
+| UC-37 | Khóa / mở khóa tài khoản *(gộp từ UC-37 + UC-38 cũ)* | ✅ (chỉ 4 vai trò vận hành) | ✅ theo **bậc**, chỉ tài khoản cấp cao (gốc khóa `quan_ly_nhan_su`, `ke_toan`, `quan_ly`; thường chỉ khóa `quan_ly_nhan_su`; không khóa vai trò vận hành) |
 | UC-39 | Xem thống kê doanh thu/vận hành | ✅ (toàn hệ thống) | ✅ (toàn hệ thống) |
-| **UC-49** | **Quản lý hồ sơ nhân sự vận hành (tài xế/phụ xe)** *(gồm cơ chế UC-50 cũ — cảnh báo giấy tờ)* | ✅ | ✅ |
-| **UC-51** | **Cho nghỉ việc nhân sự vận hành** | ✅ | ✅ |
+| **UC-49** | **Quản lý hồ sơ nhân sự vận hành (tài xế/phụ xe)** *(gồm cơ chế UC-50 cũ — cảnh báo giấy tờ)* | ✅ | ❌ |
+| **UC-51** | **Cho nghỉ việc nhân sự vận hành** | ✅ | ❌ |
 | **UC-52** | **Xem nhật ký thao tác** | ✅ (của mình) | ✅ (toàn bộ) |
 
 ---
@@ -111,7 +115,7 @@ Cột theo thứ tự: khách hàng · phụ xe · tài xế · quầy vé · g�
 
 ### UC-49. Quản lý hồ sơ nhân sự vận hành (tài xế/phụ xe) *(gồm cơ chế UC-50 cũ)*
 
-- **Actor**: Quản lý nhân sự, hoặc Quản lý.
+- **Actor**: Quản lý nhân sự (`quan_ly` không làm (chốt 6/11/2026)).
 - **Tiền điều kiện**: Với hồ sơ phụ xe: tài khoản `phu_xe` đã được tạo (UC-36). Tài xế không cần tài khoản.
 - **Luồng chính**:
   1. Chọn "Thêm hồ sơ", hoặc chọn 1 hồ sơ có sẵn để sửa.
@@ -144,7 +148,7 @@ Cột theo thứ tự: khách hàng · phụ xe · tài xế · quầy vé · g�
 
 ### UC-51. Cho nghỉ việc nhân sự vận hành
 
-- **Actor**: Quản lý nhân sự, hoặc Quản lý.
+- **Actor**: Quản lý nhân sự (`quan_ly` không làm (chốt 6/11/2026)).
 - **Tiền điều kiện**: Hồ sơ đang `dang_lam`. Chỉ áp dụng cho nhân sự vận hành (tài xế, phụ xe); tài khoản quầy vé/gửi hàng/điều độ viên nghỉ việc thì dùng UC-37 (khóa tài khoản).
 - **Luồng chính**:
   1. Chọn hồ sơ cần cho nghỉ việc, nhập ngày nghỉ và lý do (ngày nghỉ mặc định hôm nay, không ở tương lai, không trước ngày vào làm; lý do bắt buộc — mục 11.1).
@@ -167,13 +171,13 @@ Cột theo thứ tự: khách hàng · phụ xe · tài xế · quầy vé · g�
 - **Luồng chính**:
   1. Mở màn hình nhật ký.
   2. Lọc theo khoảng thời gian, loại hành động, đối tượng bị tác động; riêng `quan_ly` lọc thêm được theo người thực hiện.
-  3. Hệ thống hiển thị danh sách, dòng mới nhất trước.
-- **Luồng rẽ nhánh**: Nhật ký **chỉ xem** — không có thao tác sửa hay xóa dòng nào.
+  3. Hệ thống hiển thị danh sách (kèm tên + mã người thực hiện và đối tượng), dòng mới nhất trước, chia trang 50 dòng (tối đa 200). Ngày lọc theo giờ VN.
+- **Luồng rẽ nhánh**: Đối tượng không tra được tên (nhóm khác ghi vào `nhat_ky_admin`) hiện loại + 8 ký tự đầu id; `quan_ly` thấy cả các dòng đó. Nhật ký **chỉ xem** — không có thao tác sửa hay xóa dòng nào.
 - **Hậu điều kiện**: Không thay đổi dữ liệu.
 
-### UC-36. Tạo tài khoản cán bộ *(dùng chung với `quan_ly`)*
+### UC-36. Tạo tài khoản cán bộ *(chia hai bên: QLNS tạo 4 vai trò vận hành; `quan_ly` tạo `ke_toan`, và gốc tạo `quan_ly` / `quan_ly_nhan_su`)*
 
-- **Actor**: Quản lý (bất kỳ, gốc hay không), hoặc Quản lý nhân sự (phạm vi hẹp hơn).
+- **Actor**: Quản lý (chỉ tạo `ke_toan`; `quan_ly` / `quan_ly_nhan_su` chỉ gốc tạo; không tạo vai trò vận hành) hoặc Quản lý nhân sự (chỉ 4 vai trò vận hành) (chốt 6/11/2026).
 - **Luồng chính**:
   1. Nhập email + họ tên + số điện thoại + vai trò muốn tạo + văn phòng phụ trách (chỉ bắt buộc với quầy vé / gửi hàng).
   2. Hệ thống kiểm tra actor có quyền tạo đúng vai trò vừa chọn hay không.
@@ -185,9 +189,9 @@ Cột theo thứ tự: khách hàng · phụ xe · tài xế · quầy vé · g�
   - Actor là `quan_ly` không phải tài khoản gốc nhưng vai trò muốn tạo là `quan_ly`/`quan_ly_nhan_su` → chặn.
 - **Hậu điều kiện**: Cán bộ có tài khoản và mã nhân viên, đăng nhập được (UC-02).
 
-### UC-37. Khóa / mở khóa tài khoản *(gộp từ UC-37 + UC-38 cũ, dùng chung với `quan_ly`)*
+### UC-37. Khóa / mở khóa tài khoản *(gộp từ UC-37 + UC-38 cũ; chia hai bên theo bậc)*
 
-- **Actor**: Quản lý (gốc hoặc thường), hoặc Quản lý nhân sự — mỗi bậc chỉ khóa được bậc thấp hơn mình.
+- **Actor**: Quản lý (gốc hoặc thường; chỉ tài khoản cấp cao) hoặc Quản lý nhân sự (chỉ 4 vai trò vận hành) — mỗi bậc chỉ khóa được bậc thấp hơn mình (chốt 6/11/2026).
 - **Luồng chính (khóa)**:
   1. Tìm tài khoản **cán bộ** cần khóa.
   2. Hệ thống kiểm tra actor có quyền khóa đúng tài khoản mục tiêu hay không (quy tắc bậc).

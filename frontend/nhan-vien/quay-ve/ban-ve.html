@@ -279,7 +279,7 @@ async function qvRefreshCurrentSale(){
         const row=rows.get(String(item.id));
         if(!row)continue;
         const cells=row.querySelectorAll("td");
-        cells[0].textContent=item.trang_thai==="giu_cho"&&(item.loai_hinh_thanh_toan==="thanh_toan_ngay"||cocDangCho)?"Chưa phát hành":item.ma_ve;
+        cells[0].textContent=item.ma_ve;
         const status=item.trang_thai==="da_thanh_toan"?"Đã thanh toán":item.trang_thai==="giu_cho"?item.la_ve_dat_coc?"Chờ cọc VNPay":coc.length&&!cocDaTra?cocDangCho?"Chờ xác nhận cọc":"Đặt cọc chưa thành công":item.loai_hinh_thanh_toan==="thanh_toan_ngay"?"Chờ VNPay":"Chờ thu tiền mặt":item.trang_thai==="het_han"?"Hết hạn":item.trang_thai==="da_huy"?"Đã hủy":item.trang_thai;
         cells[3].innerHTML=`<span class="qv-badge ${item.trang_thai==="da_thanh_toan"?"green":item.trang_thai==="giu_cho"?"orange":"red"}">${escapeHtml(status)}</span>`;
         cells[4].innerHTML=item.co_the_in?`<button class="qv-btn secondary print-ticket" type="button" data-id="${escapeHtml(item.id)}">In vé</button>`:item.trang_thai==="giu_cho"?item.la_ve_dat_coc?"Cọc VNPay":coc.length&&!cocDaTra?"Chờ xử lý cọc":item.loai_hinh_thanh_toan==="thanh_toan_tai_quay"?"Thu tiền mặt":"Thanh toán VNPay":"—";
@@ -912,7 +912,7 @@ $("#submit-sale").addEventListener("click",async()=>{
     const datCoc=Boolean(result.can_dat_coc);
     const thanhToanChoDatCho=thanhToanQr||datCoc;
     const rows=result.ve.map(ve=>`<tr data-ticket-id="${escapeHtml(ve.id)}">
-      <td>${thanhToanChoDatCho&&ve.trang_thai==="giu_cho"?"Chưa phát hành":escapeHtml(ve.ma_ve)}</td>
+      <td>${escapeHtml(ve.ma_ve)}</td>
       <td>${escapeHtml(ve.so_ghe)}</td>
       <td>${dinhDangTien(ve.gia)}</td>
       <td>${ve.trang_thai==="giu_cho"?'<span class="qv-badge orange">Chờ thanh toán</span>':escapeHtml(ve.trang_thai)}</td>
@@ -941,7 +941,7 @@ $("#submit-sale").addEventListener("click",async()=>{
       <p class="qv-sale-refresh-error qv-hidden" id="sale-refresh-error" role="status"></p>
       <div class="qv-pending-summary ${veChoThanhToan.length?"":"qv-hidden"}" id="sale-pending-summary">
         <strong>${datCoc?`${result.so_ve_dat_coc} vé cần đặt cọc · ${dinhDangTien(result.tien_dat_coc)}`:`${veChoThanhToan.length} ghế chờ thanh toán trong lượt này`}${thanhToanChoDatCho?" · Hết hạn sau 5 phút":""}</strong>
-        <ul>${veChoThanhToan.map(ve=>`<li>${thanhToanChoDatCho?"":"<b>"+escapeHtml(ve.ma_ve)+"</b> · "}Ghế ${escapeHtml(ve.so_ghe)} · ${dinhDangTien(ve.gia)}${ve.la_ve_dat_coc?" · Vé cọc":" · Trả tại quầy"}</li>`).join("")}</ul>
+        <ul>${veChoThanhToan.map(ve=>`<li><b>${escapeHtml(ve.ma_ve)}</b> · Ghế ${escapeHtml(ve.so_ghe)} · ${dinhDangTien(ve.gia)}${ve.la_ve_dat_coc?" · Vé cọc":" · Trả tại quầy"}</li>`).join("")}</ul>
       </div>
       <div class="qv-table-wrap"><table class="qv-table">
         <thead><tr><th>Mã vé</th><th>Ghế</th><th>Giá</th><th>Trạng thái</th><th>Tác vụ</th></tr></thead>

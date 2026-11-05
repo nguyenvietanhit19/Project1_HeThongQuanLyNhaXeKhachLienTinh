@@ -620,6 +620,34 @@ body.bk-trang {
   color: #B45F00;
 }
 
+.ve-cung__nhan-vien {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 0 18px 16px;
+  padding-top: 12px;
+  border-top: 1.5px dashed #D3CBE3;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.ve-cung__nhan-vien strong {
+  color: var(--color-secondary);
+  font-size: 13px;
+}
+
+.ve-cung__nhan-vien b {
+  color: var(--color-secondary);
+  background: #F0EBF8;
+  border-radius: 5px;
+  padding: 2px 6px;
+}
+
+.ve-cung__nhan-vien small {
+  font-size: 12px;
+}
+
 /* dấu mộc trạng thái */
 .ve-cung__dau-moc {
   position: absolute;

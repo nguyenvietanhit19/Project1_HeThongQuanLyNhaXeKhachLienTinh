@@ -2033,6 +2033,78 @@ textarea.form-input {
   white-space: nowrap;
 }
 
+/* Bộ chọn kỳ: [Ngày|Tháng|Năm|Tùy chọn]  ◀ ô chọn ▶ */
+.tk-nhan-ky {
+  color: var(--color-secondary-dark);
+  white-space: nowrap;
+}
+
+/* Tiêu đề có nhãn kỳ: thiếu chỗ thì nhãn kỳ xuống dòng nguyên cụm thay vì bóp tiêu đề thành cột hẹp */
+.stats-header-content .card-title,
+.chart-panel .panel-title {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+
+.tk-chon-ky,
+.tk-khoang-ngay {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tk-chon-ky [hidden],
+.tk-chon-ky[hidden] {
+  display: none !important;
+}
+
+.tk-nut-ky {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--gh-border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--gh-text-2);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tk-nut-ky:hover:not(:disabled) {
+  border-color: var(--color-secondary);
+  color: var(--color-secondary-dark);
+}
+
+.tk-nut-ky:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tk-nut-ky:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}
+
+.tk-ghi-chu-ton {
+  margin: calc(var(--gh-gap) * -0.5) 0 var(--gh-gap);
+  font-size: 12.5px;
+}
+
+.chart-trong-khung {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  font-size: 13px;
+  color: #9CA3AF;
+  text-align: center;
+}
+
+.chart-ngay--tuong-lai {
+  fill: #C4C9D2;
+}
+
 .stats-two-col {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
@@ -2269,6 +2341,97 @@ g:hover > .chart-vung {
 
 .chart-cot--tiep-nhan { fill: #3B82F6; }
 .chart-cot--da-giao { fill: #10B981; }
+
+/* Tab Thống kê: 2 biểu đồ theo thời gian và bảng đối soát chiếm cả hàng; Cách trả cước + Theo nhân viên chung 1 hàng */
+.tk-bieu-do-luoi {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gh-gap);
+  margin-bottom: var(--gh-gap);
+}
+
+.tk-bieu-do-luoi > .card-panel {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.tk-bieu-do--rong {
+  grid-column: 1 / -1;
+}
+
+/* Màu theo dòng tiền — cùng lớp tô SVG (fill/stroke) và ô chú thích (background) */
+.chart-cot--tra-truoc,
+.chart-mau--tra-truoc { fill: var(--color-secondary); stroke: var(--color-secondary); background: var(--color-secondary); }
+.chart-cot--thu-khi-giao,
+.chart-mau--thu-khi-giao { fill: var(--color-primary); stroke: var(--color-primary); background: var(--color-primary); }
+.chart-cot--nhan-vien { fill: #8B6FC6; }
+.chart-cot--am { fill: var(--color-danger); }
+
+.chart-duong {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.chart-duong--con-lai { stroke: #10B981; }
+.chart-diem.chart-duong--con-lai { fill: #10B981; stroke: #fff; stroke-width: 1.5; }
+
+.legend-line {
+  flex: none;
+  width: 18px;
+  height: 3px;
+  border-radius: 2px;
+  background: #10B981;
+}
+
+.chart-tron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 16px 28px;
+  min-height: 200px;
+}
+
+.chart-tron__giua-nhan {
+  font-size: 11.5px;
+  fill: #9CA3AF;
+}
+
+.chart-tron__giua {
+  font-size: 18px;
+  font-weight: 800;
+  fill: var(--color-secondary-dark);
+}
+
+.chart-tron__chu-thich {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chart-tron__chu-thich li {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  column-gap: 8px;
+  align-items: center;
+}
+
+.chart-tron__ten {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gh-text-2);
+}
+
+.chart-tron__phu {
+  grid-column: 2;
+  font-size: 12.5px;
+  color: #6B7280;
+  font-variant-numeric: tabular-nums;
+}
 
 .chart-legend-wrap {
   display: flex;
@@ -3465,6 +3628,10 @@ g:hover > .chart-vung {
 /* ---- ≤ 880px: sidebar thành thanh ngang trên đầu trang, cuộn ngang được (giống Quản lý) ----
    Khối tài khoản ở cuối thanh, chỉ còn avatar; menu mở xuống (fixed để thanh cuộn ngang không cắt mất). */
 @media (max-width: 880px) {
+  .tk-bieu-do-luoi {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .nv-layout {
     flex-direction: column;
   }
@@ -3700,16 +3867,18 @@ g:hover > .chart-vung {
 
   .stats-filter-box {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     align-items: center;
   }
 
   .stats-filter-box .input-date {
+    flex: 1 1 0;
     width: 100%;
+    min-width: 0;
   }
 
-  .stats-filter-box .time-range-tabs {
-    grid-column: 1 / -1;
+  .tk-khoang-ngay {
+    flex: 1 1 0;
   }
 
   .time-range-tabs {
@@ -3951,7 +4120,8 @@ g:hover > .chart-vung {
     font-size: 18px;
   }
 
-  .stats-filter-box {
+  .tk-khoang-ngay {
+    display: grid;
     grid-template-columns: auto minmax(0, 1fr);
   }
 
@@ -4121,4 +4291,115 @@ g:hover > .chart-vung {
   .phim-tat-goi-y {
     display: none !important;
   }
+
+  /* Báo cáo thống kê: nằm ngoài .nv-layout (layout bị bỏ hẳn) nên đi theo luồng trang, nhiều trang A4 dọc */
+  body.dang-in .bao-cao-in.print-target {
+    display: block;
+    position: static;
+    page: bao-cao;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
+
+@page bao-cao {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
+/* ===== 18. Báo cáo thống kê để in (bao-cao.js) — chỉ hiện khi in ===== */
+.bao-cao-in {
+  display: none;
+  color: #111827;
+  font-family: var(--font-body);
+  font-size: 12px;
+}
+
+.bao-cao-in h1 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  color: var(--color-secondary-dark);
+}
+
+.bao-cao-in h2 {
+  margin: 14px 0 6px;
+  font-size: 13px;
+  color: var(--color-secondary-dark);
+}
+
+.bc-dau {
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--color-secondary);
+}
+
+.bc-thong-tin {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 24px;
+}
+
+.bc-thong-tin span {
+  color: #6B7280;
+}
+
+.bc-hai-cot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.bc-bang {
+  width: 100%;
+  margin-top: 8px;
+  border-collapse: collapse;
+  break-inside: avoid;
+}
+
+.bc-bang th,
+.bc-bang td {
+  padding: 4px 6px;
+  border: 1px solid #D1D5DB;
+  text-align: left;
+}
+
+.bc-bang thead th {
+  background: #F3F0FA;
+}
+
+.bc-bang .text-right {
+  text-align: right;
+}
+
+.bc-ghi-chu {
+  margin: 4px 0 0;
+  font-size: 10.5px;
+  color: #6B7280;
+}
+
+.bc-bieu-do,
+.bc-doi-soat,
+.bc-ky {
+  break-inside: avoid;
+}
+
+.bc-ky {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 24px;
+  min-height: 110px;
+  text-align: center;
+}
+
+.bc-ky div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bc-ky span {
+  font-size: 11px;
+  font-style: italic;
+  color: #6B7280;
 }

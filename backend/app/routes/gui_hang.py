@@ -281,13 +281,16 @@ def thong_ke_hang(
     return gui_hang_service.thong_ke_hang_tai_diem(_pham_vi_van_phong(nguoi_dung, diem_id), tu, den)
 
 
-@router.get("/thong-ke-theo-ngay")
-def thong_ke_hang_theo_ngay(
+@router.get("/thong-ke-chuoi")
+def thong_ke_chuoi(
     nguoi_dung: QuyenThongKe,
-    so_ngay: int = Query(7, description="Khoảng 7, 14 hoặc 30 ngày"),
+    tu_ngay: date = Query(...),
+    den_ngay: date = Query(...),
+    don_vi: str = Query(..., description="gio (1 ngày) | ngay (≤ 62 ngày) | thang"),
     diem_id: UUID | None = Query(None),
 ):
-    return gui_hang_service.thong_ke_hang_theo_ngay(_pham_vi_van_phong(nguoi_dung, diem_id), so_ngay)
+    """Số liệu của /thong-ke chia theo giờ / ngày / tháng (đủ mọi mốc) — vẽ biểu đồ và xuất báo cáo."""
+    return gui_hang_service.thong_ke_chuoi(_pham_vi_van_phong(nguoi_dung, diem_id), tu_ngay, den_ngay, don_vi)
 
 
 @router.get("/doi-soat")
