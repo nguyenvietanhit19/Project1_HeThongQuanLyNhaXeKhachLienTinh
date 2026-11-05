@@ -76,6 +76,26 @@ const ChuyenChiTiet = (() => {
     }));
   }
 
+  // Giờ kết thúc dự kiến (giờ khởi hành + thời gian chạy cả tuyến, theo giờ máy như phần còn lại của trang):
+  // { gio: "14:00", lech: 0 } — lech = số ngày sau ngày khởi hành (0 = cùng ngày); null nếu chưa có
+  function gioKetThuc(c) {
+    if (!c.gio_ket_thuc) return null;
+    const bd = new Date(c.gio_khoi_hanh);
+    const kt = new Date(c.gio_ket_thuc);
+    if (isNaN(kt.getTime())) return null;
+    const lech = Math.round((new Date(kt.getFullYear(), kt.getMonth(), kt.getDate()) - new Date(bd.getFullYear(), bd.getMonth(), bd.getDate())) / 86400000);
+    return { gio: `${pad2(kt.getHours())}:${pad2(kt.getMinutes())}`, lech };
+  }
+
+  // Dấu "+1" dạng mũ (đỏ, nhỏ, nâng lên) giống trang Lịch chạy
+  const htmlQuaNgay = (lech) => (lech > 0 ? `<em class="qua-ngay">+${lech}</em>` : "");
+
+  // "→ 14:00" hoặc "→ 02:00⁺¹" khi sang ngày hôm sau; "" nếu chưa có giờ kết thúc
+  function htmlGioKetThuc(c) {
+    const k = gioKetThuc(c);
+    return k ? `→ ${k.gio}${htmlQuaNgay(k.lech)}` : "";
+  }
+
   function renderLoTrinhChuyen(c) {
     const diem = loTrinhTheoChieu(c.tuyen_id, c.chieu);
     if (!diem.length) return "";
@@ -346,7 +366,7 @@ const ChuyenChiTiet = (() => {
         <div class="cy-ct-dau__gio">${pad2(d.getHours())}:${pad2(d.getMinutes())}</div>
         <div class="cy-ct-dau__info">
           <strong>${esc(c.ten_tuyen)}</strong>
-          <span class="nv-text-phu">${ngayGioHienThi}</span>
+          <span class="nv-text-phu">${ngayGioHienThi}${htmlGioKetThuc(c) ? " " + htmlGioKetThuc(c) : ""}</span>
         </div>
         ${htmlChieu(c.chieu)}
         <span class="pill pill--nho ${pillTrangThai(c.trang_thai)}">${NHAN_TRANG_THAI[c.trang_thai] || c.trang_thai}</span>
@@ -453,5 +473,5 @@ const ChuyenChiTiet = (() => {
     }
   }
 
-  return { mo, NHAN_TRANG_THAI, pillTrangThai, mauTrangThai, mauChieu, htmlChieu };
+  return { mo, NHAN_TRANG_THAI, pillTrangThai, mauTrangThai, mauChieu, htmlChieu, gioKetThuc, htmlQuaNgay, htmlGioKetThuc };
 })();

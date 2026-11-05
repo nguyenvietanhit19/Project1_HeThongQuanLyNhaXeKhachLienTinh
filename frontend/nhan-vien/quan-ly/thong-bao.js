@@ -1,5 +1,5 @@
 /*
- * Chuông thông báo cho vai trò Quản lý (quan_ly): chuông + huy hiệu số chưa đọc ở thanh trên cùng (`.nv-topbar`), bảng thả xuống
+ * Chuông thông báo cho vai trò Quản lý (quan_ly) và Điều độ viên (dieu_do_vien, trang Gán xe): chuông + huy hiệu số chưa đọc ở thanh trên cùng (`.nv-topbar`), bảng thả xuống
  * 30 thông báo gần nhất, toast khi có thông báo mới. Bấm 1 thông báo: đánh dấu đã đọc và mở trang liên quan nếu có `duong_dan`.
  * Dùng chung API với mọi vai trò: GET /thong-bao/cua-toi, PUT /thong-bao/{id}/da-doc, PUT /thong-bao/da-doc-tat-ca.
  * Bên gửi thông báo gọi thong_bao_khach_service.gui(nguoi_nhan_id, noi_dung, duong_dan=...).
@@ -16,7 +16,8 @@
  */
 
 (() => {
-  const VAI_TRO_CO_CHUONG = ["quan_ly", "nhan_vien_quay_ve"];
+  const VAI_TRO_CO_CHUONG = ["quan_ly", "dieu_do_vien", "nhan_vien_quay_ve"]; // Quản lý, Điều độ viên (trang Gán xe dùng chung khung với Quản lý), Nhân viên quầy vé
+
   const CHU_KY_HOI_LAI_MS = 60000;
   const SO_TOAST_TOI_DA = 3;
   const THOI_GIAN_TOAST_MS = 8000;
@@ -314,9 +315,17 @@
     }
     dongBang();
     const dich = duongDanAnToan(tb && tb.duong_dan);
-    if (dich && dich !== location.pathname) {
-      location.href = dich;
-      return;
+    if (dich) {
+      const url = new URL(dich, location.origin);
+      if (url.pathname !== location.pathname) {
+        location.href = dich;
+        return;
+      }
+      // Cùng trang nhưng khác tham số (VD ?chu_trinh=...): không tải lại trang, báo cho trang tự xử lý
+      if (url.search !== location.search) {
+        history.pushState(null, "", url.pathname + url.search);
+        window.dispatchEvent(new CustomEvent("nv-duong-dan-doi", { detail: { search: url.search } }));
+      }
     }
     tai();
   }

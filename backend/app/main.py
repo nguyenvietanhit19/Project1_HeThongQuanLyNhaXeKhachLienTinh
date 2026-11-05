@@ -7,15 +7,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import CORS_ORIGINS
+from app.jobs import canh_bao_giay_to, nhac_quan_ly, quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han
+from app.jobs import quet_chuyen_chua_co_xe
 from app.jobs import canh_bao_giay_to, nhac_khach_quay_ve, nhac_quan_ly, quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han
 from app.jobs import quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han, quet_ve_qua_gio_chay
 from app.jobs import canh_bao_giay_to, quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han
 from app.routes.auth import router as auth_router
 from app.routes.chuyen import router as chuyen_router
+from app.routes.dieu_do import router as dieu_do_router
 from app.routes.phu_xe import router as phu_xe_router
 from app.routes.gui_hang import router as gui_hang_router
 from app.routes.nhan_su import router as nhan_su_router
 from app.routes.quan_ly import router as quan_ly_router
+from app.routes.phan_cong_dieu_do import router as phan_cong_dieu_do_router
 from app.routes.tai_khoan_can_bo import router as tai_khoan_can_bo_router
 from app.routes.thanh_toan import router as thanh_toan_router
 from app.routes.ve import router as ve_router
@@ -35,6 +39,8 @@ async def lifespan(app: FastAPI):
     # Vé giữ chỗ có hạn quá hạn → het_han (mục 6) — chu kỳ 1 phút
     scheduler.add_job(quet_ve_het_han.chay, "interval", minutes=1, id="quet_ve_het_han")
     scheduler.add_job(quet_ve_qua_gio_chay.chay, "interval", minutes=1, id="quet_ve_qua_gio_chay")
+    # UC-44 ⏱ — nhắc điều độ viên chuyến ≤48h chưa gán xe; tới giờ mà chưa có xe thì tự chuyển "đang hoãn" (jobs/quet_chuyen_chua_co_xe.py)
+    scheduler.add_job(quet_chuyen_chua_co_xe.chay, "interval", minutes=5, id="quet_chuyen_chua_co_xe")
     # Hỏi VNPay kết quả các lượt đang chờ thanh toán (chỉ làm gì ở chế độ sandbox) — chu kỳ 1 phút, chỉ hỏi giao dịch đã đủ cũ
     scheduler.add_job(quet_giao_dich_vnpay.chay, "interval", seconds=60, id="quet_giao_dich_vnpay")
     # UC-46 (⏱, mục 10.3 & mục 12) — quét cảnh báo (7 ngày) & chuyển tồn kho (14 ngày)
@@ -127,6 +133,7 @@ def xu_ly_loi_khong_luong_truoc(request: Request, exc: Exception):
 app.include_router(websocket_router)
 app.include_router(auth_router)
 app.include_router(quan_ly_router)
+app.include_router(phan_cong_dieu_do_router)
 app.include_router(nhan_su_router)
 app.include_router(tai_khoan_can_bo_router)
 app.include_router(phu_xe_router)
@@ -134,5 +141,6 @@ app.include_router(gui_hang_router)
 app.include_router(thong_bao_router)
 app.include_router(quay_ve_router)
 app.include_router(chuyen_router)
+app.include_router(dieu_do_router)
 app.include_router(ve_router)
 app.include_router(thanh_toan_router)

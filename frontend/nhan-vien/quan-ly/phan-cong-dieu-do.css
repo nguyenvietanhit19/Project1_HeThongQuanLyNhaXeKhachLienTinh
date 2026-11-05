@@ -1,0 +1,105 @@
+/* Phân công điều độ viên phụ trách tuyến (phan-cong-dieu-do.js) — dòng trong thẻ tuyến + hộp chọn. */
+
+.pc-dong {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.pc-dong__nhan {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.pc-chip {
+  padding: 3px 12px;
+  border-radius: var(--radius-pill);
+  background: rgba(91, 62, 150, 0.1);
+  color: var(--color-secondary-dark);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.pc-canh-bao {
+  padding: 3px 12px;
+  border: 1.5px dashed #e0a040;
+  border-radius: var(--radius-pill);
+  background: #fff8ea;
+  color: #b45309;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pc-modal {
+  max-width: 520px;
+}
+
+.pc-tuyen {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f8f7fb;
+  font-size: 14px;
+}
+
+.pc-ds {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 46vh;
+  margin-bottom: 14px;
+  overflow-y: auto;
+}
+
+.pc-muc {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 11px 14px;
+  border: 1.5px solid #ecedf0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.pc-muc:hover {
+  border-color: var(--color-secondary);
+}
+
+.pc-muc:has(input:checked) {
+  border-color: var(--color-primary);
+  background: #fff8ea;
+}
+
+.pc-muc input {
+  margin-top: 4px;
+  accent-color: var(--color-primary);
+}
+
+.pc-muc__than {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pc-muc__ten {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.pc-muc__phu {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}

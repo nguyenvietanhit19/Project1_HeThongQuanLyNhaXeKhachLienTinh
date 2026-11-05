@@ -12,7 +12,7 @@ from app.utils.loi import GiaTriLoi, KhongDuQuyen
 @pytest.fixture(autouse=True)
 def _khong_cham_db_khi_bao_dieu_do_vien(monkeypatch):
     """bao_su_co báo điều độ viên qua DB — mặc định coi như chưa có ai (test riêng ở cuối file)."""
-    monkeypatch.setattr(svc.chuyen_xe_repo, "danh_sach_dieu_do_vien_tai_diem", lambda diem_id: [])
+    monkeypatch.setattr(svc.phan_cong_repo, "danh_sach_id_dieu_do_vien_cua_tuyen", lambda tuyen_id: [])
     monkeypatch.setattr(svc.nguoi_dung_repo, "danh_sach_id_theo_vai_tro", lambda vai_tro, chi_dang_hoat_dong=False: [])
 
 
@@ -362,37 +362,36 @@ def _chuan_bi_bao_su_co(monkeypatch, chieu="xuoi", ma="T001-LX001-261006-0800-DI
     return da_gui
 
 
-def test_bao_su_co_bao_dieu_do_vien_phu_trach_diem_xuat_phat_chuyen_xuoi(monkeypatch):
-    da_gui = _chuan_bi_bao_su_co(monkeypatch, chieu="xuoi")
+@pytest.mark.parametrize("chieu", ["xuoi", "nguoc"])
+def test_bao_su_co_bao_dieu_do_vien_phu_trach_tuyen_ca_hai_chieu(monkeypatch, chieu):
+    da_gui = _chuan_bi_bao_su_co(monkeypatch, chieu=chieu)
     hoi = []
-    monkeypatch.setattr(svc.chuyen_xe_repo, "danh_sach_dieu_do_vien_tai_diem", lambda diem_id: hoi.append(diem_id) or ["dd-1"])
+    monkeypatch.setattr(svc.phan_cong_repo, "danh_sach_id_dieu_do_vien_cua_tuyen", lambda tuyen_id: hoi.append(tuyen_id) or ["dd-1"])
     svc.bao_su_co("chuyen-1", "loi_nha_xe", "hong xe", "nguoi-dung-1")
-    assert hoi == ["d1"]  # chiều xuôi: điểm xuất phát là d1
+    assert hoi == ["tuyen-1"]  # tra theo TUYẾN của chuyến, không theo điểm xuất phát — chiều đi/về cùng một người
     assert [n for n, _ in da_gui] == ["dd-1"]
     assert "hong xe" in da_gui[0][1] and "lỗi nhà xe" in da_gui[0][1]
 
 
-def test_bao_su_co_chuyen_nguoc_bao_dieu_do_vien_o_diem_cuoi_tuyen_xuoi(monkeypatch):
-    da_gui = _chuan_bi_bao_su_co(monkeypatch, chieu="nguoc")
-    hoi = []
-    monkeypatch.setattr(svc.chuyen_xe_repo, "danh_sach_dieu_do_vien_tai_diem", lambda diem_id: hoi.append(diem_id) or ["dd-9"])
-    svc.bao_su_co("chuyen-1", "loi_khach_quan", "sat lo", "nguoi-dung-1")
-    assert hoi == ["d3"]  # chiều ngược: xuất phát từ d3
-    assert [n for n, _ in da_gui] == ["dd-9"]
-
-
-def test_bao_su_co_diem_xuat_phat_chua_co_dieu_do_vien_thi_bao_tat_ca(monkeypatch):
+def test_bao_su_co_tuyen_chua_co_dieu_do_vien_thi_bao_tat_ca_dieu_do_vien(monkeypatch):
     da_gui = _chuan_bi_bao_su_co(monkeypatch)
-    monkeypatch.setattr(svc.nguoi_dung_repo, "danh_sach_id_theo_vai_tro", lambda vt, chi_dang_hoat_dong=False: ["dd-1", "dd-2"] if vt == "dieu_do_vien" else [])
+    monkeypatch.setattr(svc.nguoi_dung_repo, "danh_sach_id_theo_vai_tro", lambda vt, chi_dang_hoat_dong=False: ["dd-1", "dd-2"] if vt == "dieu_do_vien" else ["ql-1"])
     svc.bao_su_co("chuyen-1", "loi_nha_xe", "hong xe", "nguoi-dung-1")
     assert [n for n, _ in da_gui] == ["dd-1", "dd-2"]
 
 
+def test_bao_su_co_khong_co_dieu_do_vien_nao_thi_bao_quan_ly(monkeypatch):
+    da_gui = _chuan_bi_bao_su_co(monkeypatch)
+    monkeypatch.setattr(svc.nguoi_dung_repo, "danh_sach_id_theo_vai_tro", lambda vt, chi_dang_hoat_dong=False: ["ql-1", "ql-2"] if vt == "quan_ly" else [])
+    svc.bao_su_co("chuyen-1", "loi_khach_quan", "sat lo", "nguoi-dung-1")
+    assert [n for n, _ in da_gui] == ["ql-1", "ql-2"]
+
+
 def test_bao_su_co_loi_gui_thong_bao_dieu_do_vien_khong_lam_hong_thao_tac(monkeypatch):
     _chuan_bi_bao_su_co(monkeypatch)
-    def _hong(diem_id):
+    def _hong(tuyen_id):
         raise RuntimeError("db loi")
-    monkeypatch.setattr(svc.chuyen_xe_repo, "danh_sach_dieu_do_vien_tai_diem", _hong)
+    monkeypatch.setattr(svc.phan_cong_repo, "danh_sach_id_dieu_do_vien_cua_tuyen", _hong)
     svc.bao_su_co("chuyen-1", "loi_nha_xe", "hong xe", "nguoi-dung-1")  # không ném lỗi: sự cố đã ghi xong
 
 

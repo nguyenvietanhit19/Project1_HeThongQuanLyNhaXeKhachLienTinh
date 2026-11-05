@@ -19,6 +19,7 @@ from app.repositories import chuyen_xe_repository as chuyen_xe_repo
 from app.repositories import dia_diem_repository as dia_diem_repo
 from app.repositories import nguoi_dung_repository as nguoi_dung_repo
 from app.repositories import nhan_su_van_hanh_repository as nhan_su_repo
+from app.repositories import phan_cong_dieu_do_repository as phan_cong_repo
 from app.repositories import thong_bao_repository as thong_bao_repo
 from app.repositories import ve_repository as ve_repo
 from app.services.websocket_manager import broadcast_sync
@@ -341,15 +342,17 @@ def bao_su_co(chuyen_id: str, loai_su_co: str, ly_do: str, nguoi_dung_id: str) -
 
 
 def _bao_dieu_do_vien_su_co(chuyen: dict, loai_su_co: str, ly_do: str) -> None:
-    """UC-17 bước 4 (mục 8.2 điểm 7): điều độ viên nhận cảnh báo ngay. Ưu tiên
-    người phụ trách văn phòng ở điểm xuất phát của chuyến; chưa ai phụ trách
-    điểm đó thì báo toàn bộ điều độ viên để cảnh báo không bị bỏ sót. Sự cố đã
-    được ghi (commit) nên lỗi gửi thông báo chỉ ghi log, không làm hỏng thao tác."""
+    """UC-17 bước 4 (mục 8.2 điểm 7): điều độ viên nhận cảnh báo ngay. Người nhận là điều độ viên
+    phụ trách TUYẾN của chuyến (cả chiều đi lẫn chiều về cùng một người, DIEU_DO_VIEN_THEO_TUYEN_DE_XUAT.md);
+    tuyến chưa có ai phụ trách thì báo toàn bộ điều độ viên đang hoạt động, và không có điều độ viên nào
+    thì báo quản lý — để cảnh báo không bị bỏ sót. Sự cố đã được ghi (commit) nên lỗi gửi thông báo chỉ
+    ghi log, không làm hỏng thao tác."""
     try:
-        diem_xuat_phat = diem_theo_chieu(chuyen)[0]["diem_don_tra_id"]
-        nguoi_nhan = chuyen_xe_repo.danh_sach_dieu_do_vien_tai_diem(str(diem_xuat_phat))
+        nguoi_nhan = phan_cong_repo.danh_sach_id_dieu_do_vien_cua_tuyen(str(chuyen["tuyen_id"]))
         if not nguoi_nhan:
             nguoi_nhan = nguoi_dung_repo.danh_sach_id_theo_vai_tro("dieu_do_vien", chi_dang_hoat_dong=True)
+        if not nguoi_nhan:
+            nguoi_nhan = nguoi_dung_repo.danh_sach_id_theo_vai_tro("quan_ly", chi_dang_hoat_dong=True)
         nguyen_nhan = "lỗi nhà xe" if loai_su_co == "loi_nha_xe" else "lỗi khách quan"
         noi_dung = f"Chuyến {chuyen.get('ma') or chuyen['id']} gặp sự cố ({nguyen_nhan}): {ly_do.strip()}"
         for nguoi_id in nguoi_nhan:

@@ -157,7 +157,7 @@ Table ho_so_khach_hang [headercolor: #5B3E96] {
 }
 
 Table ho_so_can_bo_diem [headercolor: #5B3E96] {
-  nguoi_dung_id uuid [pk, ref: - nguoi_dung.id, note: 'quầy vé / gửi hàng / điều độ viên']
+  nguoi_dung_id uuid [pk, ref: - nguoi_dung.id, note: 'quầy vé / gửi hàng (điều độ viên không gắn văn phòng — xem dieu_do_vien_tuyen)']
   van_phong_id uuid [not null, ref: > diem_don_tra.id, note: 'Phải là điểm loại van_phong']
 
   Note: '[chưa migrate] Có trong DATABASE.md mục 1.3, chưa có file migration'
@@ -237,6 +237,19 @@ Table tuyen [headercolor: #F5A623] {
   Note: 'Một tuyến chạy được cả 2 chiều (không còn nhom_tuyen)'
 }
 
+Table dieu_do_vien_tuyen [headercolor: #F5A623] {
+  nguoi_dung_id uuid [not null, ref: > nguoi_dung.id, note: 'vai_tro = dieu_do_vien đang hoạt động (Service kiểm tra)']
+  tuyen_id uuid [not null, ref: > tuyen.id]
+  ngay_tao timestamptz [not null, default: `now()`]
+
+  indexes {
+    (nguoi_dung_id, tuyen_id) [pk]
+    tuyen_id
+  }
+
+  Note: 'Điều độ viên phụ trách tuyến (nhiều–nhiều); quản lý phân công ở trang Tuyến'
+}
+
 Table tuyen_diem_don_tra [headercolor: #F5A623] {
   id uuid [pk, default: `gen_random_uuid()`]
   tuyen_id uuid [not null, ref: > tuyen.id]
@@ -312,6 +325,7 @@ Table chuyen_xe [headercolor: #1A1A1E] {
   xe_id uuid [ref: > xe.id, note: 'Xe gốc; NULL = chưa gán xe']
   loai_xe_id uuid [not null, ref: > loai_xe.id, note: 'Loại xe cam kết']
   lich_chay_dinh_ky_id uuid [ref: > lich_chay_dinh_ky.id]
+  chu_trinh_id uuid [note: 'Chung cho chuyến đi và chuyến về của cùng 1 chu kỳ (chu trình); NULL = không sinh từ lịch']
   xe_thuc_te_id uuid [ref: > xe.id, note: 'Xe chạy thay nếu khác xe gốc']
   gio_khoi_hanh timestamptz [not null]
   he_so_gia numeric(4,2) [not null, default: 1.0, note: 'Chốt lúc sinh chuyến từ lịch chạy']

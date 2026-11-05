@@ -210,6 +210,18 @@ UNIQUE (`bo_gia_id`, `diem_di_id`, `diem_den_id`). **Bộ phải đủ mọi ch�
 
 **Không có cột liên kết `ve` → `gia_ve`**: vé tự lưu giá của mình (`ve.gia`, chốt lúc khách giữ ghế) nên đổi/xóa giá không làm đổi tiền vé đã đặt, thanh toán hay hoàn tiền.
 
+### 2.6. `dieu_do_vien_tuyen` (điều độ viên phụ trách tuyến)
+
+Quan hệ nhiều–nhiều giữa tài khoản `dieu_do_vien` và `tuyen` (`DIEU_DO_VIEN_THEO_TUYEN_DE_XUAT.md`). `quan_ly` phân công ở trang Tuyến; điều độ viên **không** có dòng nào ở `ho_so_can_bo_diem`.
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `nguoi_dung_id` | UUID, FK → `nguoi_dung(id)` ON DELETE CASCADE | Phải là `vai_tro = 'dieu_do_vien'` đang hoạt động — Service kiểm tra lúc phân công, không phải constraint DB |
+| `tuyen_id` | UUID, FK → `tuyen(id)` ON DELETE CASCADE | Xóa tuyến thì phân công đi theo |
+| `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+
+PRIMARY KEY (`nguoi_dung_id`, `tuyen_id`); index `(tuyen_id)`. Lưu là **thay cả danh sách** của một tuyến trong 1 giao dịch. Tài khoản bị khóa vẫn còn dòng nhưng bị bỏ qua khi tính người phụ trách (danh sách phân công, người nhận cảnh báo sự cố). Migration: `20261024_0900_dieu_do_vien_tuyen.sql`.
+
 ---
 
 ## 3. Xe & chuyến xe
@@ -251,6 +263,7 @@ Danh mục loại xe — **`quan_ly` tự thêm/sửa tùy ý** (VD "Ghế ngồ
 | `xe_id` | UUID NULLABLE, FK → `xe(id)` | **Xe gốc** — quyết định biên chế tài xế/phụ xe (mục 3.2) và vị trí suy luận cho các chuyến sau (mục 3.3). **Không đổi** khi xe hỏng — xem `xe_thuc_te_id`. **`NULL`** = chuyến đã sinh sẵn từ lịch chạy định kỳ nhưng **chưa được gán xe cụ thể** (mục 3.5 `NGHIEP_VU.md`, UC-44) — vẫn bán vé bình thường dựa vào `loai_xe_id` bên dưới, biên chế tài xế/phụ xe và vị trí suy luận chỉ có ý nghĩa từ lúc gán xe. Nếu còn `NULL` khi tới đúng `gio_khoi_hanh` → job tự động bật `dang_hoan` (UC-44, mục 3.3) — không tự hủy |
 | `loai_xe_id` | UUID NOT NULL, FK → `loai_xe(id)` | Loại xe **cam kết** phục vụ chuyến này (copy từ `lich_chay_dinh_ky.loai_xe_id` lúc sinh chuyến) — dùng để hiển thị sơ đồ ghế + tính giá **ngay cả khi chưa gán `xe_id`** (mục 3.5 `NGHIEP_VU.md`). Khi gán `xe_id`, Service bắt buộc `xe.loai_xe_id = chuyen_xe.loai_xe_id` |
 | `lich_chay_dinh_ky_id` | UUID NULLABLE, FK → `lich_chay_dinh_ky(id)` | Lịch chạy định kỳ đã sinh ra chuyến này (mục 3.5) — `NULL` nếu chuyến được tạo cách khác (không bắt buộc phải qua lịch định kỳ, dự phòng cho các trường hợp đặc biệt) |
+| `chu_trinh_id` | UUID NULLABLE | **Chu trình** = chuyến đi + chuyến về của cùng 1 chu kỳ (cùng cặp lịch, ngày đi D; chuyến về chạy ngày D + `ngay_lech`): hai chuyến mang CHUNG giá trị này để điều độ viên gán xe cho cả chu trình (`DIEU_DO_VIEN_THEO_TUYEN_DE_XUAT.md`). Sinh cùng lúc ở UC-47 (sinh bù một chuyến thì nhận lại id của chuyến còn lại); `NULL` = chuyến không sinh từ lịch định kỳ. Index `(chu_trinh_id)` có điều kiện `IS NOT NULL`. Migration: `20261024_0910_chu_trinh_chuyen_xe.sql` |
 | `xe_thuc_te_id` | UUID NULLABLE, FK → `xe(id)` | Phương tiện vật lý thực sự chạy chuyến này, nếu khác `xe_id` (mục 3.3 — đổi xe khi hỏng đột xuất). `NULL` = đúng xe gốc đang chạy. Bắt buộc cùng `loai_xe` với `xe_id` khi có giá trị (Service kiểm tra) |
 | `gio_khoi_hanh` | TIMESTAMPTZ NOT NULL | |
 | `he_so_ghe` | JSONB NOT NULL DEFAULT `{}` | Hệ số từng ghế **chốt lúc sinh chuyến** (copy từ `loai_xe.he_so_ghe`, đọc 1 lần cho cả lô sinh chuyến với `FOR SHARE`) — giá ghế = `gia_goc × he_so_gia × he_so_ghe[ma_ghe]` làm tròn 1 lần ở cuối |
@@ -581,6 +594,7 @@ Nhất quán với nguyên tắc "tính động qua query, không cache số li�
 ```
 nguoi_dung 1──1 ho_so_khach_hang     (vai_tro = khach_hang)
 nguoi_dung 1──1 ho_so_can_bo_diem    (vai_tro = nhan_vien_quay_ve | nhan_vien_gui_hang)
+nguoi_dung N──N tuyen                 (qua dieu_do_vien_tuyen, vai_tro = dieu_do_vien)
 nguoi_dung 0──1 nhan_su_van_hanh     (vai_tro = phu_xe — chiều ngược lại nullable)
 ho_so_can_bo_diem N──1 diem_don_tra  (van_phong_id)
 

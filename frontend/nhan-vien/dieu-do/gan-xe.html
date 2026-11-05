@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Gán xe — Điều độ</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+<link rel="stylesheet" href="/nhan-vien/dieu-do/gan-xe.css" />
+<link rel="stylesheet" href="/nhan-vien/quan-ly/thong-bao.css" />
+<link rel="stylesheet" href="/nhan-vien/dieu-do/gan-xe-modal.css" />
+</head>
+<body class="nhan-vien-shell">
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
+
+    <div class="nv-main">
+      <header class="nv-topbar">
+        <h1>Gán xe</h1>
+      </header>
+
+      <main class="nv-content">
+        <div class="nv-page-intro">
+          <div class="nv-page-intro__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="11" rx="2.5"/><path d="M3 11h18M7 16v3M17 16v3"/><circle cx="7.5" cy="13.5" r="0.8"/><circle cx="16.5" cy="13.5" r="0.8"/>
+            </svg>
+          </div>
+          <div class="nv-page-intro__body">
+            <p class="nv-page-intro__title">Gán xe theo chu trình</p>
+            <p class="nv-page-intro__desc">Mỗi chu trình gồm chuyến đi và chuyến về của cùng một ngày — gán xe một lần là cả hai chuyến nhận cùng xe. Chỉ hiện các chu trình của tuyến bạn được phân công phụ trách.</p>
+          </div>
+          <div class="nv-page-intro__stat">
+            <span class="nv-page-intro__stat-num" id="stat-chua-gan">—</span>
+            <span class="nv-page-intro__stat-label">chờ gán xe</span>
+          </div>
+        </div>
+
+        <div class="gx-thong-bao" id="gx-thong-bao" hidden></div>
+
+        <section class="gx-cc" id="gx-can-chu-y" hidden></section>
+
+        <div class="kv-thanh-cong gx-loc">
+          <select class="input-field tb-select" id="loc-tuyen" aria-label="Lọc theo tuyến" hidden></select>
+          <select class="input-field tb-select" id="loc-cua-so" aria-label="Khoảng ngày cần gán">
+            <option value="3">3 ngày tới</option>
+            <option value="5">5 ngày tới</option>
+            <option value="7">7 ngày tới</option>
+          </select>
+          <div class="dd-chips" id="loc-chips"></div>
+        </div>
+
+        <div id="gx-ds">Đang tải...</div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/nhan-vien/quan-ly/api-client.js"></script>
+  <script src="/nhan-vien/quan-ly/auth-check.js"></script>
+  <script src="/nhan-vien/quan-ly/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/tai-khoan.js"></script>
+  <script src="/nhan-vien/quan-ly/thong-bao.js"></script>
+  <script src="/nhan-vien/dieu-do/menu.js"></script>
+  <script src="/nhan-vien/dieu-do/gan-xe-modal.js"></script>
+  <script src="/nhan-vien/dieu-do/gan-xe.js"></script>
+</body>
+</html>
