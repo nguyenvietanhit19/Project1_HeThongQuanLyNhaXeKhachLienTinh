@@ -65,7 +65,7 @@ const TAB_METADATA = {
   "thong-ke": {
     title: "Thống kê & Đối soát",
     introTitle: "Thống kê hàng hóa & đối soát tiền mặt",
-    introDesc: "Số đơn gửi đi / nhận về, hàng tồn và tiền thu tại quầy theo khoảng ngày; đối soát tiền mặt từng nhân viên đã thu cuối ca.",
+    introDesc: "Số đơn gửi đi / nhận về, hàng tồn và tiền thu tại quầy theo ngày / tháng / năm, kèm biểu đồ, xuất Excel và in báo cáo; đối soát tiền mặt từng nhân viên đã thu cuối ca.",
     icon: ICON.thongKe, statLabel: "đơn tiếp nhận trong kỳ", statId: "stat-thong-ke-count",
   },
 };

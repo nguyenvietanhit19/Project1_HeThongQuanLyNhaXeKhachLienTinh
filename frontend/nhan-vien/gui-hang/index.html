@@ -335,18 +335,28 @@
           <div class="card-panel stats-header-card">
             <div class="stats-header-content">
               <div>
-                <h2 class="card-title">📊 Thống kê hàng hóa & tiền thu tại quầy</h2>
-                <p class="card-desc">Số liệu tính trực tiếp từ dữ liệu đơn hàng theo khoảng ngày đã chọn (giờ Việt Nam).</p>
+                <h2 class="card-title">📊 Thống kê hàng hóa & tiền thu tại quầy — <span id="tkNhanKy" class="tk-nhan-ky"></span></h2>
+                <p class="card-desc">Số liệu tính trực tiếp từ dữ liệu đơn hàng theo kỳ đã chọn (giờ Việt Nam).</p>
               </div>
-              <div class="stats-filter-box">
-                <label for="tkTuNgay">Từ</label>
-                <input type="date" id="tkTuNgay" class="form-input input-date">
-                <label for="tkDenNgay">đến</label>
-                <input type="date" id="tkDenNgay" class="form-input input-date">
-                <div class="time-range-tabs" id="tkPreset">
-                  <button type="button" class="time-tab" data-so-ngay="1">Hôm nay</button>
-                  <button type="button" class="time-tab" data-so-ngay="7">7 ngày</button>
-                  <button type="button" class="time-tab active" data-so-ngay="30">30 ngày</button>
+              <div class="stats-filter-box tk-bo-chon-ky">
+                <div class="time-range-tabs" id="tkCheDo" role="group" aria-label="Chọn loại kỳ">
+                  <button type="button" class="time-tab" data-che-do="ngay">Ngày</button>
+                  <button type="button" class="time-tab active" data-che-do="thang">Tháng</button>
+                  <button type="button" class="time-tab" data-che-do="nam">Năm</button>
+                  <button type="button" class="time-tab" data-che-do="tuy_chon">Tùy chọn</button>
+                </div>
+                <div class="tk-chon-ky" id="tkChonKy">
+                  <button type="button" class="tk-nut-ky" id="tkLui" title="Kỳ trước" aria-label="Kỳ trước">◀</button>
+                  <input type="date" id="tkNgay" class="form-input input-date" data-o-ky="ngay" aria-label="Ngày" hidden>
+                  <input type="month" id="tkThang" class="form-input input-date" data-o-ky="thang" aria-label="Tháng">
+                  <select id="tkNam" class="form-input input-date" data-o-ky="nam" aria-label="Năm" hidden></select>
+                  <span class="tk-khoang-ngay" data-o-ky="tuy_chon" hidden>
+                    <label for="tkTuNgay">Từ</label>
+                    <input type="date" id="tkTuNgay" class="form-input input-date">
+                    <label for="tkDenNgay">đến</label>
+                    <input type="date" id="tkDenNgay" class="form-input input-date">
+                  </span>
+                  <button type="button" class="tk-nut-ky" id="tkToi" title="Kỳ sau" aria-label="Kỳ sau">▶</button>
                 </div>
               </div>
             </div>
@@ -375,6 +385,7 @@
               </div>
             </div>
           </div>
+          <p class="card-desc tk-ghi-chu-ton">Các ô Đang chờ xếp xe, Đang trên xe, Sắp đến, Chờ người nhận lấy, Chưa gọi báo được, Chờ quá 7 ngày, Hàng tồn tính tại thời điểm xem, không theo kỳ.</p>
 
           <div class="cashflow-banner">
             <div class="cashflow-left">
@@ -402,16 +413,11 @@
             <div class="card-panel chart-panel">
               <div class="chart-header">
                 <div>
-                  <h3 class="panel-title">📈 Sản lượng theo ngày</h3>
+                  <h3 class="panel-title">📈 Sản lượng — <span id="tkNhanKyBieuDo"></span></h3>
                   <p class="card-desc">Đơn tiếp nhận tại văn phòng và đơn giao xong cho người nhận.</p>
                 </div>
-                <div class="time-range-tabs" id="tkBieuDoRange">
-                  <button type="button" class="time-tab active" data-so-ngay="7">7 ngày</button>
-                  <button type="button" class="time-tab" data-so-ngay="14">14 ngày</button>
-                  <button type="button" class="time-tab" data-so-ngay="30">30 ngày</button>
-                </div>
               </div>
-              <div class="column-chart-container" id="columnChartContainer"></div>
+              <div class="column-chart-container" id="bdSanLuong"></div>
               <div class="chart-legend-wrap">
                 <div class="legend-item"><span class="legend-color-box legend-color-blue"></span><span class="legend-text">Tiếp nhận</span></div>
                 <div class="legend-item"><span class="legend-color-box legend-color-green"></span><span class="legend-text">Đã giao</span></div>
@@ -855,6 +861,7 @@
   <script src="in-an.js"></script>
   <script src="hang-den.js"></script>
   <script src="don-gui.js"></script>
+  <script src="bieu-do.js"></script>
   <script src="thong-ke.js"></script>
   <script src="phim-tat.js"></script>
   <script src="sua-don.js"></script>

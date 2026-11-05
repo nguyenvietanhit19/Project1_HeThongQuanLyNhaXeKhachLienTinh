@@ -126,23 +126,25 @@ function ganSuKien() {
   });
 
   // Thống kê
-  $("tkPreset").addEventListener("click", e => {
-    const b = e.target.closest("[data-so-ngay]");
-    if (!b) return;
-    datKhoangNgay(Number(b.dataset.soNgay));
-    taiThongKe();
+  // Bộ chọn kỳ thống kê
+  $("tkCheDo").addEventListener("click", e => {
+    const b = e.target.closest("[data-che-do]");
+    if (b && b.dataset.cheDo !== state.ky.cheDo) chonKy(doiCheDoKy(b.dataset.cheDo));
   });
+  $("tkLui").addEventListener("click", () => chonKy(dichKy(state.ky, -1)));
+  $("tkToi").addEventListener("click", () => { if (!kyChuaHomNay(state.ky)) chonKy(dichKy(state.ky, 1)); });
+  $("tkNgay").addEventListener("change", e => { if (e.target.value) chonKy(taoKy("ngay", e.target.value)); });
+  $("tkThang").addEventListener("change", e => { if (e.target.value) chonKy(taoKy("thang", `${e.target.value}-01`)); });
+  $("tkNam").addEventListener("change", e => chonKy(taoKy("nam", `${e.target.value}-01-01`)));
   ["tkTuNgay", "tkDenNgay"].forEach(id => $(id).addEventListener("change", () => {
-    document.querySelectorAll("#tkPreset .time-tab").forEach(b => b.classList.remove("active"));
-    taiThongKe();
+    const tu = $("tkTuNgay").value, den = $("tkDenNgay").value;
+    if (!tu || !den) return;
+    if (tu > den) {
+      showToast("warning", "Khoảng ngày không hợp lệ", "Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.");
+      return;
+    }
+    chonKy(taoKy("tuy_chon", tu, den));
   }));
-  $("tkBieuDoRange").addEventListener("click", e => {
-    const b = e.target.closest("[data-so-ngay]");
-    if (!b) return;
-    state.bieuDoSoNgay = Number(b.dataset.soNgay);
-    document.querySelectorAll("#tkBieuDoRange .time-tab").forEach(x => x.classList.toggle("active", x === b));
-    taiBieuDo();
-  });
   $("btnXuatCsvDoiSoat").addEventListener("click", xuatCsvDoiSoat);
   $("btnInDoiSoat").addEventListener("click", () => inPhanTu($("tbodyDoiSoat").closest(".card-panel")));
 
@@ -220,7 +222,7 @@ async function khoiTaoTrang() {
 
   ganSuKien();
   khoiTaoPhimTat();
-  datKhoangNgay(30);
+  khoiTaoBoChonKy();
   capNhatXacNhanThuTruoc();
 
   if (!laQuanLyXem()) {

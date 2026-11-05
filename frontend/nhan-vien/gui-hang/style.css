@@ -2033,6 +2033,78 @@ textarea.form-input {
   white-space: nowrap;
 }
 
+/* Bộ chọn kỳ: [Ngày|Tháng|Năm|Tùy chọn]  ◀ ô chọn ▶ */
+.tk-nhan-ky {
+  color: var(--color-secondary-dark);
+  white-space: nowrap;
+}
+
+/* Tiêu đề có nhãn kỳ: thiếu chỗ thì nhãn kỳ xuống dòng nguyên cụm thay vì bóp tiêu đề thành cột hẹp */
+.stats-header-content .card-title,
+.chart-panel .panel-title {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+
+.tk-chon-ky,
+.tk-khoang-ngay {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tk-chon-ky [hidden],
+.tk-chon-ky[hidden] {
+  display: none !important;
+}
+
+.tk-nut-ky {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--gh-border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--gh-text-2);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tk-nut-ky:hover:not(:disabled) {
+  border-color: var(--color-secondary);
+  color: var(--color-secondary-dark);
+}
+
+.tk-nut-ky:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tk-nut-ky:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}
+
+.tk-ghi-chu-ton {
+  margin: calc(var(--gh-gap) * -0.5) 0 var(--gh-gap);
+  font-size: 12.5px;
+}
+
+.chart-trong-khung {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  font-size: 13px;
+  color: #9CA3AF;
+  text-align: center;
+}
+
+.chart-ngay--tuong-lai {
+  fill: #C4C9D2;
+}
+
 .stats-two-col {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
@@ -3700,16 +3772,18 @@ g:hover > .chart-vung {
 
   .stats-filter-box {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     align-items: center;
   }
 
   .stats-filter-box .input-date {
+    flex: 1 1 0;
     width: 100%;
+    min-width: 0;
   }
 
-  .stats-filter-box .time-range-tabs {
-    grid-column: 1 / -1;
+  .tk-khoang-ngay {
+    flex: 1 1 0;
   }
 
   .time-range-tabs {
@@ -3951,7 +4025,8 @@ g:hover > .chart-vung {
     font-size: 18px;
   }
 
-  .stats-filter-box {
+  .tk-khoang-ngay {
+    display: grid;
     grid-template-columns: auto minmax(0, 1fr);
   }
 

@@ -1,53 +1,205 @@
-/* thong-ke.js — tab Thống kê & đối soát tiền mặt. */
+/* thong-ke.js — tab Thống kê & đối soát tiền mặt: chọn kỳ (Ngày / Tháng / Năm / Tùy chọn), tải số liệu, vẽ. */
 
-function datKhoangNgay(soNgay) {
-  const den = new Date();
-  const tu = new Date();
-  tu.setDate(den.getDate() - (soNgay - 1));
-  $("tkTuNgay").value = ngayISO(tu);
-  $("tkDenNgay").value = ngayISO(den);
-  document.querySelectorAll("#tkPreset .time-tab").forEach(b => b.classList.toggle("active", Number(b.dataset.soNgay) === soNgay));
+const SO_NGAY_CHUOI_THEO_NGAY_TOI_DA = 62; // khớp backend: dài hơn thì chia theo tháng
+const SO_NAM_CHON = 5;                     // ô Năm: năm nay và 4 năm trước
+
+// ---------------------------------------------------------------- kỳ thống kê (hàm thuần)
+const _so2 = n => String(n).padStart(2, "0");
+const _utc = iso => { const [y, m, d] = iso.split("-").map(Number); return Date.UTC(y, m - 1, d); };
+const _iso = ms => { const t = new Date(ms); return `${t.getUTCFullYear()}-${_so2(t.getUTCMonth() + 1)}-${_so2(t.getUTCDate())}`; };
+const _dmy = iso => iso.split("-").reverse().join("/");
+const _ngayCuoiThang = (y, m) => new Date(Date.UTC(y, m, 0)).getUTCDate(); // m: 1..12
+
+function soNgayGiua(tu, den) {
+  return Math.round((_utc(den) - _utc(tu)) / 86400000);
+}
+
+/** Kỳ từ chế độ + mốc. Tháng/Năm chuẩn hóa theo `tu` (chỉ cần năm/tháng của nó). */
+function taoKy(cheDo, tu, den) {
+  const [y, m] = tu.split("-").map(Number);
+  if (cheDo === "ngay") {
+    return { cheDo, tu, den: tu, donVi: "gio", nhan: `Ngày ${_dmy(tu)}`, slug: tu };
+  }
+  if (cheDo === "thang") {
+    const dau = `${y}-${_so2(m)}-01`;
+    return { cheDo, tu: dau, den: `${y}-${_so2(m)}-${_so2(_ngayCuoiThang(y, m))}`, donVi: "ngay",
+      nhan: `Tháng ${_so2(m)}/${y}`, slug: `${y}-${_so2(m)}` };
+  }
+  if (cheDo === "nam") {
+    return { cheDo, tu: `${y}-01-01`, den: `${y}-12-31`, donVi: "thang", nhan: `Năm ${y}`, slug: String(y) };
+  }
+  return { cheDo: "tuy_chon", tu, den, donVi: soNgayGiua(tu, den) < SO_NGAY_CHUOI_THEO_NGAY_TOI_DA ? "ngay" : "thang",
+    nhan: `${_dmy(tu)} – ${_dmy(den)}`, slug: `${tu}_${den}` };
+}
+
+/** Lùi (-1) / tiến (1) một kỳ cùng loại. Tùy chọn thì giữ nguyên. */
+function dichKy(ky, buoc) {
+  const [y, m] = ky.tu.split("-").map(Number);
+  if (ky.cheDo === "ngay") {
+    const d = _iso(_utc(ky.tu) + buoc * 86400000);
+    return taoKy("ngay", d, d);
+  }
+  if (ky.cheDo === "thang") {
+    const t = new Date(Date.UTC(y, m - 1 + buoc, 1));
+    return taoKy("thang", _iso(t.getTime()));
+  }
+  if (ky.cheDo === "nam") return taoKy("nam", `${y + buoc}-01-01`);
+  return ky;
+}
+
+/** Kỳ đã chạm tới hôm nay → không cho tiến thêm. */
+function kyChuaHomNay(ky) {
+  return ky.den >= ngayISO(new Date());
+}
+
+/** Mốc (định dạng như API) đang diễn ra lúc này — mốc lớn hơn là tương lai. */
+function mocHienTai(donVi) {
+  const bay = new Date();
+  const ngay = ngayISO(bay);
+  if (donVi === "gio") return `${ngay}T${_so2(bay.getHours())}:00`;
+  if (donVi === "thang") return `${ngay.slice(0, 7)}-01`;
+  return ngay;
+}
+
+// ---------------------------------------------------------------- bộ chọn kỳ (giao diện)
+function khoiTaoBoChonKy() {
+  const namNay = new Date().getFullYear();
+  $("tkNam").innerHTML = Array.from({ length: SO_NAM_CHON }, (_, i) => namNay - i)
+    .map(n => `<option value="${n}">${n}</option>`).join("");
+  datKy(taoKy("thang", ngayISO(new Date())));
+}
+
+function datKy(ky) {
+  state.ky = ky;
+  const homNay = ngayISO(new Date());
+  document.querySelectorAll("#tkCheDo [data-che-do]").forEach(b => b.classList.toggle("active", b.dataset.cheDo === ky.cheDo));
+  document.querySelectorAll("#tkChonKy [data-o-ky]").forEach(el => { el.hidden = el.dataset.oKy !== ky.cheDo; });
+  $("tkNgay").value = ky.tu;
+  $("tkNgay").max = homNay;
+  $("tkThang").value = ky.tu.slice(0, 7);
+  $("tkThang").max = homNay.slice(0, 7);
+  $("tkNam").value = ky.tu.slice(0, 4);
+  $("tkTuNgay").value = ky.tu;
+  $("tkDenNgay").value = ky.den;
+  $("tkTuNgay").max = $("tkDenNgay").max = homNay;
+  $("tkLui").hidden = $("tkToi").hidden = ky.cheDo === "tuy_chon";
+  $("tkToi").disabled = kyChuaHomNay(ky);
+}
+
+/** Đổi chế độ: neo vào hôm nay nếu kỳ đang xem chứa hôm nay, không thì neo vào ngày đầu kỳ. */
+function doiCheDoKy(cheDo) {
+  const ky = state.ky;
+  const homNay = ngayISO(new Date());
+  const neo = ky.tu <= homNay && homNay <= ky.den ? homNay : ky.tu;
+  if (cheDo === "tuy_chon") return taoKy("tuy_chon", ky.tu, ky.den < homNay ? ky.den : homNay);
+  return taoKy(cheDo, neo, neo);
+}
+
+function chonKy(ky) {
+  datKy(ky);
+  taiThongKe();
+}
+
+// ---------------------------------------------------------------- tải + vẽ
+function tenVanPhongDangXem() {
+  if (!laQuanLyXem()) return state.vanPhong?.ten || "";
+  if (!state.vanPhongXemId) return "Toàn hệ thống";
+  const o = $("selectVanPhongXem").selectedOptions[0];
+  return o ? o.textContent.trim() : "";
 }
 
 async function taiThongKe() {
-  const tu = $("tkTuNgay").value;
-  const den = $("tkDenNgay").value;
-  if (tu && den && tu > den) {
+  const ky = state.ky;
+  if (!ky) return;
+  if (ky.tu > ky.den) {
     showToast("warning", "Khoảng ngày không hợp lệ", "Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.");
     return;
   }
-  const khoang = { tu_ngay: tu, den_ngay: den, ...phamViQuery() };
-  taiBieuDo(); // biểu đồ độc lập với khoảng ngày — tải song song, tự báo lỗi riêng
-  try {
-    const [tk, doiSoat] = await Promise.all([
-      apiGet(`/gui-hang/thong-ke${taoQuery(khoang)}`),
-      apiGet(`/gui-hang/doi-soat${taoQuery(khoang)}`),
-    ]);
-    datText("tkTongGuiDi", tk.tong_don_gui_di);
-    datText("tkChoXepXe", tk.so_don_cho_xep_xe);
-    datText("tkGuiTrenXe", tk.so_don_gui_dang_tren_xe);
-    datText("tkDaHuy", tk.so_don_huy);
-    datText("tkTienHoan", dinhDangTien(tk.tien_da_hoan));
-    datText("tkTongNhanDen", tk.tong_don_nhan_den);
-    datText("tkDaGiao", tk.so_don_da_giao);
-    datText("tkSapDen", tk.so_don_sap_den);
-    datText("tkChoLay", tk.so_don_cho_lay);
-    datText("tkChuaBao", tk.so_don_chua_bao_nguoi_nhan);
-    datText("tkCanhBao7", tk.so_don_canh_bao_7_ngay);
-    datText("tkTonKho", tk.so_don_ton_kho);
-    datText("tkDoanhThu", dinhDangTien(tk.tong_doanh_thu));
-    datText("tkTienTraTruoc", dinhDangTien(tk.tien_cuoc_gui_tra_truoc));
-    datText("tkTienCod", dinhDangTien(tk.tien_cod_da_thu));
-    datText("stat-thong-ke-count", tk.tong_don_gui_di);
-    state.doiSoat = doiSoat;
-    renderDoiSoat(doiSoat);
-  } catch (err) {
-    showToast("error", "Lỗi tải thống kê", err.message);
-  }
+  const phien = ++state.phienThongKe;
+  const q = { tu_ngay: ky.tu, den_ngay: ky.den, ...phamViQuery() };
+  const [tk, chuoi, doiSoat] = await Promise.allSettled([
+    apiGet(`/gui-hang/thong-ke${taoQuery(q)}`),
+    apiGet(`/gui-hang/thong-ke-chuoi${taoQuery({ ...q, don_vi: ky.donVi })}`),
+    apiGet(`/gui-hang/doi-soat${taoQuery(q)}`),
+  ]);
+  if (phien !== state.phienThongKe) return; // đã chọn kỳ khác trong lúc chờ — bỏ kết quả cũ
+  const giaTri = r => (r.status === "fulfilled" ? r.value : null);
+  const loi = r => (r.status === "rejected" ? r.reason?.message || "Lỗi không xác định" : "");
+  state.thongKe = {
+    ky,
+    tk: giaTri(tk), chuoi: giaTri(chuoi), doiSoat: giaTri(doiSoat),
+    loi: { tk: loi(tk), chuoi: loi(chuoi), doiSoat: loi(doiSoat) },
+    vanPhong: tenVanPhongDangXem(),
+  };
+  renderThongKe();
 }
 
+function renderThongKe() {
+  const s = state.thongKe;
+  if (!s) return;
+  datText("tkNhanKy", s.ky.nhan);
+  datText("tkNhanKyBieuDo", s.ky.nhan);
+  if (s.tk) renderSoLieu(s.tk);
+  else showToast("error", "Lỗi tải thống kê", s.loi.tk);
+  if (s.doiSoat) renderDoiSoat(s.doiSoat);
+  else hienTrangThaiBang("tbodyDoiSoat", 5, `Không tải được đối soát: ${s.loi.doiSoat}`);
+  veBieuDoSanLuong();
+  theoDoiKichThuoc($("bdSanLuong"), veBieuDoSanLuong);
+}
+
+function renderSoLieu(tk) {
+  datText("tkTongGuiDi", tk.tong_don_gui_di);
+  datText("tkChoXepXe", tk.so_don_cho_xep_xe);
+  datText("tkGuiTrenXe", tk.so_don_gui_dang_tren_xe);
+  datText("tkDaHuy", tk.so_don_huy);
+  datText("tkTienHoan", dinhDangTien(tk.tien_da_hoan));
+  datText("tkTongNhanDen", tk.tong_don_nhan_den);
+  datText("tkDaGiao", tk.so_don_da_giao);
+  datText("tkSapDen", tk.so_don_sap_den);
+  datText("tkChoLay", tk.so_don_cho_lay);
+  datText("tkChuaBao", tk.so_don_chua_bao_nguoi_nhan);
+  datText("tkCanhBao7", tk.so_don_canh_bao_7_ngay);
+  datText("tkTonKho", tk.so_don_ton_kho);
+  datText("tkDoanhThu", dinhDangTien(tk.tong_doanh_thu));
+  datText("tkTienTraTruoc", dinhDangTien(tk.tien_cuoc_gui_tra_truoc));
+  datText("tkTienCod", dinhDangTien(tk.tien_cod_da_thu));
+  datText("stat-thong-ke-count", tk.tong_don_gui_di);
+}
+
+/** Cấu hình chung cho các biểu đồ theo mốc của kỳ đang xem (null nếu chưa có / lỗi chuỗi). */
+function cauHinhMoc() {
+  const s = state.thongKe;
+  if (!s?.chuoi) return null;
+  const hienTai = mocHienTai(s.ky.donVi);
+  return {
+    chuoi: s.chuoi,
+    nhan: s.chuoi.map(x => nhanMoc(x.moc, s.ky.donVi)),
+    moc: s.chuoi.map(x => x.moc),
+    soMocDaQua: s.chuoi.filter(x => x.moc <= hienTai).length,
+    donVi: s.ky.donVi,
+  };
+}
+
+function veBieuDoSanLuong(rong, container = $("bdSanLuong")) {
+  const s = state.thongKe;
+  if (!s || !container) return;
+  const c = cauHinhMoc();
+  if (!c) { khungTrong(container, `Không tải được biểu đồ: ${s.loi.chuoi}`); return; }
+  veBieuDoCot(container, {
+    nhan: c.nhan, moc: c.moc, soMocDaQua: c.soMocDaQua, chong: false,
+    cot: [
+      { ten: "Tiếp nhận", lop: "chart-cot--tiep-nhan", giaTri: c.chuoi.map(x => x.tiep_nhan) },
+      { ten: "Đã giao", lop: "chart-cot--da-giao", giaTri: c.chuoi.map(x => x.da_giao) },
+    ],
+    dinhDangTruc: v => String(v),
+    tieuDeMoc: i => `${nhanMocDayDu(c.moc[i], c.donVi)}: tiếp nhận ${c.chuoi[i].tiep_nhan}, đã giao ${c.chuoi[i].da_giao}`,
+    chuTrong: "Chưa có đơn nào trong kỳ",
+  }, typeof rong === "number" ? rong : undefined);
+}
+
+// ---------------------------------------------------------------- đối soát
 function xuatCsvDoiSoat() {
-  const ds = state.doiSoat;
+  const ds = state.thongKe?.doiSoat;
   if (!ds || !ds.nhan_vien.length) {
     showToast("warning", "Không có dữ liệu", "Không có khoản thu nào trong kỳ để xuất.");
     return;
@@ -77,92 +229,3 @@ function renderDoiSoat(doiSoat) {
   datText("tkDoiSoatHoan", doiSoat.tong_tien_hoan ? `− ${dinhDangTien(doiSoat.tong_tien_hoan)}` : "0 đ");
   datText("tkDoiSoatTong", dinhDangTien(doiSoat.tong_tien));
 }
-
-let duLieuBieuDo = [];
-let rongBieuDoDaVe = 0;
-
-async function taiBieuDo() {
-  const container = $("columnChartContainer");
-  try {
-    duLieuBieuDo = await apiGet(`/gui-hang/thong-ke-theo-ngay${taoQuery({ so_ngay: state.bieuDoSoNgay, ...phamViQuery() })}`);
-  } catch (err) {
-    duLieuBieuDo = [];
-    container.textContent = `Không tải được biểu đồ: ${err.message}`;
-    return;
-  }
-  veBieuDo();
-  theoDoiKichThuocBieuDo();
-}
-
-/** Bước chia trục dọc là số "tròn" (1, 2, 5, 10, 20, 50...) để 5 vạch luôn cách đều và đủ số. */
-function buocTrucDoc(giaTriLonNhat, soKhoang) {
-  const tho = giaTriLonNhat / soKhoang;
-  const muoiMu = 10 ** Math.floor(Math.log10(tho));
-  return [1, 2, 5, 10].map(h => h * muoiMu).find(b => b >= tho);
-}
-
-/** Vẽ theo đúng chiều rộng thật của khung (không kéo giãn SVG) — chữ và cột giữ đúng tỉ lệ ở mọi màn hình. */
-function veBieuDo() {
-  const container = $("columnChartContainer");
-  const ds = duLieuBieuDo;
-  if (!container || !container.clientWidth) return;
-  const W = container.clientWidth;
-  rongBieuDoDaVe = W;
-  const H = W < 480 ? 220 : 260;
-  const L = 36, R = 8, T = 24, B = 32;
-  const cw = W - L - R, ch = H - T - B;
-  const soKhoang = 4;
-  const lonNhat = Math.max(0, ...ds.map(d => Math.max(Number(d.tiep_nhan), Number(d.da_giao))));
-  const buoc = buocTrucDoc(Math.max(lonNhat, soKhoang), soKhoang);
-  const tran = buoc * soKhoang;
-  const groupW = cw / Math.max(1, ds.length);
-  const barW = Math.max(4, Math.min(26, (groupW * 0.62) / 2));
-  const hienSo = groupW >= 30;                                   // đủ chỗ ghi số trên đầu cột
-  const moiNhan = Math.max(1, Math.ceil(48 / groupW));           // nhãn ngày cách nhau tối thiểu ~48px
-
-  let luoi = "";
-  for (let s = 0; s <= soKhoang; s++) {
-    const y = T + ch - (s / soKhoang) * ch;
-    luoi += `<line x1="${L}" y1="${y}" x2="${W - R}" y2="${y}" class="chart-grid${s === 0 ? " chart-grid--goc" : ""}"/>
-      <text x="${L - 8}" y="${y + 4}" text-anchor="end" class="chart-truc">${buoc * s}</text>`;
-  }
-  const cot1 = (x, giaTri, lop) => {
-    if (!giaTri) return "";
-    const h = (giaTri / tran) * ch;
-    return `<rect x="${x}" y="${T + ch - h}" width="${barW}" height="${h}" rx="${Math.min(5, barW / 2)}" class="${lop}"/>
-      ${hienSo ? `<text x="${x + barW / 2}" y="${T + ch - h - 6}" text-anchor="middle" class="chart-so">${giaTri}</text>` : ""}`;
-  };
-  const cot = ds.map((d, i) => {
-    const [, m, ngay] = String(d.ngay).slice(0, 10).split("-");
-    const nhan = `${ngay}/${m}`;
-    const cx = L + i * groupW + groupW / 2;
-    const tiepNhan = Number(d.tiep_nhan), daGiao = Number(d.da_giao);
-    const hienNhan = (ds.length - 1 - i) % moiNhan === 0;          // luôn giữ nhãn ngày gần nhất
-    return `<g>
-        <title>${nhan}: tiếp nhận ${tiepNhan}, đã giao ${daGiao}</title>
-        <rect x="${cx - groupW / 2}" y="${T}" width="${groupW}" height="${ch}" class="chart-vung"/>
-        ${cot1(cx - barW - 2, tiepNhan, "chart-cot chart-cot--tiep-nhan")}
-        ${cot1(cx + 2, daGiao, "chart-cot chart-cot--da-giao")}
-        ${hienNhan ? `<text x="${cx}" y="${H - 10}" text-anchor="middle" class="chart-ngay">${nhan}</text>` : ""}
-      </g>`;
-  }).join("");
-  const trong = ds.length && !lonNhat
-    ? `<text x="${L + cw / 2}" y="${T + ch / 2}" text-anchor="middle" class="chart-trong">Chưa có đơn nào trong ${ds.length} ngày qua</text>`
-    : "";
-  container.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" class="chart-svg-wrap" role="img" aria-label="Biểu đồ sản lượng theo ngày">${luoi}${cot}${trong}</svg>`;
-}
-
-/** Khung đổi rộng (xoay máy, thu nhỏ cửa sổ, thanh bên thu gọn) thì vẽ lại — chỉ khi chiều rộng thật sự đổi. */
-function theoDoiKichThuocBieuDo() {
-  const container = $("columnChartContainer");
-  if (!container || container.dataset.theoDoi || !window.ResizeObserver) return;
-  container.dataset.theoDoi = "1";
-  let cho = null;
-  new ResizeObserver(() => {
-    cancelAnimationFrame(cho);
-    cho = requestAnimationFrame(() => {
-      if (duLieuBieuDo.length && container.clientWidth && container.clientWidth !== rongBieuDoDaVe) veBieuDo();
-    });
-  }).observe(container);
-}
-
