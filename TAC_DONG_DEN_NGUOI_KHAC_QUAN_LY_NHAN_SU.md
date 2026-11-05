@@ -26,7 +26,8 @@ Ký hiệu trạng thái: ⏳ chưa báo · 📣 đã báo, chờ trả lời ·
 | 8 | Thêm file dùng chung / điểm nối | Người sở hữu các file đó | Biết khi sửa lại các file này (mục 8) | UC-49/36/37, mã nhân viên | ✅ |
 | 9 | **25 test lỗi có sẵn** ở integration (không do mình; tính 5/11/2026, trước đó 7) | Người làm **vé lẻ / quầy vé / thanh toán VNPay** | Sửa test | — | ⏳ |
 | 10 | **Mã nhân viên**: migration thêm cột `ma` vào bảng dùng chung `nguoi_dung` và `nhan_su_van_hanh`; thêm hàm vào 2 file dùng chung | **Cả nhóm**; nhóm hiển thị tên nhân viên; chủ 3 script seed demo | Chạy `yoyo apply ./migrations` sau khi pull; tùy ý hiện `ma` cạnh tên; tài khoản demo do script tạo sẽ không có mã | Mã nhân viên | ⏳ (đã merge #50; chờ nhóm biết) |
-| 11 | **UC-51 cho nghỉ việc**: ghi `xe_nhan_su.trang_thai = 'tam_nghi'` (bảng của biên chế) và gửi thông báo cho `quan_ly` + `dieu_do_vien`; thêm hàm cuối `nhan_su_van_hanh_repository.py` | Người làm **biên chế / điều độ / sinh chuyến**; nhóm điều độ viên | Hiểu dòng `tam_nghi` của người đã nghỉ việc là cố ý (không tự đổi lại `dang_hoat_dong`); điều độ viên cần chỗ xem thông báo; không có migration mới | UC-51 | ⏳ (chưa merge) |
+| 11 | **UC-51 cho nghỉ việc**: ghi `xe_nhan_su.trang_thai = 'tam_nghi'` (bảng của biên chế) và gửi thông báo cho `quan_ly` + `dieu_do_vien`; thêm hàm cuối `nhan_su_van_hanh_repository.py` | Người làm **biên chế / điều độ / sinh chuyến**; nhóm điều độ viên | Hiểu dòng `tam_nghi` của người đã nghỉ việc là cố ý (không tự đổi lại `dang_hoat_dong`); điều độ viên cần chỗ xem thông báo; không có migration mới | UC-51 | ✅ (đã merge #52; chờ nhóm biết) |
+| 12 | **UC-52 xem nhật ký**: màn hình đọc `nhat_ky_admin` (bảng dùng chung) + `nhat_ky_quan_ly_nhan_su`; thêm file mới và 1 mục menu | Nhóm nào **ghi vào `nhat_ky_admin`** (tuyến, giá, xe, biên chế...) | Biết `quan_ly` thấy mọi dòng của bảng này ở màn nhật ký; `hanh_dong` / `ghi_chu` đừng chứa dữ liệu nhạy cảm; muốn hiện tên đối tượng đẹp thì báo để thêm; không có migration mới | UC-52 | ⏳ (chưa merge) |
 
 ---
 
@@ -239,6 +240,17 @@ Cả bộ `tests/unit` trên integration (`24d99ba`, 5/11/2026) có **25 test l�
 
 ---
 
+## 10B. UC-52 xem nhật ký thao tác (việc #12)
+
+**Mình làm gì:** màn hình **chỉ xem** nhật ký thao tác (`quan-li-nhan-su/nhat-ky.html`): `quan_ly_nhan_su` thấy dòng của chính mình, `quan_ly` thấy toàn bộ (gộp `nhat_ky_quan_ly_nhan_su` + `nhat_ky_admin`), lọc theo ngày giờ VN / hành động / đối tượng / người, chia trang 50 dòng. Kế hoạch: `KE_HOACH_UC52_XEM_NHAT_KY.md`.
+
+**Ảnh hưởng tới người khác:**
+1. **Không migration**, không sửa hàm cũ của ai; chỉ thêm file mới (`nhat_ky_doc_repository.py`, `nhat_ky_service.py`, `nhat_ky_schema.py`, `routes/nhat_ky.py`, `nhat-ky.html`) và +2 dòng đăng ký router ở `main.py`, +1 mục menu ở `nav.js` (cả hai là file của mình / điểm nối).
+2. **Nhóm nào ghi vào `nhat_ky_admin`** (bảng dùng chung, `hanh_dong` / `doi_tuong_loai` là TEXT tự do): `quan_ly` sẽ thấy **mọi dòng đó** trong màn nhật ký. Hành động lạ hiện nguyên giá trị; đối tượng không phải người / hồ sơ nhân sự hiện **loại + 8 ký tự đầu id** (không đoán bảng để tra tên). Muốn hiện tên đẹp thì báo mình thêm nhánh tra cứu. Đừng ghi dữ liệu nhạy cảm vào `ghi_chu`.
+3. Chưa có chỉ mục `thoi_gian` riêng cho hai bảng (chỉ có chỉ mục theo người / đối tượng); dữ liệu hiện nhỏ nên chưa cần. Nếu nhật ký lớn lên thì thêm.
+
+---
+
 ## 11. Tóm tắt gửi nhóm (có thể copy)
 
 > Mình (Nghĩa, Quản lý nhân sự) báo các thay đổi ảnh hưởng đến mọi người, chi tiết ở `TAC_DONG_DEN_NGUOI_KHAC_QUAN_LY_NHAN_SU.md`:
@@ -251,3 +263,4 @@ Cả bộ `tests/unit` trên integration (`24d99ba`, 5/11/2026) có **25 test l�
 > 7. **Vé lẻ / quầy vé / thanh toán:** 25 test lỗi có sẵn ở `test_vnpay.py`, `test_thong_bao_khach.py`, `test_ve_le.py`, `test_vnpay_truy_van.py`, `test_quay_ve_khach_hang_theo_sdt.py` (đa số `KeyError: 'kenh_ban'`), không do phần mình.
 > 8. **Mã nhân viên** (`PX0001`, `DDV0001`, `TX0001`...): cột mới `ma` ở `nguoi_dung` / `nhan_su_van_hanh`, hiện ở màn hình nhân sự. Script seed demo tạo tài khoản mới sẽ không có mã. Các nhóm khác tự quyết định có hiện mã cạnh tên nhân viên không. Chi tiết `TAC_DONG_DEN_NGUOI_KHAC_QUAN_LY_NHAN_SU.md` mục 10.
 > 9. **UC-51 cho nghỉ việc** (khi PR merge): người nghỉ bị chuyển `xe_nhan_su` sang `tam_nghi` (không xóa, không tự gỡ biên chế cố định), báo `quan_ly` + `dieu_do_vien` xe nào thiếu người; chặn nếu xe đang `dang_chay` hoặc `gap_su_co`. Không có migration mới. Chi tiết mục 10A.
+> 10. **UC-52 xem nhật ký** (khi PR merge): màn hình đọc `nhat_ky_admin` + `nhat_ky_quan_ly_nhan_su`. Ai ghi vào `nhat_ky_admin` thì `quan_ly` sẽ thấy dòng đó; đối tượng loại khác người / hồ sơ hiện loại + 8 ký tự id; đừng ghi dữ liệu nhạy cảm vào `ghi_chu`. Không migration. Chi tiết mục 10B.

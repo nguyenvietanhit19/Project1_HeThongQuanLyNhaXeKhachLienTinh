@@ -881,7 +881,7 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
 - **Luồng chính** (mục 8.9 điểm 7):
   1. Mở màn hình nhật ký.
   2. Lọc theo khoảng thời gian, loại hành động (tạo/khóa/mở khóa tài khoản, tạo/sửa hồ sơ, cho nghỉ việc, …), đối tượng bị tác động; riêng `quan_ly` lọc thêm được theo người thực hiện.
-  3. Hệ thống hiển thị danh sách (người thực hiện và đối tượng ghi kèm mã nhân viên), dòng mới nhất trước, chia trang (mặc định 50 dòng mỗi lần, tối đa 200).
+  3. Hệ thống hiển thị danh sách (người thực hiện và đối tượng ghi kèm mã nhân viên), dòng mới nhất trước, chia trang (mặc định 50 dòng mỗi lần, tối đa 200). Ngày lọc tính theo **giờ Việt Nam**. `quan_ly` thấy cả dòng của nhóm chức năng khác ghi vào `nhat_ky_admin` (nhật ký dùng chung); đối tượng mà hệ thống không tra được tên (loại khác người / hồ sơ nhân sự) hiện **loại đối tượng + 8 ký tự đầu của id**, hành động lạ hiện nguyên giá trị (chốt 5/11/2026).
 - **Luồng rẽ nhánh**: Nhật ký **chỉ xem** — không có thao tác sửa hay xóa dòng nào (bảng chỉ thêm mới).
 - **Hậu điều kiện**: Không thay đổi dữ liệu.
 

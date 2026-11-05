@@ -17,7 +17,7 @@
 | **UC-37** Khóa / mở khóa tài khoản cán bộ | ✅ Backend + frontend + `nhat_ky_admin` xong, **đã merge** (#44). Đã thử thật: QLNS, `quan_ly` thường, token cũ bị chặn ngay khi khóa. **Chưa thử thật:** `quan_ly` **gốc** và ca phụ xe thiếu xe (chỉ unit test); cảnh báo tuyến hết điều độ viên chờ nhóm điều độ viên |
 | **Mã nhân viên** (tiền tố theo vai trò + số tự tăng) | ✅ Backend + frontend xong, đã kiểm tra (mục 2C), **chưa commit**. Còn: sửa tài liệu cho khớp (đang làm), commit, PR, báo nhóm |
 | UC-51 | ✅ Backend + frontend + test xong (5/11, nhánh `feature/Nghia-uc51-cho-nghi-viec`, chưa merge) |
-| UC-52 | 📐 Đã làm rõ nghiệp vụ trong tài liệu, chưa code |
+| UC-52 | ✅ Backend + frontend + test xong (5/11, nhánh `feature/Nghia-uc52-nhat-ky`, chưa merge) |
 | Nhánh hiện tại | `feature/Nghia-ma-nhan-vien` (từ `24d99ba`, integration #47; chưa push) |
 
 ### Quy tắc làm việc đã thống nhất
@@ -228,6 +228,21 @@ Kế hoạch: `KE_HOACH_UC51_CHO_NGHI_VIEC.md`. **Không có migration mới.**
 
 **Đã kiểm tra thật:** 27 ca trên DB thật trong một transaction rồi rollback (DB sạch); giao diện trên Edge với API giả. **Chưa:** bấm xác nhận từ trình duyệt qua backend thật nối liền.
 
+## 2E. Code UC-52 — Xem nhật ký thao tác (làm 5/11, **chưa commit**)
+
+Kế hoạch: `KE_HOACH_UC52_XEM_NHAT_KY.md`. **Không có migration mới; không sửa file nào của người khác** (chỉ thêm file mới, và thêm 2 dòng đăng ký router vào `main.py`).
+
+| File | Nội dung |
+|---|---|
+| `backend/app/repositories/nhat_ky_doc_repository.py` (mới) | `tim` (một trang + tổng; QLNS chỉ đọc `nhat_ky_quan_ly_nhan_su` theo người, `quan_ly` `UNION ALL` hai bảng; join tên + mã người và đối tượng), `danh_sach_nguoi_thuc_hien`, `cac_gia_tri_loc`. Chỉ đọc, mọi giá trị qua `%s` |
+| `backend/app/services/nhat_ky_service.py` (mới) | `xem_nhat_ky` (QLNS bị ép về chính mình dù gửi `nguoi_id`; ngày lọc giờ VN `[tu, den)`; kiểm tra `trang`, `so_dong` 1–200; nhãn tiếng Việt; đối tượng lạ hiện loại + 8 ký tự id), `tuy_chon_loc` |
+| `backend/app/schemas/nhat_ky_schema.py`, `routes/nhat_ky.py` (mới) | `GET /quan-ly-nhan-su/nhat-ky`, `GET /quan-ly-nhan-su/nhat-ky/tuy-chon-loc` |
+| `backend/app/main.py` | +2 dòng đăng ký router |
+| `backend/tests/unit/test_nhat_ky.py` (mới) | 56 test (phạm vi theo vai trò, giờ VN, phân trang, nhãn, đối tượng lạ, SQL chỉ đọc + tham số) |
+| `frontend/nhan-vien/quan-li-nhan-su/nhat-ky.html` (mới), `nav.js` | Trang nhật ký (bộ lọc, bảng, phân trang) + mục menu |
+
+**Đã kiểm tra thật:** API qua HTTP bằng tài khoản `quan_ly` gốc; 27 ca trên DB thật trong một transaction rồi rollback (DB sạch; gồm cả hai bảng, thứ tự, biên giờ VN, phân trang, lọc, đối tượng lạ, QLNS không thấy dòng của người khác); giao diện trên Edge với API giả. **Chưa:** nhánh QLNS qua HTTP thật (chưa có mật khẩu tài khoản QLNS), bấm lọc từ trình duyệt qua backend thật nối liền.
+
 ## 3. File của người khác mà tôi **có sửa**
 
 | File | Sửa gì | Lý do / mức độ |
@@ -342,7 +357,7 @@ Chi tiết và 9 bước ở `KE_HOACH_UC37_KHOA_MO_KHOA_TAI_KHOAN.md`.
 2. **Commit, push, tạo PR mã nhân viên** vào `integration/gop-nhanh-thanh-vien` (không vào `main`).
 3. **Báo nhóm** (chưa báo việc nào trong `TAC_DONG_...`): bản tóm tắt ở mục 11 của file đó. Nhớ nhắc cả nhóm chạy `yoyo apply ./migrations` sau khi PR merge.
 4. **Test tay ca `quan_ly` gốc** của UC-37 (cần đặt tạm mật khẩu `admin@nhaxekhach.com` rồi khôi phục; hỏi trước khi làm) và ca phụ xe thiếu xe.
-5. ~~UC-51 (cho nghỉ việc)~~ — xong 5/11 (mục 2D); còn **UC-52** (xem nhật ký; `quan_ly` xem cả hai bảng nhật ký, `nhat_ky_admin` đã có).
+5. ~~UC-51 (cho nghỉ việc)~~ — xong 5/11 (mục 2D); ~~UC-52 (xem nhật ký)~~ — xong 5/11 (mục 2E).
 6. **Đổi văn phòng**: làm sau khi nhóm chốt 2 quy tắc ở `TAC_DONG_...` mục 7; sửa lại nhánh trong `NGHIEP_VU.md` nếu quy tắc đổi.
 7. **Sau cùng**: xóa chuỗi hàm `gan_van_phong_can_bo` (4 file) khi nhóm đồng ý và đổi văn phòng đã chạy được.
 8. Còn nợ: test tự động cho `ho_so_nhan_su_service.py`; cờ bắt buộc đổi mật khẩu lần đầu (cần cột mới ở bảng dùng chung); cảnh báo "tuyến hết điều độ viên" khi khóa điều độ viên (chờ bảng `dieu_do_vien_tuyen`).
