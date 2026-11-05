@@ -39,7 +39,7 @@ def _gui_thong_bao(nguoi_nhan_id: str, noi_dung: str, don_hang_id: str | None = 
     broadcast_sync(nguoi_nhan_id, noi_dung)
 
 
-def _gui_thong_bao_an_toan(nguoi_nhan_ids: list[str], noi_dung: str, don_hang_id: str) -> None:
+def _gui_thong_bao_an_toan(nguoi_nhan_ids: list[str], noi_dung: str, don_hang_id: str | None) -> None:
     """Thông báo là phần phụ của thao tác chính (dỡ hàng, báo sự cố) — thao tác
     chính đã commit thì lỗi gửi thông báo chỉ ghi log, không trả lỗi cho người dùng."""
     for nguoi_nhan_id in nguoi_nhan_ids:
@@ -339,7 +339,10 @@ def lay_danh_sach_don(
     tu_khoa: str | None = None,
     limit: int = 20,
     offset: int = 0,
+    van_de_chuyen: bool = False,
 ) -> dict:
+    """van_de_chuyen: chỉ đơn còn trên xe mà chuyến gặp sự cố / đã hủy / đang hoãn — văn phòng gửi
+    tra nhanh khi người gửi gọi hỏi hàng."""
     items, total = don_hang_repo.lay_danh_sach_don(
         van_phong_id=van_phong_id,
         huong=huong,
@@ -348,6 +351,7 @@ def lay_danh_sach_don(
         tu_khoa=tu_khoa,
         limit=limit,
         offset=offset,
+        van_de_chuyen=van_de_chuyen,
     )
     return {"items": items, "total": total}
 
@@ -633,6 +637,88 @@ def lay_bao_cao_su_co(don_hang_id: str, van_phong_id: str | None) -> list[dict]:
 
 
 # ====================================================================
+# 4b. Chuyến chở hàng gặp sự cố / chạy lại / bị hủy giữa đường
+#     (HANG_KHI_CHUYEN_HUY_GIUA_DUONG.md — phần A, chưa đổi trạng thái đơn)
+# ====================================================================
+
+SO_MA_LIET_KE_TOI_DA = 5
+
+# su_kien → (tin cho văn phòng nhận, tin cho văn phòng gửi). {chuyen}, {so}, {ds}, {ly_do} điền khi gửi.
+_TIN_BIEN_DONG_CHUYEN = {
+    "gap_su_co": (
+        "Chuyến {chuyen} chở {so} đơn tới văn phòng gặp sự cố dọc đường{ly_do} — hàng sẽ tới trễ, "
+        "gọi báo người nhận nếu đã hẹn: {ds}.",
+        "Chuyến {chuyen} chở {so} đơn gửi từ văn phòng gặp sự cố dọc đường{ly_do} — "
+        "người gửi hỏi thì báo hàng sẽ tới trễ: {ds}.",
+    ),
+    "chay_lai": (
+        "Chuyến {chuyen} đã chạy tiếp sau sự cố — {so} đơn đang trên đường tới văn phòng: {ds}.",
+        "Chuyến {chuyen} đã chạy tiếp sau sự cố — {so} đơn gửi từ văn phòng tiếp tục được chở: {ds}.",
+    ),
+    "da_huy": (
+        "Chuyến {chuyen} bị hủy giữa đường{ly_do} — {so} đơn tới văn phòng chưa thể tới, chờ hướng xử lý: {ds}. "
+        "Gọi báo người nhận hàng chưa tới.",
+        "Chuyến {chuyen} bị hủy giữa đường{ly_do} — {so} đơn gửi từ văn phòng đang kẹt trên xe, chờ hướng xử lý: {ds}.",
+    ),
+}
+
+
+def _liet_ke_ma(ds: list[dict]) -> str:
+    ma = [d["ma_van_don"] for d in ds[:SO_MA_LIET_KE_TOI_DA]]
+    con_lai = len(ds) - len(ma)
+    return ", ".join(ma) + (f" và {con_lai} đơn khác" if con_lai > 0 else "")
+
+
+def _nhom_theo(ds: list[dict], khoa: str) -> dict[str, list[dict]]:
+    nhom: dict[str, list[dict]] = {}
+    for d in ds:
+        nhom.setdefault(str(d[khoa]), []).append(d)
+    return nhom
+
+
+def bao_van_phong_khi_chuyen_co_bien_dong(chuyen_id: str, su_kien: str, ly_do: str | None = None) -> None:
+    """Báo nhân viên gửi hàng ở văn phòng nhận và văn phòng gửi của mọi đơn còn trên xe khi chuyến
+    gặp sự cố (UC-17), chạy lại hoặc bị hủy giữa đường (UC-19) — mỗi văn phòng 1 tin gom các đơn của mình.
+    Chuyến bị hủy thì báo thêm quản lý (đơn kẹt trên xe, chờ nhóm chốt hướng xử lý).
+
+    Gọi từ phía chuyến xe sau khi đã đổi trạng thái chuyến; chỉ gửi thông báo, không đổi trạng thái đơn.
+    Lỗi gửi 1 tin chỉ ghi log, không chặn các tin khác."""
+    if su_kien not in _TIN_BIEN_DONG_CHUYEN:
+        raise ValueError(f"Sự kiện chuyến không hợp lệ: {su_kien}")
+    ds = don_hang_repo.tim_don_dang_tren_chuyen(chuyen_id)
+    if not ds:
+        return
+
+    mau_nhan, mau_gui = _TIN_BIEN_DONG_CHUYEN[su_kien]
+    chuyen = ds[0].get("ma_chuyen") or chuyen_id
+    ly_do_txt = f" ({ly_do.strip()})" if ly_do and ly_do.strip() else ""
+
+    def tin(mau: str, nhom: list[dict]) -> str:
+        return mau.format(chuyen=chuyen, so=len(nhom), ds=_liet_ke_ma(nhom), ly_do=ly_do_txt)
+
+    def don_id(nhom: list[dict]) -> str | None:
+        return str(nhom[0]["id"]) if len(nhom) == 1 else None  # 1 đơn: bấm thông báo mở được chi tiết đơn
+
+    for vp, nhom in _nhom_theo(ds, "diem_nhan_id").items():
+        _gui_thong_bao_an_toan(don_hang_repo.danh_sach_nhan_vien_gui_hang_tai_diem(vp), tin(mau_nhan, nhom), don_id(nhom))
+    for vp, nhom in _nhom_theo(ds, "diem_gui_id").items():
+        _gui_thong_bao_an_toan(don_hang_repo.danh_sach_nhan_vien_gui_hang_tai_diem(vp), tin(mau_gui, nhom), don_id(nhom))
+
+    if su_kien == "da_huy":
+        _gui_thong_bao_an_toan(
+            nguoi_dung_repo.danh_sach_id_theo_vai_tro("quan_ly", chi_dang_hoat_dong=True),
+            f"Chuyến {chuyen} bị hủy giữa đường{ly_do_txt} — {len(ds)} đơn hàng gửi còn kẹt trên xe, "
+            f"chưa có hướng xử lý: {_liet_ke_ma(ds)}.",
+            don_id(ds),
+        )
+
+
+def _chuyen_cua_don_co_van_de(don: dict) -> bool:
+    """Đơn còn trên xe mà chuyến gặp sự cố / đã hủy / đang hoãn → hàng tới trễ."""
+    return don.get("trang_thai_chuyen") in ("gap_su_co", "da_huy") or bool(don.get("chuyen_dang_hoan"))
+
+
+# ====================================================================
 # 5. Hàng đến & Xử lý Hàng chờ quá lâu tại Điểm nhận (UC-24, UC-25, UC-46)
 # ====================================================================
 
@@ -739,14 +825,21 @@ def ghi_ket_qua_lien_he(
     - Gọi người nhận thành công → bật cờ `da_thong_bao_nguoi_nhan` (ở đây chỉ bật; cờ chỉ tắt khi đổi SĐT người nhận).
     - Báo quản lý chỉ khi đơn đã có cảnh báo 7 ngày hoặc đã là hàng tồn (UC-25:
       không liên hệ được ai) — tạo thông báo cho các quản lý đang hoạt động.
+    - Đơn còn trên xe mà chuyến gặp sự cố / đã hủy / đang hoãn: ghi được cuộc gọi báo hàng tới trễ
+      (người nhận / người gửi), không bật cờ "đã báo được người nhận" vì hàng chưa tới.
     """
     don = don_hang_repo.tim_theo_id(don_hang_id)
     if not don:
         raise GiaTriLoi("Đơn hàng không tồn tại")
     if van_phong_id and str(don["diem_nhan_id"]) != str(van_phong_id):
         raise CamTruyCap("Đơn hàng thuộc văn phòng nhận khác")
-    if don["trang_thai"] not in ("cho_lay", "qua_han_luu_kho"):
-        raise GiaTriLoi("Chỉ ghi nhận liên hệ cho đơn đang chờ lấy hoặc hàng tồn")
+    bao_tre = don["trang_thai"] == "da_len_xe" and _chuyen_cua_don_co_van_de(don)
+    if bao_tre:
+        if doi_tuong == "quan_ly":
+            raise GiaTriLoi("Hàng còn trên xe — chỉ ghi cuộc gọi báo trễ cho người nhận / người gửi")
+        ghi_chu = "Báo hàng tới trễ" + (f": {ghi_chu}" if ghi_chu else "")
+    elif don["trang_thai"] not in ("cho_lay", "qua_han_luu_kho"):
+        raise GiaTriLoi("Chỉ ghi nhận liên hệ cho đơn đang chờ lấy hoặc hàng tồn (hàng còn trên xe: chỉ khi chuyến gặp sự cố)")
 
     thong_bao_cho: list[str] = []
     noi_dung: str | None = None
@@ -767,9 +860,10 @@ def ghi_ket_qua_lien_he(
             doi_tuong,
             ket_qua,
             ghi_chu,
-            danh_dau_da_thong_bao=(doi_tuong == "nguoi_nhan" and ket_qua == "da_lien_he"),
+            danh_dau_da_thong_bao=(doi_tuong == "nguoi_nhan" and ket_qua == "da_lien_he" and not bao_tre),
             thong_bao_cho=thong_bao_cho,
             noi_dung_thong_bao=noi_dung,
+            cho_phep_dang_tren_xe=bao_tre,
         )
     except don_hang_repo.DonKhongConChoLay:
         raise GiaTriLoi("Đơn vừa được giao hoặc đổi trạng thái bởi người khác, vui lòng tải lại") from None

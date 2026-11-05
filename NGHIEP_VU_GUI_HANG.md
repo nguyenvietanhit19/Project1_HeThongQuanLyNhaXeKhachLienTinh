@@ -113,7 +113,8 @@ Hỗ trợ tại quầy (đã có trong code): gợi ý tên khách quen theo S�
 *(Nguồn: `NGHIEP_VU.md` mục 10.3.1, 10.4.2)*
 
 1. Màn **"Hàng đến"** của văn phòng nhận chia 3 nhóm: *Sắp đến* (đang trên xe), *Chờ gọi báo*, *Chờ lấy*; đánh dấu riêng đơn chờ quá 7 ngày và hàng tồn. Khi phụ xe dỡ hàng, nhân viên văn phòng nhận nhận thông báo.
-   - ⏳ Đơn *Sắp đến* mà **chuyến chở nó gặp sự cố, đang hoãn hoặc bị hủy** được gắn nhãn cảnh báo (kèm lý do sự cố) và việc cần làm "Hàng sẽ tới trễ" — nếu đã hẹn người nhận thì gọi báo trễ. Chỉ là hiển thị; hệ thống chưa tự gửi thông báo khi chuyến gặp sự cố (chờ phối hợp với phần chuyến xe, xem 9.2).
+   - ⏳ Đơn *Sắp đến* mà **chuyến chở nó gặp sự cố, đang hoãn hoặc bị hủy** được gắn nhãn cảnh báo (kèm lý do sự cố) và việc cần làm "Hàng sẽ tới trễ" — nếu đã hẹn người nhận thì gọi báo trễ, bấm **"📞 Báo trễ"** để ghi lại cuộc gọi (người nhận / người gửi; không bật cờ "đã báo được người nhận" vì hàng chưa tới).
+   - ⏳ Khi phụ xe **báo sự cố** (UC-17), nhân viên **văn phòng nhận và văn phòng gửi** của mọi đơn còn trên xe nhận thông báo — mỗi văn phòng 1 tin gom mã vận đơn của mình. Khi UC-19 có code: chuyến chạy lại / bị hủy giữa đường cũng báo tương tự (bị hủy thì báo thêm quản lý). Hàng khi chuyến bị hủy đi đâu: **chưa chốt**, xem `HANG_KHI_CHUYEN_HUY_GIUA_DUONG.md`.
 2. Với đơn vừa tới: **chủ động gọi điện báo người nhận ngay** (kênh báo tin duy nhất). Gọi được thì **tích "đã thông báo được"**. Chưa gọi được thì tự thử lại vài lần trong 1–2 ngày đầu. Có thể đọc lại mã vận đơn qua điện thoại nếu người nhận chưa có mã.
    - ⏳ Hàng đã tới **hơn 24 giờ** mà vẫn chưa báo được người nhận → hệ thống **nhắc lại nhân viên văn phòng nhận 1 lần** (kèm tên + SĐT người nhận); trên màn "Hàng đến" việc cần làm đổi thành "Gọi lại người nhận". Từ mốc 7 ngày trở đi do cảnh báo UC-25 đảm nhận.
 3. Người nhận tới quầy, đọc **mã vận đơn** (hoặc quét mã vạch). Quên mã → tra theo **SĐT người nhận**, đối chiếu thêm họ tên.
@@ -320,7 +321,7 @@ Hỗ trợ tại quầy (đã có trong code): gợi ý tên khách quen theo S�
 | Sửa tên/SĐT | Sửa được khi chưa giao/chưa hủy, có nhật ký | Chưa có |
 | Đối soát tiền theo nhân viên | Thu − hoàn theo người thu/người hoàn | Chưa có |
 | Nhắc lại sau 24 giờ chưa báo được người nhận (mục 5.2) | Job mỗi giờ nhắc văn phòng nhận đúng 1 lần (cờ `da_nhac_goi_bao`), trong khoảng 24 giờ – 7 ngày | Chỉ có mốc 7 / 14 ngày |
-| Hàng trên chuyến gặp sự cố / hoãn / hủy (mục 5.2) | Màn "Hàng đến" gắn nhãn cảnh báo + "Hàng sẽ tới trễ". **Chưa** tự gửi thông báo cho văn phòng nhận khi chuyến báo sự cố — cần phần chuyến xe (UC-17) gọi sang gửi hàng | Chưa có |
+| Hàng trên chuyến gặp sự cố / hoãn / hủy (mục 5.2) | Màn "Hàng đến" gắn nhãn cảnh báo + "Hàng sẽ tới trễ" + ghi cuộc gọi báo trễ; "Đơn gửi đi" có nhãn + bộ lọc "Trên chuyến gặp sự cố / hủy / hoãn". UC-17 báo sự cố → thông báo văn phòng nhận + văn phòng gửi (`chuyen_xe_service.bao_su_co` gọi sang gửi hàng). Chuyến bị hủy giữa đường: đơn **không** tự đổi trạng thái — chờ nhóm chốt (`HANG_KHI_CHUYEN_HUY_GIUA_DUONG.md`) | Chưa có (chỉ nói vé khách) |
 | Đổi SĐT người nhận (mục 5.5) | Bắt buộc lý do / căn cứ; đơn quay về "cần gọi báo", nhắc 24 giờ lại theo mốc mới, lịch sử liên hệ giữ nguyên | "Cờ đã báo chỉ đi lên" (10.3.1) |
 | Ý nghĩa "COD" (mục 6) | Chỉ là người nhận trả cước vận chuyển, không thu hộ tiền hàng; giao diện ghi "Người nhận trả cước" | Chưa nói rõ |
 | Chỉ gửi khác khu vực (mục 1, nguyên tắc 3b) | Văn phòng nhận phải ở khu vực khác văn phòng gửi — lọc ở danh sách điểm nhận và chặn khi tạo đơn | Chỉ yêu cầu 2 đầu là văn phòng, khác nhau (10.1) |

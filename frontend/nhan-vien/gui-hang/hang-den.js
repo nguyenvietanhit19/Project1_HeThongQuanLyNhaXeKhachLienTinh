@@ -23,7 +23,8 @@ const CACH_XU_LY = {
   sap_den: { thuTu: 4, viec: "Đang trên xe", cls: "viec--cho", doiTuong: null },
 };
 
-/** Chuyến đang chở đơn có vấn đề (sự cố / hoãn / hủy) → hàng sẽ tới trễ. null = chuyến bình thường. */
+/** Chuyến đang chở đơn có vấn đề (sự cố / hoãn / hủy) → hàng sẽ tới trễ. null = chuyến bình thường.
+ * goiY: cho văn phòng nhận (màn Hàng đến); goiYGui: cho văn phòng gửi (màn Đơn gửi đi). */
 function vanDeChuyen(d) {
   if (d.trang_thai !== "da_len_xe") return null;
   if (d.trang_thai_chuyen === "gap_su_co") {
@@ -32,6 +33,7 @@ function vanDeChuyen(d) {
       viec: "⚠️ Hàng sẽ tới trễ",
       sub: d.ly_do_su_co_chuyen || "Chuyến gặp sự cố dọc đường",
       goiY: "Chuyến chở đơn này gặp sự cố dọc đường — nếu đã hẹn người nhận thì gọi báo hàng sẽ tới trễ.",
+      goiYGui: "Chuyến chở đơn này gặp sự cố dọc đường — người gửi hỏi thì báo hàng sẽ tới trễ.",
     };
   }
   if (d.trang_thai_chuyen === "da_huy") {
@@ -39,7 +41,8 @@ function vanDeChuyen(d) {
       tag: '<span class="tag-danger">⛔ Chuyến đã hủy</span>',
       viec: "⛔ Chuyến chở hàng đã hủy",
       sub: "Hỏi điều độ / quản lý hướng xử lý",
-      goiY: "Chuyến chở đơn này đã bị hủy — hỏi điều độ viên hoặc quản lý hàng sẽ được chở bằng chuyến nào.",
+      goiY: "Chuyến chở đơn này đã bị hủy giữa đường — gọi báo người nhận hàng chưa tới; hỏi điều độ viên hoặc quản lý hướng xử lý.",
+      goiYGui: "Chuyến chở đơn này đã bị hủy giữa đường — hàng còn kẹt trên xe, hỏi điều độ viên hoặc quản lý hướng xử lý.",
     };
   }
   if (d.chuyen_dang_hoan) {
@@ -48,6 +51,7 @@ function vanDeChuyen(d) {
       viec: "⏸ Hàng sẽ tới trễ",
       sub: "Chuyến đang hoãn chưa xuất phát",
       goiY: "Chuyến chở đơn này đang hoãn — nếu đã hẹn người nhận thì gọi báo hàng sẽ tới trễ.",
+      goiYGui: "Chuyến chở đơn này đang hoãn — người gửi hỏi thì báo hàng sẽ tới trễ.",
     };
   }
   return null;
@@ -58,7 +62,7 @@ function xuLyCuaDon(d) {
   if (nhom === "sap_den") {
     const vanDe = vanDeChuyen(d);
     // Sau các việc phải làm ngay (gọi báo, hàng tồn) nhưng trước hàng đang trên xe bình thường
-    if (vanDe) return { thuTu: 3.5, cls: "viec--gap", doiTuong: null, viec: vanDe.viec, sub: vanDe.sub, goiY: vanDe.goiY };
+    if (vanDe) return { thuTu: 3.5, cls: "viec--gap", doiTuong: "nguoi_nhan", viec: vanDe.viec, sub: vanDe.sub, goiY: vanDe.goiY };
     return {
       ...CACH_XU_LY.sap_den,
       sub: d.bien_so_xe || "Chưa tới văn phòng",
@@ -144,7 +148,12 @@ function locLaiHangDen() {
 function nutThaoTacDon(d) {
   if (laQuanLyXem()) return "";
   const nutSua = `<button type="button" class="btn-action-icon" data-hanh-dong="sua-lien-he" data-id="${escapeHtml(d.id)}" title="Sửa tên / SĐT người gửi, người nhận">✏️</button>`;
-  if (d.trang_thai === "da_len_xe") return nutSua; // chưa tới văn phòng: chưa liên hệ/giao được, nhưng vẫn sửa được SĐT
+  if (d.trang_thai === "da_len_xe") {
+    // Chưa tới văn phòng: chưa giao được, vẫn sửa được SĐT; chuyến có vấn đề thì ghi được cuộc gọi báo trễ.
+    return vanDeChuyen(d)
+      ? `${nutSua}<button type="button" class="btn-action-sm" data-hanh-dong="lien-he" data-id="${escapeHtml(d.id)}" title="Ghi lại cuộc gọi báo hàng tới trễ">📞 Báo trễ</button>`
+      : nutSua;
+  }
   return `
     ${nutSua}
     <button type="button" class="btn-action-sm" data-hanh-dong="lien-he" data-id="${escapeHtml(d.id)}">📞 Liên hệ</button>
@@ -516,6 +525,19 @@ const LUA_CHON_LIEN_HE = [
   { doi_tuong: "quan_ly", ket_qua: "da_bao_quan_ly", nhan: "🧑‍💼 Không liên hệ được ai — báo quản lý xử lý", chiKhiQuaHan: true },
 ];
 
+// Hàng còn trên chuyến gặp sự cố / hủy / hoãn: chỉ ghi cuộc gọi báo trễ (BE tự thêm "Báo hàng tới trễ" vào ghi chú,
+// không bật cờ "đã báo được người nhận" vì hàng chưa tới).
+const LUA_CHON_BAO_TRE = [
+  { doi_tuong: "nguoi_nhan", ket_qua: "da_lien_he", nhan: "✅ Đã báo người nhận hàng sẽ tới trễ" },
+  { doi_tuong: "nguoi_nhan", ket_qua: "khong_lien_he_duoc", nhan: "❌ Gọi người nhận không được" },
+  { doi_tuong: "nguoi_gui", ket_qua: "da_lien_he", nhan: "✅ Đã báo người gửi" },
+  { doi_tuong: "nguoi_gui", ket_qua: "khong_lien_he_duoc", nhan: "❌ Gọi người gửi không được" },
+];
+
+function laBaoTre(don) {
+  return don.trang_thai === "da_len_xe" && Boolean(vanDeChuyen(don));
+}
+
 async function moModalLienHe(don) {
   state.donDangLienHe = don;
   const quaHan = don.co_canh_bao_cho_lau || don.trang_thai === "qua_han_luu_kho";
@@ -527,7 +549,7 @@ async function moModalLienHe(don) {
     <div class="danh-ba-item"><span>Người nhận</span><strong>${escapeHtml(don.ten_nguoi_nhan)}</strong>${telLink(don.sdt_nguoi_nhan)}</div>
     <div class="danh-ba-item"><span>Người gửi</span><strong>${escapeHtml(don.ten_nguoi_gui)}</strong>${telLink(don.sdt_nguoi_gui)}</div>`;
 
-  const luaChon = LUA_CHON_LIEN_HE.filter(l => !l.chiKhiQuaHan || quaHan);
+  const luaChon = laBaoTre(don) ? LUA_CHON_BAO_TRE : LUA_CHON_LIEN_HE.filter(l => !l.chiKhiQuaHan || quaHan);
   const macDinh = goiY.doiTuong
     ? luaChon.findIndex(l => l.doi_tuong === goiY.doiTuong && l.ket_qua === "da_lien_he")
     : -1;
@@ -584,7 +606,7 @@ async function luuKetQuaLienHe(e) {
   }
   const lc = state.luaChonLienHe[Number(chon.value)];
   const ghiChu = $("lhGhiChu").value.trim();
-  if (lc.doi_tuong === "nguoi_gui" && lc.ket_qua === "da_lien_he" && !ghiChu) {
+  if (lc.doi_tuong === "nguoi_gui" && lc.ket_qua === "da_lien_he" && !ghiChu && !laBaoTre(don)) {
     showToast("warning", "Thiếu hướng xử lý", "Ghi lại hướng xử lý đã thỏa thuận với người gửi.");
     $("lhGhiChu").focus();
     return;

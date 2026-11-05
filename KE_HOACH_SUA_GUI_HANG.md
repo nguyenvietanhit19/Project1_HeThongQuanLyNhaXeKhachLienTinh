@@ -831,3 +831,30 @@ Kiểm tra: unit 791 pass (7 fail cũ của #39); API thật — VP Lào Cai / S
 Đơn cũ không đụng tới (quy tắc chỉ áp khi tạo đơn mới). Phụ xe chất/dỡ, giao hàng, hủy không đổi.
 
 **C6 thêm 1 điểm:** `NGHIEP_VU.md` (file chung) mục 10.1 chưa có quy tắc "chỉ gửi khác khu vực" → nhờ người giữ file bổ sung.
+
+## 9. Đợt E — Hàng khi xe gặp sự cố giữa đường (nhánh `feature/Trinh-gui-hang-su-co-xe`, từ 05/11/2026)
+
+Nhánh tạo từ integration `24d99ba` (sau PR #47). Tách 2 phần:
+
+- **Phần B — chưa chốt:** hàng đi đâu khi chuyến bị hủy hẳn giữa đường (nhiều trường hợp) → tài liệu riêng `HANG_KHI_CHUYEN_HUY_GIUA_DUONG.md` để nhóm thảo luận (Q1–Q5, bảng quyết định ở mục 6 của file đó).
+- **Phần A — đã làm:** những việc đúng cho mọi kết cục của sự cố, không đổi trạng thái đơn.
+
+### 9.1. Phần A
+
+| File | Sửa |
+|---|---|
+| `services/gui_hang_service.py` | `bao_van_phong_khi_chuyen_co_bien_dong(chuyen_id, su_kien, ly_do)` — `su_kien` = `gap_su_co` / `chay_lai` / `da_huy`: báo nhân viên văn phòng nhận + văn phòng gửi của mọi đơn còn trên xe, **mỗi văn phòng 1 tin** gom mã vận đơn (tối đa 5 mã + "và N đơn khác"; tin 1 đơn gắn `don_hang_id` để bấm mở chi tiết). `da_huy` báo thêm quản lý. Lỗi 1 tin chỉ ghi log. `ghi_ket_qua_lien_he`: nhận thêm đơn `da_len_xe` khi chuyến gặp sự cố / đã hủy / đang hoãn — chỉ người nhận / người gửi (không báo quản lý), ghi chú tự thêm "Báo hàng tới trễ", **không** bật cờ `da_thong_bao_nguoi_nhan`. `lay_danh_sach_don(van_de_chuyen=...)` |
+| `repositories/don_hang_repository.py` | `tim_don_dang_tren_chuyen`; `ghi_lien_he(cho_phep_dang_tren_xe=...)` kiểm tra lại chuyến có vấn đề **dưới khóa** (`FOR UPDATE OF d`); `lay_danh_sach_don(van_de_chuyen=...)` lọc bằng `EXISTS` (câu đếm không JOIN `chuyen_xe`) |
+| `routes/gui_hang.py` | `GET /gui-hang/don-hang?van_de_chuyen=true` |
+| `services/chuyen_xe_service.py` (**file người 4**) | `bao_su_co` gọi `_bao_van_phong_gui_hang(chuyen_id, "gap_su_co", ly_do)` — import trong hàm (tránh vòng import), lỗi chỉ ghi log. UC-19 khi có code gọi tiếp hàm này với `chay_lai` / `da_huy` |
+| `gui-hang/hang-den.js` | Nút **"📞 Báo trễ"** cho đơn sắp đến trên chuyến có vấn đề; modal liên hệ có bộ lựa chọn riêng (báo người nhận / người gửi), không bắt ghi hướng xử lý; gợi ý riêng cho văn phòng gửi (`goiYGui`) |
+| `gui-hang/don-gui.js`, `index.html` | Nhãn ⚠️/⛔/⏸ + lý do dưới trạng thái; bộ lọc "⚠️ Trên chuyến gặp sự cố / hủy / hoãn" |
+| `gui-hang/nav.js` | Có thông báo mới thì làm mới cả tab "Đơn gửi đi" |
+| `tests/unit/test_gui_hang_su_co_chuyen.py` (mới) | 20 test: gom tin theo văn phòng, cắt 5 mã, không có hàng thì không báo, `chay_lai`, `da_huy` báo quản lý, sự kiện sai, lỗi 1 tin không chặn tin khác, `bao_su_co` gọi sang + lỗi không làm hỏng báo sự cố, báo trễ (gặp sự cố / hủy / hoãn), chặn chuyến bình thường, chặn báo quản lý, đơn chờ lấy không đổi, bộ lọc |
+| `tests/unit/test_gui_hang_service.py` | Kỳ vọng `lay_danh_sach_don` thêm `van_de_chuyen=False` |
+| `tests/unit/test_chuyen_xe_service.py` (**file người 4**) | Fixture tự động chặn gọi sang gửi hàng (test riêng ở file mới) |
+| `NGHIEP_VU_GUI_HANG.md` | Mục 5.2, bảng 9.2 |
+
+Kiểm tra: unit 853 pass, 25 fail đều có sẵn (24 VNPay/vé lẻ của #39/#47 + `test_quay_ve_khach_hang_theo_sdt::test_tao_ve_khoa_sdt...` fail cả trên code chưa sửa). DB demo (Docker): gom tin đúng theo văn phòng trên 2 chuyến có hàng (chỉ in, không ghi thông báo); API `van_de_chuyen=true` trả đúng đơn trên chuyến `gap_su_co`; báo trễ qua API → lịch sử "Báo hàng tới trễ: …", cờ đã báo vẫn `false`; báo quản lý → 400 (dòng thử đã xóa). Chưa thử: bấm trên trình duyệt; UC-17 thật qua màn phụ xe (sẽ đổi trạng thái chuyến demo).
+
+**Cần báo người 4:** đã thêm 1 dòng gọi + hàm `_bao_van_phong_gui_hang` vào `chuyen_xe_service.bao_su_co`, và 1 fixture trong `test_chuyen_xe_service.py`. Khi làm UC-19: gọi `_bao_van_phong_gui_hang(chuyen_id, "chay_lai")` lúc chuyến quay lại `dang_chay`, `"da_huy", ly_do` lúc hủy giữa đường.
