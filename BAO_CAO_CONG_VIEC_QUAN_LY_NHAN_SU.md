@@ -16,7 +16,8 @@
 | Nhánh kèm theo UC-36: **đổi văn phòng** | 📐 Đã ghi nghiệp vụ + sơ đồ + kế hoạch. **Chưa code**: chờ nhóm chốt 2 quy tắc (còn đơn đang xử lý có chặn không; lý do có bắt buộc không) |
 | **UC-37** Khóa / mở khóa tài khoản cán bộ | ✅ Backend + frontend + `nhat_ky_admin` xong, **đã merge** (#44). Đã thử thật: QLNS, `quan_ly` thường, token cũ bị chặn ngay khi khóa. **Chưa thử thật:** `quan_ly` **gốc** và ca phụ xe thiếu xe (chỉ unit test); cảnh báo tuyến hết điều độ viên chờ nhóm điều độ viên |
 | **Mã nhân viên** (tiền tố theo vai trò + số tự tăng) | ✅ Backend + frontend xong, đã kiểm tra (mục 2C), **chưa commit**. Còn: sửa tài liệu cho khớp (đang làm), commit, PR, báo nhóm |
-| UC-51, UC-52 | 📐 Đã làm rõ nghiệp vụ trong tài liệu, chưa code |
+| UC-51 | ✅ Backend + frontend + test xong (5/11, nhánh `feature/Nghia-uc51-cho-nghi-viec`, chưa merge) |
+| UC-52 | 📐 Đã làm rõ nghiệp vụ trong tài liệu, chưa code |
 | Nhánh hiện tại | `feature/Nghia-ma-nhan-vien` (từ `24d99ba`, integration #47; chưa push) |
 
 ### Quy tắc làm việc đã thống nhất
@@ -213,6 +214,20 @@ Mỗi cán bộ có tài khoản (trừ khách hàng) và mỗi tài xế có m�
 
 ---
 
+## 2D. Code UC-51 — Cho nghỉ việc nhân sự vận hành (làm 5/11, **chưa commit**)
+
+Kế hoạch: `KE_HOACH_UC51_CHO_NGHI_VIEC.md`. **Không có migration mới.**
+
+| File | Nội dung |
+|---|---|
+| `backend/app/repositories/nhan_su_van_hanh_repository.py` (file của người khác, **chỉ thêm cuối file**) | `bien_che_cua_nhan_su`, `xe_co_chuyen_chua_xong` (chuyến `dang_chay` / `gap_su_co`, theo `COALESCE(xe_thuc_te_id, xe_id)`), `xe_thieu_nguoi_neu_nghi` (2 tài xế + 1 phụ xe, biên chế cố định, chỉ xét chức danh người nghỉ), `cho_nghi_viec` (1 transaction: đóng hồ sơ, khóa tài khoản phụ xe, biên chế → `tam_nghi`; `FOR UPDATE`, kiểm tra lại; trả `ok` / `khong_tim_thay` / `da_nghi_viec` / `xe_dang_chay`) |
+| `backend/app/services/ho_so_nhan_su_service.py` | `xem_truoc_nghi_viec`, `cho_nghi_viec` (ngày không tương lai / không trước ngày vào làm, 1 dòng nhật ký `cho_nghi_viec`, thông báo `quan_ly` + `dieu_do_vien`) |
+| `backend/app/schemas/nhan_su_schema.py`, `routes/nhan_su.py` | `ChoNghiViecRequest` và các response; `GET .../ho-so/{id}/xem-truoc-nghi-viec`, `POST .../ho-so/{id}/nghi-viec` |
+| `backend/tests/unit/test_nghi_viec.py` | 37 test (schema, ngày, chặn, nhật ký đúng bảng, thông báo, logic thiếu người, transaction) |
+| `frontend/nhan-vien/quan-li-nhan-su/ho-so.html` | Nút "Cho nghỉ việc", hộp thoại xem trước + nhập ngày / lý do + màn kết quả |
+
+**Đã kiểm tra thật:** 27 ca trên DB thật trong một transaction rồi rollback (DB sạch); giao diện trên Edge với API giả. **Chưa:** bấm xác nhận từ trình duyệt qua backend thật nối liền.
+
 ## 3. File của người khác mà tôi **có sửa**
 
 | File | Sửa gì | Lý do / mức độ |
@@ -327,7 +342,7 @@ Chi tiết và 9 bước ở `KE_HOACH_UC37_KHOA_MO_KHOA_TAI_KHOAN.md`.
 2. **Commit, push, tạo PR mã nhân viên** vào `integration/gop-nhanh-thanh-vien` (không vào `main`).
 3. **Báo nhóm** (chưa báo việc nào trong `TAC_DONG_...`): bản tóm tắt ở mục 11 của file đó. Nhớ nhắc cả nhóm chạy `yoyo apply ./migrations` sau khi PR merge.
 4. **Test tay ca `quan_ly` gốc** của UC-37 (cần đặt tạm mật khẩu `admin@nhaxekhach.com` rồi khôi phục; hỏi trước khi làm) và ca phụ xe thiếu xe.
-5. **UC-51** (cho nghỉ việc) và **UC-52** (xem nhật ký; `quan_ly` xem cả hai bảng nhật ký, `nhat_ky_admin` đã có).
+5. ~~UC-51 (cho nghỉ việc)~~ — xong 5/11 (mục 2D); còn **UC-52** (xem nhật ký; `quan_ly` xem cả hai bảng nhật ký, `nhat_ky_admin` đã có).
 6. **Đổi văn phòng**: làm sau khi nhóm chốt 2 quy tắc ở `TAC_DONG_...` mục 7; sửa lại nhánh trong `NGHIEP_VU.md` nếu quy tắc đổi.
 7. **Sau cùng**: xóa chuỗi hàm `gan_van_phong_can_bo` (4 file) khi nhóm đồng ý và đổi văn phòng đã chạy được.
 8. Còn nợ: test tự động cho `ho_so_nhan_su_service.py`; cờ bắt buộc đổi mật khẩu lần đầu (cần cột mới ở bảng dùng chung); cảnh báo "tuyến hết điều độ viên" khi khóa điều độ viên (chờ bảng `dieu_do_vien_tuyen`).

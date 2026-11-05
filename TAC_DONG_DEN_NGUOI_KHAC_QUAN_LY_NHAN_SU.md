@@ -25,7 +25,8 @@ Ký hiệu trạng thái: ⏳ chưa báo · 📣 đã báo, chờ trả lời ·
 | 7 | **Đổi văn phòng** (chưa code) | Phần gửi hàng, Trưởng nhóm | Chốt 2 quy tắc: còn đơn dở có chặn không; lý do có bắt buộc không | UC-36 (nhánh kèm) | ❓ |
 | 8 | Thêm file dùng chung / điểm nối | Người sở hữu các file đó | Biết khi sửa lại các file này (mục 8) | UC-49/36/37, mã nhân viên | ✅ |
 | 9 | **25 test lỗi có sẵn** ở integration (không do mình; tính 5/11/2026, trước đó 7) | Người làm **vé lẻ / quầy vé / thanh toán VNPay** | Sửa test | — | ⏳ |
-| 10 | **Mã nhân viên**: migration thêm cột `ma` vào bảng dùng chung `nguoi_dung` và `nhan_su_van_hanh`; thêm hàm vào 2 file dùng chung | **Cả nhóm**; nhóm hiển thị tên nhân viên; chủ 3 script seed demo | Chạy `yoyo apply ./migrations` sau khi pull; tùy ý hiện `ma` cạnh tên; tài khoản demo do script tạo sẽ không có mã | Mã nhân viên | ⏳ (chưa commit) |
+| 10 | **Mã nhân viên**: migration thêm cột `ma` vào bảng dùng chung `nguoi_dung` và `nhan_su_van_hanh`; thêm hàm vào 2 file dùng chung | **Cả nhóm**; nhóm hiển thị tên nhân viên; chủ 3 script seed demo | Chạy `yoyo apply ./migrations` sau khi pull; tùy ý hiện `ma` cạnh tên; tài khoản demo do script tạo sẽ không có mã | Mã nhân viên | ⏳ (đã merge #50; chờ nhóm biết) |
+| 11 | **UC-51 cho nghỉ việc**: ghi `xe_nhan_su.trang_thai = 'tam_nghi'` (bảng của biên chế) và gửi thông báo cho `quan_ly` + `dieu_do_vien`; thêm hàm cuối `nhan_su_van_hanh_repository.py` | Người làm **biên chế / điều độ / sinh chuyến**; nhóm điều độ viên | Hiểu dòng `tam_nghi` của người đã nghỉ việc là cố ý (không tự đổi lại `dang_hoat_dong`); điều độ viên cần chỗ xem thông báo; không có migration mới | UC-51 | ⏳ (chưa merge) |
 
 ---
 
@@ -220,9 +221,21 @@ Cả bộ `tests/unit` trên integration (`24d99ba`, 5/11/2026) có **25 test l�
 **Ảnh hưởng tới người khác:**
 1. **Cả nhóm phải chạy lại migration** (`yoyo apply ./migrations`): migration `20261105_0900_ma_nhan_vien.sql` thêm cột `ma` vào `nguoi_dung` và `nhan_su_van_hanh`, tạo 8 sequence, điền mã cho dữ liệu cũ và tạo trigger / `CHECK` / chỉ mục duy nhất. Là **bảng dùng chung**, nhưng chỉ **thêm** cột (cho phép trống) nên mọi `INSERT` cũ vẫn chạy (đã thử `INSERT` không có mã).
 2. **Ai sửa tay cột `ma` của người đã có mã sẽ bị bỏ qua im lặng** (trigger `giu_ma_nhan_vien`), để mã không đổi. Người chưa có mã thì điền bù được.
-3. **Thêm vai trò mới vào `nguoi_dung.vai_tro`** thì phải thêm tiền tố / sequence và sửa `CHECK nguoi_dung_ma_hop_le` (nhánh `ELSE false` hiện từ chối mọi `INSERT` của vai trò chưa khai báo).
+3. **Thêm vai trò mới vào `nguoi_dung.vai_tro`** thì phải thêm tiền tố / sequence và sửa `CHECK nguoi_dung_ma_hop_le` (nhánh `ELSE ma IS NULL` hiện cho vai trò chưa khai báo vẫn `INSERT` được nhưng chưa có mã (đã sửa 5/11, trước đó là `ELSE false` từ chối mọi `INSERT`)).
 4. **3 script seed demo** (`seed_gui_hang_demo.py`, `seed_nhan_vien_quay_ve_demo.py`, `seed_phu_xe_demo.py`) chèn thẳng `nguoi_dung` nên tài khoản demo **mới** do chúng tạo sẽ không có mã (tài khoản đã có được migration điền mã). Chỉ ảnh hưởng DB local. Muốn có mã thì gọi `ma_repository.cap_ma_nhan_vien(cur, vai_tro)`.
 5. **Hiển thị:** mình chỉ cung cấp `ma` ở API của phần nhân sự. Các màn hình khác (đơn gửi hàng, vé quầy, phụ xe, điều độ viên, chọn nhân sự để gán biên chế UC-35) đang chỉ có họ tên (`nhan_vien_ban`, `ten_nhan_vien_huy`, `ten_nguoi_thuc_hien`...): nhóm đó tự quyết định có hiện thêm mã không.
+
+---
+
+## 10A. UC-51 cho nghỉ việc (việc #11)
+
+**Mình làm gì:** cho tài xế / phụ xe nghỉ việc: đóng hồ sơ (không xóa), khóa tài khoản nếu là phụ xe, chuyển mọi dòng biên chế của người đó sang `tam_nghi`, báo `quan_ly` + `dieu_do_vien` xe nào thiếu người (2 tài xế + 1 phụ xe cố định). Kế hoạch: `KE_HOACH_UC51_CHO_NGHI_VIEC.md`.
+
+**Ảnh hưởng tới người khác:**
+1. **Không có migration mới**, không sửa hàm cũ của ai; chỉ **thêm 4 hàm** cuối `nhan_su_van_hanh_repository.py` (file của người làm biên chế).
+2. **Ghi vào bảng biên chế:** `xe_nhan_su.trang_thai` của người nghỉ → `tam_nghi`. Dòng **không bị xóa** và biên chế cố định **không tự gỡ** (việc của `quan_ly`, UC-35). Phần sinh chuyến / gán nhân sự cần coi `tam_nghi` là "người này không còn làm"; đừng tự đổi lại `dang_hoat_dong`.
+3. **Chặn cả chuyến `gap_su_co`** (spec cũ chỉ ghi `dang_chay`), tính theo xe thực tế (`xe_thuc_te_id` nếu chuyến đã đổi xe). Ai đổi quy ước trạng thái chuyến thì cần nhớ chỗ này.
+4. **Thông báo** gửi cho `quan_ly` + `dieu_do_vien`: điều độ viên cần có chỗ xem thông báo (giống UC-37).
 
 ---
 
@@ -237,3 +250,4 @@ Cả bộ `tests/unit` trên integration (`24d99ba`, 5/11/2026) có **25 test l�
 > 6. **Cần chốt (đổi văn phòng):** (a) còn đơn đang xử lý thì có chặn không; (b) lý do đổi có bắt buộc không.
 > 7. **Vé lẻ / quầy vé / thanh toán:** 25 test lỗi có sẵn ở `test_vnpay.py`, `test_thong_bao_khach.py`, `test_ve_le.py`, `test_vnpay_truy_van.py`, `test_quay_ve_khach_hang_theo_sdt.py` (đa số `KeyError: 'kenh_ban'`), không do phần mình.
 > 8. **Mã nhân viên** (`PX0001`, `DDV0001`, `TX0001`...): cột mới `ma` ở `nguoi_dung` / `nhan_su_van_hanh`, hiện ở màn hình nhân sự. Script seed demo tạo tài khoản mới sẽ không có mã. Các nhóm khác tự quyết định có hiện mã cạnh tên nhân viên không. Chi tiết `TAC_DONG_DEN_NGUOI_KHAC_QUAN_LY_NHAN_SU.md` mục 10.
+> 9. **UC-51 cho nghỉ việc** (khi PR merge): người nghỉ bị chuyển `xe_nhan_su` sang `tam_nghi` (không xóa, không tự gỡ biên chế cố định), báo `quan_ly` + `dieu_do_vien` xe nào thiếu người; chặn nếu xe đang `dang_chay` hoặc `gap_su_co`. Không có migration mới. Chi tiết mục 10A.

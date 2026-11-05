@@ -2,7 +2,7 @@
 
 > **Cập nhật 23/10/2026 — UC-36 bỏ cơ chế mời bằng OTP.** Email cán bộ do công ty cấp nên không cần xác minh. Khi tạo, tài khoản có mật khẩu ban đầu mặc định `12345678` (lưu bản băm; response trả `mat_khau_ban_dau` để nhắc người tạo) và **không gửi email**; cán bộ đổi mật khẩu sau khi đăng nhập. OTP chỉ dùng khi quên mật khẩu. Mọi chỗ bên dưới nhắc "mời/OTP/`da_gui_email`/mail lỗi" cho UC-36 là **bản cũ**; bản đúng ở `NGHIEP_VU.md` UC-36 và `KE_HOACH_UC36_TAO_TAI_KHOAN_CAN_BO.md` mục 2.4. Giữ lại `da_xac_nhan = true` lúc tạo (`dang_nhap` chặn mọi tài khoản chưa xác nhận).
 
-> **Cập nhật 5/11/2026 — trạng thái hiện tại:** UC-49, UC-36 và UC-37 đã làm xong (backend + frontend) và đã merge vào `integration/gop-nhanh-thanh-vien` (#36, #38, #44). **Mã nhân viên** (tiền tố theo vai trò + số tự tăng, mục 13) đã làm xong backend + frontend, **chưa commit**. UC-51, UC-52 và nhánh "đổi văn phòng" **chưa code**. Các mục viết theo thiết kế ngày 21–22/10 bên dưới (mục 11, 11.1) là bản thiết kế ban đầu; chỗ nào khác với code đã ghi chú ngay tại đó.
+> **Cập nhật 5/11/2026 — trạng thái hiện tại:** UC-49, UC-36 và UC-37 đã làm xong (backend + frontend) và đã merge vào `integration/gop-nhanh-thanh-vien` (#36, #38, #44). **UC-51 (cho nghỉ việc) đã làm xong backend + frontend + test (nhánh `feature/Nghia-uc51-cho-nghi-viec`, chưa merge, 5/11/2026).** **Mã nhân viên** (tiền tố theo vai trò + số tự tăng, mục 13) đã làm xong backend + frontend, **chưa commit**. UC-51, UC-52 và nhánh "đổi văn phòng" **chưa code**. Các mục viết theo thiết kế ngày 21–22/10 bên dưới (mục 11, 11.1) là bản thiết kế ban đầu; chỗ nào khác với code đã ghi chú ngay tại đó.
 
 > **File này không phải tài liệu gốc.** Nó **gom 1 chỗ** mọi thứ liên quan tới `quan_ly_nhan_su` trong `NGHIEP_VU.md`, `UML_DIAGRAMS.md`, `DATABASE.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md` (nhánh `integration/gop-nhanh-thanh-vien`) để đọc cho nhanh. Nếu lệch, **file gốc luôn đúng hơn**.
 >
@@ -17,7 +17,7 @@
 | **Use case liên quan** | UC-36, UC-37 (gộp UC-38 cũ), UC-39, UC-49 (gộp UC-50 cũ), UC-51, UC-52 |
 | **Actor** | Quản lý nhân sự, và Quản lý (làm được mọi UC trên, trừ UC-52 khác phạm vi 1 chút) |
 | **Trạng thái tài liệu** | ✅ Đã chốt chính thức; các chỗ làm rõ UC-36/37/51/52 đã ghi vào `NGHIEP_VU.md`/`UML_DIAGRAMS.md` (mục 11.1) |
-| **Trạng thái code** | ✅ UC-49, UC-36, UC-37 đã xong (backend + frontend, đã merge); mã nhân viên xong, chưa commit. ❌ UC-51, UC-52 và đổi văn phòng **chưa có**. Test tự động: UC-36/37 và mã nhân viên có; UC-49 mới có test cho phần mã |
+| **Trạng thái code** | ✅ UC-49, UC-36, UC-37 đã xong (backend + frontend, đã merge); mã nhân viên xong, chưa commit. ✅ UC-51 xong (5/11, chưa merge). ❌ UC-52 và đổi văn phòng **chưa có**. Test tự động: UC-36/37 và mã nhân viên có; UC-49 mới có test cho phần mã |
 | **Bảng DB liên quan** | `nhan_su_van_hanh` (mở rộng, thêm `ma`), `giay_to_nhan_su`, `nhat_ky_quan_ly_nhan_su`, `nhat_ky_admin` (mới, nhật ký của `quan_ly`), `nguoi_dung` (thêm `ma`) — đều đã có migration |
 | **Quyết định kiến trúc đi kèm** | Dùng lại **Cloudinary** để lưu ảnh hồ sơ/giấy tờ (mục 9) |
 
@@ -155,7 +155,8 @@ Cột theo thứ tự: khách hàng · phụ xe · tài xế · quầy vé · g�
   6. Ghi nhật ký thao tác (UC-52).
 - **Luồng rẽ nhánh**:
   - Hồ sơ đã `da_nghi_viec` → chặn.
-  - Xe mà người này thuộc biên chế đang có chuyến `dang_chay` → chặn, báo "chờ chuyến kết thúc rồi thực hiện lại" → kết thúc.
+  - Xe mà người này thuộc biên chế đang có chuyến `dang_chay` **hoặc `gap_su_co`** (tính theo xe thực tế đang chạy) → chặn, báo "chờ chuyến kết thúc / xử lý xong sự cố rồi thực hiện lại" → kết thúc.
+  - "Thiếu người" chỉ xét chức danh của chính người nghỉ (tài xế nghỉ → thiếu tài xế; phụ xe nghỉ → thiếu phụ xe).
   - Người này không thuộc biên chế xe nào → bỏ qua bước 2 và 5, chuyển thẳng sang bước 4.
   - Hệ thống **không xóa cứng** hồ sơ và **không tự gỡ** dòng biên chế cố định — việc gỡ hẳn và biên chế người mới thuộc `quan_ly` (UC-35).
 - **Hậu điều kiện**: Hồ sơ `da_nghi_viec` (giữ lịch sử); tài khoản phụ xe (nếu có) không đăng nhập được; các xe bị ảnh hưởng đã được báo cho `quan_ly` và điều độ viên.

@@ -868,8 +868,8 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
   6. Ghi nhật ký thao tác (UC-52).
 - **Luồng rẽ nhánh**:
   - Tại bước 1: hồ sơ đã `da_nghi_viec` rồi → chặn, báo "hồ sơ này đã nghỉ việc" → kết thúc.
-  - Tại bước 1: xe mà người này thuộc biên chế đang có chuyến `dang_chay` → chặn, báo "chờ chuyến kết thúc rồi thực hiện lại" → kết thúc.
-  - Tại bước 2: xe chỉ bị coi là **thiếu người** khi biên chế **cố định** đang hoạt động của xe, không tính người này, còn dưới 2 tài xế hoặc không còn phụ xe nào. Dòng biên chế tạm thời của người này vẫn chuyển sang `tam_nghi` nhưng không tạo cảnh báo thiếu người.
+  - Tại bước 1: xe mà người này thuộc biên chế đang có chuyến `dang_chay` **hoặc `gap_su_co`** → chặn, báo "chờ chuyến kết thúc / xử lý xong sự cố rồi thực hiện lại" → kết thúc. (Chuyến `gap_su_co` vẫn có thể quay lại `dang_chay` và xe vẫn ở ngoài đường nên cũng chặn — chốt 5/11/2026.) "Xe của chuyến" là xe **thực tế** đang chạy (`xe_thuc_te_id` nếu đã đổi xe, ngược lại `xe_id`): người của xe thay thế bị chặn, người của xe gốc đã được thay thì không.
+  - Tại bước 2: xe chỉ bị coi là **thiếu người** khi biên chế **cố định** đang hoạt động của xe, không tính người này, còn dưới 2 tài xế hoặc không còn phụ xe nào. Chỉ xét **chức danh của chính người nghỉ** (tài xế nghỉ → xét thiếu tài xế; phụ xe nghỉ → xét thiếu phụ xe) để không nhắc lại chỗ vốn đã thiếu từ trước. Phụ xe chỉ được tính khi hồ sơ còn `dang_lam` và tài khoản còn hoạt động. Dòng biên chế tạm thời của người này vẫn chuyển sang `tam_nghi` nhưng không tạo cảnh báo thiếu người.
   - Tại bước 2: người này không thuộc biên chế xe nào → bỏ qua bước 2 và bước 5, chuyển thẳng sang bước 4 (không khóa thêm gì nếu là tài xế).
   - Hệ thống **không xóa cứng** hồ sơ và **không tự gỡ** dòng biên chế cố định — việc gỡ hẳn và biên chế người mới thuộc `quan_ly` (UC-35, mục 8.7), giữ đúng ranh giới ở mục 8.9.
 - **Hậu điều kiện**: Hồ sơ `da_nghi_viec` (giữ lịch sử); tài khoản phụ xe (nếu có) không đăng nhập được; các xe bị ảnh hưởng đã được báo cho `quan_ly` và điều độ viên.
