@@ -130,6 +130,85 @@ function veBieuDoCot(container, cauHinh, rong) {
   container.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" class="chart-svg-wrap" role="img">${luoi}${nhom}${duongVe}</svg>`;
 }
 
+/**
+ * Biểu đồ tròn dạng vành khuyên + chú thích bên cạnh.
+ * cauHinh = { phan: [{ten, lop, giaTri, phu}], giua, chuTrong } — `lop` tô cả phần vành lẫn ô màu chú thích.
+ */
+function veBieuDoTron(container, cauHinh, rong) {
+  if (!container) return;
+  const W = rong || container.clientWidth;
+  if (!W) return;
+  container.dataset.rongDaVe = rong ? "" : String(W);
+  const phan = cauHinh.phan.filter(p => Number(p.giaTri) > 0);
+  const tong = phan.reduce((s, p) => s + Number(p.giaTri), 0);
+  if (!tong) {
+    khungTrong(container, cauHinh.chuTrong);
+    return;
+  }
+  const S = Math.min(200, Math.max(150, W * 0.42));
+  const c = S / 2, R = S / 2 - 4, r = R * 0.62;
+  const diem = (ban, goc) => `${(c + ban * Math.cos(goc)).toFixed(2)},${(c + ban * Math.sin(goc)).toFixed(2)}`;
+  let goc = -Math.PI / 2;
+  const vanh = phan.length === 1
+    ? `<circle cx="${c}" cy="${c}" r="${(R + r) / 2}" stroke-width="${R - r}" style="fill:none" class="chart-vanh ${phan[0].lop}"><title>${escapeHtml(phan[0].ten)}: 100%</title></circle>`
+    : phan.map(p => {
+      const goc2 = goc + (Number(p.giaTri) / tong) * 2 * Math.PI;
+      const lon = goc2 - goc > Math.PI ? 1 : 0;
+      const d = `M${diem(R, goc)} A${R},${R} 0 ${lon} 1 ${diem(R, goc2)} L${diem(r, goc2)} A${r},${r} 0 ${lon} 0 ${diem(r, goc)} Z`;
+      goc = goc2;
+      return `<path d="${d}" class="chart-vanh ${p.lop}"><title>${escapeHtml(p.ten)}: ${escapeHtml(p.phu)}</title></path>`;
+    }).join("");
+  const chuThich = cauHinh.phan.map(p => `<li>
+      <span class="legend-color-box chart-mau ${p.lop}"></span>
+      <span class="chart-tron__ten">${escapeHtml(p.ten)}</span>
+      <span class="chart-tron__phu">${escapeHtml(p.phu)}</span>
+    </li>`).join("");
+  container.innerHTML = `<div class="chart-tron">
+      <svg width="${S}" height="${S}" viewBox="0 0 ${S} ${S}" class="chart-svg-wrap" role="img">${vanh}
+        <text x="${c}" y="${c - 4}" text-anchor="middle" class="chart-tron__giua-nhan">Tổng thu</text>
+        <text x="${c}" y="${c + 16}" text-anchor="middle" class="chart-tron__giua">${escapeHtml(cauHinh.giua)}</text>
+      </svg>
+      <ul class="chart-tron__chu-thich">${chuThich}</ul>
+    </div>`;
+}
+
+/**
+ * Cột ngang theo tên (vd tiền mặt theo nhân viên). Giá trị âm vẽ sang trái trục 0, màu riêng.
+ * cauHinh = { hang: [{ten, giaTri}], dinhDang(n), chuTrong }
+ */
+function veBieuDoNgang(container, cauHinh, rong) {
+  if (!container) return;
+  const W = rong || container.clientWidth;
+  if (!W) return;
+  container.dataset.rongDaVe = rong ? "" : String(W);
+  const { hang, dinhDang } = cauHinh;
+  if (!hang.length) {
+    khungTrong(container, cauHinh.chuTrong);
+    return;
+  }
+  const DONG = 30, T = 6;
+  const rongTen = Math.min(150, Math.round(W * 0.3)), rongSo = 96;
+  const x0 = rongTen, x1 = W - rongSo;
+  const lon = Math.max(0, ...hang.map(h => Number(h.giaTri))), nho = Math.min(0, ...hang.map(h => Number(h.giaTri)));
+  const mien = lon - nho || 1;
+  const x = v => x0 + (x1 - x0) * (v - nho) / mien;
+  const H = T * 2 + hang.length * DONG;
+  const catTen = s => (s.length > 18 ? `${s.slice(0, 17)}…` : s);
+  const dong = hang.map((h, i) => {
+    const v = Number(h.giaTri) || 0;
+    const y = T + i * DONG;
+    const a = x(Math.min(v, 0)), b = x(Math.max(v, 0));
+    return `<g>
+        <title>${escapeHtml(h.ten)}: ${escapeHtml(dinhDang(v))}</title>
+        <text x="${x0 - 8}" y="${y + DONG / 2 + 4}" text-anchor="end" class="chart-ngay">${escapeHtml(catTen(h.ten))}</text>
+        ${b - a >= 0.5 ? `<rect x="${a}" y="${y + 6}" width="${b - a}" height="${DONG - 12}" rx="4" class="chart-cot ${v < 0 ? "chart-cot--am" : "chart-cot--nhan-vien"}"/>` : ""}
+        <text x="${W - 4}" y="${y + DONG / 2 + 4}" text-anchor="end" class="chart-so">${escapeHtml(dinhDang(v))}</text>
+      </g>`;
+  }).join("");
+  const truc0 = nho < 0 ? `<line x1="${x(0)}" y1="${T}" x2="${x(0)}" y2="${H - T}" class="chart-grid chart-grid--goc"/>` : "";
+  container.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" class="chart-svg-wrap" role="img">${dong}${truc0}</svg>`;
+}
+
 /** Khung đổi rộng (xoay máy, thu nhỏ cửa sổ, thanh bên thu gọn) thì vẽ lại — chỉ khi chiều rộng thật sự đổi. */
 function theoDoiKichThuoc(container, ve) {
   if (!container || container.dataset.theoDoi || !window.ResizeObserver) return;

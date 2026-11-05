@@ -409,8 +409,8 @@
             </div>
           </div>
 
-          <div class="dashboard-chart-grid">
-            <div class="card-panel chart-panel">
+          <div class="tk-bieu-do-luoi">
+            <div class="card-panel chart-panel tk-bieu-do--rong">
               <div class="chart-header">
                 <div>
                   <h3 class="panel-title">📈 Sản lượng — <span id="tkNhanKyBieuDo"></span></h3>
@@ -424,7 +424,42 @@
               </div>
             </div>
 
-            <div class="card-panel">
+            <div class="card-panel chart-panel tk-bieu-do--rong">
+              <div class="chart-header">
+                <div>
+                  <h3 class="panel-title">💵 Tiền mặt theo thời gian</h3>
+                  <p class="card-desc">Cước thu tại quầy theo từng mốc; đường "Còn lại" đã trừ tiền hoàn khi hủy đơn (có thể âm).</p>
+                </div>
+              </div>
+              <div class="column-chart-container" id="bdTienMat"></div>
+              <div class="chart-legend-wrap">
+                <div class="legend-item"><span class="legend-color-box chart-mau chart-cot--tra-truoc"></span><span class="legend-text">Trả trước</span></div>
+                <div class="legend-item"><span class="legend-color-box chart-mau chart-cot--thu-khi-giao"></span><span class="legend-text">Thu khi giao</span></div>
+                <div class="legend-item"><span class="legend-line chart-duong--con-lai"></span><span class="legend-text">Còn lại (đã trừ hoàn)</span></div>
+              </div>
+            </div>
+
+            <div class="card-panel chart-panel">
+              <div class="chart-header">
+                <div>
+                  <h3 class="panel-title">🥧 Cách trả cước</h3>
+                  <p class="card-desc">Tỉ lệ tiền cước người gửi trả trước và người nhận trả khi lấy hàng.</p>
+                </div>
+              </div>
+              <div class="column-chart-container" id="bdCoCauTien"></div>
+            </div>
+
+            <div class="card-panel chart-panel">
+              <div class="chart-header">
+                <div>
+                  <h3 class="panel-title">👤 Tiền mặt theo nhân viên</h3>
+                  <p class="card-desc">Tiền còn trong két của từng người (đã thu − đã hoàn) trong kỳ.</p>
+                </div>
+              </div>
+              <div class="column-chart-container" id="bdTienNhanVien"></div>
+            </div>
+
+            <div class="card-panel tk-bieu-do--rong">
               <div class="chart-header">
                 <div>
                   <h3 class="panel-title">🧾 Đối soát tiền mặt theo nhân viên</h3>

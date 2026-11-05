@@ -143,8 +143,22 @@ function renderThongKe() {
   else showToast("error", "Lỗi tải thống kê", s.loi.tk);
   if (s.doiSoat) renderDoiSoat(s.doiSoat);
   else hienTrangThaiBang("tbodyDoiSoat", 5, `Không tải được đối soát: ${s.loi.doiSoat}`);
-  veBieuDoSanLuong();
-  theoDoiKichThuoc($("bdSanLuong"), veBieuDoSanLuong);
+  veTatCaBieuDo();
+}
+
+/** Các biểu đồ của tab: [id khung, hàm vẽ(rong?, container?)] — bản in dùng lại đúng danh sách này. */
+const BIEU_DO_THONG_KE = [
+  ["bdSanLuong", (...a) => veBieuDoSanLuong(...a)],
+  ["bdTienMat", (...a) => veBieuDoTienMat(...a)],
+  ["bdCoCauTien", (...a) => veBieuDoCoCau(...a)],
+  ["bdTienNhanVien", (...a) => veBieuDoTienNhanVien(...a)],
+];
+
+function veTatCaBieuDo() {
+  BIEU_DO_THONG_KE.forEach(([id, ve]) => {
+    ve();
+    theoDoiKichThuoc($(id), () => ve());
+  });
 }
 
 function renderSoLieu(tk) {
@@ -194,6 +208,72 @@ function veBieuDoSanLuong(rong, container = $("bdSanLuong")) {
     dinhDangTruc: v => String(v),
     tieuDeMoc: i => `${nhanMocDayDu(c.moc[i], c.donVi)}: tiếp nhận ${c.chuoi[i].tiep_nhan}, đã giao ${c.chuoi[i].da_giao}`,
     chuTrong: "Chưa có đơn nào trong kỳ",
+  }, typeof rong === "number" ? rong : undefined);
+}
+
+function veBieuDoTienMat(rong, container = $("bdTienMat")) {
+  const s = state.thongKe;
+  if (!s || !container) return;
+  const c = cauHinhMoc();
+  if (!c) { khungTrong(container, `Không tải được biểu đồ: ${s.loi.chuoi}`); return; }
+  veBieuDoCot(container, {
+    nhan: c.nhan, moc: c.moc, soMocDaQua: c.soMocDaQua, chong: true,
+    cot: [
+      { ten: "Trả trước", lop: "chart-cot--tra-truoc", giaTri: c.chuoi.map(x => x.tien_tra_truoc) },
+      { ten: "Thu khi giao", lop: "chart-cot--thu-khi-giao", giaTri: c.chuoi.map(x => x.tien_cod) },
+    ],
+    duong: { ten: "Còn lại", lop: "chart-duong--con-lai", giaTri: c.chuoi.map(x => x.doanh_thu) },
+    dinhDangTruc: rutGonTien,
+    tieuDeMoc: i => {
+      const x = c.chuoi[i];
+      return `${nhanMocDayDu(x.moc, c.donVi)}: trả trước ${dinhDangTien(x.tien_tra_truoc)}, thu khi giao ${dinhDangTien(x.tien_cod)}, `
+        + `hoàn ${dinhDangTien(x.tien_hoan)}, còn lại ${dinhDangTien(x.doanh_thu)}`;
+    },
+    chuTrong: "Chưa có khoản thu / hoàn nào trong kỳ",
+  }, typeof rong === "number" ? rong : undefined);
+}
+
+function veBieuDoCoCau(rong, container = $("bdCoCauTien")) {
+  const s = state.thongKe;
+  if (!s || !container) return;
+  if (!s.tk) { khungTrong(container, `Không tải được biểu đồ: ${s.loi.tk}`); return; }
+  const traTruoc = Number(s.tk.tien_cuoc_gui_tra_truoc) || 0, cod = Number(s.tk.tien_cod_da_thu) || 0;
+  const tong = traTruoc + cod;
+  const nv = s.doiSoat?.nhan_vien || [];
+  const soDon = k => nv.reduce((t, x) => t + (Number(x[k]) || 0), 0);
+  const phu = (tien, k) => `${dinhDangTien(tien)} · ${tong ? Math.round((tien / tong) * 100) : 0}%`
+    + (s.doiSoat ? ` · ${soDon(k)} đơn` : "");
+  veBieuDoTron(container, {
+    phan: [
+      { ten: "Người gửi trả trước", lop: "chart-mau--tra-truoc", giaTri: traTruoc, phu: phu(traTruoc, "so_don_tra_truoc") },
+      { ten: "Người nhận trả (thu khi giao)", lop: "chart-mau--thu-khi-giao", giaTri: cod, phu: phu(cod, "so_don_cod") },
+    ],
+    giua: rutGonTien(tong),
+    chuTrong: "Chưa có khoản thu trong kỳ",
+  }, typeof rong === "number" ? rong : undefined);
+}
+
+const SO_NHAN_VIEN_BIEU_DO_TOI_DA = 10;
+
+/** Hàng của biểu đồ tiền theo nhân viên: giảm dần; quá 10 người thì 9 người đầu + "Khác (n người)". */
+function hangTienNhanVien(doiSoat) {
+  const hang = doiSoat.nhan_vien
+    .map(nv => ({ ten: nv.ho_ten || "(không rõ)", giaTri: Number(nv.tong_tien) || 0 }))
+    .sort((a, b) => b.giaTri - a.giaTri);
+  if (hang.length <= SO_NHAN_VIEN_BIEU_DO_TOI_DA) return hang;
+  const con = hang.slice(SO_NHAN_VIEN_BIEU_DO_TOI_DA - 1);
+  return [...hang.slice(0, SO_NHAN_VIEN_BIEU_DO_TOI_DA - 1),
+    { ten: `Khác (${con.length} người)`, giaTri: con.reduce((t, h) => t + h.giaTri, 0) }];
+}
+
+function veBieuDoTienNhanVien(rong, container = $("bdTienNhanVien")) {
+  const s = state.thongKe;
+  if (!s || !container) return;
+  if (!s.doiSoat) { khungTrong(container, `Không tải được biểu đồ: ${s.loi.doiSoat}`); return; }
+  veBieuDoNgang(container, {
+    hang: hangTienNhanVien(s.doiSoat),
+    dinhDang: dinhDangTien,
+    chuTrong: "Không có khoản thu / hoàn nào trong kỳ",
   }, typeof rong === "number" ? rong : undefined);
 }
 
