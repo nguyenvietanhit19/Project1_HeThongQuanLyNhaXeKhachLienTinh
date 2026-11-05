@@ -384,7 +384,7 @@ def test_xac_nhan_do_hang_chan_phu_xe_khong_thuoc_chuyen():
         mock_do.assert_not_called()
 
 
-def test_bao_that_lac_phu_xe():
+def test_bao_su_co_hang_phu_xe():
     don_id = str(uuid4())
     phu_xe_id = str(uuid4())
     diem_gui_id = str(uuid4())
@@ -401,7 +401,7 @@ def test_bao_that_lac_phu_xe():
         }
         mock_luu.return_value = {"id": str(uuid4()), "don_hang_id": don_id, "mo_ta": "Thùng hàng bị rách"}
 
-        res = gui_hang_service.bao_that_lac(don_id, "Thùng hàng bị rách", phu_xe_id)
+        res = gui_hang_service.bao_su_co_hang(don_id, "Thùng hàng bị rách", phu_xe_id)
 
         assert res["don_hang_id"] == don_id
         assert res["mo_ta"] == "Thùng hàng bị rách"
@@ -410,7 +410,7 @@ def test_bao_that_lac_phu_xe():
         assert {c.args[0] for c in mock_thong_bao.call_args_list} == {"nv-gui", "ql-1"}
 
 
-def test_bao_that_lac_chan_phu_xe_khong_thuoc_chuyen_cua_don():
+def test_bao_su_co_hang_chan_phu_xe_khong_thuoc_chuyen_cua_don():
     don_id = str(uuid4())
     with patch("app.repositories.don_hang_repository.tim_theo_id") as mock_tim, \
          patch("app.services.gui_hang_service.lay_chuyen_cua_phu_xe",
@@ -418,7 +418,7 @@ def test_bao_that_lac_chan_phu_xe_khong_thuoc_chuyen_cua_don():
          patch("app.repositories.don_hang_repository.luu_bao_cao_su_co_hang") as mock_luu:
         mock_tim.return_value = {"id": don_id, "ma_van_don": "DH-03", "chuyen_id": str(uuid4())}
         with pytest.raises(KhongDuQuyen):
-            gui_hang_service.bao_that_lac(don_id, "Mất 1 kiện", "phu-xe-khac")
+            gui_hang_service.bao_su_co_hang(don_id, "Mất 1 kiện", "phu-xe-khac")
         mock_luu.assert_not_called()
 
 

@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Chuyến đang chạy — Phụ xe</title>
 <link rel="stylesheet" href="/shared/design-tokens.css?v=2" />
-<link rel="stylesheet" href="phu-xe.css?v=21" />
-<link rel="stylesheet" href="phu-xe-pro.css?v=16" />
+<link rel="stylesheet" href="phu-xe.css?v=30" />
+<link rel="stylesheet" href="phu-xe-pro.css?v=17" />
 <link rel="manifest" href="manifest.webmanifest" />
 <script src="phu-xe-theme.js?v=1"></script>
 </head>
@@ -163,11 +163,11 @@
   <script src="/shared/api-client.js"></script>
   <script src="phu-xe-pro.js?v=5"></script>
   <script src="../shared/auth-check.js"></script>
-  <script src="tai-khoan-menu.js?v=6"></script>
+  <script src="tai-khoan-menu.js?v=7"></script>
   <script src="/shared/so-dien-thoai.js"></script>
   <script src="phu-xe-cai-dat.js?v=2"></script>
   <script src="thong-bao.js?v=4"></script>
-  <script src="khach-chi-tiet.js?v=4"></script>
+  <script src="khach-chi-tiet.js?v=5"></script>
   <script src="hang-chi-tiet.js?v=6"></script>
   <script>
     requireRole("phu_xe");
@@ -263,13 +263,6 @@
       return apiPost(`/phu-xe/chuyen/${chuyenId}/ve/${veId}/xuong-xe`, {});
     }
 
-    // Hàng loạt: báo kết quả bằng thông báo nổi (hienLoi dùng chung cho cả thông báo thường)
-    async function hangLoat(duongDan) {
-      const kq = await apiPost(`/phu-xe/chuyen/${chuyenId}/${duongDan}`, {});
-      if (kq.loi && kq.loi.length) hienLoi(`Xong ${kq.so_luong} đơn. Không xử lý được: ${kq.loi.join("; ")}`);
-      else hienLoi(kq.thong_bao || `Đã xử lý ${kq.so_luong}`);
-    }
-
     function hoanTacLenXe(veId) {
       return apiPost(`/phu-xe/chuyen/${chuyenId}/ve/${veId}/hoan-tac-len-xe`, {});
     }
@@ -333,11 +326,6 @@
       e.preventDefault();
       window.moChiTietHang(lienKet.dataset.xemHang, chuyenId);
     });
-
-    function baoThatLac(nut) {
-      const { id, ma } = nut.dataset;
-      window.location.href = `bao-that-lac.html?don_hang_id=${encodeURIComponent(id)}&ma_van_don=${encodeURIComponent(ma)}&chuyen_id=${encodeURIComponent(chuyenId)}`;
-    }
 
     // ---------- Hành khách theo điểm (UC-12 lên xe, UC-13 xuống xe) ----------
     // Nhãn trạng thái theo từng phía: cùng 1 vé, ở điểm đón là "chờ lên / đã lên", ở điểm trả là "chờ xuống / đã xuống".
@@ -791,6 +779,13 @@
       if (phut < 24 * 60) return `${Math.floor(phut / 60)} giờ trước`;
       return `${Math.floor(phut / (24 * 60))} ngày trước`;
     }
+    // Thời gian dài thì đổi sang giờ/ngày cho dễ đọc (vd 18724 phút → 13 ngày 1 giờ)
+    function chuoiPhut(phut) {
+      if (phut < 60) return `${phut} phút`;
+      if (phut < 24 * 60) return `${Math.floor(phut / 60)} giờ${phut % 60 ? ` ${phut % 60} phút` : ""}`;
+      const ngay = Math.floor(phut / (24 * 60)), gio = Math.floor((phut % (24 * 60)) / 60);
+      return `${ngay} ngày${gio ? ` ${gio} giờ` : ""}`;
+    }
     const gioCho = (d) => (d.ngay_tao ? (Date.now() - new Date(d.ngay_tao).getTime()) / 3600000 : 0);
     const coSuCo = (d) => (d.so_bao_that_lac || 0) + (d.so_bao_hu_hong || 0) > 0;
     const thuTuDen = (d) => (thuTuDiem.has(d.diem_nhan_id) ? thuTuDiem.get(d.diem_nhan_id) : 1e9);
@@ -843,7 +838,8 @@
         return;
       }
       const ds = sapHang(khoa, kho);
-      vung.innerHTML = (kho.length > 1 ? veThanhLoc(khoa, kho.length) : "") +
+      const dangLoc = locHang[khoa].lau || locHang[khoa].suco;   // còn bộ lọc bật thì vẫn giữ thanh lọc để tắt được
+      vung.innerHTML = (kho.length > 1 || dangLoc ? veThanhLoc(khoa, kho.length) : "") +
         (ds.length
           ? `<div class="hang-luoi">${ds.map((d) => veOHang(khoa, d)).join("")}</div>`
           : '<p class="empty-state">Không có đơn nào khớp bộ lọc.</p>');
@@ -891,7 +887,7 @@
 
     // 2 phần của màn thao tác (chọn từ menu ☰): "khach" = hành trình chuyến xe, chỉ thao tác với khách;
     // "hang" = hàng hóa chuyến này, chỉ thao tác với hàng. Ẩn/hiện khối theo [data-phan] ở phu-xe.css.
-    const PHAN = new URLSearchParams(location.search).get("phan") === "hang" ? "hang" : "khach";
+    let PHAN = new URLSearchParams(location.search).get("phan") === "hang" ? "hang" : "khach";
     document.body.dataset.phan = PHAN;
     // Ô tìm riêng của thẻ "Hàng đang trên xe"
     function locTrenXe() {
@@ -909,6 +905,56 @@
       }
     }
     document.getElementById("o-tim-tren-xe").addEventListener("input", locTrenXe);
+
+    // Chuyển Khách ⇄ Hàng ngay tại trang (không tải lại): đổi ?phan= trên thanh địa chỉ, đánh dấu lại menu ☰,
+    // trượt nội dung vào từ phía đối diện rồi vẽ lại theo phần mới.
+    function chuyenPhan(dich) {
+      if (dich === PHAN) return;
+      const huong = dich === "hang" ? "px-vao-phai" : "px-vao-trai";   // Khách → Hàng: vào từ phải
+      PHAN = dich;
+      document.body.dataset.phan = dich;
+      const q = new URLSearchParams(location.search);
+      q.set("phan", dich);
+      history.replaceState(null, "", `${location.pathname}?${q.toString()}`);
+      document.querySelectorAll(".tk-menu__muc--con").forEach((a) => {
+        const dang = a.getAttribute("href").includes("chuyen-dang-chay.html") && a.getAttribute("href").includes("phan=hang") === (dich === "hang");
+        a.classList.toggle("tk-menu__muc--dang-chon", dang);
+        if (dang) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+      });
+      const vung = document.getElementById("bo-cuc");
+      vung.classList.remove("px-vao-phai", "px-vao-trai");
+      void vung.offsetWidth;
+      vung.classList.add(huong);
+      window.scrollTo({ top: 0 });
+      taiDuLieu().catch(() => {});
+    }
+
+    // Vuốt ngang: trái = sang Hàng, phải = về Khách.
+    (function () {
+      document.body.style.touchAction = "pan-y";   // giữ cuộn dọc, giao cử chỉ ngang cho trang
+      let bd = null;
+      const trongKhungCuonNgang = (el) => {
+        for (; el && el !== document.body; el = el.parentElement) {
+          const ox = getComputedStyle(el).overflowX;
+          if ((ox === "auto" || ox === "scroll") && el.scrollWidth > el.clientWidth + 1) return true;
+        }
+        return false;
+      };
+      document.addEventListener("pointerdown", (e) => {
+        bd = null;
+        if (e.pointerType === "mouse") return;   // chỉ cảm ứng, tránh vướng khi kéo chọn chữ bằng chuột
+        if (e.target.closest("input, textarea, select, dialog, [role=dialog], [aria-modal=true]") || trongKhungCuonNgang(e.target)) return;
+        bd = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() };
+      });
+      document.addEventListener("pointerup", (e) => {
+        if (!bd || e.pointerId !== bd.id) return;
+        const dx = e.clientX - bd.x, dy = e.clientY - bd.y, dt = performance.now() - bd.t;
+        bd = null;
+        if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.5 || dt > 800) return;
+        chuyenPhan(dx < 0 ? "hang" : "khach");
+      });
+      document.addEventListener("pointercancel", () => { bd = null; });
+    })();
 
     function viecTaiDiem() {
       const choLen = duLieuKhach.filter((v) => v.diem_don_id === diemHienTaiId && ["da_thanh_toan", "giu_cho"].includes(v.trang_thai)).length;
@@ -1107,12 +1153,12 @@
       // 1) Xe trễ so với dự kiến: tại điểm vừa tới, hoặc điểm kế tiếp đã quá giờ mà xe chưa tới
       if (hienTai.da_toi && hienTai.gio_thuc_te && hienTai.gio_du_kien) {
         const tre = phutChenh(hienTai.gio_thuc_te, hienTai.gio_du_kien);
-        if (tre >= PHUT_BAO_TRE) dong.push(`Xe đang trễ <b>${tre} phút</b> so với dự kiến tại ${esc(hienTai.ten_diem)}.`);
+        if (tre >= PHUT_BAO_TRE) dong.push(`Xe đang trễ <b>${chuoiPhut(tre)}</b> so với dự kiến tại ${esc(hienTai.ten_diem)}.`);
       }
       const ke = hanhTrinh[viTri + 1];
       if (ke && ke.gio_du_kien) {
         const qua = phutChenh(bayGio, ke.gio_du_kien);
-        if (qua >= PHUT_BAO_TRE) dong.push(`Đã quá giờ dự kiến tới ${esc(ke.ten_diem)} <b>${qua} phút</b>.`);
+        if (qua >= PHUT_BAO_TRE) dong.push(`Đã quá giờ dự kiến tới ${esc(ke.ten_diem)} <b>${chuoiPhut(qua)}</b>.`);
       }
 
       // 2) Khách chưa lên sắp bị hệ thống tự đánh dấu "Không đến" → gọi trước

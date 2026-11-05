@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Báo thất lạc/hư hỏng — Phụ xe</title>
 <link rel="stylesheet" href="/shared/design-tokens.css?v=2" />
-<link rel="stylesheet" href="phu-xe.css?v=19" />
-<link rel="stylesheet" href="phu-xe-pro.css?v=16" />
+<link rel="stylesheet" href="phu-xe.css?v=30" />
+<link rel="stylesheet" href="phu-xe-pro.css?v=17" />
 <link rel="manifest" href="manifest.webmanifest" />
 <script src="phu-xe-theme.js?v=1"></script>
 </head>
@@ -45,7 +45,7 @@
   <script src="/shared/api-client.js"></script>
   <script src="phu-xe-pro.js?v=5"></script>
   <script src="../shared/auth-check.js"></script>
-  <script src="tai-khoan-menu.js?v=6"></script>
+  <script src="tai-khoan-menu.js?v=7"></script>
   <script src="/shared/so-dien-thoai.js"></script>
   <script src="phu-xe-cai-dat.js?v=2"></script>
   <script src="thong-bao.js?v=4"></script>
@@ -77,7 +77,7 @@
       nutGui.disabled = true; // chống bấm đúp gửi 2 báo cáo
 
       try {
-        await apiPost(`/phu-xe/don-hang/${donHangId}/bao-that-lac`, {
+        await apiPost(`/phu-xe/don-hang/${donHangId}/bao-su-co-hang`, {
           mo_ta: document.getElementById("mo_ta").value.trim(),
           loai: document.querySelector('input[name="loai"]:checked').value,
         });

@@ -35,29 +35,6 @@ def xac_nhan_len_xe(chuyen_id: str, ve_id: str, nguoi_dung_id: str) -> None:
     ve_repo.xac_nhan_len_xe(ve_id)
 
 
-def len_xe_tat_ca(chuyen_id: str, diem_id: str, nguoi_dung_id: str) -> int:
-    """Cho lên xe tất cả khách ĐÃ TRẢ TIỀN, đón tại điểm xe đang đứng. Trả số khách đã lên."""
-    chuyen = lay_chuyen_cua_phu_xe(chuyen_id, nguoi_dung_id)
-    if chuyen["trang_thai"] not in ("chua_khoi_hanh", "dang_chay"):
-        raise GiaTriLoi("Chuyến đã kết thúc hoặc đang sự cố, không thể xác nhận khách lên xe")
-    kiem_tra_ben_da_mo(chuyen)
-    if diem_hien_tai(chuyen)["diem_don_tra_id"] != diem_id:
-        raise GiaTriLoi("Xe không đứng ở điểm này, không thể cho khách lên xe")
-    ve_ids = [str(v["ve_id"]) for v in ve_repo.tim_ve_can_len_xe_tai_diem(chuyen_id, diem_id)]
-    return ve_repo.xac_nhan_len_xe_nhieu(ve_ids)
-
-
-def xuong_xe_tat_ca(chuyen_id: str, diem_id: str, nguoi_dung_id: str) -> int:
-    """Cho xuống xe tất cả khách đang trên xe có điểm trả là điểm này (xe đã tới điểm đó)."""
-    chuyen = lay_chuyen_cua_phu_xe(chuyen_id, nguoi_dung_id)
-    if chuyen["trang_thai"] not in ("dang_chay", "hoan_thanh"):
-        raise GiaTriLoi("Chuyến không ở trạng thái đang chạy, không thể xác nhận khách xuống xe")
-    if diem_hien_tai(chuyen)["diem_don_tra_id"] != diem_id:
-        raise GiaTriLoi("Xe không đứng ở điểm này (chưa tới hoặc đã rời đi), không thể cho khách xuống xe")
-    ve_ids = [str(v["ve_id"]) for v in ve_repo.tim_ve_can_xuong_xe_tai_diem(chuyen_id, diem_id)]
-    return ve_repo.xac_nhan_xuong_xe_nhieu(ve_ids)
-
-
 def hoan_tac_len_xe(chuyen_id: str, ve_id: str, nguoi_dung_id: str) -> None:
     """Phụ xe bấm nhầm "lên xe": đưa vé về `da_thanh_toan`. Chỉ làm được khi xe
     CÒN ĐỨNG ở điểm đón của vé — xe đã đi thì không còn biết khách có lên thật không."""

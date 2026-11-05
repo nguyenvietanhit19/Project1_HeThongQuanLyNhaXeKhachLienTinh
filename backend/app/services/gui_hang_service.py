@@ -498,36 +498,6 @@ def xac_nhan_do_hang(don_hang_id: str, nguoi_dung_id: str) -> dict:
     return don_cap_nhat
 
 
-def chat_tat_ca(chuyen_id: str, nguoi_dung_id: str) -> dict:
-    """Chất hết đơn đang chờ tại điểm xe đứng. Từng đơn vẫn qua đủ kiểm tra như chất lẻ;
-    đơn không chất được (sai chiều, vừa bị người khác xử lý...) được liệt kê lại thay vì làm hỏng cả lô."""
-    ok, loi = 0, []
-    for d in danh_sach_cho_chat(chuyen_id, nguoi_dung_id):
-        if d.get("so_bao_that_lac"):
-            loi.append(f"{d['ma_van_don']}: đã báo thất lạc, hãy kiểm tra rồi chất riêng từng đơn")
-            continue
-        try:
-            xac_nhan_chat_hang(d["id"], chuyen_id, nguoi_dung_id)
-            ok += 1
-        except GiaTriLoi as e:
-            loi.append(f"{d['ma_van_don']}: {e}")
-    return {"so_luong": ok, "loi": loi}
-
-
-def do_tat_ca(chuyen_id: str, nguoi_dung_id: str) -> dict:
-    ok, loi = 0, []
-    for d in danh_sach_cho_do(chuyen_id, nguoi_dung_id):
-        if d.get("so_bao_that_lac"):
-            loi.append(f"{d['ma_van_don']}: đã báo thất lạc, hãy kiểm tra rồi dỡ riêng từng đơn")
-            continue
-        try:
-            xac_nhan_do_hang(d["id"], nguoi_dung_id)
-            ok += 1
-        except GiaTriLoi as e:
-            loi.append(f"{d['ma_van_don']}: {e}")
-    return {"so_luong": ok, "loi": loi}
-
-
 def danh_sach_hoan_tac(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
     """Đơn vừa chất/dỡ tại ĐÚNG điểm xe đang đứng — phụ xe có thể hoàn tác nếu bấm nhầm."""
     chuyen = _chuyen_cua_phu_xe_dang_hoat_dong(chuyen_id, nguoi_dung_id, TRANG_THAI_CHUYEN_DUOC_DO)
@@ -584,7 +554,7 @@ def hoan_tac_do_hang(don_hang_id: str, chuyen_id: str, nguoi_dung_id: str) -> No
     )
 
 
-def bao_that_lac(don_hang_id: str, mo_ta: str, nguoi_dung_id: str, loai: str = "hu_hong") -> dict:
+def bao_su_co_hang(don_hang_id: str, mo_ta: str, nguoi_dung_id: str, loai: str = "hu_hong") -> dict:
     """UC-28: Phụ xe báo thất lạc/hư hỏng. Ghi nhận rồi chuyển tin tới nhân
     viên gửi hàng (điểm gửi nếu chưa lên xe, điểm nhận nếu đã lên xe) và
     quản lý (UC-28 bước 2) — không đổi trạng thái đơn, không chặn UC-26/27."""

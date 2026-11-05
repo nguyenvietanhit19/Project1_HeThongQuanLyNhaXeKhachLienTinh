@@ -735,3 +735,6 @@ body.phu-xe-page {
   .tk-menu:not([hidden]) > *, .px-vao-phai, .px-vao-trai, ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
   .modal-overlay.dang-dong, .modal-overlay.dang-dong .modal-sheet, .tb-overlay.dang-dong, .tb-overlay.dang-dong .tb-hop { animation: none; }
 }
+
+/* Vùng vuốt chuyển tab (Tổng quan): chỉ cho trình duyệt cuộn dọc, vuốt ngang thuộc về trang; đủ cao để dễ vuốt cả khi danh sách ngắn */
+#ds-khach, #ds-hang, #ds-hanh-trinh { touch-action: pan-y; min-height: 42vh; }
