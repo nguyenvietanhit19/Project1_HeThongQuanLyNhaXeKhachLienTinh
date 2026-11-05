@@ -105,19 +105,23 @@ def main() -> None:
     # ---------- hạ tầng (giữ nguyên giữa các lần chạy)
     khu_vuc = lay_hoac_tao(
         "SELECT id FROM khu_vuc WHERE ten = %s", ("DEMO Khu vực",),
-        "INSERT INTO khu_vuc (ten, tinh_thanh, ma) VALUES (%s, 'Hà Nội', '') RETURNING id", ("DEMO Khu vực",),
+        "INSERT INTO khu_vuc (ten, tinh_thanh, ma) VALUES (%s, 'Hà Nội', %s) RETURNING id",
+        ("DEMO Khu vực", ma_tu_sinh.ma_khu_vuc(ma_repository.so_tiep_theo(cur, "khu_vuc"))),
     )
     diem = {}
     for ky_hieu, loai in (("A", "van_phong"), ("B", "diem_dung"), ("C", "diem_dung"), ("D", "van_phong")):
         ten = f"DEMO Điểm {ky_hieu}"
-        diem[ky_hieu] = lay_hoac_tao(
-            "SELECT id FROM diem_don_tra WHERE ten = %s", (ten,),
-            "INSERT INTO diem_don_tra (khu_vuc_id, ten, dia_chi, loai, ma) VALUES (%s, %s, 'Địa chỉ demo', %s, '') RETURNING id",
-            (khu_vuc, ten, loai),
-        )
+        diem[ky_hieu] = mot("SELECT id FROM diem_don_tra WHERE ten = %s", (ten,))
+        if not diem[ky_hieu]:
+            ma_kv, so = ma_repository.cap_so_diem_trong_khu_vuc(cur, khu_vuc)
+            diem[ky_hieu] = mot(
+                "INSERT INTO diem_don_tra (khu_vuc_id, ten, dia_chi, loai, ma) VALUES (%s, %s, 'Địa chỉ demo', %s, %s) RETURNING id",
+                (khu_vuc, ten, loai, ma_tu_sinh.ma_diem_don_tra(ma_kv, so)),
+            )
     tuyen = lay_hoac_tao(
         "SELECT id FROM tuyen WHERE ten = %s", (TEN_TUYEN,),
-        "INSERT INTO tuyen (ten, ma) VALUES (%s, '') RETURNING id", (TEN_TUYEN,),
+        "INSERT INTO tuyen (ten, ma) VALUES (%s, %s) RETURNING id",
+        (TEN_TUYEN, ma_tu_sinh.ma_tuyen(ma_repository.so_tiep_theo(cur, "tuyen"))),
     )
     if not mot("SELECT COUNT(*) FROM tuyen_diem_don_tra WHERE tuyen_id = %s", (tuyen,)):
         for thu_tu, ky_hieu in enumerate("ABCD", start=1):
@@ -131,8 +135,8 @@ def main() -> None:
            for tang in "AB" for i in range(1, 18)]
     loai_xe = lay_hoac_tao(
         "SELECT id FROM loai_xe WHERE ten = %s", (TEN_LOAI_XE,),
-        "INSERT INTO loai_xe (ten, so_do_ghe, ma) VALUES (%s, %s, '') RETURNING id",
-        (TEN_LOAI_XE, json.dumps(ghe)),
+        "INSERT INTO loai_xe (ten, so_do_ghe, ma) VALUES (%s, %s, %s) RETURNING id",
+        (TEN_LOAI_XE, json.dumps(ghe), ma_tu_sinh.ma_loai_xe(ma_repository.so_tiep_theo(cur, "loai_xe"))),
     )
     xe = lay_hoac_tao(
         "SELECT id FROM xe WHERE bien_so = %s", (BIEN_SO,),

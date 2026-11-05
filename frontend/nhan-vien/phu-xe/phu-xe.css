@@ -2366,3 +2366,39 @@ body[data-phan="hang"] #khu-tim-kiem { display: none !important; }
   color: var(--color-text-muted);
   font-size: 14px;
 }
+
+/* ---------- Thẻ thông tin chuyến (chỉ trang thao tác): trải hết bề ngang khung tím, 2 hàng chia đều, trạng thái xe sáng lên ---------- */
+body[data-phan] .topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 10px; align-items: start; }
+body[data-phan] .topbar > div:first-child { display: contents; }
+body[data-phan] .topbar .topbar-links { grid-column: 1; grid-row: 1; align-self: center; }
+body[data-phan] .topbar .topbar-actions { grid-column: 2; grid-row: 1; }
+body[data-phan] .topbar h1,
+body[data-phan] .topbar .chip-khoi,
+body[data-phan] .topbar .tien-do { grid-column: 1 / -1; margin: 0; }
+.chip-khoi { display: grid; gap: 8px; }
+.chip-row--deu { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 8px; }
+.chip-row--deu .chip { justify-content: center; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 34px; padding: 6px 8px; font-size: 13px; border-radius: 12px; }
+/* Xe đang dừng (đang ở điểm, thao tác lên/xuống được): vàng sáng + nhấp nháy nhẹ */
+.chip--dung { background: #F5A623; color: #2B1B00; border-color: transparent; font-weight: 800; animation: px-xe-dung-sang 1.8s ease-in-out infinite; }
+/* Xe đang di chuyển giữa 2 điểm */
+.chip--di-chuyen { background: #2563EB; color: #fff; border-color: transparent; font-weight: 800; }
+@keyframes px-xe-dung-sang {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 166, 35, 0.55); }
+  50% { box-shadow: 0 0 0 6px rgba(245, 166, 35, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .chip--dung { animation: none; } }
+
+/* Đang đổi Khách ⇄ Hàng: giấu nội dung cũ tới khi vẽ xong (giữ chỗ để trang không giật) */
+.bo-cuc--doi-phan { opacity: 0; pointer-events: none; }
+
+/* ---------- Thẻ trên khung tím: phẳng, màu dịu (bỏ kính mờ, viền sáng, xanh đặc) ---------- */
+body.phu-xe-page .topbar .chip { backdrop-filter: none; -webkit-backdrop-filter: none; border: 0; box-shadow: none; background: rgba(255, 255, 255, 0.14); color: #F3EFFF; font-weight: 600; }
+body.phu-xe-page .topbar .chip--bien-so { background: rgba(255, 255, 255, 0.2); color: #fff; }
+body.phu-xe-page .topbar .chip--ok { background: rgba(110, 231, 160, 0.2); color: #C9F5DB; }
+body.phu-xe-page .topbar .chip--warn { background: rgba(251, 191, 36, 0.2); color: #FDE9B0; }
+body.phu-xe-page .topbar .chip--danger { background: rgba(252, 165, 165, 0.22); color: #FFD9D9; }
+body.phu-xe-page .topbar .chip--di-chuyen { background: rgba(125, 180, 255, 0.24); color: #D6E7FF; }
+/* Xe đang dừng: nền vàng dịu, chữ đậm; chỉ nhấp nháy nhẹ để gây chú ý */
+body.phu-xe-page .topbar .chip--dung { background: #F2B544; color: #3A2400; font-weight: 700; animation: px-xe-dung-nhe 2.2s ease-in-out infinite; }
+@keyframes px-xe-dung-nhe { 0%, 100% { opacity: 1; } 50% { opacity: 0.82; } }
+@media (prefers-reduced-motion: reduce) { body.phu-xe-page .topbar .chip--dung { animation: none; } }

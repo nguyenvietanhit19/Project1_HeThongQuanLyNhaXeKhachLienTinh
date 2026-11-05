@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Chuyến đang chạy — Phụ xe</title>
 <link rel="stylesheet" href="/shared/design-tokens.css?v=2" />
-<link rel="stylesheet" href="phu-xe.css?v=30" />
+<link rel="stylesheet" href="phu-xe.css?v=36" />
 <link rel="stylesheet" href="phu-xe-pro.css?v=17" />
 <link rel="manifest" href="manifest.webmanifest" />
 <script src="phu-xe-theme.js?v=1"></script>
@@ -18,7 +18,7 @@
         <a class="back-link" href="chuyen-cua-toi.html" title="Về danh sách các chuyến của xe bạn">← Danh sách chuyến</a>
       </div>
       <h1 id="tieu-de-tuyen">Đang tải...</h1>
-      <div class="chip-row" id="tieu-de-meta"></div>
+      <div class="chip-khoi" id="tieu-de-meta"></div>
       <div class="tien-do" id="tien-do" hidden>
         <div class="tien-do__nhan" id="tien-do-nhan"></div>
         <div class="tien-do__khung" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="tien-do-khung"><div class="tien-do__thanh" id="tien-do-thanh"></div></div>
@@ -187,6 +187,12 @@
     function dinhDangGio(iso) {
       if (!iso) return "";
       return window.phuXe.ngayGio(iso);
+    }
+
+    // "05/11/2026 19:20" → "19:20 · 05/11" cho vừa thẻ nhỏ
+    function gioNgayNgan(iso) {
+      const [ngay, gio] = dinhDangGio(iso).split(" ");
+      return gio && ngay ? `${gio} · ${ngay.slice(0, 5)}` : dinhDangGio(iso);
     }
 
     function elHien(id, hien) {
@@ -908,25 +914,40 @@
 
     // Chuyển Khách ⇄ Hàng ngay tại trang (không tải lại): đổi ?phan= trên thanh địa chỉ, đánh dấu lại menu ☰,
     // trượt nội dung vào từ phía đối diện rồi vẽ lại theo phần mới.
-    function chuyenPhan(dich) {
-      if (dich === PHAN) return;
-      const huong = dich === "hang" ? "px-vao-phai" : "px-vao-trai";   // Khách → Hàng: vào từ phải
-      PHAN = dich;
-      document.body.dataset.phan = dich;
-      const q = new URLSearchParams(location.search);
-      q.set("phan", dich);
-      history.replaceState(null, "", `${location.pathname}?${q.toString()}`);
-      document.querySelectorAll(".tk-menu__muc--con").forEach((a) => {
-        const dang = a.getAttribute("href").includes("chuyen-dang-chay.html") && a.getAttribute("href").includes("phan=hang") === (dich === "hang");
-        a.classList.toggle("tk-menu__muc--dang-chon", dang);
-        if (dang) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
-      });
+    let dangDoiPhan = false;   // đang tải dữ liệu cho phần mới → bỏ qua vuốt tiếp, tránh vẽ chồng
+    async function chuyenPhan(dich) {
+      if (dich === PHAN || dangDoiPhan) return;
+      dangDoiPhan = true;
       const vung = document.getElementById("bo-cuc");
-      vung.classList.remove("px-vao-phai", "px-vao-trai");
-      void vung.offsetWidth;
-      vung.classList.add(huong);
-      window.scrollTo({ top: 0 });
-      taiDuLieu().catch(() => {});
+      try {
+        const huong = dich === "hang" ? "px-vao-phai" : "px-vao-trai";   // Khách → Hàng: vào từ phải
+        PHAN = dich;
+        document.body.dataset.phan = dich;
+        vung.classList.remove("px-vao-phai", "px-vao-trai");
+        vung.classList.add("bo-cuc--doi-phan");   // ẩn nội dung cũ cho tới khi vẽ xong phần mới (không lẫn khối của 2 phần)
+        window.scrollTo({ top: 0 });
+        try {   // địa chỉ + đánh dấu menu ☰: lỗi ở đây không được làm hỏng việc đổi phần
+          const q = new URLSearchParams(location.search);
+          q.set("phan", dich);
+          history.replaceState(null, "", `${location.pathname}?${q.toString()}`);
+          document.querySelectorAll(".tk-menu__muc--con").forEach((a) => {
+            const href = a.getAttribute("href") || "";
+            if (!href.includes("chuyen-dang-chay.html")) return;
+            const dang = href.includes("phan=hang") === (dich === "hang");
+            a.classList.toggle("tk-menu__muc--dang-chon", dang);
+            if (dang) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+          });
+        } catch (_) { /* bỏ qua */ }
+        // chờ tải xong, tối đa 3 giây (mạng chậm thì vẫn hiện, phần dữ liệu còn lại tự cập nhật sau)
+        await Promise.race([taiDuLieu(), new Promise((xong) => setTimeout(xong, 3000))]);
+        void vung.offsetWidth;
+        vung.classList.add(huong);
+      } catch (_) {
+        /* lỗi tải đã được taiDuLieu báo trên màn hình */
+      } finally {
+        vung.classList.remove("bo-cuc--doi-phan");   // dù lỗi gì cũng phải hiện lại nội dung và mở khóa vuốt
+        dangDoiPhan = false;
+      }
     }
 
     // Vuốt ngang: trái = sang Hàng, phải = về Khách.
@@ -1215,13 +1236,21 @@
         else if (bay >= new Date(chuyen.gio_mo_ben).getTime()) [nhanTrangThai, lopTrangThai] = ["Bến đã mở", "chip--ok"];
       }
       document.getElementById("tieu-de-tuyen").textContent = chuyen.tuyen_ten;
+      // 2 hàng thẻ chia đều: hàng 1 = thông tin chuyến, hàng 2 = trạng thái. "Xe đang dừng" sáng lên (vàng), "Đang di chuyển" màu xanh.
+      const theXe = chuyen.trang_thai === "dang_chay"
+        ? (chuyen.dang_di_chuyen ? '<span class="chip chip--di-chuyen">🚌 Xe đang trên đường tới điểm kế tiếp</span>' : '<span class="chip chip--dung">⏸ Xe đang dừng tại điểm — làm việc bên dưới</span>')
+        : "";
       document.getElementById("tieu-de-meta").innerHTML =
-        `<span class="chip chip--bien-so">${esc(chuyen.bien_so)}</span>` +
-        `<span class="chip">Giờ chạy ${esc(dinhDangGio(chuyen.gio_khoi_hanh))}</span>` +
-        `<span class="chip">${PHAN === "hang" ? "📦 Hàng hóa" : "🚌 Hành trình"}</span>` +
-        `<span class="chip ${lopTrangThai}">${esc(nhanTrangThai)}</span>` +
-        (chuyen.trang_thai === "dang_chay" ? (chuyen.dang_di_chuyen ? '<span class="chip chip--warn">Đang di chuyển</span>' : '<span class="chip">Xe đang dừng</span>') : "") +
-        (chuyen.dang_hoan ? '<span class="chip chip--warn">Đang hoãn</span>' : "");
+        '<div class="chip-row chip-row--deu">' +
+          `<span class="chip chip--bien-so">${esc(chuyen.bien_so)}</span>` +
+          `<span class="chip" title="Giờ chạy ${esc(dinhDangGio(chuyen.gio_khoi_hanh))}">🕖 ${esc(gioNgayNgan(chuyen.gio_khoi_hanh))}</span>` +
+          `<span class="chip">${PHAN === "hang" ? "📦 Hàng hóa" : "🚌 Hành trình"}</span>` +
+        '</div>' +
+        '<div class="chip-row chip-row--deu">' +
+          // Chuyến đang chạy thì chỉ hiện 1 thẻ về xe (dừng / đang đi) — không đặt "Đang chạy" cạnh "Xe đang dừng" vì dễ tưởng mâu thuẫn
+          (theXe || `<span class="chip ${lopTrangThai}">${esc(nhanTrangThai)}</span>`) +
+          (chuyen.dang_hoan ? '<span class="chip chip--warn">Đang hoãn</span>' : "") +
+        '</div>';
       document.title = `${chuyen.tuyen_ten} — Phụ xe`;
 
       if (chuyen.dang_hoan) {
