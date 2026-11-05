@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/shared/design-tokens.css" />
 <!-- Dùng chung bộ khung "nv-*" với frontend/nhan-vien/quan-ly/ — xem ghi chú ở nav.js -->
 <link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+<link rel="stylesheet" href="/nhan-vien/quan-ly/thong-bao.css" />
 <style>
   .nk-loc { margin-bottom: 18px; }
   .nk-ghi-chu { max-width: 340px; white-space: normal; word-break: break-word; }
@@ -91,15 +92,24 @@
 
   <script src="/nhan-vien/quan-li-nhan-su/api-client.js"></script>
   <script src="/nhan-vien/quan-li-nhan-su/auth-check.js"></script>
-  <script src="/nhan-vien/quan-li-nhan-su/nav.js"></script>
+  <script>
+    // quan_ly dùng khung + menu của Quản lý (nav.js, tai-khoan.js, thong-bao.js của quan-ly); quan_ly_nhan_su dùng menu riêng.
+    // Hai bộ cùng tên hàm renderSidebar nên chỉ nạp MỘT bộ theo vai trò.
+    const LA_QUAN_LY = localStorage.getItem("vai_tro") === "quan_ly";
+    (LA_QUAN_LY
+      ? ["/nhan-vien/quan-ly/nav.js", "/nhan-vien/quan-ly/tai-khoan.js", "/nhan-vien/quan-ly/thong-bao.js"]
+      : ["/nhan-vien/quan-li-nhan-su/nav.js"]
+    ).forEach((src) => document.write(`<script src="${src}"><\/script>`));
+  </script>
   <script src="/nhan-vien/quan-ly/data-table.js"></script>
   <script>
     const nguoiDung = yeuCauVaiTro("quan_ly_nhan_su", "quan_ly");
     if (nguoiDung) {
       renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-li-nhan-su/nhat-ky.html");
-      renderTopbarUser();
+      if (LA_QUAN_LY) document.querySelector(".nv-topbar__user")?.remove(); // họ tên / đăng xuất nằm ở cuối sidebar của Quản lý
+      else renderTopbarUser();
     }
-    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+    document.getElementById("btn-dang-xuat")?.addEventListener("click", dangXuat); // quan_ly: nút đăng xuất nằm ở cuối sidebar của Quản lý
 
     const laQuanLy = localStorage.getItem("vai_tro") === "quan_ly";
     const SO_DONG = 50;

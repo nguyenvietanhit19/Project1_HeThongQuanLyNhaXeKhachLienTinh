@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/shared/design-tokens.css" />
 <!-- Dùng chung bộ khung "nv-*" với frontend/nhan-vien/quan-ly/ — xem ghi chú ở nav.js -->
 <link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+<link rel="stylesheet" href="/nhan-vien/quan-ly/thong-bao.css" />
 <style>.nv-btn-phu:empty { display: none; } .nv-btn-phu { white-space: nowrap; }</style>
 </head>
 <body class="nhan-vien-shell">
@@ -198,18 +199,32 @@
   <script src="/shared/so-dien-thoai.js"></script>
   <script src="/nhan-vien/quan-li-nhan-su/api-client.js"></script>
   <script src="/nhan-vien/quan-li-nhan-su/auth-check.js"></script>
-  <script src="/nhan-vien/quan-li-nhan-su/nav.js"></script>
+  <script>
+    // quan_ly dùng khung + menu của Quản lý (nav.js, tai-khoan.js, thong-bao.js của quan-ly); quan_ly_nhan_su dùng menu riêng.
+    // Hai bộ cùng tên hàm renderSidebar nên chỉ nạp MỘT bộ theo vai trò.
+    const LA_QUAN_LY = localStorage.getItem("vai_tro") === "quan_ly";
+    (LA_QUAN_LY
+      ? ["/nhan-vien/quan-ly/nav.js", "/nhan-vien/quan-ly/tai-khoan.js", "/nhan-vien/quan-ly/thong-bao.js"]
+      : ["/nhan-vien/quan-li-nhan-su/nav.js"]
+    ).forEach((src) => document.write(`<script src="${src}"><\/script>`));
+  </script>
   <script src="/nhan-vien/quan-ly/data-table.js"></script>
   <script>
     const nguoiDung = yeuCauVaiTro("quan_ly_nhan_su", "quan_ly");
     if (nguoiDung) {
       renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-li-nhan-su/tai-khoan.html");
-      renderTopbarUser();
+      if (LA_QUAN_LY) document.querySelector(".nv-topbar__user")?.remove(); // họ tên / đăng xuất nằm ở cuối sidebar của Quản lý
+      else renderTopbarUser();
     }
-    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+    document.getElementById("btn-dang-xuat")?.addEventListener("click", dangXuat); // quan_ly: nút đăng xuất nằm ở cuối sidebar của Quản lý
 
     const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     const boDau = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+
+    if (LA_QUAN_LY) {
+      document.querySelector(".nv-page-intro__desc").textContent =
+        "Tạo, khóa và mở khóa tài khoản kế toán, quản lý và quản lý nhân sự (chỉ quản lý gốc tạo được quản lý và quản lý nhân sự; chỉ quản lý gốc khóa được quản lý và kế toán). Tài khoản các vai trò vận hành do quản lý nhân sự lo.";
+    }
 
     const NHAN_VAI_TRO = {
       phu_xe: "Phụ xe",

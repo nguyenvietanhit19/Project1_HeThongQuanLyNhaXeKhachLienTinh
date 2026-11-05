@@ -37,10 +37,14 @@ MAT_KHAU_MAC_DINH = "12345678"
 # ---------------------------------------------------------
 _VAI_TRO_VAN_HANH = ("phu_xe", "nhan_vien_quay_ve", "nhan_vien_gui_hang", "dieu_do_vien")
 
+# Từ 6/11/2026 hai bên TÁCH HẲN (KE_HOACH_PHAN_QUYEN_QUAN_LY.md): quan_ly_nhan_su lo 4 vai trò vận hành, quan_ly chỉ lo 3 vai trò cấp
+# cao (ke_toan, quan_ly, quan_ly_nhan_su) — bên này không tạo / khóa / xem vai trò của bên kia.
+_VAI_TRO_CAP_CAO = ("ke_toan", "quan_ly", "quan_ly_nhan_su")
+
 # Vai trò người gọi -> các vai trò được tạo (chưa tính luật riêng "chỉ tài khoản gốc")
 _QUYEN_TAO = {
     "quan_ly_nhan_su": _VAI_TRO_VAN_HANH,
-    "quan_ly": _VAI_TRO_VAN_HANH + ("ke_toan", "quan_ly", "quan_ly_nhan_su"),
+    "quan_ly": _VAI_TRO_CAP_CAO,
 }
 
 # Luật riêng: các vai trò này chỉ quan_ly GỐC (la_tai_khoan_goc = true) mới tạo được
@@ -50,7 +54,7 @@ _CHI_TAI_KHOAN_GOC_MOI_TAO = ("quan_ly", "quan_ly_nhan_su")
 # quan_ly_nhan_su không quản lý ke_toan / quan_ly / quan_ly_nhan_su (mục 8.9) nên không thấy.
 _QUYEN_XEM = {
     "quan_ly_nhan_su": _VAI_TRO_VAN_HANH,
-    "quan_ly": _VAI_TRO_VAN_HANH + ("ke_toan", "quan_ly", "quan_ly_nhan_su"),
+    "quan_ly": _VAI_TRO_CAP_CAO,
 }
 
 
@@ -142,10 +146,11 @@ def danh_sach_van_phong() -> list[dict]:
 # ---------------------------------------------------------
 # Quy tắc bậc: gốc > (quan_ly thường = ke_toan) > quan_ly_nhan_su > 4 vai trò vận hành.
 # Chỉ khóa / mở khóa được bậc THẤP HƠN mình. Khóa và mở khóa dùng chung bảng này.
+# Từ 6/11/2026 quan_ly (gốc hay thường) KHÔNG còn khóa 4 vai trò vận hành — việc đó của quan_ly_nhan_su.
 # Khóa tuple theo người gọi: "goc" = quan_ly có la_tai_khoan_goc, "quan_ly" = quan_ly thường.
 _QUYEN_KHOA = {
-    "goc": _VAI_TRO_VAN_HANH + ("quan_ly_nhan_su", "ke_toan", "quan_ly"),
-    "quan_ly": _VAI_TRO_VAN_HANH + ("quan_ly_nhan_su",),
+    "goc": ("quan_ly_nhan_su", "ke_toan", "quan_ly"),
+    "quan_ly": ("quan_ly_nhan_su",),
     "quan_ly_nhan_su": _VAI_TRO_VAN_HANH,
 }
 
@@ -215,10 +220,10 @@ def mo_khoa_tai_khoan(actor_id: str, actor_vai_tro: str, muc_tieu_id: str, ly_do
 # Đổi văn phòng của cán bộ — nhánh kèm UC-36 (NGHIEP_VU.md; KE_HOACH_DOI_VAN_PHONG.md)
 # ---------------------------------------------------------
 def doi_van_phong(actor_id: str, actor_vai_tro: str, muc_tieu_id: str, van_phong_id: str, ly_do: str) -> dict:
-    """Quyền: quan_ly (bất kỳ) và quan_ly_nhan_su; đối tượng: quầy vé / gửi hàng. Thứ tự: quyền -> tài khoản ->
+    """Quyền: CHỈ quan_ly_nhan_su (quan_ly không còn làm từ 6/11/2026); đối tượng: quầy vé / gửi hàng. Thứ tự: quyền -> tài khoản ->
     vai trò -> lý do -> văn phòng mới hợp lệ -> ghi (repo kiểm tra lại trùng / còn đủ người có khóa dòng) -> nhật ký.
     KHÔNG chặn khi cán bộ còn đơn đang xử lý (đơn thuộc văn phòng; chốt 6/11/2026)."""
-    if actor_vai_tro not in _QUYEN_TAO:
+    if actor_vai_tro != "quan_ly_nhan_su":
         raise CamTruyCap("Không đủ quyền đổi văn phòng")
     muc_tieu = repo.tim_tai_khoan(muc_tieu_id)
     if not muc_tieu:

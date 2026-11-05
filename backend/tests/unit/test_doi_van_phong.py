@@ -47,16 +47,16 @@ def _doi(actor=QLNS, ly_do="Điều chuyển theo nhu cầu", van_phong=None, mu
 # ---------------------------------------------------------
 # Quyền, đối tượng
 # ---------------------------------------------------------
-@pytest.mark.parametrize("actor", [QLNS, QL])
 @pytest.mark.parametrize("vai_tro", ["nhan_vien_quay_ve", "nhan_vien_gui_hang"])
-def test_ca_hai_vai_tro_doi_duoc_van_phong_quay_ve_va_gui_hang(gia_lap, actor, vai_tro):
+def test_qlns_doi_duoc_van_phong_quay_ve_va_gui_hang(gia_lap, vai_tro):
     gia_lap["tk"] = _tk(vai_tro)
-    kq = _doi(actor)
+    kq = _doi(QLNS)
     assert kq["ten_van_phong_cu"] == "Văn phòng Cũ" and kq["ten_van_phong_moi"] == "Văn phòng Mới"
     assert len(gia_lap["goi"]) == 1
 
 
-@pytest.mark.parametrize("actor", ["khach_hang", "phu_xe", "ke_toan", "dieu_do_vien", "nhan_vien_quay_ve", "nhan_vien_gui_hang", ""])
+# Từ 6/11/2026 quan_ly cũng KHÔNG còn đổi văn phòng — chỉ quan_ly_nhan_su.
+@pytest.mark.parametrize("actor", ["quan_ly", "khach_hang", "phu_xe", "ke_toan", "dieu_do_vien", "nhan_vien_quay_ve", "nhan_vien_gui_hang", ""])
 def test_vai_tro_khac_khong_duoc_doi_van_phong(gia_lap, actor):
     with pytest.raises(CamTruyCap):
         _doi(actor)
@@ -181,10 +181,10 @@ def test_nhat_ky_qlns_ghi_bang_rieng_mot_dong_co_ten_cu_moi_va_ly_do(gia_lap):
     assert ghi_chu == "Đổi văn phòng Văn phòng Cũ → Văn phòng Mới: Điều chuyển về Thủ Đức"
 
 
-def test_nhat_ky_quan_ly_ghi_nhat_ky_admin_khong_ghi_cheo(gia_lap):
-    _doi(QL)
-    assert len(gia_lap["nk_admin"]) == 1 and gia_lap["nk_qlns"] == []
-    assert gia_lap["nk_admin"][0][1] == "doi_van_phong"
+def test_quan_ly_doi_van_phong_bi_chan_khong_ghi_nhat_ky_nao(gia_lap):
+    with pytest.raises(CamTruyCap, match="Không đủ quyền"):
+        _doi(QL)
+    assert gia_lap["goi"] == [] and gia_lap["nk_admin"] == [] and gia_lap["nk_qlns"] == []
 
 
 def test_nhan_hanh_dong_hien_thi_o_man_nhat_ky_uc52():

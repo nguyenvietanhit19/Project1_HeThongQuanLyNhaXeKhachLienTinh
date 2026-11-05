@@ -1,9 +1,8 @@
 """Hồ sơ nhân sự vận hành — UC-49 (NGHIEP_VU.md mục 8.9, mục 12). Route chỉ
 mỏng: nhận request, gọi service, trả response (ARCHITECTURE.md mục 2).
 
-Dùng chung cho cả quan_ly_nhan_su lẫn quan_ly (NGHIEP_VU.md mục 11: cả 2 vai
-trò đều làm được UC-49) — khác quan_ly.py (router đó khóa cứng
-vai_tro = quan_ly, không mở cho quan_ly_nhan_su).
+CHỈ quan_ly_nhan_su (UC-49, UC-51): từ 6/11/2026 quan_ly không còn làm hồ sơ tài xế / phụ xe và cho nghỉ việc
+(NGHIEP_VU.md mục 8.9; KE_HOACH_PHAN_QUYEN_QUAN_LY.md) — khác quan_ly.py (router đó khóa cứng vai_tro = quan_ly).
 """
 
 from typing import Annotated
@@ -27,9 +26,9 @@ from app.services import ho_so_nhan_su_service as service
 
 router = APIRouter(prefix="/quan-ly-nhan-su", tags=["quan-ly-nhan-su"])
 
-# Dùng làm tham số của route: chỉ cho quan_ly_nhan_su và quan_ly gọi API.
-# Vai trò khác (khách, tài xế...) bị middleware chặn 403 trước khi vào hàm.
-QuyenQuanLyNhanSu = Annotated[NguoiDungHienTai, Depends(yeu_cau_vai_tro("quan_ly_nhan_su", "quan_ly"))]
+# Dùng làm tham số của route: chỉ cho quan_ly_nhan_su gọi API.
+# Vai trò khác (kể cả quan_ly, khách, tài xế...) bị middleware chặn 403 trước khi vào hàm.
+QuyenQuanLyNhanSu = Annotated[NguoiDungHienTai, Depends(yeu_cau_vai_tro("quan_ly_nhan_su"))]
 
 
 # GET /quan-ly-nhan-su/ho-so?chi_dang_lam=true — danh sách hồ sơ (bản tóm tắt)

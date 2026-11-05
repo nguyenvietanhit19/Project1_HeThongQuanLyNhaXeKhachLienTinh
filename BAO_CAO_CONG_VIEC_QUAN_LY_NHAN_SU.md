@@ -262,6 +262,23 @@ Quy tắc (Nghĩa chốt 6/11): (1) không chặn khi còn đơn đang xử lý;
 
 **Đã kiểm tra thật:** 20 ca trên DB thật trong một transaction rồi rollback (DB sạch); giao diện trên Edge với API giả. **Chưa:** hai người cùng chuyển lúc văn phòng chỉ có 2 người (cần hai kết nối thật), bấm đổi từ trình duyệt qua backend thật nối liền.
 
+## 2G. Tách quyền: quản lý chỉ lo tài khoản cấp cao, quản lý nhân sự lo vai trò vận hành (làm 6/11, **chưa commit**)
+
+Kế hoạch: `KE_HOACH_PHAN_QUYEN_QUAN_LY.md`. **Không migration.** Quyết định (Nghĩa, 6/11/2026): `quan_ly` (gốc và thường) chỉ tương tác với `ke_toan` / `quan_ly` / `quan_ly_nhan_su`; vai trò nhỏ (phụ xe, quầy vé, gửi hàng, điều độ viên) và hồ sơ tài xế / phụ xe do `quan_ly_nhan_su`; hồ sơ nhân sự trong hệ thống chỉ có tài xế và phụ xe; `quan_ly` vẫn xem toàn bộ nhật ký; Nghĩa tự thêm 2 mục vào menu của quản lý.
+
+| File | Nội dung |
+|---|---|
+| `backend/app/services/tai_khoan_can_bo_service.py` | `_QUYEN_TAO`, `_QUYEN_XEM`, `_QUYEN_KHOA` theo ma trận mới (`_VAI_TRO_CAP_CAO`); `doi_van_phong` chỉ cho `quan_ly_nhan_su` |
+| `backend/app/routes/nhan_su.py` | Hồ sơ, giấy tờ, ảnh, cho nghỉ việc: chỉ `quan_ly_nhan_su` (quản lý bị 403) |
+| `backend/app/services/ho_so_nhan_su_service.py` | Cập nhật chú thích; nhánh ghi `nhat_ky_admin` còn lại làm phòng thủ |
+| `backend/tests/unit/test_tai_khoan_can_bo_service.py`, `test_doi_van_phong.py` | Sửa các test cũ cho đúng quyền mới; thêm test quản lý bị chặn tạo / khóa / mở khóa vai trò vận hành, danh sách chỉ 3 vai trò, đổi văn phòng chỉ QLNS (toàn bộ 1166 qua, 16 lỗi có sẵn của nhóm khác) |
+| `frontend/nhan-vien/quan-ly/nav.js` (**file của nhóm quản lý, chỉ thêm cuối mảng**) | 2 mục menu "Tài khoản cán bộ", "Nhật ký thao tác" |
+| `frontend/nhan-vien/quan-li-nhan-su/tai-khoan.html`, `nhat-ky.html` | Khi vai trò là `quan_ly` nạp khung của quản lý (`quan-ly/nav.js`, `tai-khoan.js`, `thong-bao.js`) thay vì menu QLNS; mô tả trang theo quản lý |
+| `frontend/nhan-vien/quan-li-nhan-su/ho-so.html`, `trang-chu.html` | Chỉ `quan_ly_nhan_su` vào được |
+| `NGHIEP_VU.md`, `UML_DIAGRAMS.md` | Spec: mục 2, 8.7 điểm 2 và 5, 8.9, UC-36 / 37 / 49 / 51 / đổi văn phòng, ma trận quyền, sơ đồ; chốt `nhan_vien_van_hanh` = nhóm gồm phụ xe và tài xế |
+
+**Đã kiểm tra thật:** qua HTTP bằng `quan_ly` gốc (danh sách chỉ 3 vai trò; tạo vai trò vận hành, hồ sơ, nghỉ việc, đổi văn phòng đều 403, không có tài khoản nào bị tạo; nhật ký vẫn xem được); 26 ca trên DB thật trong một transaction rồi rollback (khóa theo bậc của gốc, thường, QLNS; danh sách; nhật ký đúng bảng); giao diện trên Edge với API giả (khung quản lý và khung QLNS). **Chưa:** bấm thao tác thật từ trình duyệt qua backend thật; đăng nhập QLNS thật.
+
 ## 3. File của người khác mà tôi **có sửa**
 
 | File | Sửa gì | Lý do / mức độ |
