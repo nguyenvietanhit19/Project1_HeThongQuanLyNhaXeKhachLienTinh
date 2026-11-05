@@ -1,9 +1,10 @@
 # Sơ đồ Use Case theo Tác nhân & Sơ đồ hoạt động (PlantUML)
 
-> File này gồm 2 phần, đều dùng cú pháp **PlantUML** (dán vào [plantuml.com/plantuml](http://www.plantuml.com/plantuml) hoặc extension PlantUML trong VSCode để xem trước):
+> File này gồm 3 phần, đều dùng cú pháp **PlantUML** (dán vào [plantuml.com/plantuml](http://www.plantuml.com/plantuml) hoặc extension PlantUML trong VSCode để xem trước):
 >
 > 1. **Sơ đồ use case tách riêng theo từng tác nhân** — thay vì 1 sơ đồ toàn hệ thống to khó nhìn (bản gộp ở `USE_CASE.puml`).
 > 2. **Sơ đồ hoạt động (activity diagram) cho từng use case** — chuyển thể từ đặc tả ở `NGHIEP_VU.md` mục 12.
+> 3. **Sơ đồ lớp (class diagram) mức phân tích** — mục 3 cuối file, 4 sơ đồ theo nhóm nghiệp vụ (khác ERD ở `ERD.dbml`: có kế thừa và phương thức).
 >
 > **Toàn bộ sơ đồ dùng lời nói thường** — không dùng tên bảng/cột trong cơ sở dữ liệu, không dùng hàm hay ký hiệu kỹ thuật — để người đọc không cần biết code vẫn hiểu được. Chi tiết kỹ thuật (tên trạng thái, tên bảng, công thức) xem `NGHIEP_VU.md` và `DATABASE.md`.
 >
@@ -26,26 +27,26 @@ rectangle "Hệ thống" {
   usecase "Đăng nhập" as UC02
   usecase "Quên mật khẩu" as UC03
   usecase "Tra cứu chuyến xe" as UC04
+  usecase "Xem và sửa thông tin cá nhân" as UC53
   usecase "Đặt vé online\n(chọn ghế, giữ chỗ, trả tiền)" as UC05
   usecase "Hủy vé chưa thanh toán" as UC08
-  usecase "Hủy vé nhận hoàn toàn bộ tiền\nkhi chuyến đang bị hoãn (ngoại lệ)" as UC41
-  usecase "Hủy vé nhận hoàn toàn bộ tiền\nkhi chuyến gặp sự cố do lỗi nhà xe (ngoại lệ)" as UC42
+  usecase "Hủy vé nhận hoàn toàn bộ tiền khi chuyến\nđang hoãn hoặc gặp sự cố do lỗi nhà xe (ngoại lệ)" as UC41
 }
 
 KH --> UC01
 KH --> UC02
 KH --> UC03
 KH --> UC04
+KH --> UC53
 KH --> UC05
 KH --> UC08
 KH --> UC41
-KH --> UC42
 
 CTT --> UC05
 
 UC05 ..> UC02 : <<include>>
 UC41 ..> UC02 : <<include>>
-UC42 ..> UC02 : <<include>>
+UC53 ..> UC02 : <<include>>
 @enduml
 ```
 
@@ -65,8 +66,7 @@ rectangle "Hệ thống" {
   usecase "Đăng nhập" as UC02
   usecase "Xác nhận khách lên xe" as UC12
   usecase "Xác nhận khách xuống xe" as UC13
-  usecase "Xác nhận xe xuất phát" as UC15
-  usecase "Xác nhận xe đã tới\nmột điểm dừng" as UC16
+  usecase "Cập nhật hành trình chuyến\n(xuất phát, đến điểm)" as UC15
   usecase "Báo xe gặp sự cố\ndọc đường" as UC17
   usecase "Xác nhận đã chất\nhàng lên xe" as UC26
   usecase "Xác nhận đã dỡ\nhàng khỏi xe" as UC27
@@ -78,7 +78,6 @@ PX --> UC02
 PX --> UC12
 PX --> UC13
 PX --> UC15
-PX --> UC16
 PX --> UC17
 PX --> UC26
 PX --> UC27
@@ -88,7 +87,6 @@ PX --> UC39
 UC12 ..> UC02 : <<include>>
 UC13 ..> UC02 : <<include>>
 UC15 ..> UC02 : <<include>>
-UC16 ..> UC02 : <<include>>
 UC17 ..> UC02 : <<include>>
 UC26 ..> UC02 : <<include>>
 UC27 ..> UC02 : <<include>>
@@ -107,28 +105,22 @@ actor "Nhân viên quầy vé" as NVQV
 rectangle "Hệ thống" {
   usecase "Đăng nhập" as UC02
   usecase "Hủy vé chưa thanh toán\ncho khách đặt qua điện thoại" as UC08
-  usecase "Bán vé tại quầy" as UC09
-  usecase "Bán vé qua điện thoại" as UC10
+  usecase "Bán vé trực tiếp\n(tại quầy hoặc qua điện thoại)" as UC09
   usecase "In vé giấy cho khách\nđặt online hoặc qua điện thoại" as UC11
-  usecase "Hủy vé nhận hoàn toàn bộ tiền\nthay khách khi chuyến đang bị hoãn (ngoại lệ)" as UC41
-  usecase "Hủy vé nhận hoàn toàn bộ tiền\nthay khách khi chuyến gặp sự cố do lỗi nhà xe (ngoại lệ)" as UC42
+  usecase "Hủy vé nhận hoàn toàn bộ tiền khi chuyến\nđang hoãn hoặc gặp sự cố do lỗi nhà xe (ngoại lệ)" as UC41
   usecase "Xem thống kê vé\ncủa văn phòng mình" as UC39
 }
 
 NVQV --> UC02
 NVQV --> UC08
 NVQV --> UC09
-NVQV --> UC10
 NVQV --> UC11
 NVQV --> UC41
-NVQV --> UC42
 NVQV --> UC39
 
 UC08 ..> UC02 : <<include>>
 UC09 ..> UC02 : <<include>>
-UC10 ..> UC02 : <<include>>
 UC41 ..> UC02 : <<include>>
-UC42 ..> UC02 : <<include>>
 UC11 ..> UC02 : <<include>>
 UC39 ..> UC02 : <<include>>
 @enduml
@@ -179,8 +171,7 @@ rectangle "Hệ thống" {
   usecase "Gán xe cho chuyến" as UC44
   usecase "Đăng nhập" as UC02
   usecase "Xử lý khi xe gặp sự cố\ndọc đường (ngoại lệ)" as UC19
-  usecase "Cho xe khác chạy thay tạm thời\nkhi xe hỏng trước giờ chạy (ngoại lệ)" as UC20
-  usecase "Gán lại đúng xe gốc khi\nxe đã sửa xong (ngoại lệ)" as UC40
+  usecase "Đổi xe chạy thay khi xe hỏng\nvà gán lại xe gốc (ngoại lệ)" as UC20
   usecase "Xem thống kê điểm\nvà tuyến mình phụ trách" as UC39
 }
 
@@ -188,13 +179,11 @@ DDV --> UC02
 DDV --> UC44
 DDV --> UC19
 DDV --> UC20
-DDV --> UC40
 DDV --> UC39
 
 UC44 ..> UC02 : <<include>>
 UC19 ..> UC02 : <<include>>
 UC20 ..> UC02 : <<include>>
-UC40 ..> UC02 : <<include>>
 UC39 ..> UC02 : <<include>>
 @enduml
 ```
@@ -218,14 +207,18 @@ rectangle "Hệ thống" {
   usecase "Quản lý khu vực\n(điểm đi, điểm đến)" as UC29
   usecase "Quản lý điểm đón, điểm trả" as UC30
   usecase "Tạo tuyến đường" as UC31
-  usecase "Quản lý loại xe\n(sơ đồ ghế, sức chứa, hệ số giá)" as UC32
+  usecase "Quản lý loại xe\n(sơ đồ ghế, sức chứa)" as UC32
   usecase "Đặt giá vé cho\ntừng cặp điểm" as UC33
-  usecase "Thiết lập lịch chạy định kỳ\n(tuyến, chiều, giờ, loại xe)" as UC18
+  usecase "Thiết lập lịch chạy định kỳ\n(cặp chiều đi + chiều về)" as UC18
+  usecase "Sinh chuyến từ lịch chạy\n(cả cặp, chọn khoảng ngày)" as UC47
+  usecase "Quản lý chuyến đã sinh\n(xem, sửa giờ, xóa)" as UC48
   usecase "Quản lý xe" as UC34
   usecase "Phân tài xế và phụ xe\ncố định cho từng xe" as UC35
+  usecase "Quản lý hồ sơ nhân sự vận hành\n(tài xế, phụ xe, giấy tờ)" as UC49
+  usecase "Cho nghỉ việc nhân sự vận hành" as UC51
+  usecase "Xem nhật ký thao tác" as UC52
   usecase "Tạo tài khoản\ncho nhân viên/quản lý khác" as UC36
-  usecase "Khóa tài khoản" as UC37
-  usecase "Mở khóa tài khoản" as UC38
+  usecase "Khóa / mở khóa tài khoản" as UC37
   usecase "Xem thống kê\ntoàn hệ thống" as UC39
 }
 
@@ -236,11 +229,15 @@ QL --> UC31
 QL --> UC32
 QL --> UC33
 QL --> UC18
+QL --> UC47
+QL --> UC48
 QL --> UC34
 QL --> UC35
+QL --> UC49
+QL --> UC51
+QL --> UC52
 QL --> UC36
 QL --> UC37
-QL --> UC38
 QL --> UC39
 
 UC29 ..> UC02 : <<include>>
@@ -249,11 +246,15 @@ UC31 ..> UC02 : <<include>>
 UC32 ..> UC02 : <<include>>
 UC33 ..> UC02 : <<include>>
 UC18 ..> UC02 : <<include>>
+UC47 ..> UC02 : <<include>>
+UC48 ..> UC02 : <<include>>
 UC34 ..> UC02 : <<include>>
 UC35 ..> UC02 : <<include>>
+UC49 ..> UC02 : <<include>>
+UC51 ..> UC02 : <<include>>
+UC52 ..> UC02 : <<include>>
 UC36 ..> UC02 : <<include>>
 UC37 ..> UC02 : <<include>>
-UC38 ..> UC02 : <<include>>
 UC39 ..> UC02 : <<include>>
 @enduml
 ```
@@ -281,7 +282,7 @@ UC22 ..> UC02 : <<include>>
 
 ### 1.8. Quản lý nhân sự
 
-*Chỉ tạo/khóa/mở khóa tài khoản cho nhân viên vận hành, không đụng tới tài khoản kế toán hay quản lý — không có quyền nghiệp vụ nào khác (không sửa tuyến, giá, xe). Không gắn văn phòng nào, thấy toàn bộ hệ thống.*
+*Tạo/khóa/mở khóa tài khoản và quản lý hồ sơ (kèm giấy tờ) của nhân viên vận hành; không đụng tới tài khoản kế toán hay quản lý, không có quyền nghiệp vụ nào khác. Hệ thống tự nhắc khi giấy tờ sắp hết hạn.*
 
 ```plantuml
 @startuml UseCase_QuanLyNhanSu
@@ -291,20 +292,26 @@ actor "Quản lý nhân sự" as QLNS
 rectangle "Hệ thống" {
   usecase "Đăng nhập" as UC02
   usecase "Tạo tài khoản\ncho nhân viên vận hành" as UC36
-  usecase "Khóa tài khoản\nnhân viên vận hành" as UC37
-  usecase "Mở khóa tài khoản\nnhân viên vận hành" as UC38
+  usecase "Khóa / mở khóa tài khoản\nnhân viên vận hành" as UC37
+  usecase "Quản lý hồ sơ nhân sự vận hành\n(tài xế, phụ xe, giấy tờ)" as UC49
+  usecase "Cho nghỉ việc nhân sự vận hành" as UC51
+  usecase "Xem nhật ký thao tác\n(của chính mình)" as UC52
   usecase "Xem thống kê\ntoàn hệ thống" as UC39
 }
 
 QLNS --> UC02
 QLNS --> UC36
 QLNS --> UC37
-QLNS --> UC38
+QLNS --> UC49
+QLNS --> UC51
+QLNS --> UC52
 QLNS --> UC39
 
 UC36 ..> UC02 : <<include>>
 UC37 ..> UC02 : <<include>>
-UC38 ..> UC02 : <<include>>
+UC49 ..> UC02 : <<include>>
+UC51 ..> UC02 : <<include>>
+UC52 ..> UC02 : <<include>>
 UC39 ..> UC02 : <<include>>
 @enduml
 ```
@@ -386,17 +393,21 @@ stop
 
 ### UC-04. Tra cứu chuyến xe
 
+*Không cần đăng nhập — đây là trang chủ của hệ thống.*
+
 ```plantuml
 @startuml AD_UC04_TraCuu
 start
-:Khách chọn điểm đi, điểm đến và ngày muốn đi;
+:Khách chọn điểm đi, điểm đến (chọn tỉnh trước, rồi khu vực)\nvà ngày muốn đi;
+:Tìm các chuyến chưa khởi hành, chạy đúng ngày đó,\nđi qua điểm đi rồi tới điểm đến theo đúng chiều chạy;
 if (Có chuyến nào phù hợp không?) then (không có)
   :Báo không tìm thấy chuyến phù hợp;
   stop
 endif
-:Hiện danh sách chuyến kèm loại xe, giá vé,\nsố ghế còn trống và giờ dự kiến;
+:Bỏ những chuyến mà nhà xe chưa đặt giá vé;
+:Hiện danh sách chuyến kèm loại xe, giá vé,\nsố ghế còn trống và giờ đón, giờ đến dự kiến;
 :Khách chọn một chuyến;
-:Hiện sơ đồ ghế của chuyến đó;
+:Hiện sơ đồ ghế của chuyến đó\n(chỉ cho biết ghế trống hay đã có người,\nkhông lộ thông tin người đặt);
 stop
 @enduml
 ```
@@ -408,29 +419,41 @@ stop
 ```plantuml
 @startuml AD_UC05_DatVeOnline
 start
-:Khách chọn một hoặc nhiều ghế trên sơ đồ;
-:Khách bấm nút cập nhật điểm đón trả;
-if (Ghế vừa chọn đã có người khác giữ chưa?) then (đã có người giữ)
-  :Báo ghế đã có người chọn, mời chọn ghế khác;
+:Khách chọn một hoặc nhiều ghế trên sơ đồ — chưa khóa gì,\nnhiều khách có thể cùng chọn một ghế;
+:Khách bấm cập nhật điểm đón trả,\nchọn điểm đón (là văn phòng của nhà xe) và điểm trả;
+:Khách bấm "Tiếp tục";
+if (Khách đã đăng nhập chưa?) then (chưa)
+  :Chuyển sang trang đăng nhập, xong quay lại đúng bước này\nvới ghế và điểm đón trả đã chọn;
+endif
+if (Ghế đã có người khác bấm "Tiếp tục" trước chưa?) then (đã có người giữ)
+  :Báo ghế đã có người chọn, quay về sơ đồ ghế đã làm mới;
   stop
 endif
-:Khóa ghế lại cho khách này, người khác không chọn được nữa;
-:Khách chọn điểm đón (là văn phòng của nhà xe) và điểm trả;
-:Thu hẹp lại đoạn đường giữ ghế đúng bằng đoạn khách sẽ đi;
+:Khóa ghế cho khách này trên đúng đoạn đã chọn, giữ 10 phút\n— ai nhanh hơn thì giữ được;
+:Lượt đặt vào giỏ hàng, khách sang màn thanh toán;
+note right
+  Nếu khách thoát giữa chừng: hiện hộp hỏi
+  "Vé của bạn chưa hoàn thành, bạn có đồng ý quay lại?".
+  Chọn "Thoát" thì ghế vẫn được giữ trong giỏ hàng,
+  khách bấm "Tiếp tục" trong giỏ để quay lại đúng bước đã dở;
+  hết 10 phút mà chưa xong thì ghế tự nhả.
+end note
+:Hiện từng ghế đã giữ; khách tích ghế muốn thanh toán\n(hoặc chọn tất cả), có thể bấm dấu X để bỏ hẳn một ghế (ghế mở lại ngay);
+:Khách chọn loại hình thanh toán (tại quầy hoặc VNPay QR)\nrồi bấm nút Thanh toán — chỉ áp dụng cho các ghế được tích,\nghế không tích coi như không đặt và được nhả;
 if (Khách có đang bị cấm chọn trả tiền tại quầy\nvì trước đó bỏ vé nhiều lần không?) then (có, bắt buộc trả ngay)
   :Chỉ cho chọn cách trả tiền ngay;
 else (không, được chọn tự do)
   if (Khách chọn trả tiền kiểu nào?) then (Trả tiền ngay)
     :Khách chọn trả tiền ngay;
   else (Trả tiền tại quầy khi lấy vé)
-    if (Đặt từ 2 vé trở lên và tổng tiền trên 600 nghìn?) then (có)
-      :Bắt buộc trả trước một nửa số vé, làm tròn xuống,\ntheo đúng cách trả tiền ngay;
+    if (Các ghế được tích: từ 2 vé trở lên và tổng tiền trên 600 nghìn?) then (có)
+      :Bắt buộc trả trước một nửa số vé được tích, làm tròn xuống,\ntheo đúng cách trả tiền ngay; nửa còn lại trả tại quầy;
       if (Trả xong phần bắt buộc trong 5 phút không?) then (không)
         :Hủy toàn bộ vé của lần đặt này, mở lại ghế cho người khác;
         stop
       endif
     endif
-    :Coi như khách đã đặt vé thành công,\ngiữ vé cho khách tới tận giờ xe chạy;
+    :Báo đặt vé thành công,\ngiữ vé cho khách tới tận giờ xe chạy;
     if (Khách có ra quầy trả tiền trước giờ lên xe không?) then (có ra quầy)
       :Khách trả tiền và lấy vé giấy tại quầy;
       stop
@@ -440,7 +463,8 @@ else (không, được chọn tự do)
     endif
   endif
 endif
-:Bắt đầu tính 5 phút để khách trả tiền;
+:Báo "Đặt vé thành công — vui lòng thanh toán trong 5 phút"\n(lượt đặt ở trạng thái chờ thanh toán, nằm trong giỏ hàng);
+:Khách bấm Thanh toán VNPay (có thể thoát ra rồi quay lại từ giỏ hàng,\nmiễn còn trong 5 phút);
 :Chuyển khách sang trang thanh toán của ngân hàng trung gian\n(khách quét mã QR bằng app ngân hàng, hoặc nhập thẻ trực tiếp);
 if (Kết quả trả tiền thế nào?) then (thành công)
   :Vé được xác nhận là đã thanh toán;
@@ -475,45 +499,39 @@ endif
 @enduml
 ```
 
-### UC-09. Bán vé tại quầy
+### UC-09. Bán vé trực tiếp cho khách (tại quầy hoặc qua điện thoại) *(gộp từ UC-09 + UC-10 cũ)*
+
+*Nhân viên quầy vé bán vé cho khách đến trực tiếp hoặc gọi điện — cùng một mục tiêu, chỉ khác cách khách trả tiền và nhận vé.*
 
 ```plantuml
-@startuml AD_UC09_BanVeTaiQuay
+@startuml AD_UC09_BanVeTrucTiep
 start
-:Khách tới quầy hỏi mua vé;
+if (Khách mua vé bằng cách nào?) then (tới quầy)
+  :Khách tới quầy hỏi mua vé;
+else (gọi điện thoại)
+  :Nhận cuộc gọi đặt vé của khách;
+endif
 :Nhân viên tìm chuyến theo điểm đi, điểm đến và ngày;
 :Chọn chuyến và chọn ghế cho khách;
 :Nhập tên và số điện thoại của khách;
 :Chọn điểm đón và điểm trả cho khách;
-if (Khách trả bằng gì?) then (tiền mặt)
-  :Thu tiền mặt ngay tại quầy;
-else (chuyển khoản)
-  :Đưa mã QR cho khách quét bằng app ngân hàng,\nchờ xác nhận đã nhận được tiền;
+if (Khách mua vé bằng cách nào?) then (tới quầy)
+  if (Khách trả bằng gì?) then (tiền mặt)
+    :Thu tiền mặt ngay tại quầy;
+  else (chuyển khoản)
+    :Đưa mã QR cho khách quét bằng app ngân hàng,\nchờ xác nhận đã nhận được tiền;
+  endif
+  :In vé giấy đưa cho khách;
+else (gọi điện thoại)
+  if (Khách trả tiền lúc nào?) then (trả ngay qua điện thoại)
+    :Gửi tin nhắn kèm đường dẫn/mã QR thanh toán cho khách;
+    :Khách tự bấm hoặc quét để trả tiền từ xa;
+    :Nhận xác nhận đã trả tiền, hẹn khách ra quầy lấy vé giấy;
+  else (hẹn trả khi ra lấy vé)
+    :Ghi nhận vé chưa trả tiền, hẹn khách ra quầy\ntrả tiền rồi lấy vé giấy;
+  endif
 endif
-:In vé giấy đưa cho khách;
 stop
-@enduml
-```
-
-### UC-10. Bán vé qua điện thoại
-
-```plantuml
-@startuml AD_UC10_BanVeQuaDienThoai
-start
-:Nhận cuộc gọi đặt vé của khách;
-:Tìm chuyến theo điểm đi, điểm đến và ngày;
-:Chọn chuyến và chọn ghế cho khách;
-:Nhập tên và số điện thoại của khách;
-:Chọn điểm đón và điểm trả cho khách;
-if (Khách trả tiền lúc nào?) then (trả ngay qua điện thoại)
-  :Gửi tin nhắn kèm đường dẫn/mã QR thanh toán cho khách;
-  :Khách tự bấm hoặc quét để trả tiền từ xa;
-  :Nhận xác nhận đã trả tiền, hẹn khách ra quầy lấy vé giấy;
-  stop
-else (hẹn trả khi ra lấy vé)
-  :Ghi nhận vé chưa trả tiền, hẹn khách ra quầy\ntrả tiền rồi lấy vé giấy;
-  stop
-endif
 @enduml
 ```
 
@@ -548,7 +566,7 @@ endif
 @enduml
 ```
 
-### UC-12. Xác nhận khách lên xe
+### UC-12. Xác nhận khách lên xe *(gồm cơ chế UC-14 cũ)*
 
 ```plantuml
 @startuml AD_UC12_LenXe
@@ -560,6 +578,11 @@ if (Có tìm thấy đúng khách trong danh sách không?) then (không thấy)
   stop
 endif
 :Bấm xác nhận khách này đã lên xe;
+note right
+  Tới sát giờ xe chạy tại điểm đón, khách nào chưa lên xe
+  (đã trả tiền hay hẹn trả tại quầy) được hệ thống tự đánh dấu
+  "không đến" và ghi nhận một lần bỏ vé cho khách có tài khoản
+end note
 stop
 @enduml
 ```
@@ -575,46 +598,29 @@ stop
 @enduml
 ```
 
-### UC-14. Đánh dấu khách không đến (hệ thống tự chạy theo giờ)
+### UC-15. Cập nhật hành trình chuyến (xuất phát, đến điểm) *(gộp từ UC-15 + UC-16 cũ)*
+
+*Phụ xe báo mốc chạy của chuyến: xuất phát ở bến đầu tuyến, rồi mỗi lần xe tới một điểm dừng.*
 
 ```plantuml
-@startuml AD_UC14_KhachKhongDen
+@startuml AD_UC15_HanhTrinh
 start
-:Tới sát giờ xe chạy tại điểm đón của khách;
-if (Còn khách nào chưa lên xe tại điểm này không?\n(cả khách đã trả tiền lẫn khách hẹn trả tại quầy)) then (còn)
-  :Đánh dấu những khách đó là không đến;
-  :Ghi nhận một lần bỏ vé cho khách có tài khoản;
-endif
-stop
-@enduml
-```
-
-### UC-15. Xác nhận xe xuất phát
-
-```plantuml
-@startuml AD_UC15_XuatPhat
-start
-:Tới giờ chạy tại bến đầu tuyến;
-:Phụ xe bấm xác nhận xe đã xuất phát;
-stop
-@enduml
-```
-
-### UC-16. Xác nhận xe đã tới một điểm dừng
-
-```plantuml
-@startuml AD_UC16_ToiDiemDung
-start
-:Xe vừa tới một điểm dừng trên tuyến;
-:Phụ xe bấm xác nhận xe đã tới điểm này;
-:Hệ thống ghi lại giờ tới thực tế và báo giờ dự kiến mới\ncho khách đang chờ ở các điểm phía sau;
-:Mở danh sách khách cần lên và cần xuống tại điểm này;
-if (Đây có phải điểm cuối của tuyến không?) then (phải)
-  :Chuyến xe kết thúc, coi như đã hoàn thành;
+if (Phụ xe đang báo mốc nào?) then (xuất phát)
+  :Tới giờ chạy tại bến đầu tuyến;
+  :Phụ xe bấm xác nhận xe đã xuất phát;
   stop
-else (chưa phải)
-  :Chờ tới điểm dừng tiếp theo rồi làm lại việc này;
-  stop
+else (xe tới một điểm dừng)
+  :Xe vừa tới một điểm dừng trên tuyến;
+  :Phụ xe bấm xác nhận xe đã tới điểm này;
+  :Hệ thống ghi lại giờ tới thực tế và báo giờ dự kiến mới\ncho khách đang chờ ở các điểm phía sau;
+  :Mở danh sách khách cần lên và cần xuống tại điểm này;
+  if (Đây có phải điểm cuối của tuyến không?) then (phải)
+    :Chuyến xe kết thúc, coi như đã hoàn thành;
+    stop
+  else (chưa phải)
+    :Chờ tới điểm dừng tiếp theo rồi làm lại việc này;
+    stop
+  endif
 endif
 @enduml
 ```
@@ -635,33 +641,243 @@ stop
 
 ### UC-18. Thiết lập lịch chạy định kỳ
 
-*Khách đặt được vé cho chuyến tận nhiều tuần/tháng sau, nhưng biển số xe cụ thể chỉ xuất hiện gần ngày chạy (giống cách các app đặt vé xe khách thật hoạt động) — vì vậy quản lý chỉ cần quyết định tuyến/giờ/loại xe từ trước, còn xe cụ thể do điều độ viên gán sau (xem use case riêng).*
+*Khách đặt được vé cho chuyến tận nhiều tuần/tháng sau, nhưng biển số xe cụ thể chỉ xuất hiện gần ngày chạy (giống cách các app đặt vé xe khách thật hoạt động) — vì vậy quản lý chỉ cần quyết định tuyến/giờ/loại xe từ trước, còn xe cụ thể do điều độ viên gán sau (xem use case riêng). Lịch chạy chỉ là "khuôn mẫu"; chuyến thật được sinh ra ở use case kế tiếp. Lịch luôn đi theo cặp chiều đi + chiều về nên không bao giờ có chuyến một chiều mà thiếu chiều còn lại.*
 
 ```plantuml
 @startuml AD_UC18_LichDinhKy
 start
 :Chọn một tuyến đã có sẵn;
-:Chọn chiều chạy (chiều đi hoặc chiều về —\ntuyến giờ chạy được cả 2 chiều);
-:Nhập giờ khởi hành trong ngày;
-:Chọn loại xe dự kiến phục vụ khung giờ này;
-:Lưu lại thành lịch chạy định kỳ;
-:Hệ thống tự động sinh sẵn chuyến cho nhiều ngày tới\n(chưa gán xe cụ thể nào) — khách đã có thể tìm và\nđặt vé ngay, dựa theo đúng loại xe đã chọn;
-if (Sau này muốn ngừng lịch này thì sao?) then (ngừng áp dụng)
-  :Chỉ ngừng sinh chuyến mới —\ncác chuyến đã sinh sẵn (có thể đã bán vé)\nvẫn giữ nguyên, không bị hủy;
+:Chọn loại xe dự kiến — dùng chung\ncho cả chiều đi và chiều về;
+:Nhập giờ khởi hành của chiều đi\nvà của chiều về;
+:Hệ thống tính xe tới nơi lúc mấy giờ;
+if (Chiều đi kết thúc trong ngày mà chiều về\nkhởi hành sớm hơn giờ đó + 30 phút?) then (có)
+  :Báo chiều về phải cùng ngày\nvà khởi hành muộn hơn ít nhất 30 phút;
+  stop
+endif
+:Nếu chiều đi qua nửa đêm, tính chuyến về\nchạy sau chuyến đi mấy ngày;
+note right
+  Ví dụ tuyến chạy 6 tiếng: đi 23h00 thì tới 5h00 hôm sau,
+  chiều về 7h00 chạy sau chuyến đi 1 ngày.
+end note
+if (Chiều đi hoặc chiều về đã có lịch y hệt\n(cùng tuyến, giờ, loại xe)?) then (có)
+  :Báo trùng lịch, không lưu gì cả;
+  stop
+endif
+:Lưu cả hai chiều cùng lúc thành một cặp lịch —\nlúc này chưa có chuyến nào được tạo;
+if (Sau này muốn thay đổi cặp lịch này?) then (ngừng áp dụng)
+  :Chỉ ngừng tạo chuyến mới cho cả hai chiều —\ncác chuyến đã tạo (có thể đã bán vé)\nvẫn giữ nguyên, không bị hủy;
+else (sửa hoặc xóa)
+  if (Cặp lịch này đã từng tạo chuyến chưa?) then (đã tạo)
+    :Không cho sửa hay xóa —\nbáo hãy ngừng cặp lịch này rồi lập cặp mới;
+  else (chưa)
+    :Cho sửa giờ từng chiều, đổi loại xe cả cặp\nhoặc xóa cả cặp;
+  endif
 endif
 stop
 @enduml
 ```
 
-### UC-44. Gán xe cho chuyến
+### UC-47. Sinh chuyến từ lịch chạy định kỳ
 
-*Điều độ viên chỉ chọn xe — tài xế và phụ xe đi theo xe sẵn rồi, không phải chọn người. Xe chọn phải đúng loại xe đã cam kết khi lập lịch định kỳ (use case trên). Nếu để trễ tới đúng giờ chạy mà vẫn chưa gán được, hệ thống tự chuyển chuyến sang trạng thái đang hoãn (xem use case riêng bên dưới) — vẫn tiếp tục gán xe qua use case này bình thường cho tới khi có.*
+*Không có công việc chạy nền tự tạo chuyến: quản lý tự quyết định mở bán tới ngày nào bằng cách chọn hẳn khoảng ngày. Mỗi cặp lịch được sinh trọn cả hai chiều. Bấm lại cho khoảng ngày chồng lên lần trước vẫn an toàn — chuyến nào đã có thì bỏ qua.*
+
+```plantuml
+@startuml AD_UC47_SinhChuyen
+start
+:Chọn một tuyến, bấm "Sinh chuyến"\nvà tick các cặp lịch cần sinh;
+if (Có chọn ít nhất một cặp,\ncặp nào cũng còn đang áp dụng?) then (không)
+  :Báo chọn lại hoặc bật lại cặp đã ngừng;
+  stop
+endif
+if (Khoảng ngày chọn nằm trong các bộ giá vé của tuyến?\n(chuyến đi tối đa = ngày cuối bộ giá mới nhất\ntrừ số ngày lệch của chuyến về)) then (vượt ngoài)
+  :Báo ngày muộn nhất sinh được, không tạo chuyến nào\n(vẫn lập lịch được, chỉ chưa sinh chuyến);
+  stop
+endif
+:Chọn ngày bắt đầu và ngày kết thúc chung;
+if (Khoảng ngày hợp lệ?\n(không có ngày đã qua, không quá 180 ngày)) then (không)
+  :Báo lỗi, yêu cầu chọn lại;
+  stop
+endif
+repeat
+  if (Chuyến chiều đi của ngày này\nđã quá giờ hiện tại?) then (rồi)
+    :Bỏ cả ngày này — không tạo chuyến đi lẫn\nchuyến về đi kèm, để không thừa chuyến về lẻ;
+  else (chưa)
+    :Với mỗi cặp: chuyến chiều đi chạy đúng ngày này,\nchuyến chiều về chạy sau đó đúng số ngày lệch của cặp;
+    if (Chuyến đó đã có rồi?) then (rồi)
+      :Bỏ qua;
+    else (chưa)
+      :Tạo chuyến (chưa gán xe cụ thể nào,\ncó mã chuyến riêng);
+    endif
+  endif
+repeat while (Còn ngày nào trong khoảng?) is (còn)
+:Báo kết quả: tạo mới bao nhiêu chuyến đi, bao nhiêu chuyến về,\nbỏ qua bao nhiêu chuyến đã có và bao nhiêu ngày đã quá giờ;
+note right
+  Tất cả được làm trong một lượt: nếu có lỗi
+  thì không chuyến nào được tạo.
+  Các chuyến mới đã có thể cho khách tìm và
+  đặt vé ngay, dựa theo đúng loại xe của lịch.
+end note
+stop
+@enduml
+```
+
+### UC-48. Quản lý chuyến đã sinh (xem, sửa giờ, xóa)
+
+*Quản lý chỉ động vào được chuyến còn "sạch" — chưa gán xe, chưa tới giờ chạy, chưa có khách đặt vé. Chuyến đã gán xe hay đã có khách thuộc về điều độ viên và quy trình hoàn tiền, không sửa ở đây.*
+
+```plantuml
+@startuml AD_UC48_QuanLyChuyen
+start
+:Xem danh sách chuyến, lọc theo tuyến, chiều,\nkhoảng ngày, tình trạng hoặc tìm theo mã chuyến;
+:Chọn một chuyến để xem chi tiết\n(mã chuyến, loại xe, xe, số vé, giá vé từng chặng,\nlộ trình và giờ đến từng điểm);
+if (Chuyến còn "sạch"?\n(chưa gán xe, chưa chạy, chưa có vé)) then (không)
+  :Hiện rõ lý do không sửa hay xóa được\n(đã gán xe / đã chạy / đã có khách đặt);
+  stop
+endif
+if (Muốn làm gì?) then (sửa giờ)
+  :Nhập giờ mới — chỉ đổi giờ, ngày giữ nguyên;
+  if (Giờ mới còn ở phía trước,\nkhông trùng giờ với chuyến cùng loại xe\ntrong ngày?) then (không)
+    :Báo lỗi;
+    stop
+  endif
+  :Lưu giờ mới — mã chuyến cũng được\nđổi theo giờ mới;
+  note right
+    Muốn chuyến sang ngày khác:
+    xóa chuyến rồi sinh lại từ lịch chạy.
+    (Khi chuyến bị hoãn và điều độ viên dời giờ,
+    mã chuyến giữ nguyên, không đổi.)
+  end note
+else (xóa chuyến)
+  :Xác nhận xóa;
+  :Chuyến biến mất khỏi danh sách;
+endif
+stop
+@enduml
+```
+
+### UC-49. Quản lý hồ sơ nhân sự vận hành (tài xế, phụ xe) *(gồm cơ chế UC-50 cũ)*
+
+*Quản lý nhân sự hoặc quản lý đều làm được. Tài xế không có tài khoản nên hồ sơ này là nơi duy nhất lưu thông tin của họ.*
+
+```plantuml
+@startuml AD_UC49_HoSoNhanSu
+start
+:Chọn "Thêm hồ sơ" hoặc chọn một hồ sơ có sẵn để sửa;
+:Nhập họ tên, số điện thoại, chức danh (tài xế hoặc phụ xe),\nsố CCCD, ngày sinh, ngày vào làm;
+if (Là hồ sơ phụ xe?) then (đúng)
+  :Chọn tài khoản phụ xe tương ứng;
+  if (Tài khoản đúng vai trò phụ xe\nvà chưa gắn với hồ sơ khác?) then (không)
+    :Báo lỗi, yêu cầu chọn lại;
+    stop
+  endif
+else (là tài xế)
+  if (Có chọn tài khoản không?) then (có)
+    :Từ chối — tài xế không có tài khoản;
+    stop
+  endif
+endif
+:Nhập giấy tờ: bằng lái và giấy khám sức khỏe\n(số, hạng, ngày cấp, ngày hết hạn);
+if (Là tài xế mà chưa có bằng lái?) then (đúng)
+  :Từ chối — tài xế bắt buộc có thông tin bằng lái;
+  stop
+endif
+if (Đang gia hạn giấy tờ đã có?) then (đúng)
+  :Xóa trạng thái "đã nhắc" — chu kỳ nhắc hết hạn\nbắt đầu lại từ đầu;
+endif
+:Lưu hồ sơ (tài xế được tự cấp mã nhân viên TX; phụ xe\ndùng mã của tài khoản) và ghi vào nhật ký thao tác;
+note right
+  Mỗi ngày hệ thống tự rà soát giấy tờ: còn không quá 30 ngày
+  là hết hạn, hoặc đã quá hạn, thì nhắc quản lý nhân sự
+  (không quản lý nhân sự nào đang hoạt động thì nhắc quản lý).
+  Chỉ nhắc — không khóa tài khoản, không gỡ khỏi xe.
+end note
+stop
+@enduml
+```
+
+### UC-51. Cho nghỉ việc nhân sự vận hành
+
+```plantuml
+@startuml AD_UC51_ChoNghiViec
+start
+:Chọn hồ sơ cần cho nghỉ việc, nhập ngày nghỉ và lý do;
+if (Xe người này thuộc biên chế đang có chuyến chạy\nhoặc gặp sự cố?) then (đúng)
+  :Từ chối — chờ chuyến kết thúc / xử lý xong sự cố rồi làm lại;
+  stop
+endif
+if (Người này đang thuộc biên chế của xe nào?) then (có)
+  :Hiện cảnh báo: những xe nào sẽ thiếu người sau khi nghỉ;
+  :Người thao tác xác nhận;
+endif
+:Đóng hồ sơ (không xóa, giữ lịch sử);
+if (Là phụ xe có tài khoản?) then (đúng)
+  :Khóa tài khoản;
+endif
+if (Có thuộc biên chế xe?) then (có)
+  :Chuyển người này sang "tạm nghỉ" trong biên chế\nđể hệ thống ngừng gán chuyến cho họ ngay;
+  :Báo quản lý và điều độ viên xe nào đang thiếu người;
+endif
+:Ghi vào nhật ký thao tác;
+stop
+@enduml
+```
+
+### UC-52. Xem nhật ký thao tác
+
+```plantuml
+@startuml AD_UC52_NhatKy
+start
+:Mở màn hình nhật ký;
+if (Người xem là ai?) then (quản lý nhân sự)
+  :Chỉ thấy các thao tác do chính mình thực hiện;
+else (quản lý)
+  :Thấy thao tác của mọi người,\nlọc thêm được theo người thực hiện;
+endif
+:Lọc theo khoảng thời gian, loại thao tác, đối tượng bị tác động;
+:Hiện danh sách, thao tác mới nhất ở trên;
+note right: Chỉ xem — không sửa hay xóa được dòng nào
+stop
+@enduml
+```
+
+### UC-53. Xem và sửa thông tin cá nhân
+
+```plantuml
+@startuml AD_UC53_ThongTinCaNhan
+start
+:Chọn "Tài khoản của tôi" — hiện họ tên, số điện thoại,\nemail, vai trò, ngày tham gia;
+:Bấm biểu tượng bút cạnh họ tên hoặc số điện thoại\nvà nhập giá trị mới;
+if (Đang sửa họ tên mà để trống?) then (đúng)
+  :Báo lỗi, nhập lại;
+  stop
+endif
+if (Đang sửa số điện thoại?) then (đúng)
+  :Bỏ khoảng trắng, dấu chấm, gạch ngang;\nđổi đầu +84 hoặc 84 thành 0;
+  if (Là số di động 10 chữ số\nhoặc số bàn 11 chữ số?) then (không)
+    :Báo số điện thoại không hợp lệ, nhập lại;
+    stop
+  endif
+endif
+:Lưu thông tin mới;
+note right: Email và vai trò không sửa được
+stop
+@enduml
+```
+
+### UC-44. Gán xe cho chuyến *(gồm cơ chế UC-45 cũ)*
+
+*Điều độ viên chỉ chọn xe — tài xế và phụ xe đi theo xe sẵn rồi, không phải chọn người. Xe chọn phải đúng loại xe đã cam kết khi lập lịch định kỳ (use case trên). Nếu để trễ tới đúng giờ chạy mà vẫn chưa gán được, hệ thống tự chuyển chuyến sang trạng thái đang hoãn (xem ghi chú trong sơ đồ) — vẫn tiếp tục gán xe qua use case này bình thường cho tới khi có.*
 
 ```plantuml
 @startuml AD_UC44_GanXe
 start
 :Xem danh sách chuyến của văn phòng mình\n(có đánh dấu chuyến sắp chạy mà chưa gán xe,\nkể cả chuyến đang hoãn vì chưa có xe);
 :Chọn 1 chuyến cần gán xe;
+note right
+  Tới đúng giờ chạy mà chuyến vẫn chưa có xe, hệ thống tự đánh dấu
+  chuyến "đang hoãn", cập nhật giờ dự kiến tạm thời và báo cho khách
+  đã đặt vé — khách đã trả tiền được hủy nhận hoàn 100% nếu không muốn chờ
+end note
 :Hệ thống lọc ra những xe đủ điều kiện\n(đúng loại xe đã cam kết, đang có mặt đúng chỗ,\nkhông trùng lịch);
 if (Có xe nào đủ điều kiện không?) then (không có)
   :Báo không còn xe phù hợp,\ngợi ý chờ xe khác rảnh;
@@ -676,28 +892,9 @@ stop
 @enduml
 ```
 
-### UC-45. Tự động chuyển sang đang hoãn khi tới giờ chạy mà chưa có xe
+### UC-19. Xử lý khi xe gặp sự cố dọc đường (ngoại lệ) *(gồm cơ chế UC-21 + UC-43 cũ)*
 
-*Khác với use case "cho xe khác chạy thay tạm thời" (dành cho chuyến ĐÃ có xe rồi xe đó hỏng): đây là chuyến chưa từng có xe nào cả, không phải chờ điều độ viên phát hiện — hệ thống tự nhận ra và xử lý ngay khi tới đúng giờ. Dùng chung đúng cơ chế "đang hoãn" đã có ở use case đó (báo khách, cảnh báo quản lý sau 6 tiếng, khách được chủ động hủy nhận hoàn toàn bộ tiền).*
-
-```plantuml
-@startuml AD_UC45_TuDongHoanKhiChuaCoXe
-start
-:Một chuyến đã tới đúng giờ khởi hành đã lên lịch\nmà vẫn chưa có xe nào được gán;
-:Hệ thống tự động đánh dấu chuyến này là "đang hoãn",\ncập nhật giờ dự kiến mới tạm thời;
-:Báo cho khách đã đặt vé trên chuyến này biết;
-:Điều độ viên tiếp tục tìm xe gán vào chuyến\n(xem use case gán xe cho chuyến) cho tới khi có;
-if (Trong lúc chờ, khách đã trả tiền có muốn\nhủy lấy lại tiền thay vì chờ không?) then (có, muốn hủy)
-  :Khách hủy vé, nhận lại toàn bộ tiền\n(xem use case "Hủy vé nhận hoàn toàn bộ tiền\nkhi chuyến đang bị hoãn");
-else (không, đợi tiếp)
-endif
-stop
-@enduml
-```
-
-### UC-19. Xử lý khi xe gặp sự cố dọc đường (ngoại lệ)
-
-*Nguyên tắc: chuyến không bao giờ bị bỏ dở giữa đường vì lỗi nhà xe — luôn tìm cách hoàn thành dù mất bao lâu. Chỉ sự cố khách quan (thiên tai, sạt lở...) mới có khả năng thực sự không thể hoàn thành. Các mốc thời gian chỉ mang tính hướng dẫn cho điều độ viên đánh giá — không có mốc nào tự động hủy chuyến; riêng mốc "3 tiếng" cho lỗi nhà xe là mốc hệ thống tự động hoàn tiền thật (không phải hủy gì cả), xem use case tự động hoàn tiền quá 3 tiếng. Ngay khi chuyến chuyển sang gặp sự cố, mọi chuyến khác đã lên lịch sẵn cho cùng chiếc xe này đều bị đánh dấu cảnh báo lệch vị trí — điều độ viên xem lại từng chuyến đó sau khi sự cố kết thúc, xem use case "Cho xe khác chạy thay tạm thời" nếu xe không kịp về đúng chỗ.*
+*Nguyên tắc: chuyến không bao giờ bị bỏ dở giữa đường vì lỗi nhà xe — luôn tìm cách hoàn thành dù mất bao lâu. Chỉ sự cố khách quan (thiên tai, sạt lở...) mới có khả năng thực sự không thể hoàn thành. Các mốc thời gian chỉ mang tính hướng dẫn cho điều độ viên đánh giá — không có mốc nào tự động hủy chuyến; riêng mốc "3 tiếng" cho lỗi nhà xe là mốc hệ thống tự động hoàn tiền thật (không phải hủy gì cả), xem phần hoàn tiền trong sơ đồ này. Ngay khi chuyến chuyển sang gặp sự cố, mọi chuyến khác đã lên lịch sẵn cho cùng chiếc xe này đều bị đánh dấu cảnh báo lệch vị trí — điều độ viên xem lại từng chuyến đó sau khi sự cố kết thúc, xem use case "Cho xe khác chạy thay tạm thời" nếu xe không kịp về đúng chỗ.*
 
 ```plantuml
 @startuml AD_UC19_XuLySuCo
@@ -714,11 +911,16 @@ if (Sự cố do nguyên nhân gì?) then (do nhà xe)
   else (hơn 1 tiếng hoặc chưa rõ)
     :Tìm xe (hoặc thuê ngoài) tới đúng vị trí xe hỏng\nđể chở tiếp hành khách — luôn tìm được xe,\nkhông có chuyện "hết cách" với lỗi do nhà xe;
     if (Trong lúc chờ, khách đã trả tiền có muốn\nhủy lấy lại tiền không?) then (có, muốn hủy)
-      :Khách hủy vé, nhận lại toàn bộ tiền, hết nghĩa vụ chở khách này\n(xem use case hủy vé do lỗi nhà xe giữa đường);
+      :Khách hủy vé, nhận lại toàn bộ tiền, hết nghĩa vụ chở khách này\n(xem use case hủy vé nhận hoàn tiền);
       stop
     else (không, đợi tiếp)
       if (Đã chờ tới mức nào rồi?) then (đạt mốc 3 tiếng mà vẫn chưa xong)
-        :Hệ thống tự động hoàn 100% tiền vé cho khách\n(dù khách không yêu cầu) — vé KHÔNG bị hủy,\nvẫn tiếp tục được chở miễn phí khi có xe\n(xem use case tự động hoàn tiền quá 3 tiếng);
+        :Hệ thống tự động hoàn 100% tiền vé cho khách\n(dù khách không yêu cầu) — vé KHÔNG bị hủy,\nvẫn tiếp tục được chở miễn phí khi có xe;
+        if (Khách trả tiền bằng chuyển khoản qua cổng\nhay tiền mặt lúc đặt vé?) then (chuyển khoản qua cổng)
+          :Hoàn tự động qua cổng thanh toán;
+        else (tiền mặt)
+          :Đưa vào danh sách chờ kế toán xử lý\n(xem use case kế toán chuyển khoản hoàn tiền);
+        endif
       else (chưa tới 3 tiếng)
       endif
     endif
@@ -736,20 +938,33 @@ else (khách quan — thiên tai, sạt lở...)
     stop
   else (hơn 3 tiếng, và xác nhận thực sự không thể\ntiếp tục được nữa)
     :Hủy phần đường còn lại của chuyến;
-    :Chuyến bị hủy giữa đường — chuyển sang\ntự động tính và báo tiền hoàn (100%);
+    :Chuyến bị hủy giữa đường;
+    :Hệ thống ghi nhận hoàn lại toàn bộ 100% tiền vé cho mọi khách\nđã trả tiền (không trừ theo phần đường đã đi) và báo cho khách biết;
+    if (Khách trả tiền bằng chuyển khoản qua cổng\nhay tiền mặt lúc đặt vé?) then (chuyển khoản qua cổng)
+      :Hoàn tự động qua cổng thanh toán;
+    else (tiền mặt)
+      :Đưa vào danh sách chờ kế toán xử lý\n(xem use case kế toán chuyển khoản hoàn tiền);
+    endif
     stop
   endif
 endif
 @enduml
 ```
 
-### UC-20. Cho xe khác chạy thay tạm thời khi xe hỏng trước giờ chạy (ngoại lệ)
+### UC-20. Đổi xe trước giờ khởi hành và gán lại xe gốc (ngoại lệ) *(gộp từ UC-20 + UC-40 cũ)*
 
-*Áp dụng cho cả 2 tình huống: xe tự hỏng đột xuất, HOẶC xe không kịp về đúng chỗ vì chuyến ngay trước đó của chính xe này gặp sự cố dọc đường (dù cuối cùng chuyến trước đó tự khắc phục được, delay lâu, hay bị hủy hẳn giữa đường) — bản chất vấn đề như nhau: xe không có mặt đúng nơi đúng giờ. Cả 2 tình huống đều giả định chuyến **đã có xe được gán từ trước** — trường hợp chuyến chưa từng có xe nào cả xem use case "Tự động chuyển sang đang hoãn khi tới giờ chạy mà chưa có xe" riêng bên dưới. Chỉ đổi "xe đang thực sự lăn bánh" — không đổi xe gốc của chuyến, nên tài xế và phụ xe vẫn là đúng người của xe hỏng, không ai bị xáo trộn lịch làm việc. Chuyến KHÔNG BAO GIỜ bị hủy vì lý do hết xe thay thế — vé là một cam kết chắc chắn với khách, nhất là dịp cao điểm khi khách không còn lựa chọn nào khác nếu bị hủy hẳn; hết xe ngay lúc đó chỉ khiến chuyến bị hoãn giờ chạy.*
+*Điều độ viên quản lý xe chạy thay: đổi sang xe khác khi xe gốc không thể có mặt đúng giờ, và trả chuyến về xe gốc khi xe đó đã sửa xong. Đổi xe áp dụng cho cả 2 tình huống: xe tự hỏng đột xuất, HOẶC xe không kịp về đúng chỗ vì chuyến ngay trước đó của chính xe này gặp sự cố dọc đường. Cả 2 giả định chuyến đã có xe được gán từ trước — chuyến chưa từng có xe thì xem use case "Gán xe cho chuyến". Chỉ đổi "xe đang thực sự lăn bánh", không đổi xe gốc của chuyến nên tài xế và phụ xe vẫn là người của xe hỏng. Chuyến KHÔNG BAO GIỜ bị hủy vì hết xe thay thế — chỉ bị hoãn giờ chạy.*
 
 ```plantuml
 @startuml AD_UC20_DoiXe
 start
+if (Điều độ viên đang xử lý việc gì?) then (xe gốc đã sửa xong,\ntrả chuyến về xe gốc)
+  :Hệ thống nhắc điều độ viên xe đã sẵn sàng,\nkèm danh sách các chuyến đang chạy thay bằng xe khác;
+  :Chọn thời điểm phù hợp (thường là lúc xe thay thế vừa\nvề đúng chỗ xe gốc đang đỗ) và chọn 1 chuyến trong chuỗi;
+  :Từ chuyến đó trở đi, chuyến dùng lại đúng xe gốc,\nbỏ cờ "đang chạy thay";
+  :Xe thay thế được giải phóng, quay lại làm xe dự phòng\nhoặc lịch trình riêng của nó;
+  stop
+endif
 :Tìm xe cùng loại với xe hỏng, đủ điều kiện chạy thay\n(đúng chỗ, còn rảnh) trong đội xe của nhà xe;
 if (Có xe nào trong đội xe đủ điều kiện không?) then (không có)
   :Tìm thuê/mượn thêm 1 xe cùng loại\ntừ garage hoặc nhà xe đối tác bên ngoài;
@@ -770,30 +985,10 @@ endif
 :Thông báo cho khách biết chuyến đang hoãn\nvà giờ dự kiến mới;
 :Tiếp tục tìm xe thay thế (quay lại từ đầu) cho tới khi có\n— mục tiêu nội bộ là trong vòng 6 tiếng, quá mốc này\nchỉ báo cho quản lý biết để hỗ trợ thêm, không tự hủy gì cả;
 if (Trong lúc chờ, khách đã trả tiền có muốn\nhủy lấy lại tiền thay vì chờ không?) then (có, muốn hủy)
-  :Khách hủy vé, nhận lại toàn bộ tiền\n(xem use case "Hủy vé nhận hoàn toàn bộ tiền\nkhi chuyến đang bị hoãn");
+  :Khách hủy vé, nhận lại toàn bộ tiền\n(xem use case "Hủy vé nhận hoàn toàn bộ tiền\nkhi chuyến đang hoãn hoặc gặp sự cố");
 else (không, đợi tiếp)
 endif
 stop
-@enduml
-```
-
-### UC-21. Tự động tính và báo tiền hoàn (hệ thống tự chạy)
-
-*Chỉ áp dụng cho chuyến bị hủy giữa đường vì sự cố **khách quan** (thiên tai, sạt lở...) thực sự không thể tiếp tục — lỗi do nhà xe không bao giờ dẫn tới hủy chuyến (luôn tìm được xe thay thế). Trường hợp khách tự hủy vé khi chuyến đang gặp sự cố do lỗi nhà xe, hoặc khi chuyến bị hoãn trước giờ chạy, đều do khách chủ động yêu cầu, không qua use case tự động này — xem 2 use case hủy vé nhận hoàn tiền riêng.*
-
-```plantuml
-@startuml AD_UC21_TinhTienHoan
-start
-:Một chuyến bị hủy giữa đường do sự cố khách quan\n(điều độ viên đã xác nhận không thể tiếp tục được nữa);
-:Tìm những vé đã trả tiền bị ảnh hưởng;
-:Ghi nhận hoàn lại toàn bộ 100% tiền vé\n(không trừ theo phần đường đã đi) và báo cho khách biết;
-if (Khách trả tiền bằng chuyển khoản hay tiền mặt lúc đặt vé?) then (chuyển khoản qua cổng)
-  :Hoàn tự động qua cổng thanh toán, về đúng\nnơi khách đã trả;
-  stop
-else (tiền mặt)
-  :Đưa vào danh sách chờ kế toán xử lý\n(xem use case kế toán chuyển khoản hoàn tiền);
-  stop
-endif
 @enduml
 ```
 
@@ -869,13 +1064,14 @@ stop
 @enduml
 ```
 
-### UC-25. Xử lý hàng chờ quá lâu tại điểm nhận
+### UC-25. Xử lý hàng chờ quá lâu tại điểm nhận *(gồm cơ chế UC-46 cũ)*
 
-*Ứng với 2 mốc hệ thống tự động cảnh báo (xem use case riêng bên dưới): mốc đầu (7 ngày) chỉ nhắc xử lý, mốc sau (14 ngày) mới coi là "hàng tồn" chính thức — cả 2 mốc đều không tự hủy hàng, chỉ nhắc nhân viên.*
+*Hệ thống tự rà soát hàng chờ lấy: mốc đầu (7 ngày) chỉ nhắc xử lý, mốc sau (14 ngày) mới coi là "hàng tồn" chính thức — cả 2 mốc đều không tự hủy hàng, chỉ nhắc nhân viên.*
 
 ```plantuml
 @startuml AD_UC25_HangQuaHan
 start
+:Hệ thống rà soát hàng đã tới điểm nhận mà chưa ai lấy:\nđủ 7 ngày thì bật cảnh báo cho nhân viên điểm đó,\nđủ 14 ngày thì chuyển hẳn sang "hàng tồn" (hàng vẫn giữ, không hủy);
 :Nhận cảnh báo hàng chờ quá lâu tại điểm mình;
 if (Trước đó đã từng gọi thông báo được người nhận chưa?) then (đã từng)
   :Gọi lại người nhận, hỏi khi nào tới lấy\nhoặc hướng xử lý khác;
@@ -889,24 +1085,6 @@ else (không liên lạc được ai cả)
   :Báo quản lý xử lý thủ công (thanh lý);
   stop
 endif
-@enduml
-```
-
-### UC-46. Tự động cảnh báo và chuyển "hàng tồn" khi hàng chờ quá lâu
-
-*Không hủy hàng ở bất kỳ mốc nào — chỉ đổi cờ/trạng thái để nhắc nhân viên gửi hàng xử lý (xem use case trên).*
-
-```plantuml
-@startuml AD_UC46_TuDongCanhBaoHangTon
-start
-:Một đơn hàng đã tới điểm nhận nhưng chưa ai tới lấy;
-if (Đã đủ 7 ngày kể từ lúc hàng tới chưa?) then (đủ rồi, và chưa từng cảnh báo)
-  :Bật cờ cảnh báo, báo nhân viên gửi hàng\ntại điểm này xử lý;
-endif
-if (Đã đủ 14 ngày kể từ lúc hàng tới chưa?) then (đủ rồi)
-  :Chuyển hẳn sang "hàng tồn"\n— hàng vẫn được giữ nguyên, không hủy;
-endif
-stop
 @enduml
 ```
 
@@ -975,10 +1153,18 @@ stop
 ```plantuml
 @startuml AD_UC30_QuanLyDiemDonTra
 start
-:Chọn thêm mới hoặc sửa một điểm đón trả;
-:Chọn khu vực chứa điểm này và nhập địa chỉ cụ thể;
+if (Thêm mới hay sửa?) then (thêm mới)
+  :Chọn khu vực chứa điểm này và nhập địa chỉ cụ thể;
+else (sửa)
+  :Sửa tên, địa chỉ hoặc loại điểm;
+  note right
+    Khu vực của điểm đã tạo không đổi được
+    (mã điểm gắn với khu vực). Muốn điểm ở
+    khu vực khác: tạo điểm mới rồi xóa điểm cũ.
+  end note
+endif
 :Chọn đây là văn phòng có quầy vé\nhay chỉ là điểm dừng dọc đường;
-:Lưu lại;
+:Lưu lại — hệ thống tự đặt mã cho điểm\n(theo mã khu vực, VD KV001-DT001);
 stop
 @enduml
 ```
@@ -1009,14 +1195,13 @@ endif
 
 ### UC-32. Quản lý loại xe
 
-*Mọi xe cùng loại phải giống hệt nhau — cùng sơ đồ ghế, cùng hệ số giá — chỉ khác biển số. Nhờ vậy khi 1 xe hỏng, đổi sang xe khác cùng loại luôn an toàn tuyệt đối, không ai bị ảnh hưởng.*
+*Mọi xe cùng loại phải giống hệt nhau — cùng sơ đồ ghế — chỉ khác biển số. Nhờ vậy khi 1 xe hỏng, đổi sang xe khác cùng loại luôn an toàn tuyệt đối, không ai bị ảnh hưởng.*
 
 ```plantuml
 @startuml AD_UC32_QuanLyLoaiXe
 start
 :Chọn thêm mới hoặc sửa một loại xe;
 :Nhập tên loại xe (ghế ngồi, giường đơn, cabin đôi...);
-:Nhập hệ số giá của loại xe đó so với giá gốc;
 :Nhập sơ đồ ghế ngồi áp dụng chung cho mọi xe thuộc loại này;
 :Lưu lại;
 stop
@@ -1028,10 +1213,39 @@ stop
 ```plantuml
 @startuml AD_UC33_DatGiaVe
 start
-:Chọn một tuyến;
-:Chọn cặp điểm đi và điểm đến muốn bán vé;
-:Nhập giá gốc cho cặp điểm đó;
-:Lưu lại — giá bán thực tế sẽ bằng giá gốc\nnhân với hệ số của loại xe chạy chuyến;
+:Chọn một tuyến và bấm "Tạo bộ giá mới";
+if (Tuyến đã có bộ giá nào chưa?) then (chưa)
+  :Chọn ngày bắt đầu (mặc định ngày mai);
+else (rồi)
+  :Ngày bắt đầu tự là ngày liền sau\nngày kết thúc của bộ giá cuối cùng;
+endif
+:Chọn ngày kết thúc (bắt buộc);
+:Nhập giá cho từng chặng của tuyến\n(điền sẵn từ bộ đang áp dụng, hiện số tiền có dấu chấm);
+if (Bộ có đủ giá cho mọi chặng?) then (thiếu)
+  :Báo chặng còn thiếu;
+  stop
+endif
+:Hệ thống xem trước: nối tiếp bộ nào,\nchặng nào đổi giá, cảnh báo giá bất thường;
+if (Có cảnh báo giá bất thường?\n(quá thấp/quá cao, lệch nhiều so với bộ trước,\nchặng ngắn đắt hơn chặng dài)) then (có)
+  if (Quản lý kiểm tra lại, vẫn muốn lưu?) then (không)
+    :Quay lại sửa giá;
+    stop
+  endif
+endif
+:Lưu bộ mới nối liền ngay sau bộ cuối cùng;
+note right
+  Vé đã đặt luôn giữ giá lúc khách giữ ghế
+  nên không bị ảnh hưởng. Chuyến chưa ai đặt
+  nằm trong khoảng bộ mới sẽ dùng giá mới.
+  Sinh chuyến chỉ được trong khoảng các bộ giá.
+end note
+if (Sau này muốn sửa hoặc xóa bộ giá?) then (sửa/xóa)
+  if (Đã có chuyến được sinh ra\ntrong khoảng ngày của bộ này?) then (đã có)
+    :Không sửa giá, không xóa (kể cả chưa có khách đặt);\nriêng bộ cuối vẫn kéo dài hoặc rút ngắn\nngày kết thúc được (gia hạn);
+  else (chưa)
+    :Sửa giá tự do; đổi ngày kết thúc và xóa\nchỉ với bộ cuối cùng\n(bộ ở giữa đổi ngày sẽ làm hở/chồng bộ bên cạnh);
+  endif
+endif
 stop
 @enduml
 ```
@@ -1062,6 +1276,10 @@ stop
 start
 :Chọn một xe;
 :Gán hoặc gỡ tài xế và phụ xe cố định của xe đó;
+if (Người được chọn đã nghỉ việc?) then (đúng)
+  :Từ chối — chỉ nhân sự đang làm việc mới được gán;
+  stop
+endif
 :Lưu lại — mọi chuyến của xe này sẽ tự dùng đúng người vừa gán,\nkhông cần sửa lại từng chuyến;
 stop
 @enduml
@@ -1074,7 +1292,7 @@ stop
 ```plantuml
 @startuml AD_UC36_TaoTaiKhoanNhanVien
 start
-:Nhập email, chọn vai trò muốn tạo và văn phòng phụ trách (nếu cần);
+:Nhập email, họ tên, số điện thoại, chọn vai trò muốn tạo\nvà văn phòng phụ trách (chỉ quầy vé/gửi hàng);
 if (Email này đã có tài khoản chưa?) then (có rồi)
   :Báo lỗi email đã tồn tại;
   stop
@@ -1090,49 +1308,71 @@ else (Quản lý)
     stop
   endif
 endif
-:Tạo tài khoản và gửi thư mời qua email;
-:Nhân viên bấm liên kết trong thư và tự đặt mật khẩu lần đầu;
-:Tài khoản bắt đầu dùng được;
+:Tạo tài khoản đã xác nhận, tự cấp mã nhân viên theo vai trò\nvà đặt mật khẩu ban đầu mặc định (không gửi email),\nnhắc người tạo báo cho cán bộ;
+:Người tạo báo mã nhân viên và mật khẩu ban đầu cho cán bộ;
+:Cán bộ đăng nhập và nên đổi mật khẩu ngay;
 stop
 @enduml
 ```
 
-### UC-37. Khóa tài khoản
-
-*Quản lý nhân sự cũng thực hiện được use case này, nhưng phạm vi hẹp hơn quản lý — xem nhánh rẽ.*
+#### Nhánh kèm theo — Đổi văn phòng của cán bộ
 
 ```plantuml
-@startuml AD_UC37_KhoaTaiKhoan
+@startuml AD_UC36_DoiVanPhongCanBo
 start
-:Tìm tài khoản cần khóa;
-if (Tài khoản này có phải quản lý gốc\n(tài khoản khởi tạo hệ thống) không?) then (phải)
-  :Từ chối tuyệt đối — không ai khóa được tài khoản này;
+:Tìm cán bộ cần đổi văn phòng;
+if (Tài khoản là nhân viên quầy vé hoặc gửi hàng?) then (không)
+  :Từ chối — vai trò này không gắn văn phòng;
   stop
 endif
-if (Người đang thao tác là quản lý nhân sự,\nVÀ tài khoản mục tiêu là kế toán/quản lý/quản lý nhân sự khác?) then (đúng, chặn lại)
-  :Từ chối, báo không đủ quyền;
+:Hiển thị văn phòng hiện tại\n(chưa có thì xem như gán lần đầu), chọn văn phòng mới;
+if (Điểm được chọn là văn phòng\nvà khác văn phòng hiện tại?) then (không)
+  :Báo lỗi, chọn lại;
   stop
 endif
-:Nhập lý do khóa;
-:Khóa tài khoản lại — người này không đăng nhập được nữa,\nnhưng dữ liệu cũ vẫn giữ nguyên;
+:Cập nhật văn phòng của cán bộ;
+if (Người thao tác là Quản lý nhân sự?) then (đúng)
+  :Ghi nhật ký (văn phòng cũ -> văn phòng mới);
+endif
+:Từ đây cán bộ chỉ thấy dữ liệu của văn phòng mới;
 stop
 @enduml
 ```
 
-### UC-38. Mở khóa tài khoản
+### UC-37. Khóa / mở khóa tài khoản *(gộp từ UC-37 + UC-38 cũ)*
 
-*Quản lý nhân sự cũng thực hiện được use case này, nhưng phạm vi hẹp hơn quản lý — xem nhánh rẽ.*
+*Quản lý nhân sự cũng thực hiện được use case này, nhưng phạm vi hẹp hơn quản lý — xem nhánh rẽ. Chỉ áp dụng cho tài khoản **cán bộ**: khách hàng do hệ thống tự khóa khi vi phạm (mục 9), không ai khóa hay mở khóa được.*
 
 ```plantuml
-@startuml AD_UC38_MoKhoaTaiKhoan
+@startuml AD_UC37_KhoaMoKhoa
 start
-:Tìm tài khoản đang bị khóa;
-if (Người đang thao tác là quản lý nhân sự,\nVÀ tài khoản mục tiêu là kế toán/quản lý/quản lý nhân sự khác?) then (đúng, chặn lại)
+if (Khóa hay mở khóa?) then (khóa)
+  :Tìm tài khoản cán bộ cần khóa;
+  if (Tài khoản này có phải quản lý gốc\n(tài khoản khởi tạo hệ thống) không?) then (phải)
+    :Từ chối tuyệt đối — không ai khóa được tài khoản này;
+    stop
+  endif
+  if (Người thao tác chọn đúng tài khoản của chính mình?) then (đúng)
+    :Từ chối — không thể tự khóa chính mình;
+    stop
+  endif
+else (mở khóa)
+  :Tìm tài khoản cán bộ đang bị khóa;
+endif
+if (Tài khoản mục tiêu có bậc cùng hoặc cao hơn người thao tác?\n(gốc > quản lý thường = kế toán > quản lý nhân sự > vận hành;\nchỉ quản lý gốc khóa được kế toán)) then (đúng, chặn lại)
   :Từ chối, báo không đủ quyền;
   stop
 endif
-:Xem lại lý do bị khóa trước đó;
-:Mở khóa để người này đăng nhập lại được;
+if (Khóa hay mở khóa?) then (khóa)
+  :Nhập lý do khóa (bắt buộc, gõ chữ tự do);
+  :Khóa tài khoản lại — người này không đăng nhập được nữa,\nnhưng dữ liệu cũ vẫn giữ nguyên;
+  if (Là phụ xe đang thuộc biên chế của một xe?) then (đúng)
+    :Hiện cảnh báo xe đó thiếu phụ xe và báo quản lý,\nđiều độ viên — không tự đổi biên chế;
+  endif
+else (mở khóa)
+  :Xem lại lý do bị khóa trước đó, nhập lý do mở khóa (bắt buộc);
+  :Mở khóa để người này đăng nhập lại được;
+endif
 stop
 @enduml
 ```
@@ -1161,88 +1401,29 @@ stop
 @enduml
 ```
 
-### UC-40. Gán lại đúng xe gốc khi xe đã sửa xong (ngoại lệ)
+### UC-41. Hủy vé nhận hoàn toàn bộ tiền khi chuyến đang hoãn hoặc gặp sự cố do lỗi nhà xe (ngoại lệ) *(gộp từ UC-41 + UC-42 cũ)*
 
-*Việc gán lại hoàn toàn do điều độ viên tự quyết định thời điểm — hệ thống chỉ nhắc, không tự động đổi.*
-
-```plantuml
-@startuml AD_UC40_GanLaiXeGoc
-start
-:Xe hỏng trước đó được sửa xong, chuyển lại trạng thái đang hoạt động;
-:Hệ thống thông báo cho điều độ viên biết xe đã sẵn sàng,\nkèm danh sách các chuyến đang chạy thay bằng xe khác;
-:Điều độ viên xem lại danh sách và chọn thời điểm phù hợp\n(thường là lúc xe thay thế vừa về đúng chỗ xe gốc đang đỗ);
-:Chọn 1 chuyến trong chuỗi để bắt đầu dùng lại xe gốc;
-:Từ chuyến đó trở đi, chuyến dùng lại đúng xe gốc,\nbỏ cờ "đang chạy thay";
-:Xe thay thế được giải phóng, quay lại làm xe dự phòng\nhoặc lịch trình riêng của nó;
-stop
-@enduml
-```
-
-### UC-41. Hủy vé nhận hoàn toàn bộ tiền khi chuyến đang bị hoãn (ngoại lệ)
-
-*1 trong 3 ngoại lệ duy nhất cho phép hủy 1 vé đã trả tiền — chỉ áp dụng khi chuyến đang trong tình trạng "hoãn" chờ tìm xe thay thế (kết quả nhánh rẽ của use case "Cho xe khác chạy thay tạm thời khi xe hỏng trước giờ chạy"). 2 ngoại lệ còn lại: hủy do lỗi nhà xe giữa đường (use case tiếp theo), và hủy tự động do sự cố khách quan không thể hoàn thành.*
+*Ngoại lệ cho phép hủy 1 vé đã trả tiền (khách hoặc nhân viên quầy vé làm thay) — chỉ khi chuyến đang hoãn chờ xe thay thế, hoặc đang gặp sự cố do lỗi nhà xe và chưa xử lý xong. Sự cố khách quan (thiên tai, sạt lở) thì khách không có lựa chọn hủy nào. Với sự cố lỗi nhà xe, khách chủ động chọn dừng hẳn nên nhà xe hết nghĩa vụ chở khách này — khác với trường hợp hệ thống tự hoàn tiền vì chờ quá 3 tiếng (khách vẫn được chở tiếp).*
 
 ```plantuml
-@startuml AD_UC41_HuyVeKhiHoan
+@startuml AD_UC41_HuyVeNhanHoan
 start
-:Khách xem thông báo chuyến đang bị hoãn\nvà giờ khởi hành dự kiến mới;
+:Khách xem thông báo về chuyến của mình\n(đang hoãn hoặc gặp sự cố xe);
 :Khách bấm "Hủy vé nhận hoàn tiền";
-if (Chuyến này có đang thực sự bị hoãn không?) then (không, đã có xe chạy bình thường rồi)
-  :Báo chuyến đã có xe, không thuộc diện\nhủy nhận hoàn tiền nữa;
-  stop
-endif
-:Hủy vé, ghi nhận hoàn toàn bộ 100% tiền vé\n(không hoàn thêm chi phí phát sinh nào khác);
-if (Khách trả tiền bằng chuyển khoản qua cổng\nhay tiền mặt lúc đặt vé?) then (chuyển khoản qua cổng)
-  :Hoàn tự động qua cổng thanh toán;
-  stop
-else (tiền mặt)
-  :Đưa vào danh sách chờ kế toán xử lý\n(xem use case kế toán chuyển khoản hoàn tiền);
-  stop
-endif
-@enduml
-```
-
-### UC-42. Hủy vé nhận hoàn toàn bộ tiền khi chuyến gặp sự cố do lỗi nhà xe giữa đường (ngoại lệ)
-
-*Áp dụng khi chuyến đang gặp sự cố do lỗi nhà xe (xe hỏng, thủng lốp, tai nạn do nhà xe gây ra) và đang chờ xử lý — khác với sự cố khách quan (thiên tai, sạt lở), lúc đó khách không có lựa chọn hủy nào. Khác với use case tự động hoàn tiền quá 3 tiếng (khách vẫn được chở tiếp): ở đây khách chủ động chọn dừng hẳn, nhà xe hết nghĩa vụ chở khách này.*
-
-```plantuml
-@startuml AD_UC42_HuyVeSuCoLoiNhaXe
-start
-:Khách xem thông báo chuyến đang gặp sự cố xe;
-:Khách bấm "Hủy vé nhận hoàn tiền";
-if (Chuyến này có đang thực sự gặp sự cố do lỗi nhà xe,\nchưa xử lý xong không?) then (không — đã có xe chạy tiếp,\nhoặc sự cố là khách quan)
+if (Chuyến này đang hoãn chờ xe thay thế?) then (đúng)
+  :Hủy vé, ghi nhận hoàn toàn bộ 100% tiền vé\n(không hoàn thêm chi phí phát sinh nào khác);
+elseif (Chuyến đang gặp sự cố do lỗi nhà xe,\nchưa xử lý xong?) then (đúng)
+  :Hủy vé — nhà xe hết nghĩa vụ chở khách này;
+  if (Vé này đã được tự động hoàn tiền từ trước\n(do chờ quá 3 tiếng) chưa?) then (rồi)
+    :Không hoàn thêm gì nữa, chỉ đóng vé lại;
+    stop
+  else (chưa)
+    :Ghi nhận hoàn toàn bộ 100% tiền vé;
+  endif
+else (không — đã có xe chạy tiếp,\nhoặc sự cố là khách quan)
   :Báo vé không thuộc diện hủy nhận hoàn tiền lúc này;
   stop
 endif
-:Hủy vé — nhà xe hết nghĩa vụ chở khách này;
-if (Vé này đã được tự động hoàn tiền từ trước\n(do chờ quá 3 tiếng) chưa?) then (rồi)
-  :Không hoàn thêm gì nữa, chỉ đóng vé lại;
-  stop
-else (chưa)
-  :Ghi nhận hoàn toàn bộ 100% tiền vé;
-  if (Khách trả tiền bằng chuyển khoản qua cổng\nhay tiền mặt lúc đặt vé?) then (chuyển khoản qua cổng)
-    :Hoàn tự động qua cổng thanh toán;
-    stop
-  else (tiền mặt)
-    :Đưa vào danh sách chờ kế toán xử lý\n(xem use case kế toán chuyển khoản hoàn tiền);
-    stop
-  endif
-endif
-@enduml
-```
-
-### UC-43. Tự động hoàn tiền khi chờ quá 3 tiếng do lỗi nhà xe (hệ thống tự chạy)
-
-*Khác hẳn các use case hủy vé nhận hoàn tiền khác: vé KHÔNG bị hủy, khách vẫn tiếp tục được chở khi có xe — chỉ là được hoàn tiền trước như một cách nhà xe xin lỗi vì để chờ quá lâu.*
-
-```plantuml
-@startuml AD_UC43_TuDongHoanQua3Tieng
-start
-:Một chuyến đang gặp sự cố do lỗi nhà xe\nđã chờ xử lý quá 3 tiếng mà vẫn chưa xong;
-:Tìm những vé đã trả tiền, chưa tự hủy,\nvà chưa từng được hoàn tiền của chuyến này;
-:Ghi nhận hoàn toàn bộ 100% tiền vé cho từng vé —\nvé vẫn giữ nguyên, khách vẫn được chở tiếp khi có xe;
-:Báo cho khách biết đã được hoàn tiền\nnhưng chuyến vẫn tiếp tục phục vụ miễn phí;
 if (Khách trả tiền bằng chuyển khoản qua cổng\nhay tiền mặt lúc đặt vé?) then (chuyển khoản qua cổng)
   :Hoàn tự động qua cổng thanh toán;
   stop
@@ -1250,5 +1431,531 @@ else (tiền mặt)
   :Đưa vào danh sách chờ kế toán xử lý\n(xem use case kế toán chuyển khoản hoàn tiền);
   stop
 endif
+@enduml
+```
+
+---
+
+## 3. Sơ đồ lớp (Class Diagram) — mức phân tích
+
+> Sơ đồ lớp **mức phân tích**: mỗi lớp ứng với một khái niệm nghiệp vụ (phần lớn trùng một bảng trong `DATABASE.md`), thuộc tính là dữ liệu cần lưu, **phương thức là các việc nghiệp vụ lấy từ use case** (mục 12 `NGHIEP_VU.md`) — không phải hàm trong code. Khác ERD (`ERD.dbml`): ERD chỉ có bảng/cột/khóa, sơ đồ lớp thêm **kế thừa** và **phương thức**. Tên dùng dạng `camelCase` tiếng Việt cho dễ đọc; khóa chính/khóa ngoại không vẽ ra (thay bằng đường quan hệ có bội số).
+>
+> Chia 4 sơ đồ theo nhóm nghiệp vụ; lớp xuất hiện ở nhiều sơ đồ chỉ vẽ các thành phần cần thiết cho nhóm đó.
+
+### 3.1. Người dùng và nhân sự vận hành
+
+*Kế thừa: mọi vai trò có tài khoản đều là một **Người dùng** (đúng kiểu bảng cha – bảng con). Tài xế không có tài khoản nên chỉ nằm trong **Nhân sự vận hành**; chỉ phụ xe mới gắn với tài khoản.*
+
+```plantuml
+@startuml LOP_NguoiDung_NhanSu
+skinparam classAttributeIconSize 0
+hide empty members
+
+abstract class NguoiDung {
+  - email : String
+  - matKhau : String
+  - hoTen : String
+  - maNhanVien : String
+  - soDienThoai : String
+  - dangHoatDong : Boolean
+  - ngayTao : DateTime
+  + dangNhap()
+  + quenMatKhau()
+  + doiMatKhau()
+}
+
+class KhachHang {
+  - khoaThanhToanTaiQuay : Boolean
+  - biKhoa : Boolean
+  - lyDoKhoa : String
+  + dangKy()
+  + suaThongTinCaNhan()
+  + traCuuChuyen()
+  + datVeOnline()
+  + huyGiuCho()
+  + huyVeNhanHoan()
+}
+
+class NhanVienQuayVe {
+  + banVeTrucTiep()
+  + inVeCung()
+}
+
+class NhanVienGuiHang {
+  + nhanHangGui()
+  + giaoHangChoNguoiNhan()
+  + xuLyHangQuaHan()
+}
+
+class DieuDoVien {
+  + ganXeChoChuyen()
+  + doiXeChayThay()
+  + xuLySuCoGiuaDuong()
+}
+
+class PhuXe {
+  + xacNhanKhachLenXuongXe()
+  + capNhatHanhTrinhChuyen()
+  + baoSuCo()
+  + chatDoHang()
+  + baoHangThatLacHuHong()
+}
+
+class KeToan {
+  + chuyenKhoanHoanTien()
+}
+
+class QuanLyNhanSu {
+  + taoTaiKhoanVanHanh()
+  + khoaMoKhoaTaiKhoan()
+  + quanLyHoSoNhanSu()
+  + choNghiViec()
+  + xemNhatKyCuaMinh()
+}
+
+class QuanLy {
+  - laTaiKhoanGoc : Boolean
+  + quanLyDanhMuc()
+  + sinhVaQuanLyChuyen()
+  + quanLyBienChe()
+  + taoKhoaMoKhoaTaiKhoan()
+  + xemThongKe()
+}
+
+class DiemDonTra {
+  - ten : String
+  - diaChi : String
+}
+
+class NhanSuVanHanh {
+  - maTaiXe : String
+  - hoTen : String
+  - soDienThoai : String
+  - chucDanh : ChucDanh
+  - soCCCD : String
+  - ngaySinh : Date
+  - ngayVaoLam : Date
+  - trangThai : TrangThaiNhanSu
+  + choNghiViec()
+}
+
+class GiayToNhanSu {
+  - loai : LoaiGiayTo
+  - soGiayTo : String
+  - hang : String
+  - ngayCap : Date
+  - ngayHetHan : Date
+  + giaHan()
+  + sapHetHan() : Boolean
+}
+
+class BienChe {
+  - loai : LoaiBienChe
+  - trangThai : TrangThaiBienChe
+  - ngayBatDau : DateTime
+  - ngayKetThuc : DateTime
+}
+
+class Xe {
+  - bienSo : String
+  - trangThai : TrangThaiXe
+}
+
+class NhatKyThaoTac {
+  - hanhDong : String
+  - doiTuongBiTacDong : String
+  - ghiChu : String
+  - thoiGian : DateTime
+}
+
+enum ChucDanh {
+  taiXe
+  phuXe
+}
+enum TrangThaiNhanSu {
+  dangLam
+  daNghiViec
+}
+enum LoaiGiayTo {
+  bangLai
+  giayKhamSucKhoe
+}
+enum LoaiBienChe {
+  coDinh
+  tamThoi
+}
+enum TrangThaiBienChe {
+  dangHoatDong
+  tamNghi
+}
+
+NguoiDung <|-- KhachHang
+NguoiDung <|-- NhanVienQuayVe
+NguoiDung <|-- NhanVienGuiHang
+NguoiDung <|-- DieuDoVien
+NguoiDung <|-- PhuXe
+NguoiDung <|-- KeToan
+NguoiDung <|-- QuanLyNhanSu
+NguoiDung <|-- QuanLy
+
+NhanVienQuayVe "*" --> "1" DiemDonTra : phụ trách văn phòng
+NhanVienGuiHang "*" --> "1" DiemDonTra : phụ trách văn phòng
+DieuDoVien "*" --> "*" Tuyen : phụ trách tuyến
+
+PhuXe "0..1" -- "1" NhanSuVanHanh : có hồ sơ
+NhanSuVanHanh "1" *-- "0..2" GiayToNhanSu : có giấy tờ
+NhanSuVanHanh "1" -- "*" BienChe
+Xe "1" -- "*" BienChe
+NhanSuVanHanh --> ChucDanh
+NhanSuVanHanh --> TrangThaiNhanSu
+GiayToNhanSu --> LoaiGiayTo
+BienChe --> LoaiBienChe
+BienChe --> TrangThaiBienChe
+
+QuanLyNhanSu "1" ..> "*" NhatKyThaoTac : ghi
+QuanLy "1" ..> "*" NhatKyThaoTac : ghi
+@enduml
+```
+
+### 3.2. Địa điểm, tuyến, xe và chuyến
+
+*Một **Tuyến** là một hành trình vật lý chạy được cả 2 chiều; mỗi lần chạy là một **Chuyến xe** có chiều xuôi hoặc ngược. Chuyến chỉ cam kết loại xe, xe cụ thể (có thể chưa có) được điều độ viên gán sau.*
+
+```plantuml
+@startuml LOP_Tuyen_Xe_Chuyen
+skinparam classAttributeIconSize 0
+hide empty members
+
+class KhuVuc {
+  - ma : String
+  - ten : String
+  - tinhThanh : String
+}
+
+class DiemDonTra {
+  - ma : String
+  - ten : String
+  - diaChi : String
+  - loai : LoaiDiem
+}
+
+class Tuyen {
+  - ma : String
+  - ten : String
+  + themDiemDung(diem, thuTu, thoiGianDuKien)
+  + chayDuocHaiChieu()
+}
+
+class DiemTrenTuyen {
+  - thuTu : Integer
+  - thoiGianDuKienPhut : Integer
+}
+
+class GiaVe {
+  - giaGoc : Money
+  - apDungTu : Date
+  - apDungDen : Date
+  + tinhGiaThucTe(loaiXe) : Money
+}
+
+class LoaiXe {
+  - ma : String
+  - ten : String
+  - heSoGia : Decimal
+  - soDoGhe : SoDoGhe
+  + tongSoGhe() : Integer
+}
+
+class Xe {
+  - bienSo : String
+  - trangThai : TrangThaiXe
+  + dangRanh(thoiDiem) : Boolean
+  + viTriDuKien(thoiDiem) : DiemDonTra
+}
+
+class LichChayDinhKy {
+  - chieu : Chieu
+  - gioKhoiHanh : Time
+  - dangApDung : Boolean
+  + sinhChuyen(tuNgay, denNgay)
+  + ngungApDung()
+}
+
+class ChuyenXe {
+  - ma : String
+  - chieu : Chieu
+  - gioKhoiHanh : DateTime
+  - trangThai : TrangThaiChuyen
+  - dangHoan : Boolean
+  - loaiSuCo : LoaiSuCo
+  - lyDoSuCo : String
+  - coCanhBaoXungDotViTri : Boolean
+  + ganXe(xe)
+  + doiXeChayThay(xeThayThe)
+  + xacNhanXuatPhat()
+  + xacNhanToiDiem(diem)
+  + baoSuCo(loai, lyDo)
+  + huy()
+  + suaGio(gioMoi)
+  + soGheTrong(diemDon, diemTra) : Integer
+}
+
+class LichSuDiemDung {
+  - gioThucTe : DateTime
+}
+
+enum LoaiDiem {
+  vanPhong
+  diemDung
+}
+enum Chieu {
+  xuoi
+  nguoc
+}
+enum TrangThaiXe {
+  hoatDong
+  baoTri
+  ngungSuDung
+}
+enum TrangThaiChuyen {
+  chuaKhoiHanh
+  dangChay
+  gapSuCo
+  hoanThanh
+  daHuy
+}
+enum LoaiSuCo {
+  loiNhaXe
+  loiKhachQuan
+}
+
+KhuVuc "1" *-- "*" DiemDonTra : gồm
+Tuyen "1" *-- "*" DiemTrenTuyen : đi qua
+DiemTrenTuyen "*" --> "1" DiemDonTra
+Tuyen "1" -- "*" GiaVe : định giá
+GiaVe "*" --> "1" KhuVuc : điểm đi
+GiaVe "*" --> "1" KhuVuc : điểm đến
+
+LoaiXe "1" -- "*" Xe : thuộc loại
+Xe "*" --> "1" DiemDonTra : vị trí gốc (văn phòng)
+Xe "*" --> "0..1" Tuyen : cố định tuyến
+
+Tuyen "1" -- "*" LichChayDinhKy
+LoaiXe "1" -- "*" LichChayDinhKy : loại xe dự kiến
+LichChayDinhKy "0..1" -- "*" ChuyenXe : sinh ra
+
+Tuyen "1" -- "*" ChuyenXe
+LoaiXe "1" -- "*" ChuyenXe : loại xe cam kết
+Xe "0..1" -- "*" ChuyenXe : xe gốc
+Xe "0..1" -- "*" ChuyenXe : xe chạy thay
+ChuyenXe "1" *-- "*" LichSuDiemDung : ghi nhận
+LichSuDiemDung "*" --> "1" DiemDonTra
+
+DiemDonTra --> LoaiDiem
+ChuyenXe --> TrangThaiChuyen
+ChuyenXe --> LoaiSuCo
+ChuyenXe --> Chieu
+LichChayDinhKy --> Chieu
+Xe --> TrangThaiXe
+@enduml
+```
+
+### 3.3. Vé, thanh toán và hoàn tiền
+
+*Một ghế trên một chuyến có thể có nhiều vé nếu các chặng không giao nhau, vì vậy **Vé** gắn với điểm đón và điểm trả. Các vé cùng một lần đặt dùng chung một mã đặt chỗ. Mỗi vé hoàn tiền tối đa một lần.*
+
+```plantuml
+@startuml LOP_Ve_HoanTien
+skinparam classAttributeIconSize 0
+hide empty members
+
+class KhachHang {
+  - hoTen : String
+  - soDienThoai : String
+}
+
+class ChuyenXe {
+  - ma : String
+  - gioKhoiHanh : DateTime
+  - trangThai : TrangThaiChuyen
+}
+
+class DiemDonTra {
+  - ten : String
+}
+
+class Ve {
+  - soGhe : String
+  - gia : Money
+  - maDatCho : String
+  - laVeDatCoc : Boolean
+  - loaiHinhThanhToan : LoaiHinhThanhToan
+  - phuongThucThanhToan : PhuongThucThanhToan
+  - tenKhachVangLai : String
+  - sdtKhachVangLai : String
+  - trangThai : TrangThaiVe
+  - hanGiuChoDen : DateTime
+  - gioThanhToan : DateTime
+  + giuCho()
+  + chonDiemDonTra(diemDon, diemTra)
+  + thanhToan()
+  + huyGiuCho()
+  + huyNhanHoan()
+  + lenXe()
+  + xuongXe()
+  + danhDauKhongDen()
+  + conTuHuyDuoc() : Boolean
+}
+
+class HoanTien {
+  - lyDo : LyDoHoanTien
+  - soTien : Money
+  - trangThai : TrangThaiHoanTien
+  - maGiaoDichHoanTien : String
+  - soTaiKhoanNhan : String
+  - tenNganHangNhan : String
+  - tenChuTaiKhoanNhan : String
+  - thoiGianXacDinh : DateTime
+  - thoiGianHoanXong : DateTime
+  + hoanQuaCong()
+  + xacNhanChuyenKhoanThuCong()
+}
+
+class KeToan {
+}
+
+class ThongBao {
+  - noiDung : String
+  - daDoc : Boolean
+  - ngayTao : DateTime
+}
+
+enum TrangThaiVe {
+  giuCho
+  hetHan
+  daThanhToan
+  daLenXe
+  daXuongXe
+  khongDen
+  daHuy
+}
+enum LoaiHinhThanhToan {
+  thanhToanNgay
+  thanhToanTaiQuay
+}
+enum PhuongThucThanhToan {
+  tienMat
+  chuyenKhoan
+}
+enum LyDoHoanTien {
+  batKhaKhangKhongHoanThanh
+  loiNhaXeGiuaDuong
+  hoanTruocGioChay
+  tuDongHoanQuaBaTieng
+}
+enum TrangThaiHoanTien {
+  choXuLy
+  daHoanTuDong
+  daHoanChuyenKhoanThuCong
+}
+
+KhachHang "0..1" -- "*" Ve : đặt (trống nếu khách vãng lai)
+ChuyenXe "1" -- "*" Ve
+Ve "*" --> "1" DiemDonTra : điểm đón
+Ve "*" --> "1" DiemDonTra : điểm trả
+Ve "1" -- "0..1" HoanTien : được hoàn
+KeToan "0..1" -- "*" HoanTien : xử lý thủ công
+ThongBao "*" --> "0..1" Ve : liên quan
+KhachHang "1" -- "*" ThongBao : nhận
+
+Ve --> TrangThaiVe
+Ve --> LoaiHinhThanhToan
+Ve --> PhuongThucThanhToan
+HoanTien --> LyDoHoanTien
+HoanTien --> TrangThaiHoanTien
+@enduml
+```
+
+### 3.4. Gửi hàng
+
+*Đơn hàng chọn **tuyến** lúc nhận hàng, chưa gắn với chuyến nào; chỉ khi phụ xe xếp hàng lên xe thì đơn mới gắn với một chuyến cụ thể.*
+
+```plantuml
+@startuml LOP_GuiHang
+skinparam classAttributeIconSize 0
+hide empty members
+
+class NhanVienGuiHang {
+}
+
+class PhuXe {
+}
+
+class Tuyen {
+  - ten : String
+}
+
+class ChuyenXe {
+  - ma : String
+}
+
+class DiemDonTra {
+  - ten : String
+}
+
+class LoaiHang {
+  - ten : String
+  - laHangCam : Boolean
+}
+
+class DonHang {
+  - maVanDon : String
+  - canNangKg : Decimal
+  - giaCuoc : Money
+  - tenNguoiGui : String
+  - sdtNguoiGui : String
+  - tenNguoiNhan : String
+  - sdtNguoiNhan : String
+  - phuongThucThanhToan : PhuongThucThanhToanHang
+  - trangThai : TrangThaiDonHang
+  - thoiGianDenDiemNhan : DateTime
+  - daThongBaoNguoiNhan : Boolean
+  - coCanhBaoChoLau : Boolean
+  + taoDon()
+  + xepLenChuyen(chuyen)
+  + xacNhanDoHang()
+  + giaoChoNguoiNhan()
+  + danhDauHangTon()
+}
+
+class BaoCaoSuCoHang {
+  - moTa : String
+  - ngayTao : DateTime
+}
+
+enum TrangThaiDonHang {
+  choVanChuyen
+  daLenXe
+  choLay
+  daGiao
+  quaHanLuuKho
+}
+enum PhuongThucThanhToanHang {
+  nguoiGuiTraTruoc
+  codNguoiNhanTra
+}
+
+NhanVienGuiHang "1" -- "*" DonHang : tạo
+NhanVienGuiHang "0..1" -- "*" DonHang : giao cho người nhận
+Tuyen "1" -- "*" DonHang : chọn tuyến
+ChuyenXe "0..1" -- "*" DonHang : xếp lên chuyến
+DiemDonTra "1" -- "*" DonHang : điểm gửi
+DiemDonTra "1" -- "*" DonHang : điểm nhận
+LoaiHang "1" -- "*" DonHang
+DonHang "1" -- "*" BaoCaoSuCoHang
+PhuXe "1" -- "*" BaoCaoSuCoHang : báo cáo
+
+DonHang --> TrangThaiDonHang
+DonHang --> PhuongThucThanhToanHang
 @enduml
 ```

@@ -74,9 +74,8 @@
         thanhCongEl.textContent = `Xin chào ${ketQua.ho_ten}! Đăng nhập thành công.`;
         thanhCongEl.hidden = false;
 
-        // TODO: khi trang tìm kiếm chuyến (frontend/khach-hang/tim-kiem.html) đã có
-        // (thuộc domain 2), có thể đổi điểm đến mặc định sang đó thay vì tai-khoan.html.
-        setTimeout(() => { window.location.href = "tai-khoan.html"; }, 800);
+        // Đăng nhập xong luôn về trang chủ (không quay lại màn hình đặt vé đang dở).
+        setTimeout(() => { window.location.href = "/"; }, 800);
       } catch (err) {
         loiEl.textContent = err.message;
         loiEl.hidden = false;

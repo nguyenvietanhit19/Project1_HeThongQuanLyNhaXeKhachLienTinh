@@ -39,6 +39,16 @@ function apiPut(duong_dan, body) {
   return apiFetch(duong_dan, { method: "PUT", body: JSON.stringify(body) });
 }
 
+function apiPatch(duong_dan, body) {
+  return apiFetch(duong_dan, { method: "PATCH", body: JSON.stringify(body) });
+}
+
 function apiDelete(duong_dan) {
   return apiFetch(duong_dan, { method: "DELETE" });
+}
+
+// Mã hiển thị tự sinh (KV001, KV001-DT001, T001, LX001, T001-LX001-...) — chỉ để đọc/tra cứu,
+// id UUID vẫn là khóa thật. Trả về chuỗi HTML pill; mã rỗng thì hiện gạch ngang.
+function htmlMa(ma) {
+  return ma ? `<span class="ma-tag">${ma}</span>` : "—";
 }

@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import WebSocket
 
 
@@ -38,3 +40,15 @@ class WebSocketManager:
 
 
 manager = WebSocketManager()
+
+
+def broadcast_sync(nguoi_dung_id: str, noi_dung: str) -> None:
+    """Wrapper đồng bộ cho broadcast() — các Service sync (chuyen_xe_service,
+    ve_service, gui_hang_service...) chạy trong threadpool của FastAPI
+    (không có event loop nào đang chạy sẵn trong thread đó), nên gọi
+    asyncio.run() ở đây an toàn, không xung đột với event loop chính của
+    app. Dùng hàm này thay vì gọi thẳng broadcast() từ code sync."""
+    try:
+        asyncio.run(manager.broadcast(nguoi_dung_id, noi_dung))
+    except RuntimeError:
+        pass  # hiếm khi xảy ra (đã có event loop khác chạy sẵn trong thread) — bỏ qua, không phải lỗi nghiệp vụ

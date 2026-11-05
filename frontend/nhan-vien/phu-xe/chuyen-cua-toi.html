@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Chuyến của tôi — Phụ xe</title>
+<link rel="stylesheet" href="/shared/design-tokens.css?v=2" />
+<link rel="stylesheet" href="phu-xe.css?v=30" />
+<link rel="stylesheet" href="phu-xe-pro.css?v=17" />
+<link rel="manifest" href="manifest.webmanifest" />
+<script src="phu-xe-theme.js?v=1"></script>
+</head>
+<body class="phu-xe-page">
+  <div class="app-shell">
+  <div class="topbar">
+    <div>
+      <h1>Chuyến của tôi</h1>
+      <p class="topbar-sub" id="loi-chao">Xin chào</p>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn-icon-circle btn-icon-circle--dark" onclick="taiDanhSach()" title="Tải lại" aria-label="Tải lại">↻</button>
+    </div>
+  </div>
+
+  <div class="container container--pull-up">
+    <div class="card">
+      <div class="search-box" style="position:static;padding:0 0 12px;">
+        <input class="input-field" type="search" id="o-tim-kiem" inputmode="search" autocomplete="off"
+               placeholder="Tìm tuyến, biển số, giờ, trạng thái..." aria-label="Tìm chuyến xe" />
+      </div>
+      <div id="danh-sach-chuyen" class="trip-list" aria-live="polite">
+        <div class="sk-khoi" aria-hidden="true"><div class="sk-the"></div><div class="sk-the"></div><div class="sk-the"></div></div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <script src="/shared/api-client.js"></script>
+  <script src="phu-xe-pro.js?v=5"></script>
+  <script src="../shared/auth-check.js"></script>
+  <script src="tai-khoan-menu.js?v=7"></script>
+  <script src="/shared/so-dien-thoai.js"></script>
+  <script src="phu-xe-cai-dat.js?v=2"></script>
+  <script>
+    const { hoTen } = requireRole("phu_xe");
+    document.getElementById("loi-chao").textContent = `Xin chào, ${hoTen}`;
+
+    function esc(giaTri) {
+      return String(giaTri ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    const NHAN_TRANG_THAI = {
+      chua_khoi_hanh: "Chưa khởi hành",
+      dang_chay: "Đang chạy",
+      gap_su_co: "Đang gặp sự cố",
+    };
+
+    // Nhãn + màu theo pha thật của chuyến (đang dừng / đang di chuyển / bến mở...) thay cho "Đang chạy" chung chung
+    function nhanChuyen(c) {
+      if (c.trang_thai === "dang_chay") return c.dang_di_chuyen ? ["Đang di chuyển", "pill--success"] : ["Xe đang dừng", "pill--success"];
+      if (c.trang_thai === "gap_su_co") return ["Đang gặp sự cố", "pill--dark"];
+      if (c.trang_thai === "chua_khoi_hanh") {
+        const bay = Date.now();
+        if (bay >= new Date(c.gio_khoi_hanh).getTime()) return ["Đến giờ chạy", "pill--primary"];
+        if (bay >= new Date(c.gio_mo_ben).getTime()) return ["Bến đã mở", "pill--primary"];
+      }
+      return [NHAN_TRANG_THAI[c.trang_thai] || c.trang_thai, "pill--primary"];
+    }
+
+    function dinhDangGio(iso) {
+      return window.phuXe.ngayGio(iso);
+    }
+
+    // Bỏ dấu + hạ chữ thường để gõ "chua khoi hanh" vẫn ra "Chưa khởi hành"
+    function chuanHoa(s) {
+      return String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+    }
+
+    let danhSachChuyen = [];
+
+    function veDanhSach() {
+      const el = document.getElementById("danh-sach-chuyen");
+      if (danhSachChuyen.length === 0) {
+        el.innerHTML = '<p class="empty-state" style="grid-column:1/-1;">Hiện không có chuyến nào đang/sắp chạy thuộc xe bạn phụ trách.</p>';
+        return;
+      }
+      const tuKhoa = chuanHoa(document.getElementById("o-tim-kiem").value).trim();
+      const hienThi = !tuKhoa
+        ? danhSachChuyen
+        : danhSachChuyen.filter((c) =>
+            chuanHoa(`${c.tuyen_ten} ${c.bien_so} ${c.ma ?? ""} ${dinhDangGio(c.gio_khoi_hanh)} ${nhanChuyen(c)[0]}`).includes(tuKhoa)
+          );
+      if (hienThi.length === 0) {
+        el.innerHTML = '<p class="empty-state" style="grid-column:1/-1;">Không tìm thấy chuyến phù hợp.</p>';
+        return;
+      }
+      {
+        el.innerHTML = hienThi
+          .map(
+            (c) => `
+          <a class="trip-card" href="chuyen-dang-chay.html?chuyen_id=${encodeURIComponent(c.id)}">
+            <div class="trip-route">${esc(c.tuyen_ten)}</div>
+            <div class="trip-gio">Khởi hành <b>${dinhDangGio(c.gio_khoi_hanh)}</b></div>
+            <div class="trip-meta">
+              <span class="chip-bien">${esc(c.bien_so)}</span>
+              <span class="pill ${nhanChuyen(c)[1]}">${esc(nhanChuyen(c)[0])}</span>
+              ${c.dang_hoan ? '<span class="pill pill--dark">Đang hoãn</span>' : ""}
+            </div>
+          </a>`
+          )
+          .join("");
+      }
+    }
+
+    async function taiDanhSach() {
+      try {
+        const truoc = new Map(danhSachChuyen.map((c) => [c.id, nhanChuyen(c)[0]]));
+        danhSachChuyen = await apiGet("/phu-xe/chuyen-cua-toi");
+        // Chuyến nào vừa chuyển sang "Bến đã mở" / "Đến giờ chạy" so với lần tải trước → chuông nhắc
+        if (danhSachChuyen.some((c) => truoc.has(c.id) && truoc.get(c.id) !== nhanChuyen(c)[0] && ["Bến đã mở", "Đến giờ chạy"].includes(nhanChuyen(c)[0]))) window.phuXe.am("nhacNho");
+        veDanhSach();
+      } catch (err) {
+        document.getElementById("danh-sach-chuyen").innerHTML = `<p class="text-error" role="alert">${esc(err.message)}</p>`;
+      }
+    }
+
+    document.getElementById("o-tim-kiem").addEventListener("input", veDanhSach);
+    taiDanhSach();
+    // Nhãn "Bến đã mở / Đến giờ chạy" đổi theo giờ → tự làm mới mỗi 30 giây và khi quay lại tab
+    setInterval(() => { if (document.visibilityState === "visible") taiDanhSach(); }, 30000);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") taiDanhSach(); });
+  </script>
+</body>
+</html>

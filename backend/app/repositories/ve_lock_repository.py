@@ -1,0 +1,516 @@
+"""Khóa ghế & vòng đời "đặt chỗ" của vé (UC-05, UC-08) — NGHIEP_VU.md mục 3.4, 6; DATABASE.md mục 4.
+
+Đây là file riêng đúng như CONTRIBUTING.md mục 5.1: nơi DUY NHẤT chống bán trùng ghế. Cách làm (mục 6):
+trong 1 transaction, khóa dòng `chuyen_xe` (tuần tự hóa mọi lượt đặt cùng chuyến — kể cả khi ghế chưa có vé
+nào để khóa) rồi khóa các dòng `ve` đang chiếm cùng ghế và kiểm tra đoạn nửa mở `[don, tra)` có giao nhau hay
+không. Ràng buộc UNIQUE đơn giản không đủ vì 1 ghế hợp lệ có nhiều vé cùng lúc nếu các chặng không giao nhau.
+
+`hl` = thứ tự hiệu lực theo chiều chuyến (xuôi: thu_tu, ngược: −thu_tu), như tim_kiem_chuyen_repository.
+File này chỉ chứa SQL + cơ chế khóa; quy tắc nghiệp vụ (ai được đặt, điểm đón/trả hợp lệ, cọc...) ở
+services/dat_ve_service.py.
+"""
+
+import datetime
+
+from app.config import HAN_THANH_TOAN_NGAY_PHUT
+from app.db import get_connection, release_connection
+from app.repositories import ma_repository
+from app.utils import ma_tu_sinh
+from app.utils.loi import GiaTriLoi
+
+# Vé đang chiếm ghế: đã trả tiền, hoặc đang giữ chỗ mà chưa hết hạn (hạn NULL = "thanh toán tại quầy", không hạn).
+_DANG_CHIEM_GHE = """(v.trang_thai = 'da_thanh_toan'
+                       OR (v.trang_thai = 'giu_cho' AND (v.han_giu_cho_den IS NULL OR v.han_giu_cho_den > now())))"""
+
+# Vé còn trong lượt đặt chỗ (chưa thanh toán xong, chưa hết hạn)
+_DANG_GIU_CHO = "v.trang_thai = 'giu_cho' AND (v.han_giu_cho_den IS NULL OR v.han_giu_cho_den > now())"
+
+
+def _thanh_list(cur, rows):
+    cols = [d[0] for d in cur.description]
+    return [dict(zip(cols, row)) for row in rows]
+
+
+def _hl_cua_diem(cur, chuyen_id: str, diem_ids: list[str]) -> dict[str, int]:
+    """thu_tu hiệu lực của các điểm trên tuyến của chuyến; điểm không thuộc tuyến thì không có trong kết quả."""
+    cur.execute(
+        """
+        SELECT tdt.diem_don_tra_id::text AS diem_id,
+               CASE WHEN c.chieu = 'xuoi' THEN tdt.thu_tu ELSE -tdt.thu_tu END AS hl
+        FROM chuyen_xe c
+        JOIN tuyen_diem_don_tra tdt ON tdt.tuyen_id = c.tuyen_id
+        WHERE c.id = %s AND tdt.diem_don_tra_id = ANY(%s::uuid[])
+        """,
+        (chuyen_id, diem_ids),
+    )
+    return {r[0]: r[1] for r in cur.fetchall()}
+
+
+def giu_ghe(
+    chuyen_id: str,
+    danh_sach_ghe: list[str],
+    diem_don_id: str,
+    diem_tra_id: str,
+    khach_hang_id: str,
+    gia_theo_ghe: dict[str, int],
+    ma_dat_cho: str,
+    han_giu_tam_phut: int,
+) -> list[dict]:
+    """Mốc khóa ghế (khách bấm "Tiếp tục" sau khi đã chọn điểm đón/trả): tạo `ve` trạng thái `giu_cho` cho từng ghế
+    trên đúng đoạn [don, tra) khách chọn hoặc báo lỗi nếu có ghế bị người khác chiếm — tất cả trong 1 transaction, hoặc
+    giữ đủ mọi ghế hoặc không giữ ghế nào. Ai bấm "Tiếp tục" trước thì giữ được ghế."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            # 1. Tuần tự hóa mọi lượt đặt cùng chuyến
+            cur.execute("SELECT id FROM chuyen_xe WHERE id = %s FOR UPDATE", (chuyen_id,))
+            if cur.fetchone() is None:
+                raise GiaTriLoi("Chuyến không tồn tại")
+
+            # 2. Nhả các ghế giữ tạm đã quá hạn của chuyến này để không cản đường người sau
+            cur.execute(
+                """
+                UPDATE ve SET trang_thai = 'het_han'
+                WHERE chuyen_id = %s AND trang_thai = 'giu_cho'
+                  AND han_giu_cho_den IS NOT NULL AND han_giu_cho_den <= now()
+                """,
+                (chuyen_id,),
+            )
+
+            hl = _hl_cua_diem(cur, chuyen_id, [diem_don_id, diem_tra_id])
+            if diem_don_id not in hl or diem_tra_id not in hl:
+                raise GiaTriLoi("Điểm đón/trả không thuộc tuyến của chuyến này")
+            hl_don, hl_tra = hl[diem_don_id], hl[diem_tra_id]
+            if hl_don >= hl_tra:
+                raise GiaTriLoi("Điểm trả phải đứng sau điểm đón")
+
+            # 3. Khóa + kiểm tra giao đoạn với mọi vé đang chiếm các ghế này
+            cur.execute(
+                f"""
+                SELECT v.so_ghe
+                FROM ve v
+                JOIN chuyen_xe c ON c.id = v.chuyen_id
+                JOIN tuyen_diem_don_tra a ON a.tuyen_id = c.tuyen_id AND a.diem_don_tra_id = v.diem_don_id
+                JOIN tuyen_diem_don_tra b ON b.tuyen_id = c.tuyen_id AND b.diem_don_tra_id = v.diem_tra_id
+                WHERE v.chuyen_id = %(chuyen)s AND v.so_ghe = ANY(%(ghe)s)
+                  AND {_DANG_CHIEM_GHE}
+                  AND (CASE WHEN c.chieu = 'xuoi' THEN a.thu_tu ELSE -a.thu_tu END) < %(tra)s
+                  AND %(don)s < (CASE WHEN c.chieu = 'xuoi' THEN b.thu_tu ELSE -b.thu_tu END)
+                ORDER BY v.so_ghe
+                FOR UPDATE OF v
+                """,
+                {"chuyen": chuyen_id, "ghe": danh_sach_ghe, "don": hl_don, "tra": hl_tra},
+            )
+            bi_chiem = sorted({r[0] for r in cur.fetchall()})  # FOR UPDATE không đi cùng DISTINCT nên gộp ở đây
+            if bi_chiem:
+                raise GiaTriLoi(f"Ghế {', '.join(bi_chiem)} đã có người chọn — vui lòng chọn ghế khác")
+
+            # 4. Tạo vé giữ chỗ. Chưa chốt cách thanh toán nên tạm ghi 'thanh_toan_ngay' kèm hạn giữ tạm
+            # (nhả ghế nếu khách bỏ dở); chọn xong cách thanh toán thì hạn được đặt lại đúng quy tắc mục 6.
+            ve_tao = []
+            for so_ghe in danh_sach_ghe:
+                cur.execute(
+                    """
+                    INSERT INTO ve (ma_ve, chuyen_id, so_ghe, diem_don_id, diem_tra_id, khach_hang_id, gia, ma_dat_cho,
+                                    loai_hinh_thanh_toan, trang_thai, han_giu_cho_den)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'thanh_toan_ngay', 'giu_cho',
+                            now() + make_interval(mins => %s))
+                    RETURNING id, so_ghe, gia, han_giu_cho_den
+                    """,
+                    (ma_tu_sinh.ma_ve(ma_repository.so_tiep_theo(cur, "ve")), chuyen_id, so_ghe, diem_don_id, diem_tra_id,
+                     khach_hang_id, gia_theo_ghe[so_ghe], ma_dat_cho, han_giu_tam_phut),
+                )
+                ve_tao.append(_thanh_list(cur, [cur.fetchone()])[0])
+        conn.commit()
+        return ve_tao
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
+def tao_ve_quay(
+    chuyen_id: str,
+    danh_sach_ghe: list[str],
+    diem_don_id: str,
+    diem_tra_id: str,
+    gia_theo_ghe: dict[str, int],
+    ma_dat_cho: str,
+    nhan_vien_id: str,
+    khach_hang_id: str | None,
+    ten_khach: str,
+    sdt_khach: str,
+    kenh_ban: str,
+    phuong_thuc: str,
+    ghe_dat_coc: list[str] | None = None,
+) -> list[dict]:
+    """Tạo vé qua quầy, dùng chung transaction khóa/kiểm tra ghế.
+
+    Tiền mặt tại quầy được ghi nhận cùng transaction tạo vé. Vé hotline chưa thu tiền
+    giữ chỗ tới giờ khởi hành; đơn QR giữ chỗ 5 phút và hoàn tất theo cả mã đặt chỗ.
+    """
+    if not danh_sach_ghe or len(set(danh_sach_ghe)) != len(danh_sach_ghe):
+        raise GiaTriLoi("Danh sách ghế không hợp lệ")
+    if kenh_ban not in ("tai_quay", "hotline"):
+        raise GiaTriLoi("Kênh bán không hợp lệ")
+    if phuong_thuc not in ("tien_mat", "chuyen_khoan", "thanh_toan_tai_quay"):
+        raise GiaTriLoi("Phương thức thanh toán không hợp lệ")
+    ghe_dat_coc = ghe_dat_coc or []
+    if ghe_dat_coc and (
+        kenh_ban != "hotline" or phuong_thuc != "thanh_toan_tai_quay"
+        or not set(ghe_dat_coc) <= set(danh_sach_ghe)
+    ):
+        raise GiaTriLoi("Danh sách ghế đặt cọc không hợp lệ")
+
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM chuyen_xe WHERE id = %s FOR UPDATE", (chuyen_id,))
+            if cur.fetchone() is None:
+                raise GiaTriLoi("Chuyến không tồn tại")
+
+            cur.execute(
+                """UPDATE ve SET trang_thai = 'het_han'
+                   WHERE chuyen_id = %s AND trang_thai = 'giu_cho'
+                     AND han_giu_cho_den IS NOT NULL AND han_giu_cho_den <= now()""",
+                (chuyen_id,),
+            )
+            hl = _hl_cua_diem(cur, chuyen_id, [diem_don_id, diem_tra_id])
+            if diem_don_id not in hl or diem_tra_id not in hl or hl[diem_don_id] >= hl[diem_tra_id]:
+                raise GiaTriLoi("Điểm đón/trả không hợp lệ với chuyến")
+
+            cur.execute(
+                f"""SELECT v.so_ghe FROM ve v
+                    JOIN chuyen_xe c ON c.id = v.chuyen_id
+                    JOIN tuyen_diem_don_tra a ON a.tuyen_id = c.tuyen_id AND a.diem_don_tra_id = v.diem_don_id
+                    JOIN tuyen_diem_don_tra b ON b.tuyen_id = c.tuyen_id AND b.diem_don_tra_id = v.diem_tra_id
+                    WHERE v.chuyen_id = %(chuyen)s AND v.so_ghe = ANY(%(ghe)s) AND {_DANG_CHIEM_GHE}
+                      AND (CASE WHEN c.chieu = 'xuoi' THEN a.thu_tu ELSE -a.thu_tu END) < %(tra)s
+                      AND %(don)s < (CASE WHEN c.chieu = 'xuoi' THEN b.thu_tu ELSE -b.thu_tu END)
+                    FOR UPDATE OF v""",
+                {"chuyen": chuyen_id, "ghe": danh_sach_ghe, "don": hl[diem_don_id], "tra": hl[diem_tra_id]},
+            )
+            bi_chiem = sorted({r[0] for r in cur.fetchall()})
+            if bi_chiem:
+                raise GiaTriLoi(f"Ghế {', '.join(bi_chiem)} đã có người chọn")
+
+            cur.execute("SELECT c.trang_thai, c.gio_khoi_hanh FROM chuyen_xe c WHERE c.id = %s", (chuyen_id,))
+            chuyen = cur.fetchone()
+            if chuyen[0] != "chua_khoi_hanh" or chuyen[1] <= datetime.datetime.now(datetime.timezone.utc):
+                raise GiaTriLoi("Chuyến không còn mở bán")
+
+            if not khach_hang_id:
+                # Khóa theo SĐT để hai quầy bán cùng lúc không lưu hai tên khác nhau.
+                cur.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (sdt_khach,))
+                cur.execute(
+                    """SELECT BTRIM(v.ten_khach_vang_lai)
+                       FROM ve v
+                       WHERE v.sdt_khach_vang_lai = %s
+                         AND NULLIF(BTRIM(v.ten_khach_vang_lai), '') IS NOT NULL
+                       ORDER BY CASE WHEN v.gio_thanh_toan IS NOT NULL THEN 0 ELSE 1 END,
+                                v.ngay_tao DESC, v.id DESC
+                       LIMIT 1""",
+                    (sdt_khach,),
+                )
+                khach_cu = cur.fetchone()
+                if khach_cu:
+                    ten_khach = khach_cu[0]
+
+            ve_tao = []
+            da_thanh_toan = phuong_thuc == "tien_mat" and kenh_ban == "tai_quay"
+            co_han_thanh_toan = phuong_thuc == "chuyen_khoan" or bool(ghe_dat_coc)
+            for so_ghe in danh_sach_ghe:
+                la_ve_dat_coc = so_ghe in ghe_dat_coc
+                loai_hinh = "thanh_toan_ngay" if phuong_thuc == "chuyen_khoan" or la_ve_dat_coc else "thanh_toan_tai_quay"
+                cur.execute(
+                    """INSERT INTO ve (
+                           ma_ve, chuyen_id, so_ghe, diem_don_id, diem_tra_id, khach_hang_id, gia, ma_dat_cho,
+                           loai_hinh_thanh_toan, la_ve_dat_coc, trang_thai, han_giu_cho_den, gio_bat_dau_dem_han,
+                           ten_khach_vang_lai, sdt_khach_vang_lai, nhan_vien_ban_id,
+                           nhan_vien_thu_id, kenh_ban, phuong_thuc_thanh_toan, gio_thanh_toan
+                       ) VALUES (
+                           %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                           CASE WHEN %s THEN LEAST(now() + make_interval(mins => %s), %s) ELSE NULL END,
+                           CASE WHEN %s THEN now() ELSE NULL END,
+                           %s, %s, %s, %s, %s, %s, CASE WHEN %s THEN now() ELSE NULL END
+                       ) RETURNING id, ma_ve, ma_dat_cho, so_ghe, gia, trang_thai, han_giu_cho_den,
+                                 ten_khach_vang_lai, la_ve_dat_coc, loai_hinh_thanh_toan""",
+                    (
+                        ma_tu_sinh.ma_ve(ma_repository.so_tiep_theo(cur, "ve")), chuyen_id, so_ghe,
+                        diem_don_id, diem_tra_id, khach_hang_id, gia_theo_ghe[so_ghe], ma_dat_cho, loai_hinh,
+                        la_ve_dat_coc, "da_thanh_toan" if da_thanh_toan else "giu_cho",
+                        co_han_thanh_toan, HAN_THANH_TOAN_NGAY_PHUT, chuyen[1], co_han_thanh_toan,
+                        ten_khach, sdt_khach,
+                        nhan_vien_id, nhan_vien_id if da_thanh_toan else None, kenh_ban,
+                        "tien_mat" if da_thanh_toan else None, da_thanh_toan,
+                    ),
+                )
+                ve_tao.append(_thanh_list(cur, [cur.fetchone()])[0])
+        conn.commit()
+        return ve_tao
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
+def thanh_toan_ve_quay(ma_dat_cho: str, van_phong_id: str, nhan_vien_id: str, phuong_thuc: str, so_ve_ky_vong: int) -> int:
+    """Thu tiền mặt tại quầy cho các vé giữ chỗ, chỉ tại văn phòng điểm đón."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """UPDATE ve v SET trang_thai = 'da_thanh_toan', phuong_thuc_thanh_toan = %s,
+                           nhan_vien_thu_id = %s, gio_thanh_toan = now(), han_giu_cho_den = NULL
+                   FROM diem_don_tra d
+                   WHERE v.diem_don_id = d.id AND d.id = %s AND v.ma_dat_cho = %s
+                     AND v.trang_thai = 'giu_cho' AND v.loai_hinh_thanh_toan = 'thanh_toan_tai_quay'
+                     AND (v.han_giu_cho_den IS NULL OR v.han_giu_cho_den > now())
+                     AND NOT EXISTS (
+                         SELECT 1 FROM ve coc
+                         WHERE coc.ma_dat_cho = v.ma_dat_cho AND coc.la_ve_dat_coc = true
+                           AND coc.trang_thai <> 'da_thanh_toan'
+                     )
+                     AND EXISTS (SELECT 1 FROM chuyen_xe c
+                                 WHERE c.id = v.chuyen_id AND c.gio_khoi_hanh > now())
+                     AND d.loai = 'van_phong'""",
+                (phuong_thuc, nhan_vien_id, van_phong_id, ma_dat_cho),
+            )
+            so_ve = cur.rowcount
+            if so_ve != so_ve_ky_vong:
+                conn.rollback()
+                return 0
+        conn.commit()
+        return so_ve
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
+def huy_ve_quay(ma_dat_cho: str, van_phong_id: str, so_ve_ky_vong: int) -> int:
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """UPDATE ve v SET trang_thai = 'da_huy', gio_huy = now()
+                   FROM diem_don_tra d WHERE v.diem_don_id = d.id AND d.id = %s
+                     AND v.ma_dat_cho = %s AND v.trang_thai = 'giu_cho'
+                     AND v.loai_hinh_thanh_toan = 'thanh_toan_tai_quay'""",
+                (van_phong_id, ma_dat_cho),
+            )
+            so_ve = cur.rowcount
+            if so_ve != so_ve_ky_vong:
+                conn.rollback()
+                return 0
+        conn.commit()
+        return so_ve
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
+def lay_dat_cho(ma_dat_cho: str, khach_hang_id: str) -> list[dict]:
+    """Mọi vé của 1 lượt đặt chỗ thuộc đúng khách này (kèm thông tin chuyến, điểm đón/trả, giờ dự kiến tại điểm đón).
+    Không trả vé của khách khác — mã đặt chỗ đoán trúng cũng không xem được."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT v.id, v.so_ghe, v.gia, v.trang_thai, v.loai_hinh_thanh_toan, v.la_ve_dat_coc, v.kenh_ban,
+                       v.han_giu_cho_den, v.gio_bat_dau_dem_han, v.ma_dat_cho, v.chuyen_id, v.diem_don_id, v.diem_tra_id,
+                       c.ma AS ma_chuyen, c.gio_khoi_hanh, c.tuyen_id, c.chieu, c.trang_thai AS trang_thai_chuyen,
+                       lx.ten AS ten_loai_xe,
+                       dd.ten AS ten_diem_don, dt.ten AS ten_diem_tra, dd.khu_vuc_id AS khu_vuc_di_id,
+                       dt.khu_vuc_id AS khu_vuc_den_id,
+                       c.gio_khoi_hanh + make_interval(mins =>
+                           CASE WHEN c.chieu = 'xuoi' THEN a.thoi_gian_du_kien_phut
+                                ELSE tong.tong_phut - a.thoi_gian_du_kien_phut END) AS gio_don_du_kien,
+                       c.gio_khoi_hanh + make_interval(mins =>
+                           CASE WHEN c.chieu = 'xuoi' THEN b.thoi_gian_du_kien_phut
+                                ELSE tong.tong_phut - b.thoi_gian_du_kien_phut END) AS gio_den_du_kien
+                FROM ve v
+                JOIN chuyen_xe c ON c.id = v.chuyen_id
+                JOIN loai_xe lx ON lx.id = c.loai_xe_id
+                JOIN diem_don_tra dd ON dd.id = v.diem_don_id
+                JOIN diem_don_tra dt ON dt.id = v.diem_tra_id
+                JOIN tuyen_diem_don_tra a ON a.tuyen_id = c.tuyen_id AND a.diem_don_tra_id = v.diem_don_id
+                JOIN tuyen_diem_don_tra b ON b.tuyen_id = c.tuyen_id AND b.diem_don_tra_id = v.diem_tra_id
+                JOIN (SELECT tuyen_id, MAX(thoi_gian_du_kien_phut) AS tong_phut
+                      FROM tuyen_diem_don_tra GROUP BY tuyen_id) tong ON tong.tuyen_id = c.tuyen_id
+                WHERE v.ma_dat_cho = %s AND v.khach_hang_id = %s
+                ORDER BY v.so_ghe
+                """,
+                (ma_dat_cho, khach_hang_id),
+            )
+            return _thanh_list(cur, cur.fetchall())
+    finally:
+        release_connection(conn)
+
+
+def tim_diem_cua_chuyen(chuyen_id: str) -> list[dict]:
+    """Mọi điểm của tuyến của chuyến, kèm `hl` theo chiều chạy thật — để kiểm tra điểm đón/trả khách chọn."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT d.id::text AS diem_id, d.ten, d.loai, d.khu_vuc_id::text AS khu_vuc_id, kv.tinh_thanh,
+                       CASE WHEN c.chieu = 'xuoi' THEN tdt.thu_tu ELSE -tdt.thu_tu END AS hl
+                FROM chuyen_xe c
+                JOIN tuyen_diem_don_tra tdt ON tdt.tuyen_id = c.tuyen_id
+                JOIN diem_don_tra d ON d.id = tdt.diem_don_tra_id
+                JOIN khu_vuc kv ON kv.id = d.khu_vuc_id
+                WHERE c.id = %s
+                ORDER BY hl
+                """,
+                (chuyen_id,),
+            )
+            return _thanh_list(cur, cur.fetchall())
+    finally:
+        release_connection(conn)
+
+
+def tim_ma_dat_cho_con_giu(khach_hang_id: str) -> list[str]:
+    """Giỏ hàng: các lượt đặt chỗ của khách còn đang giữ ghế CÓ HẠN (chưa chốt tại quầy, chưa thanh toán, chưa hết hạn),
+    lượt sắp hết hạn nhất xếp trước."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT ma_dat_cho FROM ve
+                WHERE khach_hang_id = %s AND trang_thai = 'giu_cho'
+                  AND kenh_ban IS NULL
+                  AND han_giu_cho_den IS NOT NULL AND han_giu_cho_den > now()
+                GROUP BY ma_dat_cho ORDER BY MIN(han_giu_cho_den)
+                """,
+                (khach_hang_id,),
+            )
+            return [r[0] for r in cur.fetchall()]
+    finally:
+        release_connection(conn)
+
+
+def chot_thanh_toan_tai_quay(ma_dat_cho: str, khach_hang_id: str, so_ghe_chon: list[str], so_ve_con_giu: int) -> bool:
+    """"Thanh toán tại quầy khi nhận vé" (mục 6) cho đúng các ghế khách đã tích: đặt thành công ngay — bỏ hạn, giữ ghế
+    tới giờ khởi hành. Các ghế còn lại của lượt đặt (không tích) KHÔNG được đặt: chuyển `da_huy`, ghế mở lại ngay.
+    Làm cùng 1 transaction và chỉ thành công nếu đủ `so_ve_con_giu` vé còn sống (không vé nào hết hạn/hủy giữa chừng),
+    nếu không thì không đổi gì cả."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                UPDATE ve v SET trang_thai = 'da_huy', gio_huy = now()
+                WHERE v.ma_dat_cho = %s AND v.khach_hang_id = %s AND {_DANG_GIU_CHO} AND v.so_ghe <> ALL(%s)
+                """,
+                (ma_dat_cho, khach_hang_id, so_ghe_chon),
+            )
+            so_nha = cur.rowcount
+            cur.execute(
+                f"""
+                UPDATE ve v SET loai_hinh_thanh_toan = 'thanh_toan_tai_quay', han_giu_cho_den = NULL, gio_bat_dau_dem_han = NULL
+                WHERE v.ma_dat_cho = %s AND v.khach_hang_id = %s AND {_DANG_GIU_CHO} AND v.so_ghe = ANY(%s)
+                """,
+                (ma_dat_cho, khach_hang_id, so_ghe_chon),
+            )
+            so_chot = cur.rowcount
+            if so_chot != len(so_ghe_chon) or so_chot + so_nha != so_ve_con_giu:
+                conn.rollback()
+                return False
+        conn.commit()
+        return True
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
+def bo_ghe(ma_dat_cho: str, khach_hang_id: str, so_ghe: str) -> bool:
+    """Khách bấm ✕ ở 1 ghế trong lượt đặt: hủy riêng ghế đó, ghế mở lại ngay cho người khác."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                UPDATE ve v SET trang_thai = 'da_huy', gio_huy = now()
+                WHERE v.ma_dat_cho = %s AND v.khach_hang_id = %s AND {_DANG_GIU_CHO} AND v.so_ghe = %s
+                """,
+                (ma_dat_cho, khach_hang_id, so_ghe),
+            )
+            xong = cur.rowcount == 1
+        conn.commit()
+        return xong
+    finally:
+        release_connection(conn)
+
+
+def huy_dat_cho(ma_dat_cho: str, khach_hang_id: str) -> int:
+    """UC-08: khách tự hủy giữ chỗ trước khi thanh toán — mở lại ghế. Trả số vé đã hủy."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                UPDATE ve v SET trang_thai = 'da_huy', gio_huy = now()
+                WHERE v.ma_dat_cho = %s AND v.khach_hang_id = %s AND {_DANG_GIU_CHO}
+                """,
+                (ma_dat_cho, khach_hang_id),
+            )
+            so_ve = cur.rowcount
+        conn.commit()
+        return so_ve
+    finally:
+        release_connection(conn)
+
+
+def danh_dau_het_han_qua_han() -> list[dict]:
+    """Job quét: vé giữ chỗ có hạn mà đã quá hạn → `het_han` (ghế đã mở lại từ lúc quá hạn nhờ kiểm tra hạn lúc truy
+    vấn; job chỉ dọn trạng thái để không bị tính nhầm là no-show). Trả các vé vừa chuyển (để báo khách)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE ve SET trang_thai = 'het_han'
+                WHERE trang_thai = 'giu_cho' AND han_giu_cho_den IS NOT NULL AND han_giu_cho_den <= now()
+                  AND EXISTS (SELECT 1 FROM chuyen_xe c
+                              WHERE c.id = ve.chuyen_id AND c.gio_khoi_hanh > now())
+                RETURNING id, ma_dat_cho, so_ghe, khach_hang_id
+                """
+            )
+            ve_het_han = _thanh_list(cur, cur.fetchall())
+        conn.commit()
+        return ve_het_han
+    finally:
+        release_connection(conn)
+
+
+def huy_ve_chua_thanh_toan_qua_gio_chay() -> list[dict]:
+    """Hủy vé còn giữ chỗ khi chuyến đã qua giờ khởi hành; không đụng vé đã thanh toán."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """UPDATE ve v SET trang_thai = 'da_huy', gio_huy = now()
+                   FROM chuyen_xe c
+                   WHERE v.chuyen_id = c.id AND v.trang_thai = 'giu_cho'
+                     AND c.gio_khoi_hanh <= now()
+                   RETURNING v.id, v.ma_dat_cho, v.so_ghe, v.khach_hang_id"""
+            )
+            da_huy = _thanh_list(cur, cur.fetchall())
+        conn.commit()
+        return da_huy
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)

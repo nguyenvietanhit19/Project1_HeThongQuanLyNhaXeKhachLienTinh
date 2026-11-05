@@ -6,6 +6,7 @@ tự động (UC-21, UC-43) và xử lý thủ công của Kế toán (UC-22).
 
 from typing import Any
 from app.db import get_connection, release_connection
+from app.utils.loi import GiaTriLoi
 
 
 def _thanh_dict(cur: Any, row: Any) -> dict | None:
@@ -80,6 +81,47 @@ def tim_theo_id(hoan_tien_id: str) -> dict | None:
         release_connection(conn)
 
 
+def huy_ve_quay_va_tao_hoan_tien(ve_id: str, ly_do: str) -> dict:
+    """UC-41: đổi trạng thái vé và tạo yêu cầu hoàn tiền trong cùng transaction."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT v.id, v.gia, v.trang_thai, c.dang_hoan, c.trang_thai, c.loai_su_co
+                   FROM ve v JOIN chuyen_xe c ON c.id = v.chuyen_id
+                   WHERE v.id = %s FOR UPDATE OF v""",
+                (ve_id,),
+            )
+            row = cur.fetchone()
+            if not row:
+                raise GiaTriLoi("Không tìm thấy vé")
+            _, gia, trang_thai_ve, dang_hoan, trang_thai_chuyen, loai_su_co = row
+            du_dieu_kien = bool(dang_hoan) or (trang_thai_chuyen == "gap_su_co" and loai_su_co == "loi_nha_xe")
+            if trang_thai_ve != "da_thanh_toan" or not du_dieu_kien:
+                raise GiaTriLoi("Vé không còn đủ điều kiện hủy nhận hoàn tiền")
+            cur.execute(
+                """INSERT INTO lich_su_hoan_tien (ve_id, ly_do, so_tien, trang_thai)
+                   VALUES (%s, %s, %s, 'cho_xu_ly')
+                   ON CONFLICT (ve_id) DO NOTHING""",
+                (ve_id, ly_do, int(gia)),
+            )
+            cur.execute(
+                "UPDATE ve SET trang_thai = 'da_huy', gio_huy = now() WHERE id = %s AND trang_thai = 'da_thanh_toan'",
+                (ve_id,),
+            )
+            if cur.rowcount != 1:
+                raise GiaTriLoi("Vé vừa được xử lý; vui lòng tải lại")
+            cur.execute("SELECT id, ve_id, ly_do, so_tien, trang_thai FROM lich_su_hoan_tien WHERE ve_id = %s", (ve_id,))
+            result = _thanh_dict(cur, cur.fetchone())
+        conn.commit()
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
+
+
 # ====================================================================
 # 2. Xử lý Chuyển khoản Thủ công & Cập nhật Trạng thái (UC-22)
 # ====================================================================
@@ -150,7 +192,7 @@ def cap_nhat_da_hoan_tu_dong(hoan_tien_id: str, ma_giao_dich_hoan_tien: str) -> 
                 SET trang_thai = 'da_hoan_tu_dong',
                     ma_giao_dich_hoan_tien = %s,
                     thoi_gian_hoan_xong = now()
-                WHERE id = %s
+                WHERE id = %s AND trang_thai = 'cho_xu_ly'
                 RETURNING *
                 """,
                 (ma_giao_dich_hoan_tien, hoan_tien_id),

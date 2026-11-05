@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Cổng thanh toán giả lập — GoBus</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/khach-hang/trang-chu.css" />
+<link rel="stylesheet" href="/khach-hang/thanh-toan.css" />
+</head>
+<body class="tt-trang">
+  <!--
+    Đóng vai trang thanh toán của VNPay để DEMO — không có tiền thật nào chuyển đi.
+    Khi chuyển sang VNPay sandbox thật (VNPAY_CHE_DO=sandbox) khách được đưa sang trang của VNPay, trang này không còn dùng.
+    Toàn bộ tham số đường dẫn do backend ký (HMAC-SHA512); trang chỉ hiển thị và gửi lại nguyên văn cho backend xử lý.
+  -->
+  <div class="tt-giua">
+    <div class="tt-khung" id="tt-khung">
+      <div class="tt-bang">CỔNG THANH TOÁN GIẢ LẬP — chỉ để demo, không trừ tiền thật</div>
+      <div id="tt-noi-dung"><div class="tc-khung-xuong" style="height:240px"></div></div>
+    </div>
+  </div>
+
+  <script src="/shared/api-client.js"></script>
+  <script>
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const tien = (so) => `${Number(so).toLocaleString("vi-VN")}đ`;
+    const pad2 = (n) => String(n).padStart(2, "0");
+    const noiDung = document.getElementById("tt-noi-dung");
+    const thamSo = Object.fromEntries(new URLSearchParams(location.search));
+    let dongHo = null;
+
+    function veLoi(thongBao) {
+      noiDung.innerHTML = `
+        <div class="tc-trong tc-trong--loi"><strong>Không mở được giao dịch</strong>${esc(thongBao)}</div>
+        <div class="tt-lien-ket"><a class="tc-btn tc-btn--phu" href="/">Về trang chủ</a></div>`;
+    }
+
+    function ve(giaoDich) {
+      const han = new Date(giaoDich.han_thanh_toan);
+      noiDung.innerHTML = `
+        <h1 class="tt-tieu-de">Thanh toán đơn hàng</h1>
+        <p class="tt-mo-ta">Nhà xe khách GoBus</p>
+        <div class="tc-tom-tat">
+          <div><span>Mã giao dịch</span><b>${esc(giaoDich.ma_giao_dich)}</b></div>
+          <div><span>Nội dung</span><b>${esc(giaoDich.noi_dung)}</b></div>
+        </div>
+        <div class="tt-so-tien"><span>Số tiền thanh toán</span><b>${tien(giaoDich.so_tien)}</b></div>
+        <div class="tt-dem" id="tt-dem">Giao dịch hết hạn sau <b id="tt-dem-so">--:--</b></div>
+        <div class="tc-dat-loi" id="tt-loi" role="alert" hidden></div>
+        <div class="tt-nut">
+          <button type="button" class="tc-btn tc-btn--chinh tc-btn--khoi" id="btn-thanh-cong">Thanh toán thành công</button>
+          <button type="button" class="tc-btn tc-btn--phu tc-btn--khoi" id="btn-huy">Hủy giao dịch</button>
+        </div>`;
+
+      const hien = () => {
+        const con = Math.max(0, Math.floor((han - Date.now()) / 1000));
+        document.getElementById("tt-dem-so").textContent = `${pad2(Math.floor(con / 60))}:${pad2(con % 60)}`;
+        document.getElementById("tt-dem").classList.toggle("tt-dem--het", con === 0);
+        if (con === 0) clearInterval(dongHo);
+      };
+      hien();
+      dongHo = setInterval(hien, 1000);
+
+      const gui = async (ketQua) => {
+        document.querySelectorAll(".tt-nut button").forEach((b) => (b.disabled = true));
+        try {
+          const kq = await apiPost("/cong-thanh-toan-gia/xu-ly", { tham_so: thamSo, ket_qua: ketQua });
+          location.href = kq.return_url; // đưa khách về trang kết quả, đúng như VNPay làm
+        } catch (err) {
+          document.querySelectorAll(".tt-nut button").forEach((b) => (b.disabled = false));
+          const el = document.getElementById("tt-loi");
+          el.textContent = err.message;
+          el.hidden = false;
+        }
+      };
+      document.getElementById("btn-thanh-cong").addEventListener("click", () => gui("thanh_cong"));
+      document.getElementById("btn-huy").addEventListener("click", () => gui("huy"));
+    }
+
+    (async () => {
+      try {
+        ve(await apiGet(`/cong-thanh-toan-gia/thong-tin${location.search}`));
+      } catch (err) {
+        veLoi(err.message);
+      }
+    })();
+  </script>
+</body>
+</html>

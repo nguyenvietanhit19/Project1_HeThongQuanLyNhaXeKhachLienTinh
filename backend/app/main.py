@@ -1,14 +1,68 @@
+import datetime
+from contextlib import asynccontextmanager
+
+from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import CORS_ORIGINS
+from app.jobs import canh_bao_giay_to, nhac_quan_ly, quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han
+from app.jobs import quet_chuyen_chua_co_xe
+from app.jobs import canh_bao_giay_to, nhac_khach_quay_ve, nhac_quan_ly, quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han
+from app.jobs import quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han, quet_ve_qua_gio_chay
+from app.jobs import canh_bao_giay_to, quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han
 from app.routes.auth import router as auth_router
+from app.routes.chuyen import router as chuyen_router
+from app.routes.dieu_do import router as dieu_do_router
+from app.routes.phu_xe import router as phu_xe_router
+from app.routes.gui_hang import router as gui_hang_router
+from app.routes.nhan_su import router as nhan_su_router
 from app.routes.quan_ly import router as quan_ly_router
+from app.routes.phan_cong_dieu_do import router as phan_cong_dieu_do_router
+from app.routes.tai_khoan_can_bo import router as tai_khoan_can_bo_router
+from app.routes.thanh_toan import router as thanh_toan_router
+from app.routes.ve import router as ve_router
 from app.routes.websocket import router as websocket_router
-from app.utils.loi import GiaTriLoi, KhongDuQuyen, LoiHeThong
+from app.routes.thong_bao import router as thong_bao_router
+from app.routes.quay_ve import router as quay_ve_router
+from app.utils.loi import CamTruyCap, GiaTriLoi, KhongDuQuyen, KhongTimThay, LoiHeThong, XungDot
 
-app = FastAPI(title="Hệ thống Quản lý Nhà xe Khách")
+scheduler = BackgroundScheduler()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # UC-14 (⏱, mục 8.2 điểm 6/mục 9) — chu kỳ 1 phút đủ chính xác cho mốc
+    # X phút (mặc định 5), theo đúng ARCHITECTURE.md mục 5.
+    scheduler.add_job(quet_no_show.chay, "interval", minutes=1, id="quet_no_show")
+    # Vé giữ chỗ có hạn quá hạn → het_han (mục 6) — chu kỳ 1 phút
+    scheduler.add_job(quet_ve_het_han.chay, "interval", minutes=1, id="quet_ve_het_han")
+    scheduler.add_job(quet_ve_qua_gio_chay.chay, "interval", minutes=1, id="quet_ve_qua_gio_chay")
+    # UC-44 ⏱ — nhắc điều độ viên chuyến ≤48h chưa gán xe; tới giờ mà chưa có xe thì tự chuyển "đang hoãn" (jobs/quet_chuyen_chua_co_xe.py)
+    scheduler.add_job(quet_chuyen_chua_co_xe.chay, "interval", minutes=5, id="quet_chuyen_chua_co_xe")
+    # Hỏi VNPay kết quả các lượt đang chờ thanh toán (chỉ làm gì ở chế độ sandbox) — chu kỳ 1 phút, chỉ hỏi giao dịch đã đủ cũ
+    scheduler.add_job(quet_giao_dich_vnpay.chay, "interval", seconds=60, id="quet_giao_dich_vnpay")
+    # UC-46 (⏱, mục 10.3 & mục 12) — quét cảnh báo (7 ngày) & chuyển tồn kho (14 ngày)
+    scheduler.add_job(quet_hang_ton.chay_job_quet_hang_ton, "interval", hours=1, id="quet_hang_ton")
+    # Nhắc khách "sắp đến giờ đi" (NGHIEP_VU.md mục 8.1 điểm 4) — mỗi vé nhắc đúng 1 lần
+    scheduler.add_job(quet_nhac_sap_di.chay, "interval", minutes=5, id="quet_nhac_sap_di")
+    # Nhắc nhân viên quầy vé liên hệ khách trả tại quầy trong 2 giờ trước giờ xuất phát.
+    scheduler.add_job(nhac_khach_quay_ve.chay, "interval", minutes=1, id="nhac_khach_quay_ve")
+    # Nhánh kèm theo UC-49 (trước đây UC-50, ⏱) — cảnh báo giấy tờ nhân sự vận hành sắp/đã hết hạn, mốc tính theo ngày nên quét 1 lần/ngày là đủ
+    scheduler.add_job(canh_bao_giay_to.chay, "interval", hours=24, id="canh_bao_giay_to")
+    # Nhắc quản lý sinh thêm chuyến / tạo bộ giá nối tiếp (jobs/nhac_quan_ly.py) — mỗi sáng 07:00 giờ Việt Nam, và chạy thêm 1 lần
+    # ngay sau khi khởi động (dịch vụ có thể ngủ/khởi động lại nên lỡ mốc 07:00; thông báo trùng nội dung đã được bỏ qua)
+    scheduler.add_job(
+        nhac_quan_ly.chay, "cron", hour=7, minute=0, timezone="Asia/Ho_Chi_Minh", id="nhac_quan_ly",
+        next_run_time=datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=45),
+    )
+    scheduler.start()
+    yield
+    scheduler.shutdown()
+
+
+app = FastAPI(title="Hệ thống Quản lý Nhà xe Khách", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,11 +88,59 @@ def xu_ly_khong_du_quyen(request: Request, exc: KhongDuQuyen):
     return JSONResponse(status_code=401, content={"loi": str(exc)})
 
 
+@app.exception_handler(CamTruyCap)
+def xu_ly_cam_truy_cap(request: Request, exc: CamTruyCap):
+    return JSONResponse(status_code=403, content={"loi": str(exc)})
+
+
+@app.exception_handler(XungDot)
+def xu_ly_xung_dot(request: Request, exc: XungDot):
+    return JSONResponse(status_code=409, content={"loi": str(exc)})
+
+
+@app.exception_handler(KhongTimThay)
+def xu_ly_khong_tim_thay(request: Request, exc: KhongTimThay):
+    return JSONResponse(status_code=404, content={"loi": str(exc)})
+
+
 @app.exception_handler(LoiHeThong)
 def xu_ly_loi_he_thong(request: Request, exc: LoiHeThong):
     return JSONResponse(status_code=500, content={"loi": str(exc)})
 
 
+@app.exception_handler(Exception)
+def xu_ly_loi_khong_luong_truoc(request: Request, exc: Exception):
+    """Lưới an toàn cuối cùng cho lỗi không lường trước (VD ID sai định
+    dạng UUID khiến driver DB ném lỗi thẳng, DB mất kết nối...).
+
+    Không có handler này, Starlette tự trả 500 "trần" (kèm traceback nếu
+    debug bật) từ ServerErrorMiddleware. Đăng ký handler ở đây còn để tự
+    gắn header CORS thủ công bên dưới — đã kiểm chứng thực tế
+    (`app.add_middleware(CORSMiddleware, ...)`) KHÔNG tự thêm header CORS
+    cho response sinh ra từ exception handler, kể cả khi handler này nằm
+    trong `ExceptionMiddleware` (về lý thuyết nằm trong CORSMiddleware).
+    Thiếu bước này, trình duyệt hiển thị nhầm mọi lỗi 500 thành lỗi CORS
+    ("Failed to fetch"), che mất lỗi thật, cực khó debug từ phía frontend.
+    """
+    response = JSONResponse(status_code=500, content={"loi": "Đã có lỗi hệ thống, vui lòng thử lại sau"})
+    origin = request.headers.get("origin")
+    if origin in CORS_ORIGINS:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
+
+
 app.include_router(websocket_router)
 app.include_router(auth_router)
 app.include_router(quan_ly_router)
+app.include_router(phan_cong_dieu_do_router)
+app.include_router(nhan_su_router)
+app.include_router(tai_khoan_can_bo_router)
+app.include_router(phu_xe_router)
+app.include_router(gui_hang_router)
+app.include_router(thong_bao_router)
+app.include_router(quay_ve_router)
+app.include_router(chuyen_router)
+app.include_router(dieu_do_router)
+app.include_router(ve_router)
+app.include_router(thanh_toan_router)

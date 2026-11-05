@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Tổng quan — Quản lý nhân sự</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<!-- Dùng chung bộ khung "nv-*" với frontend/nhan-vien/quan-ly/ (cùng kiểu
+     giao diện quản trị) thay vì nhân bản ~4200 dòng CSS — xem ghi chú ở
+     đầu nav.js về lý do 2 domain này không dùng chung JS dù chung CSS. -->
+<link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+</head>
+<body class="nhan-vien-shell">
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
+
+    <div class="nv-main">
+      <header class="nv-topbar">
+        <h1>Tổng quan</h1>
+        <div class="nv-topbar__user">
+          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
+          <div class="nv-topbar__identity">
+            <span class="ho-ten" id="topbar-ho-ten"></span>
+            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
+          </div>
+          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
+        </div>
+      </header>
+
+      <main class="nv-content">
+        <div class="nv-page-intro">
+          <div class="nv-page-intro__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5a3 3 0 0 1 0 6M18 14c1.8.6 3 2.3 3 4"/>
+            </svg>
+          </div>
+          <div class="nv-page-intro__body">
+            <p class="nv-page-intro__title">Quản lý nhân sự</p>
+            <p class="nv-page-intro__desc">Quản lý hồ sơ và giấy tờ của tài xế, phụ xe — họ tên, CCCD, bằng lái, giấy khám sức khỏe. Không quản lý tuyến, giá, xe hay biên chế (các việc đó thuộc Quản lý).</p>
+          </div>
+        </div>
+
+        <!-- Dùng lại .gv-thong-ke/.gv-stat của trang Giá vé (chỉ mượn style thẻ
+             thống kê có sẵn, không click-lọc được như bên đó) — tiết kiệm
+             CSS cho 1 trang "tạm thời", xem ghi chú đầu file. -->
+        <div class="gv-thong-ke" id="luoi-thong-ke">
+          <div class="gv-stat gv-stat--du"><span class="gv-stat__so" id="tk-dang-lam">—</span><span class="gv-stat__nhan">Nhân sự đang làm</span></div>
+          <div class="gv-stat"><span class="gv-stat__so" id="tk-tai-xe">—</span><span class="gv-stat__nhan">Tài xế</span></div>
+          <div class="gv-stat gv-stat--chua-du"><span class="gv-stat__so" id="tk-phu-xe">—</span><span class="gv-stat__nhan">Phụ xe</span></div>
+          <div class="gv-stat gv-stat--chua-co"><span class="gv-stat__so" id="tk-nghi-viec">—</span><span class="gv-stat__nhan">Đã nghỉ việc</span></div>
+        </div>
+
+        <div class="card" style="margin-top:20px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+          <div>
+            <p style="font-weight:700; margin:0 0 4px;">Hồ sơ nhân sự vận hành</p>
+            <p class="nv-text-phu" style="margin:0;">Thêm hồ sơ mới, cập nhật thông tin và giấy tờ, cho nghỉ việc tài xế/phụ xe.</p>
+          </div>
+          <a class="btn-primary" href="/nhan-vien/quan-li-nhan-su/ho-so.html" style="text-decoration:none; display:inline-flex; align-items:center;">Mở danh sách hồ sơ →</a>
+        </div>
+
+        <div id="loi-trang" class="text-error" hidden style="margin-top:16px;"></div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/nhan-vien/quan-li-nhan-su/api-client.js"></script>
+  <script src="/nhan-vien/quan-li-nhan-su/auth-check.js"></script>
+  <script src="/nhan-vien/quan-li-nhan-su/nav.js"></script>
+  <script>
+    const nguoiDung = yeuCauVaiTro("quan_ly_nhan_su", "quan_ly");
+    if (nguoiDung) {
+      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-li-nhan-su/trang-chu.html");
+      renderTopbarUser();
+    }
+    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+
+    (async () => {
+      try {
+        const ds = await apiGet("/quan-ly-nhan-su/ho-so");
+        const dangLam = ds.filter((h) => h.trang_thai === "dang_lam");
+        document.getElementById("tk-dang-lam").textContent = dangLam.length;
+        document.getElementById("tk-tai-xe").textContent = dangLam.filter((h) => h.chuc_danh === "tai_xe").length;
+        document.getElementById("tk-phu-xe").textContent = dangLam.filter((h) => h.chuc_danh === "phu_xe").length;
+        document.getElementById("tk-nghi-viec").textContent = ds.length - dangLam.length;
+      } catch (err) {
+        const el = document.getElementById("loi-trang");
+        el.textContent = err.message;
+        el.hidden = false;
+      }
+    })();
+  </script>
+</body>
+</html>

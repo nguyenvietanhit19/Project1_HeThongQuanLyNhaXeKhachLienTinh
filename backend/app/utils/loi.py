@@ -12,5 +12,19 @@ class KhongDuQuyen(Exception):
     """Sai thông tin đăng nhập, token hỏng, tài khoản bị khóa... — HTTP 401/403."""
 
 
+class CamTruyCap(Exception):
+    """Đã đăng nhập hợp lệ nhưng thao tác ngoài phạm vi được giao (VD nhân
+    viên gửi hàng xem đơn của văn phòng khác) — HTTP 403. Tách khỏi
+    KhongDuQuyen (401) để frontend không hiểu nhầm thành hết phiên đăng nhập."""
+
+
+class KhongTimThay(Exception):
+    """Không tìm thấy bản ghi được yêu cầu — HTTP 404."""
+
+
+class XungDot(Exception):
+    """Dữ liệu đã bị người khác sửa trong lúc mình đang mở form (khóa lạc quan theo `phien_ban`) — HTTP 409."""
+
+
 class LoiHeThong(Exception):
     """Lỗi hạ tầng (gửi email thất bại...) — HTTP 500."""

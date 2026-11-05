@@ -49,10 +49,14 @@ def tao_diem_don_tra(khu_vuc_id: str, ten: str, dia_chi: str, loai: str) -> dict
 
 
 def sua_diem_don_tra(diem_id: str, khu_vuc_id: str, ten: str, dia_chi: str, loai: str) -> None:
-    if not repo.tim_diem_don_tra_theo_id(diem_id):
+    diem_hien_tai = repo.tim_diem_don_tra_theo_id(diem_id)
+    if not diem_hien_tai:
         raise GiaTriLoi("Không tìm thấy điểm đón/trả")
-    if not repo.tim_khu_vuc_theo_id(khu_vuc_id):
-        raise GiaTriLoi("Khu vực không tồn tại")
+    if str(diem_hien_tai["khu_vuc_id"]) != str(khu_vuc_id):
+        raise GiaTriLoi(
+            "Không được đổi khu vực của điểm đón/trả đã tạo (mã điểm gắn với khu vực). "
+            "Hãy tạo điểm mới ở khu vực đúng rồi xóa điểm cũ."
+        )
     repo.sua_diem_don_tra(diem_id, khu_vuc_id, ten, dia_chi, loai)
 
 

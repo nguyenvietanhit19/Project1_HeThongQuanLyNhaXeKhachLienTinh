@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Tổng quan — Điều độ</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+<link rel="stylesheet" href="/nhan-vien/dieu-do/gan-xe.css" />
+<link rel="stylesheet" href="/nhan-vien/dieu-do/thong-ke.css" />
+<link rel="stylesheet" href="/nhan-vien/quan-ly/thong-bao.css" />
+</head>
+<body class="nhan-vien-shell">
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
+
+    <div class="nv-main">
+      <header class="nv-topbar">
+        <h1>Tổng quan</h1>
+      </header>
+
+      <main class="nv-content">
+        <div class="nv-page-intro">
+          <div class="nv-page-intro__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>
+            </svg>
+          </div>
+          <div class="nv-page-intro__body">
+            <p class="nv-page-intro__title">Tổng quan điều độ</p>
+            <p class="nv-page-intro__desc">Tình trạng gán xe của các tuyến bạn phụ trách, đội xe và các chuyến gần đây. Số liệu chu trình khớp với trang Gán xe.</p>
+          </div>
+          <div class="nv-page-intro__stat">
+            <span class="nv-page-intro__stat-num" id="stat-can-xu-ly">—</span>
+            <span class="nv-page-intro__stat-label">chu trình cần xử lý</span>
+          </div>
+        </div>
+
+        <div class="kv-thanh-cong gx-loc">
+          <select class="input-field tb-select" id="loc-cua-so" aria-label="Khoảng ngày thống kê">
+            <option value="3">3 ngày tới</option>
+            <option value="5">5 ngày tới</option>
+            <option value="7">7 ngày tới</option>
+          </select>
+          <a class="nv-btn-secondary tk-lien-ket" href="/nhan-vien/dieu-do/gan-xe.html">Đi tới Gán xe</a>
+        </div>
+
+        <div id="tk-noi-dung">Đang tải...</div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/nhan-vien/quan-ly/api-client.js"></script>
+  <script src="/nhan-vien/quan-ly/auth-check.js"></script>
+  <script src="/nhan-vien/quan-ly/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/tai-khoan.js"></script>
+  <script src="/nhan-vien/quan-ly/thong-bao.js"></script>
+  <script src="/nhan-vien/dieu-do/menu.js"></script>
+  <script src="/nhan-vien/dieu-do/thong-ke.js"></script>
+</body>
+</html>

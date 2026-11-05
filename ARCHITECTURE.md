@@ -16,7 +16,7 @@ Tài liệu này mô tả toàn bộ chiến lược kỹ thuật cho bản vi�
 | Gửi email (OTP đăng ký/quên mật khẩu) | **Brevo API** qua HTTPS (`email_service.py`) | Ban đầu giữ nguyên Gmail SMTP từ bản v1, nhưng SMTP thô bị chặn/timeout khi deploy lên Render free tier (không hỗ trợ egress IPv6 + Google chặn kết nối SMTP trực tiếp từ IP cloud/hosting) — đổi sang gọi API qua HTTPS (cổng 443, không bị chặn vì chính app cũng chạy HTTPS), free tier 300 email/ngày đủ dùng BTL — xem `NGHIEP_VU.md` mục 2.1 |
 | Thanh toán online | **VNPay** (môi trường sandbox cho demo/BTL) | Có sẵn merchant sandbox miễn phí, không cần mã số thuế/doanh nghiệp thật, luồng kỹ thuật giống hệt production (chỉ khác `vnp_TmnCode`/`vnp_HashSecret`/domain) — dùng chung cho cả thanh toán online lẫn quét QR tại quầy (`NGHIEP_VU.md` mục 6) |
 | Biên nhận/vé PDF | Sinh **theo yêu cầu** từ dữ liệu `ve`/`don_hang` trong DB (VD ReportLab/WeasyPrint), **không lưu file** | Không phải hóa đơn điện tử hợp lệ thuế (ngoài phạm vi BTL — đòi hỏi MST doanh nghiệp + tích hợp nhà cung cấp hóa đơn điện tử được công nhận), chỉ là biên nhận nội bộ; sinh lại mỗi lần tải tránh phát sinh thêm dịch vụ lưu file |
-| File/ảnh | **Không dùng** — bỏ Cloudinary so với bản v1 | Domain mới không có nhu cầu khách/nhân viên upload ảnh (vé cứng và biên nhận gửi hàng đều in trực tiếp tại quầy, không phải file lưu trữ) |
+| File/ảnh | **Cloudinary**, chỉ cho ảnh hồ sơ nhân sự vận hành (ảnh chân dung, bằng lái, giấy khám sức khỏe — `quan_ly_nhan_su`, `services/luu_tru_anh_service.py`) | Khách/nhân viên không upload ảnh; vé và biên nhận gửi hàng vẫn in trực tiếp tại quầy. Ảnh nhân sự cần lưu ngoài ổ đĩa backend (Render free tier mất dữ liệu khi redeploy); DB chỉ lưu `public_id`, ảnh phát bằng URL có chữ ký (delivery `authenticated`) vì là giấy tờ nhạy cảm |
 | Real-time | **WebSocket built-in của FastAPI** | Báo khách hàng khi chuyến đổi giờ/đổi xe/gặp sự cố, báo điều độ viên khi phụ xe báo sự cố — không cần polling |
 | Tác vụ định kỳ (giữ ghế hết hạn, no-show) | **APScheduler** chạy trong tiến trình backend | Xem mục 5 — cần 1 nơi quét định kỳ các `ve`/`don_hang` quá hạn để chuyển trạng thái, không thể chỉ dựa vào lazy-check như OTP ở bản v1 |
 | Containerize | **Docker** (backend), docker-compose cho local dev | Đồng bộ môi trường giữa các thành viên, tránh "chạy được ở máy tôi" |
@@ -58,6 +58,8 @@ project-root/
 │   │   │
 │   │   ├── schemas/                       # Pydantic models — định nghĩa hình dạng request/response
 │   │   │   ├── nguoi_dung_schema.py
+│   │   │   ├── nhan_su_schema.py              # hồ sơ nhân sự vận hành, giấy tờ (UC-49)
+│   │   │   ├── tai_khoan_can_bo_schema.py     # tạo/khóa/mở khóa tài khoản cán bộ (UC-36/37)
 │   │   │   ├── ve_schema.py
 │   │   │   ├── chuyen_xe_schema.py
 │   │   │   ├── don_hang_schema.py
@@ -65,25 +67,36 @@ project-root/
 │   │   │
 │   │   ├── repositories/                  # raw SQL, 1 file = 1 bảng/entity dữ liệu
 │   │   │   ├── nguoi_dung_repository.py       # tài khoản đăng nhập được: khách hàng + cán bộ (NGHIEP_VU mục 2)
-│   │   │   ├── nhan_vien_van_hanh_repository.py  # hồ sơ tài xế/phụ xe + xe_nhan_su (mục 3.2)
+│   │   │   ├── nhan_su_van_hanh_repository.py     # hồ sơ tài xế/phụ xe + xe_nhan_su (mục 3.2); hồ sơ nhân sự đầy đủ + mã tài xế (UC-49)
+│   │   │   ├── giay_to_nhan_su_repository.py      # giấy tờ bằng lái / giấy khám sức khỏe (UC-49) + dữ liệu cho job cảnh báo
+│   │   │   ├── tai_khoan_can_bo_repository.py     # tạo/khóa/mở khóa tài khoản cán bộ, tạo tài khoản + gán văn phòng cùng transaction (UC-36/37)
+│   │   │   ├── nhat_ky_quan_ly_nhan_su_repository.py  # nhật ký của quan_ly_nhan_su — chỉ INSERT (UC-52)
+│   │   │   ├── nhat_ky_admin_repository.py        # nhật ký của quan_ly — chỉ INSERT (UC-37, UC-52)
+│   │   │   ├── ma_repository.py                   # số thứ tự cho mã tự sinh (khu vực, tuyến, vé, mã nhân viên...)
 │   │   │   ├── khu_vuc_repository.py
 │   │   │   ├── diem_don_tra_repository.py
 │   │   │   ├── tuyen_repository.py            # tuyen (chạy cả 2 chiều) + tuyen_diem_don_tra
-│   │   │   ├── gia_ve_repository.py
+│   │   │   ├── gia_ve_repository.py            # bộ giá vé (bo_gia_ve) + giá từng chặng (gia_ve) — UC-33; đếm chuyến đã sinh trong khoảng áp dụng của bộ (để khóa sửa/xóa)
 │   │   │   ├── xe_repository.py
 │   │   │   ├── chuyen_xe_repository.py
+│   │   │   ├── tim_kiem_chuyen_repository.py   # SQL chỉ-đọc cho tra cứu chuyến công khai (UC-04): chuyến theo khu vực đi/đến + ngày, ghế đang bị giữ, giá — so thứ tự điểm bằng thu_tu hiệu lực theo chiều
 │   │   │   ├── ve_repository.py               # trung tâm: khóa ghế, kiểm tra overlap (mục 6)
 │   │   │   └── don_hang_repository.py         # gửi hàng (mục 10)
 │   │   │
 │   │   ├── services/                      # quy tắc nghiệp vụ + service hạ tầng
 │   │   │   ├── mat_khau_service.py            # đăng ký/đăng nhập/quên mật khẩu — kế thừa bản v1
-│   │   │   ├── tai_khoan_can_bo_service.py    # tạo/khóa/mở khóa tài khoản cán bộ (UC-36/37/38) — kiểm tra quyền actor vs vai trò mục tiêu, chặn khóa quan_ly gốc (mục 8.9 NGHIEP_VU.md)
+│   │   │   ├── tai_khoan_can_bo_service.py    # tạo/khóa/mở khóa tài khoản cán bộ (UC-36/37) — kiểm tra quyền actor vs vai trò mục tiêu theo quy tắc bậc (gốc > quan_ly thường = ke_toan > quan_ly_nhan_su > vận hành; chỉ khóa bậc thấp hơn), chặn khóa quan_ly gốc và tự khóa mình, lý do bắt buộc; nhật ký quan_ly -> nhat_ky_admin, quan_ly_nhan_su -> nhat_ky_quan_ly_nhan_su (mục 8.9 NGHIEP_VU.md)
+│   │   │   ├── ho_so_nhan_su_service.py       # hồ sơ nhân sự vận hành, giấy tờ, ảnh (UC-49)
 │   │   │   ├── email_service.py               # gửi mail OTP qua Brevo API (HTTPS) — hạ tầng
-│   │   │   ├── tim_kiem_chuyen_service.py     # tìm theo điểm đi/đến (mục 3.4 bước 1-2)
+│   │   │   ├── tim_kiem_chuyen_service.py     # tìm theo điểm đi/đến (mục 3.4 bước 1-2); chọn giá theo bộ giá áp dụng cho ngày khởi hành của từng chuyến
+│   │   │   ├── gia_ve_service.py              # giá vé theo bộ (UC-33): bộ đủ mọi chặng, có ngày bắt đầu + kết thúc, bộ mới nối liền bộ cuối, khóa bộ đã sinh chuyến (bộ cuối vẫn gia hạn được), cảnh báo giá bất thường, bảng giá của 1 chuyến, kiểm tra giá phủ từng ngày khi sinh chuyến
 │   │   │   ├── dat_ve_service.py              # giữ ghế, chống trùng ghế, đặt cọc (mục 3.4, 6)
-│   │   │   ├── thanh_toan_service.py          # thanh toán ngay / tại quầy
+│   │   │   ├── thanh_toan_service.py          # xử lý IPN + trang kết quả của cổng thanh toán (chữ ký, số tiền, chống xử lý lặp)
+│   │   │   ├── vnpay_service.py               # ký/kiểm tra chữ ký HMAC-SHA512, tạo đường dẫn thanh toán — dùng chung giả lập và VNPay thật
+│   │   │   ├── cong_thanh_toan_gia_service.py # cổng thanh toán GIẢ LẬP để demo (VNPAY_CHE_DO=gia_lap), đóng vai VNPay
 │   │   │   ├── hoan_tien_service.py            # tạo/quản lý hàng đợi lich_su_hoan_tien; gọi API hoàn tiền VNPay khi có mã giao dịch (mục 7 NGHIEP_VU.md)
-│   │   │   ├── lich_chay_dinh_ky_service.py    # CRUD lich_chay_dinh_ky, sinh chuyen_xe theo cửa sổ N ngày (mục 3.5 NGHIEP_VU.md, UC-18) — gọi bởi cả route quan_ly.py lẫn job định kỳ
+│   │   │   ├── lich_chay_service.py            # lịch chạy theo cặp đi+về (UC-18: tạo/ngừng/xóa cả cặp, khóa sửa khi đã sinh chuyến, tính ngày lệch chiều về) + sinh chuyen_xe thủ công cho các cặp trong khoảng ngày do quan_ly chọn, 1 giao dịch (UC-47, mục 3.5 NGHIEP_VU.md) — chỉ route quan_ly.py gọi, không còn job
+│   │   │   ├── chuyen_service.py               # quan_ly xem/lọc/sửa giờ/xóa chuyến còn "sạch" (UC-48); chi tiết chuyến kèm bảng giá vé — khác chuyen_xe_service.py (vòng đời/gán xe của điều độ viên)
 │   │   │   ├── chuyen_xe_service.py           # vòng đời chuyến, gán xe (UC-44), đổi xe, sự cố (mục 3.3, 4)
 │   │   │   ├── xe_nhan_su_service.py          # biên chế cố định/tạm thời (mục 3.2)
 │   │   │   ├── gui_hang_service.py            # tạo đơn theo tuyến, phụ xe chọn xếp lên chuyến cụ thể (mục 10.2) — không còn tính sức chứa tự động
@@ -93,24 +106,26 @@ project-root/
 │   │   │   ├── auth.py                        # đăng ký/đăng nhập/quên mật khẩu (khách hàng)
 │   │   │   ├── chuyen.py                      # tìm kiếm chuyến công khai
 │   │   │   ├── ve.py                          # giữ ghế, chọn điểm đón/trả, thanh toán, lịch sử vé
-│   │   │   ├── thanh_toan_callback.py         # webhook nhận kết quả từ cổng thanh toán (mục 5) — không phải action của người dùng, không cần JWT thường mà xác thực bằng chữ ký/secret riêng của cổng
+│   │   │   ├── thanh_toan.py                # webhook nhận kết quả từ cổng thanh toán (mục 5) — không phải action của người dùng, không cần JWT thường mà xác thực bằng chữ ký/secret riêng của cổng
 │   │   │   ├── quay_ve.py                     # nhân viên quầy vé: bán vé, in vé cứng (không xử lý hoàn tiền)
 │   │   │   ├── gui_hang.py                    # nhân viên gửi hàng: tạo đơn, giao hàng
 │   │   │   ├── phu_xe.py                      # giao diện di động: soát vé, xác nhận trạng thái chuyến
 │   │   │   ├── dieu_do.py                     # điều độ viên: gán xe cho chuyến (UC-44), đổi xe, xử lý sự cố/nhân sự
 │   │   │   ├── ke_toan.py                     # kế toán: danh sách hoàn tiền chờ xử lý, đánh dấu đã chuyển khoản thủ công (mục 8.8 NGHIEP_VU.md) — toàn hệ thống
-│   │   │   ├── tai_khoan_can_bo.py            # tạo/khóa/mở khóa tài khoản cán bộ (UC-36/37/38) — dùng chung cho quan_ly và quan_ly_nhan_su (mục 8.9 NGHIEP_VU.md), Service phân quyền theo vai_tro + la_tai_khoan_goc của actor lẫn tài khoản mục tiêu
-│   │   │   ├── quan_ly.py                     # quản lý: danh mục, lịch chạy định kỳ (UC-18), cấu hình, thống kê
+│   │   │   ├── tai_khoan_can_bo.py            # tạo/khóa/mở khóa tài khoản cán bộ (UC-36/37) — dùng chung cho quan_ly và quan_ly_nhan_su (mục 8.9 NGHIEP_VU.md), Service phân quyền theo vai_tro + la_tai_khoan_goc của actor lẫn tài khoản mục tiêu (quy tắc bậc; khóa/mở khóa dùng POST .../khoa và .../mo-khoa)
+│   │   │   ├── nhan_su.py                     # hồ sơ nhân sự vận hành (UC-49) — /quan-ly-nhan-su/ho-so...
+│   │   │   ├── quan_ly.py                     # quản lý: danh mục, lịch chạy định kỳ (UC-18), sinh chuyến (UC-47), quản lý chuyến (UC-48), cấu hình, thống kê
 │   │   │   └── websocket.py                   # điểm kết nối real-time
 │   │   │
 │   │   ├── jobs/                          # tác vụ chạy định kỳ (không phải request-response)
-│   │   │   ├── quet_het_han.py                # quét ve quá hạn → het_han/khong_den; chuyen_xe chưa gán xe khi tới giờ chạy → dang_hoan (UC-45); don_hang cho_lay quá 7/14 ngày → cảnh báo/hàng tồn (UC-46, mục 5)
-│   │   │   └── sinh_chuyen_dinh_ky.py          # sinh chuyen_xe từ lich_chay_dinh_ky theo cửa sổ N ngày (mục 3.5 NGHIEP_VU.md)
+│   │   │   ├── canh_bao_giay_to.py            # nhắc giấy tờ nhân sự sắp/đã hết hạn (UC-49), mỗi ngày 1 lần
+│   │   │   └── quet_het_han.py                # quét ve quá hạn → het_han/khong_den; chuyen_xe chưa gán xe khi tới giờ chạy → dang_hoan (UC-44); don_hang cho_lay quá 7/14 ngày → cảnh báo/hàng tồn (UC-25, mục 5). Không có job sinh chuyến — quan_ly sinh thủ công (UC-47)
 │   │   │
 │   │   ├── middleware/
 │   │   │   └── auth_middleware.py         # xác thực JWT, phân quyền theo vai_tro (kể cả kiểm tra la_tai_khoan_goc khi thao tác lên tài khoản quan_ly/quan_ly_nhan_su, DATABASE.md mục 1.1)
 │   │   │
 │   │   └── utils/
+│   │       ├── ma_tu_sinh.py              # dựng mã hiển thị tự sinh (khu vực, tuyến, vé, mã nhân viên...)
 │   │       └── db_helpers.py              # helper dùng chung (map row → dict...)
 │   │
 │   ├── migrations/                        # file .sql đánh số thứ tự, version hóa schema
@@ -128,6 +143,7 @@ project-root/
 │   └── .dockerignore
 │
 ├── frontend/                              # HTML/CSS/JS tĩnh — 2 giao diện tách biệt
+│   ├── index.html                         # TRANG CHỦ công khai (link production gốc `/`) — ô tìm chuyến, bấm Tìm chuyến sang khach-hang/tim-chuyen.html (kết quả + sơ đồ ghế, UC-04), không cần đăng nhập; CSS/JS ở khach-hang/trang-chu.*
 │   ├── khach-hang/                        # tìm chuyến, đặt vé, thanh toán, lịch sử vé
 │   └── nhan-vien/                         # phụ xe (di động) + quầy vé + gửi hàng + điều độ + quản lý
 │
@@ -152,7 +168,7 @@ project-root/
 - **`services/`** — nơi chứa "luật chơi" của hệ thống. Đọc thư mục này là hiểu được toàn bộ nghiệp vụ của app mà không cần biết SQL hay HTTP là gì. `dat_ve_service.py` là service phức tạp nhất, đối chiếu trực tiếp với `NGHIEP_VU.md` mục 3.4 + 6.
 - **`routes/`** — chỉ là lớp giao tiếp HTTP, cực mỏng, hầu như chỉ có 3-5 dòng mỗi endpoint. Tách riêng `phu_xe.py` khỏi `quay_ve.py`/`dieu_do.py` vì phụ xe dùng giao diện di động riêng (`NGHIEP_VU.md` mục 8.2), không phải dashboard desktop như các vai trò cán bộ khác.
 - **`jobs/`** — khác hẳn `routes/`: không được HTTP request gọi tới, mà chạy tự động theo lịch (APScheduler). Cần vì `NGHIEP_VU.md` mục 5/9 yêu cầu **ghi nhận vĩnh viễn** trạng thái `het_han`/`khong_den` (dùng để đếm vi phạm no-show) — không thể chỉ tính toán "ảo" mỗi lần có người hỏi, phải có thời điểm thực sự ghi vào DB.
-- **`migrations/`** — lịch sử thay đổi cấu trúc database, thay cho việc chỉnh tay trực tiếp trên Postgres.
+- **`migrations/`** — lịch sử thay đổi cấu trúc database, thay cho việc chỉnh tay trực tiếp trên Postgres. Một số quy tắc dữ liệu đặt ở **trigger DB** thay vì Service để mọi đường ghi đều bị ràng buộc: **mã hiển thị không sửa được** (`ma` của khu vực/điểm/tuyến/loại xe, `ma_ve` — `DATABASE.md` mục 10) và **chặn đổi khu vực của điểm đón/trả**. Việc **sinh** các mã đó do hàm Python làm (`utils/ma_tu_sinh.py` + `repositories/ma_repository.py`).
 - **`tests/unit/` vs `tests/integration/`** — unit test kiểm tra logic nghiệp vụ (Service) bằng cách giả lập Repository, chạy cực nhanh, không cần DB. Integration test kiểm tra Repository có chạy đúng với Postgres thật hay không — **đặc biệt quan trọng cho `ve_repository.py`**, vì logic khóa dòng/overlap chỉ có thể kiểm chứng đúng trên Postgres thật, không mock được.
 - **`frontend/`** tách khỏi `backend/` hoàn toàn, và tách làm 2 thư mục con vì 2 nhóm người dùng có nhu cầu giao diện khác hẳn nhau (khách hàng dùng trình duyệt thường; phụ xe dùng điện thoại di động, thao tác nhanh trên danh sách khách lên/xuống từng điểm — không quét mã gì cả, chỉ cần màn hình cảm ứng bình thường, xem `NGHIEP_VU.md` mục 8.2).
 
@@ -179,10 +195,11 @@ project-root/
 | `giu_cho` → `khong_den` (thanh toán tại quầy, `han_giu_cho_den IS NULL`) | Đến giờ khởi hành tại điểm đón mà khách chưa ra quầy trả tiền — **không có `het_han` cho trường hợp này** (`NGHIEP_VU.md` mục 3.4/5/6, không còn mốc chốt danh sách) | **Bắt buộc job định kỳ** — cần ghi vĩnh viễn để đếm vi phạm no-show (mục 9), lazy-check không tự ghi log vi phạm |
 | `da_thanh_toan` → `khong_den` | Đến giờ khởi hành tại điểm đón mà chưa `da_len_xe` | **Bắt buộc job định kỳ**, không thể lazy-check thuần túy — đây là trạng thái cần **ghi vĩnh viễn** để đếm vi phạm (mục 9), không phải chỉ hiển thị tạm thời |
 | Cảnh báo `quan_ly` khi chuyến `dang_hoan` quá lâu | Chuyến `chuyen_xe.dang_hoan = true` (`NGHIEP_VU.md` mục 3.3) chưa tìm được xe thay thế quá ngưỡng cấu hình (mặc định 6 tiếng) | **Job định kỳ** — chỉ gửi thông báo/nhắc `quan_ly` hỗ trợ tìm thêm nguồn xe, **không** tự động đổi trạng thái hay hủy chuyến gì cả (chuyến không bao giờ bị hủy vì lý do này) |
-| Tự động hoàn 100% cho vé khi `gap_su_co` do lỗi nhà xe kéo dài ≥3 tiếng (UC-43) | Chuyến `gap_su_co` với `loai_su_co = 'loi_nha_xe'` chưa quay lại `dang_chay` sau ngưỡng cấu hình (mặc định 3 tiếng kể từ lúc báo sự cố) | **Job định kỳ** — chỉ tạo `lich_su_hoan_tien` cho các vé `da_thanh_toan` chưa có dòng nào (tránh hoàn trùng), **không đổi `ve.trang_thai`** — vé vẫn tiếp tục được phục vụ bình thường, chỉ khác là miễn phí |
+| Tự động hoàn 100% cho vé khi `gap_su_co` do lỗi nhà xe kéo dài ≥3 tiếng (UC-19) | Chuyến `gap_su_co` với `loai_su_co = 'loi_nha_xe'` chưa quay lại `dang_chay` sau ngưỡng cấu hình (mặc định 3 tiếng kể từ lúc báo sự cố) | **Job định kỳ** — chỉ tạo `lich_su_hoan_tien` cho các vé `da_thanh_toan` chưa có dòng nào (tránh hoàn trùng), **không đổi `ve.trang_thai`** — vé vẫn tiếp tục được phục vụ bình thường, chỉ khác là miễn phí |
 | Cảnh báo `dieu_do_vien` khi chuyến sắp chạy mà chưa gán xe (UC-44) | Chuyến `chua_khoi_hanh` có `xe_id IS NULL` còn ≤ ngưỡng cấu hình (mặc định 48 tiếng) tới `gio_khoi_hanh` (`NGHIEP_VU.md` mục 3.5) | **Job định kỳ** — chỉ gửi thông báo/nhắc, **không** tự động gán xe hay đổi trạng thái gì cả |
-| Tự động chuyển "đang hoãn" khi tới giờ chạy mà chưa gán được xe (UC-45) | Chuyến `chua_khoi_hanh` có `xe_id IS NULL` và `gio_khoi_hanh <= now()` (`NGHIEP_VU.md` mục 3.3) | **Job định kỳ** — bật `dang_hoan = true`, dời `gio_khoi_hanh` tạm thời, báo khách qua WebSocket. Dùng chung đúng cơ chế "đang hoãn" của UC-20 (kể cả cảnh báo 6 tiếng, quyền hủy nhận hoàn UC-41) — chỉ khác lúc điều độ viên tìm được xe thì gán thẳng `xe_id`, không qua `xe_thuc_te_id` |
-| Cảnh báo (7 ngày) rồi chuyển "hàng tồn" (14 ngày) khi hàng chờ quá lâu tại điểm nhận (UC-46) | `don_hang.trang_thai = 'cho_lay'` đã đủ 7 hoặc 14 ngày kể từ `thoi_gian_den_diem_nhan` (`NGHIEP_VU.md` mục 10.3.1) | **Job định kỳ** — mốc 7 ngày chỉ bật `co_canh_bao_cho_lau = true` (nhắc nhân viên gửi hàng xử lý, UC-25); mốc 14 ngày chuyển `trang_thai = 'qua_han_luu_kho'`. Cả 2 mốc đều **không tự hủy/thanh lý** gì cả, chỉ nhắc con người xử lý |
+| Nhắc `quan_ly` sinh thêm chuyến / tạo bộ giá nối tiếp (`jobs/nhac_quan_ly.py`) | Cặp lịch đang áp dụng còn chuyến ≤ 7 ngày (hoặc hết/chưa sinh), bộ giá cuối kết thúc trong ≤ 14 ngày (hoặc hết/chưa có) | **Job định kỳ** (07:00 giờ Việt Nam mỗi ngày, và 1 lần ngay sau khi khởi động vì dịch vụ có thể ngủ/khởi động lại) — chỉ gửi thông báo kèm đường dẫn, mỗi tình trạng một lần, **không** tự sinh chuyến hay tạo giá |
+| Tự động chuyển "đang hoãn" khi tới giờ chạy mà chưa gán được xe (UC-44) | Chuyến `chua_khoi_hanh` có `xe_id IS NULL` và `gio_khoi_hanh <= now()` (`NGHIEP_VU.md` mục 3.3) | **Job định kỳ** — bật `dang_hoan = true`, dời `gio_khoi_hanh` tạm thời, báo khách qua WebSocket. Dùng chung đúng cơ chế "đang hoãn" của UC-20 (kể cả cảnh báo 6 tiếng, quyền hủy nhận hoàn UC-41) — chỉ khác lúc điều độ viên tìm được xe thì gán thẳng `xe_id`, không qua `xe_thuc_te_id` |
+| Cảnh báo (7 ngày) rồi chuyển "hàng tồn" (14 ngày) khi hàng chờ quá lâu tại điểm nhận (UC-25) | `don_hang.trang_thai = 'cho_lay'` đã đủ 7 hoặc 14 ngày kể từ `thoi_gian_den_diem_nhan` (`NGHIEP_VU.md` mục 10.3.1) | **Job định kỳ** — mốc 7 ngày chỉ bật `co_canh_bao_cho_lau = true` (nhắc nhân viên gửi hàng xử lý, UC-25); mốc 14 ngày chuyển `trang_thai = 'qua_han_luu_kho'`. Cả 2 mốc đều **không tự hủy/thanh lý** gì cả, chỉ nhắc con người xử lý |
 
 - **Vì sao không dùng lazy-check cho tất cả**: lazy-check chỉ hoạt động nếu có người/hệ thống chủ động hỏi lại đúng lúc. `khong_den` cần chính xác 1 lần ghi nhận tại đúng thời điểm chốt (dùng để cộng dồn vi phạm) — nếu không ai truy vấn đúng lúc đó, sự kiện "trễ" sẽ bị bỏ sót.
 - **Webhook không thay thế được job/lazy-check hoàn toàn**: cổng thanh toán có thể không gọi được (mất mạng phía khách, khách đóng tab giữa chừng) — luôn cần 1 "lưới an toàn" cuối cùng để không giữ ghế vô thời hạn.
@@ -199,7 +216,7 @@ Dùng WebSocket có sẵn trong FastAPI, không polling:
 - Phụ xe (giao diện di động) mở kết nối riêng để nhận cập nhật khi điều độ viên đổi xe/hủy chuyến sự cố.
 - Khi 1 Service hoàn tất hành động cần thông báo, gọi tới `websocket_manager` để **broadcast** tới đúng client liên quan:
   - Đổi xe trước giờ khởi hành / đổi ghế (`NGHIEP_VU.md` mục 3.3) → báo khách có vé trên chuyến đó.
-  - Chuyến chuyển `gap_su_co` → báo điều độ viên phụ trách điểm xuất phát ngay lập tức.
+  - Chuyến chuyển `gap_su_co` → báo điều độ viên phụ trách tuyến của chuyến ngay lập tức (tuyến chưa có ai thì báo mọi điều độ viên đang hoạt động, không có thì báo quản lý).
   - Phụ xe xác nhận đến từng điểm trung gian → cập nhật ETA cho khách đang chờ đón ở điểm phía sau (`NGHIEP_VU.md` mục 8.2 điểm 5).
 - Route `routes/websocket.py` chỉ lo việc nhận/giữ kết nối, xác thực token lúc connect — không chứa nghiệp vụ.
 

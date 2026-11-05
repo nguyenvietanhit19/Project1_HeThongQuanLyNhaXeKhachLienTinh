@@ -12,6 +12,8 @@ Tài liệu này mô tả đầy đủ cấu trúc bảng của cơ sở dữ li
 - **Mật khẩu**: cột `mat_khau` luôn lưu giá trị đã băm (bcrypt, giữ nguyên thư viện từ bản v1), không bao giờ lưu plaintext.
 - **Xóa dữ liệu**: hệ thống không xóa cứng (`DELETE`) tài khoản/vé/đơn hàng — khóa/vô hiệu hóa bằng cờ boolean hoặc chuyển trạng thái, giữ lại lịch sử (`NGHIEP_VU.md` mục 8.7 điểm 5: "không xóa vĩnh viễn, giữ lịch sử").
 - **Class Table Inheritance cho `nguoi_dung`**: bảng `nguoi_dung` là bảng cha chung cho mọi vai trò **có tài khoản đăng nhập**; mỗi vai trò có bảng con riêng chứa cột chỉ áp dụng cho vai trò đó — tránh một bảng khổng lồ với hàng loạt cột `NULL` tùy vai trò. **Tài xế không có bảng con trong `nguoi_dung`** vì không có tài khoản (`NGHIEP_VU.md` mục 3.2/8.3) — xem mục 1.3.
+- **Mã hiển thị `ma` (mục 10)**: `khu_vuc`, `diem_don_tra`, `tuyen`, `loai_xe`, `chuyen_xe` (và `ve.ma_ve`) có thêm cột mã (TEXT NOT NULL UNIQUE) do **hàm Python tự sinh lúc `INSERT`** (`app/utils/ma_tu_sinh.py`, số thứ tự lấy từ sequence) — chỉ để người đọc/tra cứu (`NGHIEP_VU.md` mục 3.6), **không thay `id`**: mọi khóa ngoại vẫn trỏ về `id` UUID. Mã không sửa được (trigger BEFORE UPDATE giữ nguyên, trừ mã chuyến) và số thứ tự không tái sử dụng.
+- **Mã nhân viên `ma` (mục 10.2)**: `nguoi_dung.ma` (cán bộ) và `nhan_su_van_hanh.ma` (tài xế) — tiền tố theo vai trò + số tự tăng 4 chữ số (`PX0001`...), sinh lúc tạo và **không đổi**. Khác các mã ở trên: cột **cho phép trống** (khách hàng và hồ sơ phụ xe không có mã riêng).
 - **Không có bảng gán nhân sự theo từng chuyến** (`phan_cong_chuyen`) — quyết định có chủ đích của `NGHIEP_VU.md` mục 3.2: tài xế/phụ xe của 1 chuyến luôn suy ra từ `xe_nhan_su` tại thời điểm truy vấn, không lưu tĩnh.
 - **Không có ràng buộc `UNIQUE(chuyen_id, so_ghe)` trên bảng `ve`** — cố ý: 1 ghế hợp lệ có nhiều vé cùng lúc nếu chặng không giao nhau (`NGHIEP_VU.md` mục 6). Chống trùng ghế thực hiện bằng khóa dòng (`SELECT ... FOR UPDATE`) + kiểm tra overlap ở tầng Service, không phải constraint của DB.
 
@@ -25,15 +27,16 @@ Tài liệu này mô tả đầy đủ cấu trúc bảng của cơ sở dữ li
 |---|---|---|
 | `id` | UUID PK | |
 | `email` | TEXT NOT NULL UNIQUE | Định danh đăng nhập — kế thừa nguyên cơ chế từ bản v1 (`GiaoThongAnToan_API/routes/auth.py`), `NGHIEP_VU.md` mục 2.1 |
-| `mat_khau` | TEXT NULLABLE | Hash bcrypt; **NULL** với cán bộ vừa được mời, chưa tự đặt mật khẩu lần đầu |
+| `mat_khau` | TEXT NULLABLE | Hash bcrypt; **NULL** chỉ với tài khoản `quan_ly` gốc mới seed (tự đặt qua Quên mật khẩu); cán bộ khác được tạo kèm mật khẩu ban đầu mặc định (UC-36) |
 | `ho_ten` | TEXT NOT NULL | |
-| `so_dien_thoai` | TEXT NOT NULL | Bắt buộc với mọi vai trò từ bản viết lại này (khác bản v1) — dùng để nhân viên quầy vé tra cứu (mục 8.4), liên hệ khi cần; **không dùng để đăng nhập/xác thực** (mục 2.1) |
+| `so_dien_thoai` | TEXT NOT NULL | Bắt buộc với mọi vai trò từ bản viết lại này (khác bản v1) — dùng để nhân viên quầy vé tra cứu (mục 8.4), liên hệ khi cần; **không dùng để đăng nhập/xác thực** (mục 2.1). Lưu ở **dạng chuẩn hóa bắt đầu bằng `0`** (bỏ khoảng trắng/dấu, `+84`/`84` đổi thành `0`); hợp lệ khi khớp `0[35789]\d{8}` (di động) hoặc `02\d{9}` (số bàn) — kiểm tra ở backend (`utils/so_dien_thoai.py`) và giao diện (`frontend/shared/so-dien-thoai.js`), 2 nơi phải khớp nhau |
 | `vai_tro` | TEXT NOT NULL, CHECK IN (`khach_hang`, `phu_xe`, `nhan_vien_quay_ve`, `nhan_vien_gui_hang`, `dieu_do_vien`, `ke_toan`, `quan_ly_nhan_su`, `quan_ly`) | Quyết định bảng con nào áp dụng. `phu_xe` là 1 trong 2 `chuc_danh` của `nhan_vien_van_hanh` — chỉ `chuc_danh = phu_xe` có tài khoản (mục 3.2). `ke_toan` phụ trách hoàn tiền, phạm vi toàn hệ thống (mục 2 `NGHIEP_VU.md`). `quan_ly_nhan_su` chỉ quản lý tài khoản/nhân sự cấp vận hành (không `ke_toan`/`quan_ly`), cũng phạm vi toàn hệ thống (mục 8.9 `NGHIEP_VU.md`) |
 | `dang_hoat_dong` | BOOLEAN NOT NULL DEFAULT true | `false` = tài khoản bị khóa (mục 8.7 điểm 5) |
 | `la_tai_khoan_goc` | BOOLEAN NOT NULL DEFAULT false | Chỉ có ý nghĩa khi `vai_tro = 'quan_ly'` — đánh dấu tài khoản `quan_ly` gốc, seed lúc khởi tạo hệ thống (`NGHIEP_VU.md` mục 2). Tài khoản này **không thể bị khóa** (UC-37) và là `quan_ly` **duy nhất** tạo thêm được `quan_ly`/`quan_ly_nhan_su` khác (UC-36) — kiểm tra quyền ở Service. Ràng buộc "tối đa 1 dòng `true`" thực hiện bằng partial unique index: `CREATE UNIQUE INDEX ... ON nguoi_dung ((true)) WHERE la_tai_khoan_goc = true` |
-| `da_xac_nhan` | BOOLEAN NOT NULL DEFAULT false | `true` sau khi `khach_hang` xác thực OTP, hoặc cán bộ đã tự đặt mật khẩu lần đầu qua liên kết mời |
+| `da_xac_nhan` | BOOLEAN NOT NULL DEFAULT false | `true` sau khi `khach_hang` xác thực OTP; cán bộ do UC-36 tạo thì `true` ngay lúc tạo (email do công ty cấp) |
 | `ma_xac_nhan` | TEXT NULLABLE | Mã OTP 6 số — tên cột giữ nguyên như bản v1 để tái dùng thẳng `email_service.py`/`mat_khau_service.py` |
 | `ma_het_han` | TIMESTAMPTZ NULLABLE | Hạn hiệu lực của `ma_xac_nhan` — mặc định 1 phút (mục 2.1) |
+| `ma` | TEXT NULLABLE, `UNIQUE` khi khác `NULL` | **Mã nhân viên** (không liên quan `ma_xac_nhan` ở trên, đó là OTP): tự sinh lúc tạo tài khoản cán bộ (UC-36), dạng `PX0001` / `QV0001` / `GH0001` / `DDV0001` / `KT0001` / `NS0001` / `QL0001`; tài khoản `quan_ly` gốc là `QL0000`. **`khach_hang` luôn `NULL`.** Không đổi sau khi cấp. Tiền tố phải đúng `vai_tro`. Cho phép trống kể cả với cán bộ (script seed demo chèn thẳng) — xem mục 10.2 |
 | `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
 
 ### 1.2. `ho_so_khach_hang` (con — vai_tro = `khach_hang`)
@@ -42,21 +45,23 @@ Tài liệu này mô tả đầy đủ cấu trúc bảng của cơ sở dữ li
 |---|---|---|
 | `nguoi_dung_id` | UUID PK, FK → `nguoi_dung(id)` ON DELETE CASCADE | |
 | `khoa_thanh_toan_tai_quay` | BOOLEAN NOT NULL DEFAULT false | Đủ N lần vi phạm no-show (mục 9) → tự động `true`, chỉ còn đặt được vé kiểu "thanh toán ngay" |
-| `bi_khoa` | BOOLEAN NOT NULL DEFAULT false | Vi phạm nghiêm trọng hơn ngưỡng thứ 2 (mục 9) — khóa tạm, khác `nguoi_dung.dang_hoat_dong` (khóa hẳn do quản lý) |
+| `bi_khoa` | BOOLEAN NOT NULL DEFAULT false | Vi phạm nghiêm trọng hơn ngưỡng thứ 2 (mục 9) — **hệ thống tự đặt, không ai mở lại** (khách bị khóa coi như mất tài khoản). Khác `nguoi_dung.dang_hoat_dong`, chỉ do UC-37 khóa/mở **cán bộ** |
 | `ly_do_khoa` | TEXT NULLABLE | |
 
 Số lần vi phạm no-show **không lưu thành cột đếm riêng** (mục 7) — tính động bằng đếm `ve` của khách có `trang_thai = 'khong_den'`, theo đúng định nghĩa 1 loại vi phạm duy nhất ở mục 9 `NGHIEP_VU.md`.
 
-### 1.3. `ho_so_can_bo_diem` (con dùng chung — `nhan_vien_quay_ve`, `nhan_vien_gui_hang`, `dieu_do_vien`)
+### 1.3. `ho_so_can_bo_diem` (con dùng chung — `nhan_vien_quay_ve`, `nhan_vien_gui_hang`)
 
-Cả 3 vai trò chỉ cần thêm đúng 1 thông tin giống nhau: văn phòng cố định phụ trách — gộp chung 1 bảng con, phân biệt qua `nguoi_dung.vai_tro`.
+Cả 2 vai trò chỉ cần thêm đúng 1 thông tin giống nhau: văn phòng phụ trách hiện tại (chọn lúc tạo tài khoản, đổi được khi điều chuyển — nhánh kèm theo UC-36 `NGHIEP_VU.md`; mỗi cán bộ đúng 1 dòng nên đổi là `UPDATE`) — gộp chung 1 bảng con, phân biệt qua `nguoi_dung.vai_tro`. **`dieu_do_vien` không còn gắn văn phòng** (phụ trách theo tuyến — nhóm đã duyệt, xem `DIEU_DO_VIEN_THEO_TUYEN_DE_XUAT.md`) nên không có dòng nào ở bảng này; UC-36 chặn việc gán văn phòng cho vai trò này.
 
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `nguoi_dung_id` | UUID PK, FK → `nguoi_dung(id)` ON DELETE CASCADE | |
-| `van_phong_id` | UUID NOT NULL, FK → `diem_don_tra(id)` | Bắt buộc `loai = 'van_phong'` (kiểm tra ở Service) — phạm vi thao tác của cán bộ này (mục 2) |
+| `van_phong_id` | UUID NOT NULL, FK → `diem_don_tra(id)` | Bắt buộc `loai = 'van_phong'` — phạm vi thao tác được xác thực ở BE |
 
-`phu_xe`, `ke_toan`, `quan_ly_nhan_su`, và `quan_ly` **không có bảng con** — phụ xe gắn với xe qua `xe_nhan_su` (mục 1.5), không gắn 1 văn phòng; `ke_toan`/`quan_ly_nhan_su`/`quan_ly` phạm vi toàn hệ thống, không cần cột phạm vi nào thêm.
+Migration triển khai: `20261002_0900_ho_so_va_thanh_toan_gui_hang.sql`. Văn phòng được gán lúc tạo tài khoản cán bộ (UC-36); đổi sau đó qua nhánh "Đổi văn phòng" của UC-36, hoặc `PUT /quan-ly/ho-so-can-bo-diem/{nguoi_dung_id}` (hàm của phần gửi hàng, dự kiến bỏ khi UC-36 thay thế).
+
+`phu_xe`, `dieu_do_vien`, `ke_toan`, `quan_ly_nhan_su`, và `quan_ly` **không có bảng con** — phụ xe gắn với xe qua `xe_nhan_su` (mục 1.5), không gắn 1 văn phòng; điều độ viên phụ trách theo tuyến, không gắn văn phòng; `ke_toan`/`quan_ly_nhan_su`/`quan_ly` phạm vi toàn hệ thống, không cần cột phạm vi nào thêm.
 
 ### 1.4. `nhan_su_van_hanh` (hồ sơ tài xế + phụ xe — **không phải** bảng tài khoản)
 
@@ -69,6 +74,16 @@ Tách riêng khỏi `nguoi_dung` vì tài xế không có tài khoản (mục 3.
 | `so_dien_thoai` | TEXT NOT NULL | |
 | `chuc_danh` | TEXT NOT NULL, CHECK IN (`tai_xe`, `phu_xe`) | |
 | `nguoi_dung_id` | UUID NULLABLE, FK → `nguoi_dung(id)` | **Chỉ có giá trị khi `chuc_danh = 'phu_xe'`** — tài xế luôn `NULL` (không có tài khoản) |
+| `so_cccd` | TEXT NULLABLE | Dữ liệu nhạy cảm — chỉ `quan_ly_nhan_su`/`quan_ly` đọc được, không trả ra API của vai trò khác. `UNIQUE` khi khác `NULL` (partial unique index) |
+| `ngay_sinh` | DATE NULLABLE | |
+| `anh_ho_so` | TEXT NULLABLE | `public_id` ảnh trên Cloudinary (không lưu URL — URL xem ảnh có chữ ký sinh lúc hiển thị, `ARCHITECTURE.md` mục 1) |
+| `ngay_vao_lam` | DATE NOT NULL DEFAULT current_date | |
+| `trang_thai` | TEXT NOT NULL DEFAULT `'dang_lam'`, CHECK IN (`dang_lam`, `da_nghi_viec`) | Trạng thái làm việc **của cả hồ sơ** — khác `xe_nhan_su.trang_thai` (mục 1.5). `da_nghi_viec` không được đưa vào biên chế mới (UC-35) và bị job UC-49 bỏ qua |
+| `ngay_nghi_viec` | DATE NULLABLE | Chỉ có giá trị khi `trang_thai = 'da_nghi_viec'` (UC-51) |
+| `ly_do_nghi_viec` | TEXT NULLABLE | |
+| `ma` | TEXT NULLABLE, `UNIQUE` khi khác `NULL` | **Mã tài xế** `TX0001`... cấp lúc tạo hồ sơ (UC-49). **Phụ xe để `NULL`** vì dùng mã của tài khoản (`nguoi_dung.ma`); API hồ sơ lấy `COALESCE(nhan_su_van_hanh.ma, nguoi_dung.ma)`. `CHECK`: chỉ `chuc_danh = 'tai_xe'` mới có mã (mục 10.2) |
+
+Ràng buộc DB: `UNIQUE (nguoi_dung_id)`; `CHECK (chuc_danh = 'phu_xe' OR nguoi_dung_id IS NULL)`; `CHECK ((trang_thai = 'da_nghi_viec') = (ngay_nghi_viec IS NOT NULL))`. Tài khoản gắn cho hồ sơ phụ xe phải có `nguoi_dung.vai_tro = 'phu_xe'` — kiểm tra ở Service.
 
 ### 1.5. `xe_nhan_su` (biên chế — gắn `nhan_su_van_hanh` với `xe`)
 
@@ -84,6 +99,27 @@ Tách riêng khỏi `nguoi_dung` vì tài xế không có tài khoản (mục 3.
 
 **"Chuyến của phụ xe X" không lưu thành bảng riêng** — suy ra bằng truy vấn: `chuyen_xe` có `xe_id` khớp 1 dòng `xe_nhan_su(nhan_su_van_hanh_id = X, trang_thai = 'dang_hoat_dong')` tại **thời điểm truy vấn** (mục 3.2). Ràng buộc "mỗi xe đúng 2 tài xế + ≥1 phụ xe `co_dinh`" và "1 nhân sự chỉ thuộc 1 xe tại 1 thời điểm" kiểm tra ở tầng Service, không phải constraint DB (vì phụ thuộc điều kiện lọc theo `loai`/`trang_thai`, CHECK constraint đơn giản không diễn tả được).
 
+### 1.6. `giay_to_nhan_su` (giấy tờ của tài xế/phụ xe — phục vụ UC-49)
+
+Mỗi nhân sự có tối đa **1 dòng cho mỗi loại giấy tờ** — gia hạn thì cập nhật dòng đó, không giữ lịch sử các lần gia hạn cũ.
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `id` | UUID PK | |
+| `nhan_su_van_hanh_id` | UUID NOT NULL, FK → `nhan_su_van_hanh(id)` | |
+| `loai` | TEXT NOT NULL, CHECK IN (`bang_lai`, `giay_kham_suc_khoe`) | `UNIQUE (nhan_su_van_hanh_id, loai)`. "Tài xế bắt buộc có `bang_lai`" kiểm tra ở Service, không phải constraint DB |
+| `so_giay_to` | TEXT NULLABLE | |
+| `hang` | TEXT NULLABLE | Chỉ dùng cho `bang_lai` (VD D, E) — hệ thống chỉ lưu, không kiểm tra hạng có phù hợp `loai_xe` hay không |
+| `ngay_cap` | DATE NULLABLE | |
+| `ngay_het_han` | DATE NOT NULL | Mốc để job cảnh báo (UC-49) quét |
+| `anh_giay_to` | TEXT NULLABLE | `public_id` Cloudinary của ảnh scan bằng lái/giấy khám sức khỏe — cùng cách lưu với `anh_ho_so` (mục 0.2) |
+| `da_canh_bao_sap_het_han` | BOOLEAN NOT NULL DEFAULT false | Bật khi job gửi nhắc "còn ≤ N ngày" — tránh nhắc trùng mỗi lần quét |
+| `da_canh_bao_het_han` | BOOLEAN NOT NULL DEFAULT false | Bật khi job gửi nhắc "đã hết hạn" |
+
+Gia hạn (đổi `ngay_het_han`) phải đặt lại **cả 2 cờ về `false`** trong cùng câu `UPDATE` để chu kỳ nhắc bắt đầu lại.
+
+**Index nên đánh thêm**: `giay_to_nhan_su(ngay_het_han)` — job quét theo mốc ngày.
+
 ---
 
 ## 2. Địa điểm & tuyến
@@ -95,6 +131,8 @@ Tầng thô, dùng để tìm kiếm (`NGHIEP_VU.md` mục 3.1).
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | UUID PK | |
+| `ma` | TEXT NOT NULL UNIQUE | Mã tự sinh dạng `KV001` (sequence `seq_ma_khu_vuc`, mục 10) |
+| `so_diem_da_cap` | INTEGER NOT NULL DEFAULT 0 | Bộ đếm số thứ tự điểm đã cấp trong khu vực này, dùng sinh `diem_don_tra.ma` (`KV001-DT001`…). Chỉ tăng, không giảm khi xóa điểm — số đã cấp không dùng lại (mục 10) |
 | `ten` | TEXT NOT NULL | VD `"Lào Cai (TP Lào Cai, Bến Đền, Xuân Giao, Phố Lu)"` |
 | `tinh_thanh` | TEXT NOT NULL | Chỉ để hiển thị/lọc thô — cùng 1 tỉnh có thể có nhiều `khu_vuc` tách biệt (VD Sapa, Bắc Hà cùng tỉnh Lào Cai nhưng khác `khu_vuc`) |
 
@@ -105,12 +143,15 @@ Tầng chi tiết, nằm trong 1 `khu_vuc` — mọi điểm ở đây đều l�
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | UUID PK | |
-| `khu_vuc_id` | UUID NOT NULL, FK → `khu_vuc(id)` | |
+| `ma` | TEXT NOT NULL UNIQUE | Mã tự sinh dạng `<mã khu vực>-DT<số>` (VD `KV001-DT001`), số **đếm riêng trong từng khu vực** qua `khu_vuc.so_diem_da_cap` (mục 10) |
+| `khu_vuc_id` | UUID NOT NULL, FK → `khu_vuc(id)` | **Không đổi được sau khi tạo** (mã điểm gắn với khu vực) — chặn ở Service (`UC-30`) và bằng trigger BEFORE UPDATE ở DB |
 | `ten` | TEXT NOT NULL | |
 | `dia_chi` | TEXT NOT NULL | |
 | `loai` | TEXT NOT NULL, CHECK IN (`van_phong`, `diem_dung`) | `van_phong`: có quầy vé/nhân viên, hợp lệ làm điểm đón lẫn điểm trả, trung bình 1 điểm/`khu_vuc`. `diem_dung`: điểm dừng dọc đường không có nhân viên, **chỉ hợp lệ làm điểm trả** (kiểm tra ở Service, mục 3.1) |
 
 Không có bảng `ben_xe` riêng — `loai = 'van_phong'` chính là "văn phòng/bến xe" (mục 3.1, tránh trùng lặp dữ liệu).
+
+> **Cột bổ sung** `sdt_lien_he` (TEXT NULLABLE, migration `20261004_0900`): SĐT liên hệ văn phòng, in lên biên nhận gửi hàng cho người gửi (`NGHIEP_VU.md` mục 10.3.1 điểm 1 — "thông tin liên hệ điểm nhận"). Quản lý nhập qua màn quản lý điểm đón/trả (UC-30) — cần bổ sung ô nhập ở màn đó.
 
 ### 2.3. `tuyen`
 
@@ -119,6 +160,7 @@ Không có bảng `ben_xe` riêng — `loai = 'van_phong'` chính là "văn phò
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | UUID PK | |
+| `ma` | TEXT NOT NULL UNIQUE | Mã tự sinh dạng `T001` (sequence `seq_ma_tuyen`, mục 10) |
 | `ten` | TEXT NOT NULL | VD `"Hà Nội – Sapa"` — đặt tên theo hành trình vật lý, không còn theo 1 chiều cụ thể |
 | `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
 
@@ -136,21 +178,49 @@ Chuỗi điểm có thứ tự của 1 tuyến — chứa **mọi** điểm xe t
 
 UNIQUE: (`tuyen_id`, `thu_tu`) và (`tuyen_id`, `diem_don_tra_id`) — 1 điểm không xuất hiện 2 lần trong cùng 1 tuyến. Điểm có `thu_tu` nhỏ nhất và lớn nhất của mỗi tuyến bắt buộc `loai = 'van_phong'` (kiểm tra ở Service). Không còn ràng buộc nào đối chiếu với bảng khác (khác thiết kế trước dùng `nhom_tuyen_khu_vuc`) — quản lý tự nhập đúng thứ tự thực tế xe đi qua.
 
-### 2.5. `gia_ve`
+### 2.5. `bo_gia_ve` và `gia_ve`
 
-**Giá gốc** — chỉ phụ thuộc `(tuyến, cặp điểm đi/điểm đến)`, không phụ thuộc điểm đón/trả cụ thể (mục 3.1) và **không phụ thuộc loại xe** — nhập tay, không tính tự động theo km. Loại xe được nhân vào **lúc tính giá thực tế** qua `loai_xe.he_so_gia` (mục 3.1 file này), không lưu thành cột/dòng riêng ở đây — tránh phải nhập `(số tuyến) × (số cặp điểm) × (số loại xe)` dòng.
+Giá vé theo **bộ** (`NGHIEP_VU.md` mục 3.1, UC-33): mỗi tuyến có nhiều bộ giá nối liền nhau (mỗi bộ có ngày bắt đầu và ngày kết thúc), mỗi bộ gồm giá gốc của **mọi** cặp khu vực trên tuyến. **Giá gốc** chỉ phụ thuộc `(tuyến, cặp khu vực điểm đi/điểm đến)`, không phụ thuộc điểm đón/trả cụ thể và **không phụ thuộc loại xe** — nhập tay, không tính tự động theo km. Không có giá theo mùa/dịp lễ.
+
+**`bo_gia_ve`**
 
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | UUID PK | |
 | `tuyen_id` | UUID NOT NULL, FK → `tuyen(id)` | |
-| `diem_di_id` | UUID NOT NULL, FK → `khu_vuc(id)` | |
-| `diem_den_id` | UUID NOT NULL, FK → `khu_vuc(id)` | |
-| `gia_goc` | NUMERIC(12,0) NOT NULL | Giá ứng với `loai_xe.he_so_gia = 1` (hệ số chuẩn) — giá thực tế bán ra = `gia_goc × he_so_gia` của xe đang chạy chuyến đó (mục 7) |
-| `ap_dung_tu` | DATE NULLABLE | Cho giá theo mùa/dịp lễ; `NULL` = áp dụng vô thời hạn |
-| `ap_dung_den` | DATE NULLABLE | |
+| `ap_dung_tu` | DATE NOT NULL | Ngày bắt đầu áp dụng |
+| `ap_dung_den` | DATE NOT NULL, CHECK ≥ `ap_dung_tu` | Ngày kết thúc (bắt buộc). Các bộ của 1 tuyến **nối liền**: bộ sau có `ap_dung_tu` = `ap_dung_den` của bộ trước + 1 ngày (Service đảm bảo, không ép ở DB) — nên không chồng, không hở |
+| `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
 
-UNIQUE: (`tuyen_id`, `diem_di_id`, `diem_den_id`, `ap_dung_tu`).
+UNIQUE (`tuyen_id`, `ap_dung_tu`). Chuyến khởi hành ngày D (giờ Việt Nam) dùng bộ có `ap_dung_tu` ≤ D ≤ `ap_dung_den`; D ngoài khoảng của mọi bộ thì chuyến không có giá (khách không thấy) — nên **sinh chuyến chỉ được trong khoảng các bộ** (`NGHIEP_VU.md` UC-47). Chỉ **bộ cuối cùng** của tuyến được đổi `ap_dung_den` hoặc xóa; chỉ **bộ đầu tiên** được đổi `ap_dung_tu`.
+
+**`gia_ve`** (giá của 1 chặng trong 1 bộ)
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `id` | UUID PK | |
+| `bo_gia_id` | UUID NOT NULL, FK → `bo_gia_ve(id)` ON DELETE CASCADE | Xóa bộ thì xóa luôn giá các chặng |
+| `diem_di_id` | UUID NOT NULL, FK → `khu_vuc(id)` | Điểm đi đứng trước điểm đến theo chiều đi của tuyến |
+| `diem_den_id` | UUID NOT NULL, FK → `khu_vuc(id)` | |
+| `gia_goc` | NUMERIC(12,0) NOT NULL | Giá ứng với hệ số giá = 1 — giá thực tế bán ra = `gia_goc × chuyen_xe.he_so_gia` làm tròn tới bội số của 10.000đ (hệ số nhập ở lịch chạy, chốt vào chuyến lúc sinh chuyến; mục 7) |
+
+UNIQUE (`bo_gia_id`, `diem_di_id`, `diem_den_id`). **Bộ phải đủ mọi chặng** của tuyến (Service kiểm tra lúc tạo/sửa; không ép ở DB vì tuyến có thể đổi khu vực sau đó).
+
+**Khóa bộ đã dùng để sinh chuyến**: bộ bị khóa (không sửa giá/`ap_dung_tu`, không xóa) khi tuyến có `chuyen_xe` với ngày khởi hành (giờ Việt Nam) nằm trong [`ap_dung_tu`, `ap_dung_den`] của bộ đó, bất kể chuyến đã có vé hay chưa; riêng bộ cuối vẫn kéo dài/rút ngắn `ap_dung_den` được (không rút ngắn trước ngày chuyến xa nhất đã sinh). Tính theo tuyến chứ không theo từng cặp khu vực vì mọi chuyến của tuyến dùng chung các cặp giá của tuyến.
+
+**Không có cột liên kết `ve` → `gia_ve`**: vé tự lưu giá của mình (`ve.gia`, chốt lúc khách giữ ghế) nên đổi/xóa giá không làm đổi tiền vé đã đặt, thanh toán hay hoàn tiền.
+
+### 2.6. `dieu_do_vien_tuyen` (điều độ viên phụ trách tuyến)
+
+Quan hệ nhiều–nhiều giữa tài khoản `dieu_do_vien` và `tuyen` (`DIEU_DO_VIEN_THEO_TUYEN_DE_XUAT.md`). `quan_ly` phân công ở trang Tuyến; điều độ viên **không** có dòng nào ở `ho_so_can_bo_diem`.
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `nguoi_dung_id` | UUID, FK → `nguoi_dung(id)` ON DELETE CASCADE | Phải là `vai_tro = 'dieu_do_vien'` đang hoạt động — Service kiểm tra lúc phân công, không phải constraint DB |
+| `tuyen_id` | UUID, FK → `tuyen(id)` ON DELETE CASCADE | Xóa tuyến thì phân công đi theo |
+| `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+
+PRIMARY KEY (`nguoi_dung_id`, `tuyen_id`); index `(tuyen_id)`. Lưu là **thay cả danh sách** của một tuyến trong 1 giao dịch. Tài khoản bị khóa vẫn còn dòng nhưng bị bỏ qua khi tính người phụ trách (danh sách phân công, người nhận cảnh báo sự cố). Migration: `20261024_0900_dieu_do_vien_tuyen.sql`.
 
 ---
 
@@ -158,13 +228,15 @@ UNIQUE: (`tuyen_id`, `diem_di_id`, `diem_den_id`, `ap_dung_tu`).
 
 ### 3.1. `loai_xe`
 
-Danh mục loại xe — **`quan_ly` tự thêm/sửa tùy ý** (VD "Ghế ngồi", "Giường đơn", "Giường cabin đôi", "Limousine phòng đơn"...), không giới hạn số lượng, không hard-code như bản trước (`xe.loai` cũ). **2 xe cùng `loai_xe` phải giống hệt nhau về mọi mặt** — sơ đồ ghế, hệ số giá — chỉ khác biển số (mục 3.3 `NGHIEP_VU.md`, phục vụ đổi xe khi hỏng mà không ảnh hưởng gì tới vé đã đặt). Vì vậy sơ đồ ghế đặt ở **`loai_xe`**, không phải ở `xe`. **Không có cột sức chứa khoang hàng** — đã bỏ hẳn cơ chế tính sức chứa tự động (`NGHIEP_VU.md` mục 10.2): việc xe còn chỗ chứa hàng hay không do phụ xe tự đánh giá trực tiếp lúc chất hàng, không thể tính đúng chỉ bằng 1 con số kg (khác ghế, vốn là vị trí rời rạc đếm được).
+Danh mục loại xe — **`quan_ly` tự thêm/sửa tùy ý** (VD "Ghế ngồi", "Giường đơn", "Giường cabin đôi", "Limousine phòng đơn"...), không giới hạn số lượng, không hard-code như bản trước (`xe.loai` cũ). **2 xe cùng `loai_xe` phải giống hệt nhau về mọi mặt** — sơ đồ ghế — chỉ khác biển số (mục 3.3 `NGHIEP_VU.md`, phục vụ đổi xe khi hỏng mà không ảnh hưởng gì tới vé đã đặt). Vì vậy sơ đồ ghế đặt ở **`loai_xe`**, không phải ở `xe`. **Không có cột sức chứa khoang hàng** — đã bỏ hẳn cơ chế tính sức chứa tự động (`NGHIEP_VU.md` mục 10.2): việc xe còn chỗ chứa hàng hay không do phụ xe tự đánh giá trực tiếp lúc chất hàng, không thể tính đúng chỉ bằng 1 con số kg (khác ghế, vốn là vị trí rời rạc đếm được).
 
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | UUID PK | |
+| `ma` | TEXT NOT NULL UNIQUE | Mã tự sinh dạng `LX001` (sequence `seq_ma_loai_xe`, mục 10) |
 | `ten` | TEXT NOT NULL UNIQUE | |
-| `he_so_gia` | NUMERIC(4,2) NOT NULL DEFAULT 1.0 | Hệ số nhân với `gia_ve.gia_goc` để ra giá bán thực tế — cấu hình **1 lần cho toàn hệ thống**, dùng chung cho mọi tuyến |
+| `he_so_ghe` | JSONB NOT NULL DEFAULT `{}` | Hệ số giá từng ghế `{"A1-1": 1.1}`; ghế vắng mặt = 1. **Luôn sửa được** (kể cả khi `so_do_ghe` đã khóa); mỗi khóa phải là `ma_ghe` có trong sơ đồ (Service kiểm tra), giá trị > 0, tối đa 99,99, 2 chữ số thập phân. Chỉ ảnh hưởng chuyến sinh SAU — chuyến đã sinh giữ bản chốt `chuyen_xe.he_so_ghe` |
+| `phien_ban` | INTEGER NOT NULL DEFAULT 1 | Khóa lạc quan: tăng 1 mỗi lần sửa; form gửi kèm phiên bản đang xem, lệch → báo xung đột (HTTP 409). Sửa loại xe còn khóa dòng (`FOR UPDATE`), tạo/sửa `xe` và sinh chuyến lấy `FOR SHARE` trên cùng dòng này |
 | `so_do_ghe` | JSONB NOT NULL | Sơ đồ ghế thật (số ghế + cách bố trí) — dùng JSON thay vì bảng `ghe_xe` riêng, đơn giản hơn cho quy mô BTL. Mọi xe cùng `loai_xe` dùng chung đúng 1 sơ đồ này |
 
 ### 3.2. `xe`
@@ -173,7 +245,7 @@ Danh mục loại xe — **`quan_ly` tự thêm/sửa tùy ý** (VD "Ghế ngồ
 |---|---|---|
 | `id` | UUID PK | |
 | `bien_so` | TEXT NOT NULL UNIQUE | |
-| `loai_xe_id` | UUID NOT NULL, FK → `loai_xe(id)` | Quyết định sơ đồ ghế, hệ số giá (mục 3.1 file này) — **đây là thuộc tính duy nhất phân biệt "loại" của 1 xe** |
+| `loai_xe_id` | UUID NOT NULL, FK → `loai_xe(id)` | Quyết định sơ đồ ghế (mục 3.1 file này) — **đây là thuộc tính duy nhất phân biệt "loại" của 1 xe** |
 | `trang_thai` | TEXT NOT NULL DEFAULT `'hoat_dong'`, CHECK IN (`hoat_dong`, `bao_tri`, `ngung_su_dung`) | Xe `bao_tri`/`ngung_su_dung` không được gán chuyến mới (Service kiểm tra) |
 | `diem_goc_id` | UUID NOT NULL, FK → `diem_don_tra(id)` | Phải `loai = 'van_phong'` — vị trí khởi điểm khi chưa chạy chuyến nào (mục 3.3 `NGHIEP_VU.md`) |
 | `tuyen_id` | UUID NULLABLE, FK → `tuyen(id)` | `NULL` = xe dự phòng, dùng linh hoạt cho mọi tuyến. Có giá trị = xe cố định đúng tuyến này (**cả 2 chiều**, mục 3.1/3.2 `NGHIEP_VU.md`) |
@@ -185,21 +257,29 @@ Danh mục loại xe — **`quan_ly` tự thêm/sửa tùy ý** (VD "Ghế ngồ
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | UUID PK | |
+| `ma` | TEXT NOT NULL UNIQUE | Mã tự sinh dạng `<mã tuyến>-<mã loại xe>-<yymmdd>-<hhmm>-<DI\|VE>` (VD `T001-LX001-260930-0630-DI`), giờ tính theo `Asia/Ho_Chi_Minh`. Tính lúc `INSERT` và **tính lại khi `quan_ly` sửa giờ (UC-48)**; mọi đường khác đổi `gio_khoi_hanh` (điều độ viên dời giờ lúc `dang_hoan`, UC-20/44) **giữ nguyên mã** — cơ chế cờ giao dịch ở mục 10 |
 | `tuyen_id` | UUID NOT NULL, FK → `tuyen(id)` | |
 | `chieu` | TEXT NOT NULL, CHECK IN (`xuoi`, `nguoc`) | Chiều chạy của đúng lần chạy này — copy từ `lich_chay_dinh_ky.chieu` lúc sinh chuyến (mục 3.5 file này). Quyết định thứ tự điểm dừng hiệu lực (`NGHIEP_VU.md` mục 3.1/3.4/6) |
-| `xe_id` | UUID NULLABLE, FK → `xe(id)` | **Xe gốc** — quyết định biên chế tài xế/phụ xe (mục 3.2) và vị trí suy luận cho các chuyến sau (mục 3.3). **Không đổi** khi xe hỏng — xem `xe_thuc_te_id`. **`NULL`** = chuyến đã sinh sẵn từ lịch chạy định kỳ nhưng **chưa được gán xe cụ thể** (mục 3.5 `NGHIEP_VU.md`, UC-44) — vẫn bán vé bình thường dựa vào `loai_xe_id` bên dưới, biên chế tài xế/phụ xe và vị trí suy luận chỉ có ý nghĩa từ lúc gán xe. Nếu còn `NULL` khi tới đúng `gio_khoi_hanh` → job tự động bật `dang_hoan` (UC-45, mục 3.3) — không tự hủy |
+| `xe_id` | UUID NULLABLE, FK → `xe(id)` | **Xe gốc** — quyết định biên chế tài xế/phụ xe (mục 3.2) và vị trí suy luận cho các chuyến sau (mục 3.3). **Không đổi** khi xe hỏng — xem `xe_thuc_te_id`. **`NULL`** = chuyến đã sinh sẵn từ lịch chạy định kỳ nhưng **chưa được gán xe cụ thể** (mục 3.5 `NGHIEP_VU.md`, UC-44) — vẫn bán vé bình thường dựa vào `loai_xe_id` bên dưới, biên chế tài xế/phụ xe và vị trí suy luận chỉ có ý nghĩa từ lúc gán xe. Nếu còn `NULL` khi tới đúng `gio_khoi_hanh` → job tự động bật `dang_hoan` (UC-44, mục 3.3) — không tự hủy |
 | `loai_xe_id` | UUID NOT NULL, FK → `loai_xe(id)` | Loại xe **cam kết** phục vụ chuyến này (copy từ `lich_chay_dinh_ky.loai_xe_id` lúc sinh chuyến) — dùng để hiển thị sơ đồ ghế + tính giá **ngay cả khi chưa gán `xe_id`** (mục 3.5 `NGHIEP_VU.md`). Khi gán `xe_id`, Service bắt buộc `xe.loai_xe_id = chuyen_xe.loai_xe_id` |
 | `lich_chay_dinh_ky_id` | UUID NULLABLE, FK → `lich_chay_dinh_ky(id)` | Lịch chạy định kỳ đã sinh ra chuyến này (mục 3.5) — `NULL` nếu chuyến được tạo cách khác (không bắt buộc phải qua lịch định kỳ, dự phòng cho các trường hợp đặc biệt) |
+| `chu_trinh_id` | UUID NULLABLE | **Chu trình** = chuyến đi + chuyến về của cùng 1 chu kỳ (cùng cặp lịch, ngày đi D; chuyến về chạy ngày D + `ngay_lech`): hai chuyến mang CHUNG giá trị này để điều độ viên gán xe cho cả chu trình (`DIEU_DO_VIEN_THEO_TUYEN_DE_XUAT.md`). Sinh cùng lúc ở UC-47 (sinh bù một chuyến thì nhận lại id của chuyến còn lại); `NULL` = chuyến không sinh từ lịch định kỳ. Index `(chu_trinh_id)` có điều kiện `IS NOT NULL`. Migration: `20261024_0910_chu_trinh_chuyen_xe.sql` |
 | `xe_thuc_te_id` | UUID NULLABLE, FK → `xe(id)` | Phương tiện vật lý thực sự chạy chuyến này, nếu khác `xe_id` (mục 3.3 — đổi xe khi hỏng đột xuất). `NULL` = đúng xe gốc đang chạy. Bắt buộc cùng `loai_xe` với `xe_id` khi có giá trị (Service kiểm tra) |
 | `gio_khoi_hanh` | TIMESTAMPTZ NOT NULL | |
+| `he_so_ghe` | JSONB NOT NULL DEFAULT `{}` | Hệ số từng ghế **chốt lúc sinh chuyến** (copy từ `loai_xe.he_so_ghe`, đọc 1 lần cho cả lô sinh chuyến với `FOR SHARE`) — giá ghế = `gia_goc × he_so_gia × he_so_ghe[ma_ghe]` làm tròn 1 lần ở cuối |
+| `he_so_gia` | NUMERIC(4,2) NOT NULL DEFAULT 1.0, CHECK > 0 | Hệ số giá **chốt lúc sinh chuyến** (copy từ `lich_chay_dinh_ky.he_so_gia`) — giá vé = `gia_ve.gia_goc × he_so_gia`; sửa lịch sau đó không đổi giá chuyến đã sinh |
 | `trang_thai` | TEXT NOT NULL DEFAULT `'chua_khoi_hanh'`, CHECK IN (`chua_khoi_hanh`, `dang_chay`, `gap_su_co`, `hoan_thanh`, `da_huy`) | Không có trạng thái "hủy vì ít khách" **và không có trạng thái riêng cho "hoãn"** — chuyến luôn chạy (mục 1, mục 4); khi hoãn trước giờ chạy do hết xe thay thế (mục 3.3), chuyến vẫn ở `chua_khoi_hanh`, chỉ đổi `gio_khoi_hanh` + bật cờ `dang_hoan` dưới đây. `da_huy` **không dùng** cho hết xe thay thế trước giờ chạy, và **không dùng** cho `gap_su_co` do `loai_su_co = 'loi_nha_xe'` (luôn tìm được xe thay thế) — chỉ dùng cho `gap_su_co` do `loai_su_co = 'loi_khach_quan'` khi điều độ viên xác nhận thực sự không thể tiếp tục |
-| `dang_hoan` | BOOLEAN NOT NULL DEFAULT false | `true` khi chuyến đang chờ tìm xe trước giờ khởi hành — 2 nguồn gốc dùng chung cờ này (mục 3.3): (a) xe đã gán (`xe_id` có giá trị) hỏng đột xuất, chưa tìm được xe thay thế kịp (lệch >30 phút, điều độ viên bật thủ công qua UC-20); (b) chưa từng gán được xe (`xe_id` vẫn `NULL`), tới đúng `gio_khoi_hanh` mà vẫn chưa có (job tự động bật qua UC-45 ⏱). Cả 2 đều mở quyền hủy nhận hoàn 100% cho vé `da_thanh_toan` (UC-41, ngoại lệ duy nhất). Tắt lại khi điều độ viên tìm được xe (gán `xe_id` nếu trường hợp (b), hoặc `xe_thuc_te_id` nếu trường hợp (a)) và cập nhật `gio_khoi_hanh` chính thức |
-| `gio_xac_nhan_xuat_phat` | TIMESTAMPTZ NULLABLE | Phụ xe xác nhận (mục 8.2 điểm 2) |
+| `dang_hoan` | BOOLEAN NOT NULL DEFAULT false | `true` khi chuyến đang chờ tìm xe trước giờ khởi hành — 2 nguồn gốc dùng chung cờ này (mục 3.3): (a) xe đã gán (`xe_id` có giá trị) hỏng đột xuất, chưa tìm được xe thay thế kịp (lệch >30 phút, điều độ viên bật thủ công qua UC-20); (b) chưa từng gán được xe (`xe_id` vẫn `NULL`), tới đúng `gio_khoi_hanh` mà vẫn chưa có (job tự động bật qua UC-44 ⏱). Cả 2 đều mở quyền hủy nhận hoàn 100% cho vé `da_thanh_toan` (UC-41, ngoại lệ duy nhất). Tắt lại khi điều độ viên tìm được xe (gán `xe_id` nếu trường hợp (b), hoặc `xe_thuc_te_id` nếu trường hợp (a)) và cập nhật `gio_khoi_hanh` chính thức |
+| `gio_xac_nhan_xuat_phat` | TIMESTAMPTZ NULLABLE | Giờ xe thực sự xuất phát: phụ xe bấm "Xuất phát" ở điểm đầu từ đúng `gio_khoi_hanh` (mục 8.2 điểm 2) |
+| `dang_di_chuyen` | BOOLEAN NOT NULL DEFAULT false | Chuyến `dang_chay` có 2 pha: **đang dừng** tại điểm (`false` — cho khách lên/xuống, chất/dỡ hàng) và **đang di chuyển** tới điểm kế tiếp (`true` — không lên/xuống/chất/dỡ được). Bật khi phụ xe bấm "Bắt đầu di chuyển" (kể cả lúc xuất phát), tắt khi xác nhận đến điểm kế tiếp hoặc chuyến `hoan_thanh`. Migration `20261011_0900` |
+| `gio_roi_diem` | TIMESTAMPTZ NULLABLE | Giờ xe rời điểm dừng gần nhất (chỉ có giá trị khi `dang_di_chuyen = true`) |
 | `gio_hoan_thanh` | TIMESTAMPTZ NULLABLE | |
 | `loai_su_co` | TEXT NULLABLE, CHECK IN (`loi_nha_xe`, `loi_khach_quan`) | Set khi chuyển `gap_su_co` (UC-17) — quyết định toàn bộ cách xử lý và quyền hoàn tiền của khách trong lúc chờ (mục 3.3/4/7). `loi_nha_xe` luôn tìm được xe thay thế cuối cùng (không có nhánh hủy); chỉ `loi_khach_quan` mới có thể dẫn tới `da_huy` |
 | `ly_do_su_co` | TEXT NULLABLE | Mô tả chi tiết sự cố (VD "nổ lốp", "sạt lở km 45") khi chuyển `gap_su_co`/`da_huy`, hoặc lý do đang `dang_hoan` |
 | `co_canh_bao_xung_dot_vi_tri` | BOOLEAN NOT NULL DEFAULT false | Set `true` cho mọi chuyến `chua_khoi_hanh` cùng `xe_id` ngay khi 1 chuyến trước đó của xe này chuyển `gap_su_co` giữa đường (mục 3.3) — bất kể sau đó tự khắc phục, delay dài, hay `da_huy`. Điều độ viên xem lại thủ công sau khi sự cố resolve: nếu xe vẫn tới kịp thì chỉ chỉnh giờ rồi gỡ cờ; nếu không tới kịp thì xử lý qua UC-20 (tìm xe thay thế/hoãn) trước khi gỡ cờ. **Không dùng cho trường hợp đổi xe thực tế trước giờ chạy** (đã có `xe_thuc_te_id` xử lý riêng, không làm lệch vị trí suy luận của `xe_id`) |
 | `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+
+**Sửa/xóa chuyến bởi `quan_ly`** (UC-48) chỉ khi chuyến còn "sạch": `xe_id IS NULL`, `trang_thai = 'chua_khoi_hanh'`, không có `ve` nào `giu_cho`/`da_thanh_toan` — kiểm tra ở Service. Sửa giờ chỉ đổi phần giờ, **giữ nguyên ngày** (tính theo giờ VN), giờ mới phải ở tương lai và không trùng (`loai_xe_id`, ngày, giờ) với chuyến khác.
 
 Ràng buộc "không trùng lịch", "đúng vị trí xe", "đúng tuyến cố định của xe" (mục 3.2/3.3) đều kiểm tra ở Service lúc `INSERT`/`UPDATE xe_id`, không phải constraint DB. Ràng buộc "cùng `loai_xe`" khi gán `xe_thuc_te_id` cũng kiểm tra ở Service. **Xe thuê ngoài** (mục 3.3, khi hết xe dự phòng nội bộ) không cần cột/bảng riêng — chỉ là 1 bản ghi `xe` bình thường được điều độ viên thêm tạm vào hệ thống, đủ điều kiện `loai_xe`/vị trí như xe nội bộ.
 
@@ -218,19 +298,24 @@ UNIQUE: (`chuyen_id`, `diem_don_tra_id`).
 
 ### 3.5. `lich_chay_dinh_ky`
 
-Do `quan_ly` thiết lập (mục 3.5/8.7 `NGHIEP_VU.md`, UC-18) — nguồn duy nhất sinh ra `chuyen_xe` mới trong hệ thống. Tách "lên lịch chuyến chạy khi nào, loại xe gì" (kế hoạch dài hạn) khỏi "xe cụ thể (biển số) nào chạy" (vận hành ngắn hạn, `dieu_do_vien` xử lý riêng qua UC-44).
+Do `quan_ly` thiết lập (mục 3.5/8.7 `NGHIEP_VU.md`, UC-18) và chủ động sinh chuyến từ đó (UC-47) — nguồn duy nhất sinh ra `chuyen_xe` mới trong hệ thống. Tách "lên lịch chuyến chạy khi nào, loại xe gì" (kế hoạch dài hạn) khỏi "xe cụ thể (biển số) nào chạy" (vận hành ngắn hạn, `dieu_do_vien` xử lý riêng qua UC-44).
 
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | UUID PK | |
 | `tuyen_id` | UUID NOT NULL, FK → `tuyen(id)` | |
 | `chieu` | TEXT NOT NULL, CHECK IN (`xuoi`, `nguoc`) | Tuyến giờ chạy được cả 2 chiều (mục 2.3) nên phải chọn rõ dòng lịch này chạy chiều nào — copy sang `chuyen_xe.chieu` mỗi lần sinh chuyến |
-| `gio_khoi_hanh` | TIME NOT NULL | Giờ khởi hành trong ngày (không phải ngày cụ thể) — dùng làm mẫu để job định kỳ sinh `chuyen_xe.gio_khoi_hanh` (kèm ngày cụ thể) mỗi ngày |
+| `gio_khoi_hanh` | TIME NOT NULL | Giờ khởi hành trong ngày (không phải ngày cụ thể) — dùng làm mẫu để `quan_ly` sinh `chuyen_xe.gio_khoi_hanh` (kèm ngày cụ thể) khi bấm "Sinh chuyến" (UC-47) |
 | `loai_xe_id` | UUID NOT NULL, FK → `loai_xe(id)` | Loại xe dự kiến phục vụ khung giờ này — copy sang `chuyen_xe.loai_xe_id` mỗi lần sinh chuyến |
-| `dang_ap_dung` | BOOLEAN NOT NULL DEFAULT true | `false` = ngừng sinh chuyến mới từ lịch này — **không xóa/ảnh hưởng** các `chuyen_xe` đã sinh sẵn trước đó |
+| `he_so_gia` | NUMERIC(4,2) NOT NULL DEFAULT 1.0, CHECK > 0 | Hệ số nhân với `gia_ve.gia_goc` để ra giá bán; 2 lịch của 1 cặp luôn cùng giá trị. **Luôn sửa được kể cả khi cặp đã sinh chuyến** (khác giờ/loại xe) vì mỗi chuyến đã chốt hệ số riêng lúc sinh — hệ số mới chỉ áp dụng cho chuyến sinh sau |
+| `dang_ap_dung` | BOOLEAN NOT NULL DEFAULT true | `false` = ngừng sinh chuyến mới từ lịch này — **không xóa/ảnh hưởng** các `chuyen_xe` đã sinh sẵn trước đó. Luôn đổi cùng lúc cho cả 2 lịch của 1 cặp |
+| `cap_id` | UUID NOT NULL | Mã chung của 1 **cặp lịch** (đúng 1 lịch `xuoi` + 1 lịch `nguoc` cùng tuyến) — không có bảng riêng cho cặp. `UNIQUE (cap_id, chieu)` đảm bảo mỗi cặp tối đa 1 lịch mỗi chiều; Service tạo/ngừng/xóa cả cặp trong 1 giao dịch nên không có lịch lẻ |
+| `ngay_lech` | SMALLINT NOT NULL DEFAULT 0, CHECK ≥ 0 | Chỉ có ý nghĩa ở lịch `nguoc` (lịch `xuoi` luôn 0, có CHECK): chuyến về của 1 chu kỳ chạy sau chuyến đi bao nhiêu ngày. Tính lúc tạo/sửa cặp = số ngày nhỏ nhất để xe đi xong (giờ đi + thời gian chạy cả tuyến = mốc muộn nhất của `tuyen_diem_don_tra.thoi_gian_du_kien_phut`) và nghỉ ≥ 30 phút trước giờ khởi hành chiều về. **Lưu cố định** để sửa thời gian chạy của tuyến sau này không làm lệch các cặp đã có |
 | `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
 
-**Job định kỳ sinh chuyến** (`ARCHITECTURE.md` mục 5): với mỗi `lich_chay_dinh_ky` có `dang_ap_dung = true`, tạo `chuyen_xe` cho các ngày còn thiếu trong cửa sổ N ngày tới (N = tham số hệ thống `quan_ly` cấu hình, mục 8.7 `NGHIEP_VU.md`) — kiểm tra tránh sinh trùng ngày đã có sẵn (VD `UNIQUE(lich_chay_dinh_ky_id, ngày)` tính từ `gio_khoi_hanh`, hoặc job tự truy vấn chuyến gần nhất đã sinh rồi tiếp tục từ đó).
+**Sinh chuyến thủ công theo cặp** (UC-47, `NGHIEP_VU.md` mục 3.5) — **không còn job nền, không còn tham số "N ngày tới"**: `quan_ly` chọn các cặp `dang_ap_dung = true` của 1 tuyến và 1 khoảng ngày chung (không quá khứ, tối đa 180 ngày/lần); với mỗi ngày D trong khoảng, Service sinh chuyến lịch `xuoi` vào ngày D và chuyến lịch `nguoc` vào ngày D + `ngay_lech`, ghép ngày + `gio_khoi_hanh` thành `TIMESTAMPTZ` **kèm múi giờ `Asia/Ho_Chi_Minh` tường minh** (session Postgres mặc định UTC, thiếu bước này giờ lệch 7 tiếng), **bỏ qua (lịch, ngày) đã có chuyến** (truy vấn `EXISTS chuyen_xe WHERE lich_chay_dinh_ky_id = ? AND ngày(gio_khoi_hanh theo giờ VN) = ?`) — nên bấm lại/khoảng chồng lấn không sinh trùng, và 2 lần sinh liền kề nối khít nhau. Toàn bộ trong 1 giao dịch (lỗi ở đâu thì không chuyến nào được tạo). Không có `UNIQUE` DB cho (lịch, ngày); chống trùng ở Service.
+
+**Cặp đã sinh chuyến thì khóa sửa** (UC-18): nếu có ít nhất 1 `chuyen_xe.lich_chay_dinh_ky_id` trỏ tới 1 trong 2 lịch của cặp thì Service từ chối sửa giờ/`loai_xe_id` của cả 2 lịch (và xóa cặp bị FK chặn) — vì chuyến cũ giữ giá trị lúc sinh, sửa lịch sẽ làm 2 bên lệch nhau và các ngày đã có chuyến không bao giờ được sinh lại theo lịch mới. Muốn đổi: `dang_ap_dung = false` rồi tạo lịch mới. `tuyen_id` của lịch không bao giờ đổi được.
 
 **Index nên đánh thêm**: `chuyen_xe(xe_id) WHERE xe_id IS NULL` — dùng cho danh sách "chuyến cần gán xe" của điều độ viên (UC-44), đặc biệt lọc thêm theo ngưỡng cảnh báo 48 tiếng (mục 3.5 `NGHIEP_VU.md`).
 
@@ -253,14 +338,17 @@ Bảng trung tâm của toàn hệ thống — chịu trách nhiệm cho cơ ch�
 | `ten_khach_vang_lai` | TEXT NULLABLE | Bắt buộc nếu `khach_hang_id IS NULL` (kiểm tra Service) |
 | `sdt_khach_vang_lai` | TEXT NULLABLE | |
 | `gia` | NUMERIC(12,0) NOT NULL | Lấy từ `gia_ve` tại thời điểm đặt (không tính lại nếu `gia_ve` đổi sau đó) |
+| `ma_ve` | TEXT NOT NULL, UNIQUE | Mã riêng của từng vé (1 ghế trên 1 chặng) để khách đọc/tra cứu, dạng `VE000001` — hàm Python sinh từ sequence `ve_ma_seq` (không tái dùng, trigger giữ không sửa được), khác `ma_dat_cho` là mã chung của cả lượt đặt. Cũng là tiền tố mã giao dịch VNPay khi khách trả riêng 1 vé tại quầy |
 | `ma_dat_cho` | TEXT NOT NULL | Nhóm các vé cùng 1 lần đặt (mục 3.4) |
 | `la_ve_dat_coc` | BOOLEAN NOT NULL DEFAULT false | `true` với các vé bị bắt buộc "thanh toán ngay" trong lô >600.000đ (mục 3.4) |
-| `loai_hinh_thanh_toan` | TEXT NOT NULL, CHECK IN (`thanh_toan_ngay`, `thanh_toan_tai_quay`) | Mô tả **kênh/thời điểm trả tiền**, chọn ngay lúc đặt vé — tách biệt khỏi `phuong_thuc_thanh_toan` bên dưới (trả bằng gì). `thanh_toan_tai_quay` dùng chung cho **cả 3 trường hợp**: khách đặt online chọn trả sau, nhân viên quầy vé bán trực tiếp (UC-09), và bán qua hotline (UC-10) — cả 3 đều không áp dụng hạn giữ chỗ nào (mục 3.4/6 `NGHIEP_VU.md`) |
+| `loai_hinh_thanh_toan` | TEXT NOT NULL, CHECK IN (`thanh_toan_ngay`, `thanh_toan_tai_quay`) | Mô tả **kênh/thời điểm trả tiền**, chọn ngay lúc đặt vé — tách biệt khỏi `phuong_thuc_thanh_toan` bên dưới (trả bằng gì). `thanh_toan_tai_quay` dùng chung cho **cả 3 trường hợp**: khách đặt online chọn trả sau, nhân viên quầy vé bán trực tiếp (UC-09), và bán qua hotline (UC-09) — cả 3 đều không áp dụng hạn giữ chỗ nào (mục 3.4/6 `NGHIEP_VU.md`) |
 | `phuong_thuc_thanh_toan` | TEXT NULLABLE, CHECK IN (`tien_mat`, `chuyen_khoan`) | Mô tả **trả bằng gì** — chỉ có giá trị khi vé đã thực sự thu tiền (`gio_thanh_toan` được set). Với `loai_hinh_thanh_toan = 'thanh_toan_ngay'` luôn tự động `= 'chuyen_khoan'` (bản chất qua VNPay); với `'thanh_toan_tai_quay'` do nhân viên quầy chọn lúc thu tiền (tiền mặt hoặc đưa QR VNPay cho khách quét) |
 | `ma_giao_dich_cong_thanh_toan` | TEXT NULLABLE | Mã giao dịch phía VNPay, set ngay khi `phuong_thuc_thanh_toan = 'chuyen_khoan'` và thanh toán thành công (webhook trả về) — dùng để gọi API hoàn tiền của VNPay sau này (mục 7), kết hợp với `gio_thanh_toan` làm ngày giao dịch gốc. `NULL` nếu trả tiền mặt |
+| `ma_tham_chieu_vnpay` | TEXT NULLABLE | Mã giao dịch (`vnp_TxnRef`) của lần tạo đường dẫn thanh toán VNPay gần nhất cho vé trả ngay — để hệ thống tự hỏi VNPay (truy vấn giao dịch) kết quả của lượt đang chờ khi thông báo IPN không tới. Khác `ma_giao_dich_cong_thanh_toan` (mã do VNPay cấp sau khi trả tiền xong) |
+| `da_nhac_sap_di` | BOOLEAN NOT NULL DEFAULT false | Vé đã được nhắc "sắp đến giờ đi" (thông báo cho khách, job `quet_nhac_sap_di`) — để mỗi vé chỉ nhắc đúng 1 lần |
 | `trang_thai` | TEXT NOT NULL DEFAULT `'giu_cho'`, CHECK IN (`giu_cho`, `het_han`, `da_thanh_toan`, `da_len_xe`, `da_xuong_xe`, `khong_den`, `da_huy`) | Đúng vòng đời ở mục 5 |
 | `gio_bat_dau_dem_han` | TIMESTAMPTZ NULLABLE | Set khi khách **tới màn thanh toán** (mục 3.4 bước 6) — `NULL` nghĩa là ghế đã khóa nhưng chưa bắt đầu tính giờ |
-| `han_giu_cho_den` | TIMESTAMPTZ NULLABLE | Chỉ có giá trị khi `loai_hinh_thanh_toan = 'thanh_toan_ngay'`: 5 phút sau `gio_bat_dau_dem_han` (hạn chót an toàn, thực tế thường được webhook cổng thanh toán xử lý sớm hơn, `ARCHITECTURE.md` mục 5). **`NULL` với `thanh_toan_tai_quay`** — không có hạn nào, giữ tới giờ khởi hành (mục 3.4/6 `NGHIEP_VU.md`) |
+| `han_giu_cho_den` | TIMESTAMPTZ NULLABLE | Hạn giữ ghế, có 2 giai đoạn: (1) **giữ trước khi chọn cách thanh toán**: từ lúc khách bấm "Tiếp tục" (khóa ghế, mục 3.4 bước 5) — mặc định 10 phút (`HAN_GIU_TAM_PHUT`), lượt đặt nằm trong giỏ hàng và đếm ngược tiếp dù khách đã thoát; (2) với `loai_hinh_thanh_toan = 'thanh_toan_ngay'` đã bấm "Thanh toán" (`gio_bat_dau_dem_han` có giá trị): hạn thanh toán của cổng 5 phút + 2 phút đệm cho IPN (`HAN_DE_DUNG_TRE_IPN_PHUT`), hạn chót an toàn — thực tế thường được webhook xử lý sớm hơn (`ARCHITECTURE.md` mục 5). **`NULL` với `thanh_toan_tai_quay`** đã chốt — không có hạn nào, giữ tới giờ khởi hành (mục 3.4/6 `NGHIEP_VU.md`) |
 | `gio_thanh_toan` | TIMESTAMPTZ NULLABLE | |
 | `gio_len_xe` | TIMESTAMPTZ NULLABLE | |
 | `gio_xuong_xe` | TIMESTAMPTZ NULLABLE | |
@@ -279,7 +367,7 @@ Ghi lại **mỗi lần hoàn tiền thực sự xảy ra** — tách khỏi vò
 |---|---|---|
 | `id` | UUID PK | |
 | `ve_id` | UUID NOT NULL, FK → `ve(id)` | |
-| `ly_do` | TEXT NOT NULL, CHECK IN (`bat_kha_khang_khong_hoan_thanh`, `loi_nha_xe_giua_duong`, `hoan_truoc_gio_chay`, `tu_dong_hoan_qua_3_tieng`) | `bat_kha_khang_khong_hoan_thanh` = UC-21 (chuyến `gap_su_co` do `loai_su_co = 'loi_khach_quan'`, điều độ viên xác nhận không thể tiếp tục — dịch vụ chắc chắn không được cung cấp), `loi_nha_xe_giua_duong` = UC-42 (khách tự hủy lúc chuyến đang `gap_su_co` do `loai_su_co = 'loi_nha_xe'`), `hoan_truoc_gio_chay` = UC-41 (khách tự hủy lúc chuyến đang `dang_hoan` trước giờ chạy), `tu_dong_hoan_qua_3_tieng` = UC-43 (hệ thống tự động hoàn khi `gap_su_co` do `loai_su_co = 'loi_nha_xe'` kéo dài ≥3 tiếng, khách không chủ động hủy — **duy nhất trường hợp này vé không chuyển `da_huy`**, vẫn `da_thanh_toan` bình thường). Lưu thẳng thay vì suy ra qua join mỗi lần thống kê — dùng để `quan_ly` lọc/gộp nhanh theo lý do (mục 8.7 `NGHIEP_VU.md`) |
+| `ly_do` | TEXT NOT NULL, CHECK IN (`bat_kha_khang_khong_hoan_thanh`, `loi_nha_xe_giua_duong`, `hoan_truoc_gio_chay`, `tu_dong_hoan_qua_3_tieng`) | `bat_kha_khang_khong_hoan_thanh` = UC-19 (chuyến `gap_su_co` do `loai_su_co = 'loi_khach_quan'`, điều độ viên xác nhận không thể tiếp tục — dịch vụ chắc chắn không được cung cấp), `loi_nha_xe_giua_duong` = UC-41 (khách tự hủy lúc chuyến đang `gap_su_co` do `loai_su_co = 'loi_nha_xe'`), `hoan_truoc_gio_chay` = UC-41 (khách tự hủy lúc chuyến đang `dang_hoan` trước giờ chạy), `tu_dong_hoan_qua_3_tieng` = UC-19 (hệ thống tự động hoàn khi `gap_su_co` do `loai_su_co = 'loi_nha_xe'` kéo dài ≥3 tiếng, khách không chủ động hủy — **duy nhất trường hợp này vé không chuyển `da_huy`**, vẫn `da_thanh_toan` bình thường). Lưu thẳng thay vì suy ra qua join mỗi lần thống kê — dùng để `quan_ly` lọc/gộp nhanh theo lý do (mục 8.7 `NGHIEP_VU.md`) |
 | `so_tien` | NUMERIC(12,0) NOT NULL | Luôn bằng `ve.gia` tại thời điểm hoàn — hoàn đúng 100%, không có mức khác (mục 7) |
 | `trang_thai` | TEXT NOT NULL DEFAULT `'cho_xu_ly'`, CHECK IN (`cho_xu_ly`, `da_hoan_tu_dong`, `da_hoan_chuyen_khoan_thu_cong`) | `cho_xu_ly` = đã xác định phải hoàn nhưng tiền chưa tới tay khách — hàng đợi cho `ke_toan` xử lý (UC-22). `da_hoan_tu_dong` = hoàn qua API VNPay; `da_hoan_chuyen_khoan_thu_cong` = `ke_toan` tự chuyển khoản thủ công (khách trả tiền mặt ban đầu, hoặc API VNPay thất bại) |
 | `ma_giao_dich_hoan_tien` | TEXT NULLABLE | Mã giao dịch hoàn phía VNPay — chỉ có giá trị khi `trang_thai = 'da_hoan_tu_dong'` |
@@ -287,12 +375,12 @@ Ghi lại **mỗi lần hoàn tiền thực sự xảy ra** — tách khỏi vò
 | `so_tai_khoan_nhan` | TEXT NULLABLE | Số tài khoản ngân hàng khách cung cấp qua điện thoại, `ke_toan` nhập vào trước khi chuyển khoản — chỉ có giá trị khi `trang_thai = 'da_hoan_chuyen_khoan_thu_cong'`. Lưu lại để đối soát nếu phát sinh tranh chấp (khách khiếu nại chưa nhận được tiền, hoặc kế toán cần đối chiếu với sao kê ngân hàng) |
 | `ten_ngan_hang_nhan` | TEXT NULLABLE | Tên ngân hàng tương ứng `so_tai_khoan_nhan` |
 | `ten_chu_tai_khoan_nhan` | TEXT NULLABLE | Tên chủ tài khoản khách đọc qua điện thoại — không nhất thiết trùng tên khách trên vé (khách có thể nhờ chuyển vào tài khoản người khác), lưu lại để đối chiếu đúng người nhận |
-| `thoi_gian_xac_dinh` | TIMESTAMPTZ NOT NULL DEFAULT now() | Lúc UC-21/UC-41/UC-42/UC-43 xác định vé này phải hoàn |
+| `thoi_gian_xac_dinh` | TIMESTAMPTZ NOT NULL DEFAULT now() | Lúc UC-19/41 xác định vé này phải hoàn |
 | `thoi_gian_hoan_xong` | TIMESTAMPTZ NULLABLE | Lúc tiền thực sự tới tay khách — `NULL` khi còn `cho_xu_ly` |
 
 **Có lưu thông tin tài khoản ngân hàng nhận tiền** (khác quyết định ban đầu) — phục vụ đối soát khi có tranh chấp/khiếu nại sau này, đối chiếu được với sao kê ngân hàng thật của công ty. Đây là dữ liệu nhạy cảm — chỉ `ke_toan`/`quan_ly` được xem các cột `so_tai_khoan_nhan`/`ten_ngan_hang_nhan`/`ten_chu_tai_khoan_nhan` (kiểm tra ở tầng Service/phân quyền, không phải ai có quyền đọc bảng này cũng thấy được các cột này).
 
-UNIQUE: (`ve_id`) — 1 vé chỉ hoàn tiền đúng 1 lần (không có cơ chế hoàn nhiều đợt). Ràng buộc này cũng là lưới an toàn cho UC-43 (job chạy lại không hoàn trùng) và cho UC-42 khi khách hủy sau khi đã được UC-43 tự động hoàn trước đó (Service kiểm tra tồn tại trước khi tạo mới, mục 12 `NGHIEP_VU.md`).
+UNIQUE: (`ve_id`) — 1 vé chỉ hoàn tiền đúng 1 lần (không có cơ chế hoàn nhiều đợt). Ràng buộc này cũng là lưới an toàn cho UC-19 (job chạy lại không hoàn trùng) và cho UC-41 khi khách hủy sau khi đã được UC-19 tự động hoàn trước đó (Service kiểm tra tồn tại trước khi tạo mới, mục 12 `NGHIEP_VU.md`).
 
 **Index nên đánh thêm**: `(trang_thai) WHERE trang_thai = 'cho_xu_ly'` — dùng cho màn hình "danh sách hoàn tiền đang chờ xử lý" của `ke_toan`, phạm vi toàn hệ thống (mục 8.8 `NGHIEP_VU.md`).
 
@@ -324,17 +412,103 @@ UNIQUE: (`ve_id`) — 1 vé chỉ hoàn tiền đúng 1 lần (không có cơ ch
 | `ten_nguoi_gui`, `sdt_nguoi_gui` | TEXT NOT NULL | Không cần tài khoản, không thu email (mục 10.1) |
 | `ten_nguoi_nhan`, `sdt_nguoi_nhan` | TEXT NOT NULL | |
 | `phuong_thuc_thanh_toan` | TEXT NOT NULL, CHECK IN (`nguoi_gui_tra_truoc`, `cod_nguoi_nhan_tra`) | |
+| `da_thu_tien` | BOOLEAN NOT NULL DEFAULT false | Chỉ cập nhật sau xác nhận thu tại quầy; COD chỉ được đánh dấu khi giao |
+| `thoi_gian_thu` | TIMESTAMPTZ NULLABLE | Thời điểm xác nhận thu cước |
+| `nhan_vien_thu_id` | UUID NULLABLE, FK → `nguoi_dung(id)` | Nhân viên xác nhận khoản thu |
 | `ma_van_don` | TEXT NOT NULL UNIQUE | In trên biên nhận đưa người gửi — không gửi SMS/email tự động (mục 10.3.1) |
-| `trang_thai` | TEXT NOT NULL DEFAULT `'cho_van_chuyen'`, CHECK IN (`cho_van_chuyen`, `da_len_xe`, `cho_lay`, `da_giao`, `qua_han_luu_kho`) | Vòng đời ở mục 10.3. `qua_han_luu_kho` ("hàng tồn") không phải trạng thái tự hủy — chỉ đánh dấu cần xử lý thủ công (UC-25/46) |
+| `trang_thai` | TEXT NOT NULL DEFAULT `'cho_van_chuyen'`, CHECK IN (`cho_van_chuyen`, `da_len_xe`, `cho_lay`, `da_giao`, `qua_han_luu_kho`, `da_huy`) | Vòng đời ở mục 10.3. `qua_han_luu_kho` ("hàng tồn") không phải trạng thái tự hủy — chỉ đánh dấu cần xử lý thủ công (UC-25). `da_huy` chỉ do nhân viên văn phòng gửi chuyển thủ công (xem cột hủy bên dưới) |
 | `nhan_vien_gui_id` | UUID NOT NULL, FK → `nguoi_dung(id)` | Người tạo đơn (mục 10.4.1) |
 | `nhan_vien_nhan_id` | UUID NULLABLE, FK → `nguoi_dung(id)` | Người xác nhận giao (mục 10.4.2), `NULL` cho tới khi `da_giao` |
-| `thoi_gian_den_diem_nhan` | TIMESTAMPTZ NULLABLE | Set khi phụ xe xác nhận dỡ hàng, chuyển `cho_lay` (UC-27) — mốc để tính 7/14 ngày cho UC-46 (mục 10.3.1). `NULL` trước đó |
-| `da_thong_bao_nguoi_nhan` | BOOLEAN NOT NULL DEFAULT false | Nhân viên gửi hàng tích khi gọi điện báo người nhận **thành công** (mục 10.3.1/10.4.2) — hệ thống chỉ lưu đúng 1 cờ này, không đếm số cuộc gọi. `false` khi tới mốc 7 ngày (UC-46) nghĩa là chưa từng liên lạc được, cần gọi thẳng người gửi thay vì tiếp tục thử người nhận |
-| `co_canh_bao_cho_lau` | BOOLEAN NOT NULL DEFAULT false | Tự động bật bởi job khi `cho_lay` đủ 7 ngày mà chưa `da_giao` (UC-46 ⏱) — nhắc nhân viên gửi hàng xử lý (UC-25). Không liên quan tới việc hủy/thanh lý, chỉ để nhắc |
+| `thoi_gian_den_diem_nhan` | TIMESTAMPTZ NULLABLE | Set khi phụ xe xác nhận dỡ hàng, chuyển `cho_lay` (UC-27) — mốc để tính 7/14 ngày cho UC-25 (mục 10.3.1). `NULL` trước đó |
+| `da_thong_bao_nguoi_nhan` | BOOLEAN NOT NULL DEFAULT false | Nhân viên gửi hàng tích khi gọi điện báo người nhận **thành công** (mục 10.3.1/10.4.2) — hệ thống chỉ lưu đúng 1 cờ này, không đếm số cuộc gọi. `false` khi tới mốc 7 ngày (UC-25) nghĩa là chưa từng liên lạc được, cần gọi thẳng người gửi thay vì tiếp tục thử người nhận. Về `false` khi **SĐT người nhận bị sửa** (số mới chưa được báo; lịch sử liên hệ cũ vẫn ở `lich_su_lien_he_don_hang`) |
+| `co_canh_bao_cho_lau` | BOOLEAN NOT NULL DEFAULT false | Tự động bật bởi job khi `cho_lay` đủ 7 ngày mà chưa `da_giao` (UC-25 ⏱) — nhắc nhân viên gửi hàng xử lý (UC-25). Không liên quan tới việc hủy/thanh lý, chỉ để nhắc. Về `false` khi phụ xe dỡ hàng (mốc `thoi_gian_den_diem_nhan` tính lại từ đầu) |
+| `da_nhac_goi_bao` | BOOLEAN NOT NULL DEFAULT false | *(migration `20261021_0900`)* Job bật khi hàng đã `cho_lay` ≥ 24 giờ mà `da_thong_bao_nguoi_nhan` vẫn `false` (trước mốc 7 ngày) và đã gửi 1 lời nhắc cho nhân viên văn phòng nhận — bảo đảm mỗi đơn chỉ được nhắc đúng 1 lần (`NGHIEP_VU_GUI_HANG.md` mục 5.2). Về `false` khi phụ xe dỡ hàng (hoàn tác dỡ rồi dỡ lại thì được nhắc lại theo mốc mới) hoặc khi SĐT người nhận bị sửa |
 | `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
 | `ngay_giao` | TIMESTAMPTZ NULLABLE | |
 
+CHECK bổ sung (migration `20261004_0900`): `diem_gui_id <> diem_nhan_id`, `gia_cuoc > 0`.
+
+Cột bổ sung cho **hủy đơn** (migration `20261011_0900`, nghiệp vụ ở `NGHIEP_VU_GUI_HANG.md` mục 5.4, UC-54): hủy = trả lại kiện hàng cho người gửi, chỉ khi đơn `cho_van_chuyen` và `chuyen_id IS NULL`, do nhân viên **văn phòng gửi** thao tác. Không xóa dòng, không dùng lại mã vận đơn; trigger `trg_lich_su_trang_thai_don` tự ghi mốc `cho_van_chuyen → da_huy`.
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `ly_do_huy` | TEXT NULLABLE, CHECK IN (`khach_doi_y`, `nhap_sai_thong_tin`, `hang_khong_du_dieu_kien`, `khac`) | `khac` bắt buộc có `ghi_chu_huy` (kiểm ở schema) |
+| `ghi_chu_huy` | TEXT NULLABLE | Tối đa 200 ký tự |
+| `nhan_vien_huy_id` | UUID NULLABLE, FK → `nguoi_dung(id)` | Người hủy (đồng thời là người chi tiền hoàn) |
+| `thoi_gian_huy` | TIMESTAMPTZ NULLABLE | |
+| `so_tien_hoan` | NUMERIC(12,0) NULLABLE | = `gia_cuoc` khi đơn trả trước đã thu, hoàn tiền mặt tại quầy; `NULL` = không hoàn (COD / chưa thu). Không đi qua `lich_su_hoan_tien` |
+
+CHECK `don_hang_thong_tin_huy_day_du`: `(trang_thai = 'da_huy') = (ly_do_huy, nhan_vien_huy_id, thoi_gian_huy đều NOT NULL)`. Index `(nhan_vien_huy_id, thoi_gian_huy) WHERE so_tien_hoan IS NOT NULL` cho đối soát. Thống kê (UC-39) và đối soát tiền mặt **trừ** `so_tien_hoan` theo ngày hủy, tính ở văn phòng gửi.
+
+Cột bổ sung `khoa_chong_trung` (TEXT NULLABLE, migration `20261005_0900`): khóa chống tạo trùng đơn do FE sinh cho mỗi lần xác nhận tạo đơn (header `Idempotency-Key`). UNIQUE `(nhan_vien_gui_id, khoa_chong_trung) WHERE khoa_chong_trung IS NOT NULL` — gửi lại cùng khóa (bấm 2 lần, mạng chậm) trả lại đơn đã tạo.
+
+`da_thong_bao_nguoi_nhan` là cờ **một chiều** (chỉ bật `true`, không bao giờ hạ về `false`): 1 lần gọi lại thất bại không được xóa dấu "đã từng báo được", vì UC-25 rẽ nhánh theo đúng cờ này (đã từng báo được → gọi lại người nhận; chưa từng → gọi người gửi).
+
 **Index nên đánh thêm**: `(tuyen_id) WHERE chuyen_id IS NULL` — dùng cho danh sách "đơn hàng đang chờ chất lên chuyến" của phụ xe tại 1 điểm (UC-26), sắp theo `ngay_tao` (thứ tự thời gian, mục 10.2). `(chuyen_id)` — dùng khi tra cứu đơn hàng theo chuyến cụ thể (VD danh sách cần dỡ ở UC-27). `(trang_thai, thoi_gian_den_diem_nhan) WHERE trang_thai = 'cho_lay'` — dùng cho job quét mốc 7/14 ngày (UC-46).
+
+Index bổ sung cho màn hình tại quầy (migration `20261004_0900`): `(diem_gui_id, ngay_tao DESC)` — danh sách "Đơn gửi đi"; `(diem_nhan_id, trang_thai) WHERE trang_thai IN ('da_len_xe','cho_lay','qua_han_luu_kho')` — màn "Hàng đến"; `(sdt_nguoi_nhan)`, `(sdt_nguoi_gui)` — tra cứu khi người nhận quên mã vận đơn (mục 10.3.1 điểm 5).
+
+### 5.2a. `lich_su_lien_he_don_hang` *(bảng bổ sung — migration `20261002_0900`)*
+
+Mỗi lần nhân viên gửi hàng gọi người nhận/người gửi hoặc báo quản lý cho 1 đơn ở văn phòng nhận (mục 10.3.1, UC-25). `NGHIEP_VU.md` 10.3.1 chỉ bắt buộc 1 cờ `da_thong_bao_nguoi_nhan`; bảng này lưu thêm **hướng xử lý đã thỏa thuận** (UC-25: chờ thêm / nhờ lấy hộ / gửi lại...) và ai đã liên hệ — cần khi quản lý thanh lý hàng tồn. *(Cần nhóm thống nhất cập nhật lại câu "không đếm số cuộc gọi" trong NGHIEP_VU 10.3.1.)*
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `id` | UUID PK | |
+| `don_hang_id` | UUID NOT NULL, FK → `don_hang(id)` ON DELETE CASCADE | |
+| `nhan_vien_id` | UUID NOT NULL, FK → `nguoi_dung(id)` | Nhân viên gửi hàng tại văn phòng nhận |
+| `doi_tuong` | TEXT NOT NULL, CHECK IN (`nguoi_nhan`, `nguoi_gui`, `quan_ly`) | |
+| `ket_qua` | TEXT NOT NULL, CHECK IN (`da_lien_he`, `khong_lien_he_duoc`, `da_bao_quan_ly`) | CHECK thêm: `(doi_tuong = 'quan_ly') = (ket_qua = 'da_bao_quan_ly')` |
+| `ghi_chu` | TEXT NULLABLE | Hướng xử lý đã thỏa thuận |
+| `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+
+Index: `(don_hang_id, ngay_tao DESC)`. "Báo quản lý" chỉ hợp lệ khi đơn đã có cảnh báo 7 ngày hoặc là hàng tồn; ghi lịch sử + bật cờ + tạo `thong_bao` cho quản lý trong cùng 1 transaction.
+
+### 5.2b. `lich_su_trang_thai_don` *(bảng bổ sung — migration `20261005_0900`)*
+
+Mỗi lần `don_hang.trang_thai` đổi (và lúc tạo đơn). **Ghi bằng trigger** `trg_lich_su_trang_thai_don` trên `don_hang` nên mọi đường đổi trạng thái (giao hàng, phụ xe chất/dỡ, job quét 7/14 ngày) đều được ghi mà service không cần nhớ. Người thực hiện lấy từ `set_config('app.nguoi_dung_id', ..., true)` do repository gọi trước khi UPDATE; không có = hệ thống tự chuyển (job UC-46).
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `id` | UUID PK | |
+| `don_hang_id` | UUID NOT NULL, FK → `don_hang(id)` ON DELETE CASCADE | |
+| `tu_trang_thai` | TEXT NULLABLE | NULL = dòng tạo đơn |
+| `den_trang_thai` | TEXT NOT NULL | |
+| `nguoi_thuc_hien_id` | UUID NULLABLE, FK → `nguoi_dung(id)` ON DELETE SET NULL | NULL = hệ thống |
+| `thoi_gian` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+
+Index: `(don_hang_id, thoi_gian)`. Đơn có từ trước migration chỉ được dựng lại 2 mốc biết chắc (tạo đơn, giao hàng).
+
+### 5.2c. `lich_su_chinh_sua_don` *(bảng bổ sung — migration `20261006_0900`)*
+
+Nhật ký mỗi lần nhân viên sửa **tên / SĐT người gửi, người nhận** của đơn chưa giao (gõ nhầm số là lỗi thường gặp nhất, ảnh hưởng việc gọi báo người nhận — mục 10.3.1). Không sửa tuyến, điểm nhận, loại hàng, cước: các thứ đó ảnh hưởng chuyến xe và đối soát tiền nên phải hủy đơn rồi tạo lại. Bảng **chỉ INSERT** (repository không có hàm sửa/xóa nhật ký). Mỗi trường đổi = 1 dòng; gõ lại đúng giá trị cũ không tạo dòng. `thoi_gian` dùng `clock_timestamp()` (không phải `now()`) để thứ tự khớp thứ tự sửa thật khi nhiều lần sửa xếp hàng chờ khóa dòng đơn.
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `id` | UUID PK | |
+| `don_hang_id` | UUID NOT NULL, FK → `don_hang(id)` ON DELETE CASCADE | |
+| `truong` | TEXT NOT NULL, CHECK IN (`ten_nguoi_gui`, `sdt_nguoi_gui`, `ten_nguoi_nhan`, `sdt_nguoi_nhan`) | |
+| `gia_tri_cu` | TEXT NULLABLE | |
+| `gia_tri_moi` | TEXT NOT NULL | |
+| `nguoi_thuc_hien_id` | UUID NOT NULL, FK → `nguoi_dung(id)` | Nhân viên gửi hàng tại văn phòng gửi hoặc văn phòng nhận |
+| `ly_do` | TEXT NULLABLE | Tối đa 200 ký tự |
+| `thoi_gian` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+
+Index: `(don_hang_id, thoi_gian)`. Chặn sửa khi `trang_thai = 'da_giao'` (kiểm tra sau khi khóa dòng `FOR UPDATE`).
+
+### 5.3. `bao_cao_su_co_hang` *(bảng bổ sung — không có tên tường minh trong `NGHIEP_VU.md`, giống tiền lệ `thong_bao` mục 6.1)*
+
+Lưu vết báo cáo thất lạc/hư hỏng của phụ xe (UC-28) — nếu chỉ đẩy real-time cho nhân viên gửi hàng/`quan_ly` rồi không lưu gì, thông tin sẽ mất nếu người nhận đang offline, và không xem lại được lịch sử báo cáo của 1 đơn hàng.
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `id` | UUID PK | |
+| `don_hang_id` | UUID NOT NULL, FK → `don_hang(id)` | |
+| `nguoi_bao_cao_id` | UUID NOT NULL, FK → `nguoi_dung(id)` | Luôn là `phu_xe` (UC-28) |
+| `mo_ta` | TEXT NOT NULL | Nội dung thất lạc/hư hỏng phụ xe nhập |
+| `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+
+Không đổi `don_hang.trang_thai` — chỉ ghi nhận, không chặn UC-26/UC-27 (`NGHIEP_VU.md` mục 12, UC-28).
 
 ---
 
@@ -350,22 +524,49 @@ UNIQUE: (`ve_id`) — 1 vé chỉ hoàn tiền đúng 1 lần (không có cơ ch
 | `nguoi_nhan_id` | UUID NOT NULL, FK → `nguoi_dung(id)` | |
 | `noi_dung` | TEXT NOT NULL | |
 | `ve_id` | UUID NULLABLE, FK → `ve(id)` | Liên kết ngữ cảnh nếu gắn với 1 vé cụ thể (đổi xe, sự cố, sắp tới giờ) |
+| `don_hang_id` | UUID NULLABLE, FK → `don_hang(id)` | Liên kết cảnh báo hàng chờ lâu |
 | `da_doc` | BOOLEAN NOT NULL DEFAULT false | |
 | `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+| `duong_dan` | TEXT NULLABLE | Trang frontend mở ra khi bấm vào thông báo (VD `/nhan-vien/quan-ly/lich-chay.html`) — dùng cho cán bộ; `NULL` = chỉ có chữ. Migration `20261023_0900_thong_bao_duong_dan.sql` |
+
+**Thông báo gửi cho khách hàng** (`services/thong_bao_khach_service.py`, hiển thị ở trang Thông báo, kèm đẩy real-time qua WebSocket `/ws` và huy hiệu số chưa đọc): đặt vé thành công (chốt trả tại quầy), thanh toán thành công (cả lượt hoặc riêng 1 vé), thanh toán không thành công, hết hạn giữ chỗ (`jobs/quet_ve_het_han`), không đến (`jobs/quet_no_show`, kèm số lần vi phạm), sắp đến giờ đi (`jobs/quet_nhac_sap_di`, nhắc 1 lần khi còn `NHAC_TRUOC_GIO_DON_PHUT` phút tới giờ đón tại đúng điểm đón). Thông báo về xe đến điểm/sự cố do phụ xe gửi ở `chuyen_xe_service`. Ghi DB trước rồi mới đẩy; lỗi gửi thông báo không làm hỏng nghiệp vụ chính.
+
+**Thông báo gửi cho quản lý** (chuông ở thanh trên cùng khung Quản lý, `frontend/nhan-vien/quan-ly/thong-bao.js`, dùng chung API `/thong-bao/*` với mọi vai trò): hàng tồn cần quản lý xử lý (UC-25), phụ xe báo hàng thất lạc/hư hỏng (UC-28), giấy tờ nhân sự sắp/đã hết hạn (UC-49, gửi `quan_ly_nhan_su`; chỉ tới chuông Quản lý khi chưa có tài khoản `quan_ly_nhan_su` nào đang hoạt động — `quan_ly_nhan_su` không dùng chuông này), và hai nhắc việc hằng ngày của `jobs/nhac_quan_ly.py` gửi cho mọi `quan_ly` đang hoạt động, mỗi tình trạng chỉ một lần (nội dung chứa ngày cuối cùng nên giữ nguyên khi tình trạng không đổi; so sánh bằng `thong_bao_repository.da_co_thong_bao_giong`): (1) cặp lịch chạy đang áp dụng chỉ còn chuyến đến hết `NGUONG_NHAC_SINH_CHUYEN_NGAY` (7) ngày tới, đã hết chuyến, hoặc chưa sinh chuyến nào → mở trang Lịch chạy; (2) tuyến có lịch đang áp dụng mà bộ giá cuối kết thúc trong `NGUONG_NHAC_BO_GIA_NGAY` (14) ngày, đã kết thúc, hoặc chưa có bộ giá → mở trang Giá vé. Chỉ nhắc, không tự sinh chuyến hay tạo giá. Giao diện Quản lý gồm nhiều trang .html nên chuông không dựa riêng vào WebSocket: mỗi trang tải xong là hỏi API lấy số chưa đọc, hỏi lại mỗi 60 giây và khi tab hiện lại.
 
 ### 6.2. `nhat_ky_admin`
 
-Nhật ký thao tác của `quan_ly`/`quan_ly_nhan_su` — phục vụ tra soát.
+Nhật ký thao tác của **`quan_ly`** — phục vụ tra soát. Hành động của `quan_ly_nhan_su` ghi ở bảng riêng (mục 6.3), không ghi vào đây.
 
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | UUID PK | |
 | `admin_id` | UUID NOT NULL, FK → `nguoi_dung(id)` | |
-| `hanh_dong` | TEXT NOT NULL | VD `tao_tai_khoan`, `khoa_tai_khoan`, `sua_bien_che_co_dinh`, `cau_hinh_gia_ve`, `go_han_che_khach_hang`... |
+| `hanh_dong` | TEXT NOT NULL | VD `tao_tai_khoan`, `khoa_tai_khoan`, `mo_khoa_tai_khoan`, `sua_bien_che_co_dinh`, `cau_hinh_gia_ve`... (không còn gỡ hạn chế khách hàng: khách do hệ thống tự khóa, không ai gỡ — `NGHIEP_VU.md` mục 9). `ghi_chu` lưu lý do khóa/mở khóa (bắt buộc ở UC-37). Migration: `20261023_1000_tao_bang_nhat_ky_admin.sql` |
 | `doi_tuong_loai` | TEXT NOT NULL | Bảng/loại đối tượng bị tác động |
 | `doi_tuong_id` | UUID NOT NULL | |
 | `ghi_chu` | TEXT NULLABLE | |
 | `thoi_gian` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+
+### 6.3. `nhat_ky_quan_ly_nhan_su` *(tách riêng khỏi `nhat_ky_admin`)*
+
+Bảng này **chỉ ghi hành động do chính `quan_ly_nhan_su` thực hiện**. Nó **không dùng chung** với `quan_ly`. Với thiết kế này:
+- `nhat_ky_admin` (đã có sẵn ở mục 6.2 file này) **giữ nguyên nghĩa gốc ban đầu của nó** — chỉ ghi hành động của `quan_ly` (tuyến, giá, xe, biên chế, tài khoản do `quan_ly` tạo/khóa...).
+- `nhat_ky_quan_ly_nhan_su` là bảng **hoàn toàn tách biệt**, chỉ ghi 6 loại hành động mà `quan_ly_nhan_su` được phép làm — không lẫn hành động của `quan_ly` hay bất kỳ vai trò nào khác, kể cả khi 2 vai trò cùng làm 1 việc giống nhau (VD cả `quan_ly` và `quan_ly_nhan_su` đều tạo được tài khoản `phu_xe` — nhưng chỉ dòng do `quan_ly_nhan_su` tạo mới vào bảng này).
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `id` | UUID PK | |
+| `quan_ly_nhan_su_id` | UUID NOT NULL, FK → `nguoi_dung(id)` | Người thực hiện. Phải có `vai_tro = 'quan_ly_nhan_su'` — kiểm tra ở Service lúc ghi (không dùng `CHECK` được vì phải join sang `nguoi_dung`) |
+| `hanh_dong` | TEXT NOT NULL, CHECK IN (`tao_tai_khoan`, `khoa_tai_khoan`, `mo_khoa_tai_khoan`, `tao_ho_so_nhan_su`, `sua_ho_so_nhan_su`, `cho_nghi_viec`) | 6 hành động đúng phạm vi UC-36/37 (khi actor là `quan_ly_nhan_su`) + UC-51. Không có `xoa_tai_khoan` — xem mục 0.3 |
+| `doi_tuong_loai` | TEXT NOT NULL, CHECK IN (`nguoi_dung`, `nhan_su_van_hanh`) | `nguoi_dung` khi thao tác lên tài khoản (`tao_tai_khoan`/`khoa_tai_khoan`/`mo_khoa_tai_khoan`); `nhan_su_van_hanh` khi thao tác lên hồ sơ (`tao_ho_so_nhan_su`/`sua_ho_so_nhan_su`/`cho_nghi_viec`) |
+| `doi_tuong_id` | UUID NOT NULL | id tương ứng với `doi_tuong_loai` |
+| `ghi_chu` | TEXT NULLABLE | VD lý do khóa tài khoản, lý do nghỉ việc |
+| `thoi_gian` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+
+**Quy ước:**
+- Bảng **chỉ `INSERT`**, không có `UPDATE`/`DELETE` ở bất kỳ tầng nào (Repository không viết hàm sửa/xóa) — đảm bảo nhật ký không bị chỉnh sửa sau khi ghi.
+- Ghi trong **cùng transaction** với thao tác nghiệp vụ — thao tác thành công thì có log, thất bại thì không có log "ma".
+- Index nên đánh: `nhat_ky_quan_ly_nhan_su(quan_ly_nhan_su_id, thoi_gian DESC)` (xem nhật ký của chính mình — UC-52) và `nhat_ky_quan_ly_nhan_su(doi_tuong_loai, doi_tuong_id, thoi_gian DESC)` (tra lịch sử 1 tài khoản/hồ sơ cụ thể, kể cả lý do khóa gần nhất cho UC-37).
 
 ---
 
@@ -381,9 +582,9 @@ Nhất quán với nguyên tắc "tính động qua query, không cache số li�
 | Ghế còn trống cho 1 đoạn `[don, tra)` (mục 6) | Không tồn tại `ve` nào cùng `(chuyen_id, so_ghe)`, trạng thái `giu_cho`/`da_thanh_toan`, có khoảng `[thu_tu(diem_don), thu_tu(diem_tra))` giao với đoạn đang xét — **`thu_tu` dùng ở đây là `thu_tu` hiệu lực theo `chieu` của chuyến** (đảo dấu nếu `chieu = nguoc`, mục 2.4) — dùng `chuyen_xe.loai_xe_id.so_do_ghe` để biết tổng số ghế, không cần `xe_id` đã gán hay chưa |
 | Số lần vi phạm no-show của 1 khách hàng (mục 9) | Đếm `ve` của khách có `trang_thai = 'khong_den'` — nhóm theo `khach_hang_id`, lọc theo khoảng thời gian gần nhất (không còn cần xét `het_han`, vì "thanh toán tại quầy" không có `het_han` do hết hạn nữa, mục 3.4/6 `NGHIEP_VU.md`) |
 | Tỷ lệ lấp đầy ghế của 1 chuyến (mục 8.6 điểm 2) | `COUNT(ve active)` / tổng số ghế trong `loai_xe.so_do_ghe` của `chuyen_xe.loai_xe_id` — chỉ để thống kê, **không** dùng để hủy chuyến |
-| Giá vé thực tế của 1 chuyến cho 1 cặp điểm (mục 2.5, mục 3.1 file này) | `gia_ve.gia_goc × loai_xe.he_so_gia` của **`chuyen_xe.loai_xe_id`** (loại xe cam kết, mục 3.5 `NGHIEP_VU.md`) — nhân lúc truy vấn, **không lưu thành cột riêng** cho từng tổ hợp (tuyến × cặp điểm × loại xe), tránh bùng nổ số dòng cần nhập tay khi có nhiều loại xe. Tính được **ngay từ khi chuyến được sinh ra**, không cần đợi gán `xe_id` |
+| Giá vé thực tế của 1 chuyến cho 1 cặp điểm (mục 2.5, mục 3.1 file này) | `gia_ve.gia_goc` của bộ giá áp dụng cho ngày khởi hành của chuyến `× chuyen_xe.he_so_gia` (hệ số chốt lúc sinh chuyến từ lịch chạy, mục 3.5 `NGHIEP_VU.md`) — nhân lúc truy vấn, **không lưu thành cột riêng** cho từng tổ hợp (tuyến × cặp điểm × loại xe), tránh bùng nổ số dòng cần nhập tay khi có nhiều loại xe. Tính được **ngay từ khi chuyến được sinh ra**, không cần đợi gán `xe_id` |
 | Còn được tự hủy giữ chỗ hay không (mục 7/8.1/9 `NGHIEP_VU.md`) | `now() < (chuyen_xe.gio_khoi_hanh + tuyen_diem_don_tra.thoi_gian_du_kien_phut của diem_don_id − X phút cấu hình)` — **dùng chung đúng 1 mốc** với việc xác định no-show (không phải 2 mốc riêng); qua mốc này API hủy trả lỗi, không xóa/sửa DB |
-| Hoàn tiền tự động qua cổng hay do kế toán xử lý thủ công (mục 7 `NGHIEP_VU.md`, UC-21/UC-41/UC-42) | `ve.ma_giao_dich_cong_thanh_toan IS NOT NULL` → gọi API hoàn tiền của VNPay (kèm `gio_thanh_toan` làm ngày giao dịch gốc) — thành công thì tạo `lich_su_hoan_tien` với `trang_thai = 'da_hoan_tu_dong'` luôn. `NULL` (trả tiền mặt), hoặc API hoàn tiền gọi thất bại → tạo `lich_su_hoan_tien` với `trang_thai = 'cho_xu_ly'`, chờ `ke_toan` xử lý (UC-22) |
+| Hoàn tiền tự động qua cổng hay do kế toán xử lý thủ công (mục 7 `NGHIEP_VU.md`, UC-19/41) | `ve.ma_giao_dich_cong_thanh_toan IS NOT NULL` → gọi API hoàn tiền của VNPay (kèm `gio_thanh_toan` làm ngày giao dịch gốc) — thành công thì tạo `lich_su_hoan_tien` với `trang_thai = 'da_hoan_tu_dong'` luôn. `NULL` (trả tiền mặt), hoặc API hoàn tiền gọi thất bại → tạo `lich_su_hoan_tien` với `trang_thai = 'cho_xu_ly'`, chờ `ke_toan` xử lý (UC-22) |
 | Danh sách hoàn tiền đang chờ `ke_toan` xử lý (mục 8.8 `NGHIEP_VU.md`) | `lich_su_hoan_tien` có `trang_thai = 'cho_xu_ly'` — phạm vi **toàn hệ thống**, không lọc theo văn phòng (vì `ke_toan` không gắn văn phòng nào, mục 2) |
 
 ---
@@ -392,17 +593,20 @@ Nhất quán với nguyên tắc "tính động qua query, không cache số li�
 
 ```
 nguoi_dung 1──1 ho_so_khach_hang     (vai_tro = khach_hang)
-nguoi_dung 1──1 ho_so_can_bo_diem    (vai_tro = nhan_vien_quay_ve | nhan_vien_gui_hang | dieu_do_vien)
+nguoi_dung 1──1 ho_so_can_bo_diem    (vai_tro = nhan_vien_quay_ve | nhan_vien_gui_hang)
+nguoi_dung N──N tuyen                 (qua dieu_do_vien_tuyen, vai_tro = dieu_do_vien)
 nguoi_dung 0──1 nhan_su_van_hanh     (vai_tro = phu_xe — chiều ngược lại nullable)
 ho_so_can_bo_diem N──1 diem_don_tra  (van_phong_id)
 
+nhan_su_van_hanh 1──N giay_to_nhan_su
 nhan_su_van_hanh 1──N xe_nhan_su
 xe 1──N xe_nhan_su
 
 khu_vuc 1──N diem_don_tra
 tuyen 1──N tuyen_diem_don_tra N──1 diem_don_tra
 khu_vuc 1──N gia_ve (diem_di_id), khu_vuc 1──N gia_ve (diem_den_id)
-tuyen 1──N gia_ve
+tuyen 1──N bo_gia_ve
+bo_gia_ve 1──N gia_ve (mỗi bộ có giá của mọi chặng của tuyến)
 
 diem_don_tra 1──1 xe (diem_goc_id)
 tuyen 0──N xe
@@ -433,6 +637,7 @@ nguoi_dung 1──N don_hang (nhan_vien_gui_id)
 nguoi_dung 1──N thong_bao
 ve 0──N thong_bao
 nguoi_dung(quan_ly) 1──N nhat_ky_admin
+nguoi_dung(quan_ly_nhan_su) 1──N nhat_ky_quan_ly_nhan_su
 ```
 
 ---
@@ -440,12 +645,69 @@ nguoi_dung(quan_ly) 1──N nhat_ky_admin
 ## 9. Bổ sung cần làm rõ với nhóm trước khi migrate thật
 
 - **Câu lệnh `CREATE EXTENSION "pgcrypto"`** cần chạy trong migration đầu tiên để có hàm `gen_random_uuid()`.
-- Index nên đánh thêm: `ve(chuyen_id, so_ghe)` (mục 4 — bắt buộc vì bị `SELECT ... FOR UPDATE` quét thường xuyên, khác `don_hang` vốn không còn cơ chế khóa dòng tương tự từ khi bỏ chống quá tải tự động, mục 10.2), `don_hang(tuyen_id) WHERE chuyen_id IS NULL` (danh sách đơn chờ chất lên xe theo tuyến, UC-26, mục 10.2), `chuyen_xe(xe_id, gio_khoi_hanh)` (dùng cho truy vấn vị trí xe, mục 7), `chuyen_xe(xe_id) WHERE xe_thuc_te_id IS NOT NULL` (dùng để liệt kê nhanh mọi chuyến đang chạy thay của 1 xe gốc, UC-40), `chuyen_xe(xe_id) WHERE xe_id IS NULL` (danh sách "chuyến cần gán xe", UC-44, mục 3.5), `ho_so_can_bo_diem(van_phong_id)` (điều độ viên/nhân viên quầy vé lọc theo phạm vi mình phụ trách gần như mọi truy vấn).
-- **Job sinh `chuyen_xe` từ `lich_chay_dinh_ky`** (`NGHIEP_VU.md` mục 3.5, UC-18): chạy định kỳ (VD hàng ngày), với mỗi lịch `dang_ap_dung = true`, sinh thêm chuyến cho các ngày còn thiếu trong cửa sổ N ngày cấu hình — cần logic tránh sinh trùng (kiểm tra đã có chuyến cho ngày đó của đúng `lich_chay_dinh_ky_id` chưa) và xử lý khi `quan_ly` sửa giờ/loại xe của lịch định kỳ đang áp dụng (chỉ ảnh hưởng các chuyến sinh **sau** thời điểm sửa, không đổi ngược các chuyến đã sinh/đã bán vé).
+- Index nên đánh thêm: `ve(chuyen_id, so_ghe)` (mục 4 — bắt buộc vì bị `SELECT ... FOR UPDATE` quét thường xuyên, khác `don_hang` vốn không còn cơ chế khóa dòng tương tự từ khi bỏ chống quá tải tự động, mục 10.2), `don_hang(tuyen_id) WHERE chuyen_id IS NULL` (danh sách đơn chờ chất lên xe theo tuyến, UC-26, mục 10.2), `chuyen_xe(xe_id, gio_khoi_hanh)` (dùng cho truy vấn vị trí xe, mục 7), `chuyen_xe(xe_id) WHERE xe_thuc_te_id IS NOT NULL` (dùng để liệt kê nhanh mọi chuyến đang chạy thay của 1 xe gốc, UC-20), `chuyen_xe(xe_id) WHERE xe_id IS NULL` (danh sách "chuyến cần gán xe", UC-44, mục 3.5), `ho_so_can_bo_diem(van_phong_id)` (điều độ viên/nhân viên quầy vé lọc theo phạm vi mình phụ trách gần như mọi truy vấn).
+- **Sinh `chuyen_xe` từ `lich_chay_dinh_ky` là thao tác thủ công của `quan_ly`** (`NGHIEP_VU.md` mục 3.5, UC-47) — không có job định kỳ (đã bỏ; `jobs/` chỉ còn các job quét theo thời gian của UC-19/44/25 và quét hết hạn/no-show). Cần logic tránh sinh trùng theo (lịch, ngày) và ghép múi giờ VN tường minh (xem mục 3.5 file này).
 - **Bảng `thong_bao`** là đề xuất bổ sung của tôi (giống bản v1) — xác nhận lại có cần hay chấp nhận mất thông báo khi khách offline trước khi đưa vào migration chính thức.
 - **Cơ chế "đặt cọc" cho lô nhiều vé** (`NGHIEP_VU.md` mục 3.4): khi lô >600.000đ chưa đủ số vé `la_ve_dat_coc` được thanh toán trong 5 phút, toàn bộ lô (cùng `ma_dat_cho`) phải chuyển `het_han` — đây là logic Service quét theo `ma_dat_cho`, không có constraint DB nào diễn tả trực tiếp được, cần test kỹ ở tầng integration test.
-- **Cơ chế "hoãn" chuyến (`chuyen_xe.dang_hoan`) + ngưỡng cảnh báo 6 tiếng** (`NGHIEP_VU.md` mục 3.3): việc bật/tắt `dang_hoan`, dời `gio_khoi_hanh` nhiều lần, và mở quyền hủy-hoàn-100% cho vé `da_thanh_toan` (UC-41) đều là logic Service, không phải constraint DB — đặc biệt lưu ý chuyến **không bao giờ** được phép tự động chuyển `da_huy` chỉ vì hết xe thay thế, kể cả khi vượt ngưỡng cảnh báo. Có **2 đường bật cờ `dang_hoan`** cần cài đặt riêng: điều độ viên bật thủ công (UC-20, xe đã gán rồi hỏng) và job định kỳ tự bật (UC-45 ⏱, chưa từng gán được xe mà đã tới `gio_khoi_hanh`) — job UC-45 nên gộp chung vào đúng `jobs/quet_het_han.py` (`ARCHITECTURE.md` mục 5), quét `chuyen_xe` có `xe_id IS NULL AND gio_khoi_hanh <= now() AND trang_thai = 'chua_khoi_hanh'`.
-- **Xử lý sự cố giữa đường theo `chuyen_xe.loai_su_co`** (`NGHIEP_VU.md` mục 3.3/4, UC-19): ngưỡng 1 tiếng (`loi_nha_xe`) và 3 tiếng (`loi_khach_quan`) chỉ mang tính hướng dẫn cho điều độ viên đánh giá mức độ, **không có ngưỡng nào tự động set `da_huy`** — luôn cần điều độ viên xác nhận thủ công là thực sự không thể tiếp tục (chỉ áp dụng cho `loai_su_co = 'loi_khach_quan'`, UC-21). Riêng ngưỡng **≥3 tiếng cho `loi_nha_xe`** LÀ một mốc hệ thống tự động xử lý thật — nhưng chỉ để **tự động hoàn tiền** (UC-43, `lich_su_hoan_tien`), **không đổi `chuyen_xe.trang_thai` hay `ve.trang_thai`** gì cả.
+- **Cơ chế "hoãn" chuyến (`chuyen_xe.dang_hoan`) + ngưỡng cảnh báo 6 tiếng** (`NGHIEP_VU.md` mục 3.3): việc bật/tắt `dang_hoan`, dời `gio_khoi_hanh` nhiều lần, và mở quyền hủy-hoàn-100% cho vé `da_thanh_toan` (UC-41) đều là logic Service, không phải constraint DB — đặc biệt lưu ý chuyến **không bao giờ** được phép tự động chuyển `da_huy` chỉ vì hết xe thay thế, kể cả khi vượt ngưỡng cảnh báo. Có **2 đường bật cờ `dang_hoan`** cần cài đặt riêng: điều độ viên bật thủ công (UC-20, xe đã gán rồi hỏng) và job định kỳ tự bật (UC-44 ⏱, chưa từng gán được xe mà đã tới `gio_khoi_hanh`) — job UC-44 nên gộp chung vào đúng `jobs/quet_het_han.py` (`ARCHITECTURE.md` mục 5), quét `chuyen_xe` có `xe_id IS NULL AND gio_khoi_hanh <= now() AND trang_thai = 'chua_khoi_hanh'`.
+- **Xử lý sự cố giữa đường theo `chuyen_xe.loai_su_co`** (`NGHIEP_VU.md` mục 3.3/4, UC-19): ngưỡng 1 tiếng (`loi_nha_xe`) và 3 tiếng (`loi_khach_quan`) chỉ mang tính hướng dẫn cho điều độ viên đánh giá mức độ, **không có ngưỡng nào tự động set `da_huy`** — luôn cần điều độ viên xác nhận thủ công là thực sự không thể tiếp tục (chỉ áp dụng cho `loai_su_co = 'loi_khach_quan'`, UC-19). Riêng ngưỡng **≥3 tiếng cho `loi_nha_xe`** LÀ một mốc hệ thống tự động xử lý thật — nhưng chỉ để **tự động hoàn tiền** (UC-19, `lich_su_hoan_tien`), **không đổi `chuyen_xe.trang_thai` hay `ve.trang_thai`** gì cả.
 - **Chuyển khoản thủ công của `ke_toan` (UC-22) chỉ ghi nhận kết quả, không tích hợp ngân hàng**: hệ thống không có API/webhook nào với ngân hàng cho bước này (khác VNPay dùng cho thanh toán/hoàn tự động) — `ke_toan` tự chuyển khoản ngoài hệ thống rồi mới quay lại nhập `so_tai_khoan_nhan`/`ten_ngan_hang_nhan`/`ten_chu_tai_khoan_nhan` và đánh dấu `trang_thai = 'da_hoan_chuyen_khoan_thu_cong'` — chỉ để lưu vết đối soát, hệ thống không tự động xác minh các thông tin này đúng hay không.
 - **Phân quyền đọc `lich_su_hoan_tien`**: các cột `so_tai_khoan_nhan`/`ten_ngan_hang_nhan`/`ten_chu_tai_khoan_nhan` là dữ liệu nhạy cảm — chỉ `ke_toan`/`quan_ly` đọc được, các vai trò khác (kể cả nhân viên quầy vé tra cứu tình trạng hoàn tiền, mục 8.4 `NGHIEP_VU.md`) chỉ thấy `trang_thai`/`thoi_gian_hoan_xong`, không thấy thông tin tài khoản.
-- **Seed tài khoản `quan_ly` gốc**: migration khởi tạo phải insert đúng 1 dòng `nguoi_dung` với `vai_tro = 'quan_ly'`, `la_tai_khoan_goc = true` — kèm partial unique index (mục 1.1) để không ai (kể cả bug ở tầng Service) vô tình tạo thêm dòng `true` thứ 2. Phân quyền tạo/khóa `quan_ly`/`quan_ly_nhan_su` (UC-36/37/38 `NGHIEP_VU.md`) kiểm tra hoàn toàn ở Service dựa trên cột này, không có `CHECK` constraint nào diễn tả được logic "chỉ actor X mới thao tác được vai trò Y".
+- **Phân quyền đọc hồ sơ nhân sự**: `nhan_su_van_hanh.so_cccd`, `ngay_sinh` và `giay_to_nhan_su` (số giấy tờ, ảnh) là dữ liệu nhạy cảm — chỉ `quan_ly_nhan_su`/`quan_ly` đọc được; ảnh phát qua URL có chữ ký, không lưu URL cố định.
+- **Ngưỡng cảnh báo giấy tờ (mặc định 30 ngày, UC-49)**: hệ thống chưa có bảng cấu hình tham số, tạm để hằng số trong `backend/app/config.py`.
+- **Cho nghỉ việc (UC-51) chạy trong 1 transaction**: đặt `nhan_su_van_hanh.trang_thai`, khóa `nguoi_dung.dang_hoat_dong` (nếu là phụ xe), chuyển `xe_nhan_su.trang_thai` sang `tam_nghi`, ghi `nhat_ky_quan_ly_nhan_su` — cả 4 cùng thành công hoặc không làm gì. Nhật ký chỉ `INSERT`, không có `UPDATE`/`DELETE`.
+- **Seed tài khoản `quan_ly` gốc**: migration khởi tạo phải insert đúng 1 dòng `nguoi_dung` với `vai_tro = 'quan_ly'`, `la_tai_khoan_goc = true` — kèm partial unique index (mục 1.1) để không ai (kể cả bug ở tầng Service) vô tình tạo thêm dòng `true` thứ 2. Phân quyền tạo/khóa `quan_ly`/`quan_ly_nhan_su` (UC-36/37 `NGHIEP_VU.md`) kiểm tra hoàn toàn ở Service dựa trên cột này, không có `CHECK` constraint nào diễn tả được logic "chỉ actor X mới thao tác được vai trò Y".
+
+---
+
+## 10. Mã hiển thị tự sinh (`ma`)
+
+### 10.1. Khu vực, điểm đón/trả, tuyến, loại xe, chuyến, vé
+
+Áp dụng cho 6 mã: `khu_vuc.ma`, `diem_don_tra.ma`, `tuyen.ma`, `loai_xe.ma`, `chuyen_xe.ma` và `ve.ma_ve` — quy tắc nghiệp vụ ở `NGHIEP_VU.md` mục 3.6. Mã được **hàm Python dựng lúc `INSERT`** (migration `20261008_1100_ma_tu_sinh_bang_ham_python.sql` đã gỡ các trigger sinh mã trước đây):
+
+- `app/utils/ma_tu_sinh.py`: các hàm thuần `ma_khu_vuc`, `ma_tuyen`, `ma_loai_xe`, `ma_diem_don_tra`, `ma_chuyen`, `ma_ve` — unit test được (`tests/unit/test_ma_tu_sinh.py`). Số đệm 0 bằng định dạng Python nên **không cắt** khi số dài hơn độ rộng (`KV1000`, `VE1000000`).
+- `app/repositories/ma_repository.py`: lấy số thứ tự **trong giao dịch của lệnh INSERT** — sequence của Postgres cho khu vực/tuyến/loại xe/vé (không trùng, không tái dùng kể cả khi nhiều người thêm cùng lúc), `UPDATE khu_vuc SET so_diem_da_cap = so_diem_da_cap + 1 ... RETURNING` cho điểm đón/trả.
+- Mỗi repository tạo bản ghi (`dia_diem_repository`, `xe_repository`, `chuyen_xe_repository`, `ve_lock_repository`) tự điền cột mã. **Cột mã là `NOT NULL UNIQUE` nên INSERT nào quên điền sẽ báo lỗi ngay**, không sinh mã sai.
+
+| Bảng | Dạng mã | Nguồn số / thành phần |
+|---|---|---|
+| `khu_vuc` | `KV001` | sequence `seq_ma_khu_vuc` (toàn cục) |
+| `tuyen` | `T001` | sequence `seq_ma_tuyen` |
+| `loai_xe` | `LX001` | sequence `seq_ma_loai_xe` |
+| `diem_don_tra` | `KV001-DT001` | bộ đếm `khu_vuc.so_diem_da_cap`; `UPDATE ... RETURNING` **khóa dòng khu vực** nên 2 người cùng thêm điểm vào 1 khu vực được xếp hàng, không trùng số. Khu vực không tồn tại → lỗi FK (23503) |
+| `chuyen_xe` | `T001-LX001-261008-0800-DI` | `tuyen.ma` + `loai_xe.ma` + `YYMMDD-HHMM` theo giờ Việt Nam của `gio_khoi_hanh` + `DI` (xuoi) / `VE` (nguoc); gồm cả loại xe vì cùng tuyến/chiều/giờ vẫn có thể có 2 chuyến khác loại xe |
+| `ve` | `VE000001` | sequence `ve_ma_seq` |
+
+- Trigger `BEFORE UPDATE` (`giu_nguyen_ma`, `giu_ma_ve`) đặt lại mã cũ — **mã không sửa được** dù truyền vào (áp dụng cho `khu_vuc`, `diem_don_tra`, `tuyen`, `loai_xe`, `ve`). Đây là ràng buộc dữ liệu, giữ ở DB làm lưới an toàn.
+- **Riêng `chuyen_xe`** không có trigger giữ mã: khi quản lý sửa giờ (UC-48), `chuyen_xe_repository.sua_gio_chuyen` tự dựng lại mã theo giờ mới và `UPDATE` giờ cùng mã trong một lệnh. Đường điều độ viên dời giờ lúc `dang_hoan` không động tới cột `ma` nên mã giữ nguyên (chuyến khi đó đã có khách).
+- Trigger `BEFORE UPDATE` (`chan_doi_khu_vuc_diem`) chặn đổi `diem_don_tra.khu_vuc_id` (lỗi 23514).
+- Số thứ tự sequence/`so_diem_da_cap` **không lùi** khi xóa bản ghi → mã đã cấp không tái sử dụng.
+- Migration `20260930_1000` đã điền mã cho dữ liệu có sẵn trước (khu vực theo tỉnh + tên; điểm theo tên trong từng khu vực; tuyến theo `ngay_tao`; loại xe theo tên), đặt lại sequence/bộ đếm, rồi mới `SET NOT NULL` + `UNIQUE`; migration `20261008_1000` đánh số bù `ma_ve` cho vé cũ.
+- Mã chuyến có `UNIQUE`: sau khi sửa giờ, mã mới không thể trùng chuyến khác vì Service đã chặn trùng (loại xe, ngày, giờ) trước khi ghi; `UNIQUE` chỉ còn là lưới an toàn cuối.
+
+### 10.2. Mã nhân viên (`nguoi_dung.ma`, `nhan_su_van_hanh.ma`)
+
+Quy tắc nghiệp vụ ở `NGHIEP_VU.md` mục 2. Migration `20261105_0900_ma_nhan_vien.sql`. Khác 6 mã ở mục 10.1 ở chỗ **mã dựng từ tiền tố vai trò** và **cột cho phép trống**.
+
+| Tiền tố | Ai | Cột | Sequence |
+|---|---|---|---|
+| `TX` | Tài xế (hồ sơ, không có tài khoản) | `nhan_su_van_hanh.ma` | `seq_ma_tai_xe` |
+| `PX` | Phụ xe | `nguoi_dung.ma` (hồ sơ dùng lại, không có mã riêng) | `seq_ma_phu_xe` |
+| `QV` | Nhân viên quầy vé | `nguoi_dung.ma` | `seq_ma_quay_ve` |
+| `GH` | Nhân viên gửi hàng | `nguoi_dung.ma` | `seq_ma_gui_hang` |
+| `DDV` | Điều độ viên | `nguoi_dung.ma` | `seq_ma_dieu_do_vien` |
+| `KT` | Kế toán | `nguoi_dung.ma` | `seq_ma_ke_toan` |
+| `NS` | Quản lý nhân sự | `nguoi_dung.ma` | `seq_ma_quan_ly_nhan_su` |
+| `QL` | Quản lý (tài khoản gốc cố định `QL0000`, không dùng sequence; các quản lý khác từ `QL0001`) | `nguoi_dung.ma` | `seq_ma_quan_ly` (bắt đầu từ 1) |
+
+Khách hàng **không có mã**. Dạng mã `<tiền tố><số 4 chữ số>` (`PX0001`, `DDV0012`); quá 9999 thì số dài ra, không cắt.
+
+- **Sinh mã:** `app/utils/ma_tu_sinh.py` (`TIEN_TO_NHAN_VIEN`, `MA_QUAN_LY_GOC`, `ma_nhan_vien(vai_tro, so)`) và `app/repositories/ma_repository.py` (`cap_ma_nhan_vien(cur, vai_tro)`). Mã được cấp **trong cùng transaction với lệnh `INSERT`**: `tai_khoan_can_bo_repository.tao_tai_khoan` (UC-36) và `nhan_su_van_hanh_repository.tao_ho_so` (UC-49, chỉ tài xế). Vai trò không có mã (khách hàng...) bị từ chối **trước khi lấy số** nên không làm hao sequence.
+- **Cột cho phép NULL** (khác 6 mã trên là `NOT NULL`): khách hàng không có mã; hồ sơ phụ xe không có mã riêng; các script seed demo chèn thẳng `nguoi_dung` (không đi qua UC-36) không điền mã. **Không có `CHECK` bắt buộc cán bộ phải có mã** — đường tạo cán bộ trên môi trường thật chỉ có UC-36 (và tài khoản gốc seed trong migration) và cả hai đều tự điền mã.
+- **Ràng buộc:** `UNIQUE` một phần (`nguoi_dung_ma_duy_nhat`, `nhan_su_van_hanh_ma_duy_nhat`, bỏ qua dòng trống); `nguoi_dung_ma_hop_le` (khách hàng phải trống; có mã thì đúng tiền tố của `vai_tro`, `^<TIỀN TỐ>[0-9]{4,}$`); `nguoi_dung_ql0000_chi_cho_tai_khoan_goc`; `nhan_su_van_hanh_ma_hop_le` (chỉ `chuc_danh = 'tai_xe'`, `^TX[0-9]{4,}$`).
+- **Mã không sửa được:** trigger `BEFORE UPDATE` `giu_ma_nhan_vien()` chỉ giữ mã khi mã **đã có** (khác `giu_nguyen_ma()` luôn ghi đè): tài khoản chưa có mã vẫn điền bù được, đã có mã thì không đổi được.
+- **Dữ liệu cũ:** migration điền mã trước, tạo trigger sau; quản lý gốc `QL0000`, cán bộ còn lại theo `(ngay_tao, id)` trong từng vai trò, tài xế theo `(ngay_vao_lam, id)` (hồ sơ không có `ngay_tao`); rồi đặt lại sequence cho khớp.
+- **Số không tái sử dụng**, có thể có chỗ trống (transaction hỏng sau khi lấy số) — giống các mã khác. Giữ nguyên khi khóa tài khoản hay cho nghỉ việc.
+- **Hiển thị:** API trả `ma` ở danh sách / chi tiết tài khoản cán bộ, hồ sơ nhân sự (tài xế: mã hồ sơ; phụ xe: mã tài khoản liên kết qua `COALESCE`) và ô chọn tài khoản phụ xe; tìm kiếm được theo mã.
+- **Lưu ý bảo trì:** thêm vai trò mới vào `nguoi_dung.vai_tro` thì phải thêm tiền tố / sequence và sửa `CHECK nguoi_dung_ma_hop_le` (nhánh `ELSE false` hiện từ chối mọi `INSERT` của vai trò chưa khai báo).
