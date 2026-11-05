@@ -46,7 +46,7 @@
         <div class="kv-thanh-cong">
           <div class="kv-tim">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-            <input type="search" id="tk-tim" placeholder="Tìm theo họ tên, email hoặc số điện thoại..." autocomplete="off" />
+            <input type="search" id="tk-tim" placeholder="Tìm theo mã, họ tên, email hoặc số điện thoại..." autocomplete="off" />
           </div>
           <div class="dd-chips" id="tk-chips"></div>
           <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Tạo tài khoản</button>
@@ -231,10 +231,11 @@
       const loc = dsTaiKhoan.filter((t) => {
         if (boLocVaiTro !== "tat_ca" && t.vai_tro !== boLocVaiTro) return false;
         if (!tk) return true;
-        return boDau(`${t.ho_ten} ${t.email} ${t.so_dien_thoai}`).includes(tk);
+        return boDau(`${t.ma || ""} ${t.ho_ten} ${t.email} ${t.so_dien_thoai}`).includes(tk);
       });
 
       renderDataTable(bang, [
+        { key: "ma", label: "Mã", render: (r) => (r.ma ? `<strong style="font-family:monospace;">${esc(r.ma)}</strong>` : "—") },
         { key: "ho_ten", label: "Họ tên", render: (r) => esc(r.ho_ten) },
         { key: "email", label: "Email", render: (r) => esc(r.email) },
         { key: "so_dien_thoai", label: "Số điện thoại", render: (r) => esc(r.so_dien_thoai) },
@@ -364,8 +365,9 @@
 
     function hienKetQua(kq) {
       const tenVaiTro = NHAN_VAI_TRO[kq.vai_tro] || kq.vai_tro;
-      thongTinSaoChep = `Email đăng nhập: ${kq.email}\nMật khẩu ban đầu: ${kq.mat_khau_ban_dau}`;
+      thongTinSaoChep = `Mã nhân viên: ${kq.ma}\nEmail đăng nhập: ${kq.email}\nMật khẩu ban đầu: ${kq.mat_khau_ban_dau}`;
       document.getElementById("ket-qua-noi-dung").innerHTML = `
+        <div><span class="nv-text-phu">Mã nhân viên:</span> <strong style="font-family:monospace; font-size:16px;">${esc(kq.ma)}</strong></div>
         <div><span class="nv-text-phu">Họ tên:</span> <strong>${esc(kq.ho_ten)}</strong> (${esc(tenVaiTro)})</div>
         <div><span class="nv-text-phu">Email đăng nhập:</span> <strong>${esc(kq.email)}</strong></div>
         <div><span class="nv-text-phu">Mật khẩu ban đầu:</span> <strong style="font-family:monospace; font-size:16px;">${esc(kq.mat_khau_ban_dau)}</strong></div>`;
@@ -401,8 +403,8 @@
       const laKhoa = tk.dang_hoat_dong;
       document.getElementById("khoa-tieu-de").textContent = laKhoa ? "Khóa tài khoản" : "Mở khóa tài khoản";
       document.getElementById("khoa-mo-ta").innerHTML = laKhoa
-        ? `Khóa tài khoản <strong>${esc(tk.ho_ten)}</strong> (${esc(NHAN_VAI_TRO[tk.vai_tro] || tk.vai_tro)}). Người này sẽ <strong>không đăng nhập được</strong>, kể cả phiên đang mở. Dữ liệu và lịch sử vẫn được giữ.`
-        : `Mở khóa tài khoản <strong>${esc(tk.ho_ten)}</strong> (${esc(NHAN_VAI_TRO[tk.vai_tro] || tk.vai_tro)}). Người này sẽ đăng nhập lại được bằng mật khẩu hiện có.`;
+        ? `Khóa tài khoản <strong>${esc(tk.ho_ten)}</strong> (${tk.ma ? esc(tk.ma) + ", " : ""}${esc(NHAN_VAI_TRO[tk.vai_tro] || tk.vai_tro)}). Người này sẽ <strong>không đăng nhập được</strong>, kể cả phiên đang mở. Dữ liệu và lịch sử vẫn được giữ.`
+        : `Mở khóa tài khoản <strong>${esc(tk.ho_ten)}</strong> (${tk.ma ? esc(tk.ma) + ", " : ""}${esc(NHAN_VAI_TRO[tk.vai_tro] || tk.vai_tro)}). Người này sẽ đăng nhập lại được bằng mật khẩu hiện có.`;
       document.getElementById("khoa-xac-nhan").textContent = laKhoa ? "Khóa tài khoản" : "Mở khóa";
       oLyDo.value = "";
       document.getElementById("khoa-dem").textContent = "0";

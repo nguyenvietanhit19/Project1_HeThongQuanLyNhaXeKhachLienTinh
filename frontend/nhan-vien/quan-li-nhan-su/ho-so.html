@@ -46,7 +46,7 @@
         <div class="kv-thanh-cong">
           <div class="kv-tim">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-            <input type="search" id="hs-tim" placeholder="Tìm theo họ tên hoặc số điện thoại..." autocomplete="off" />
+            <input type="search" id="hs-tim" placeholder="Tìm theo mã, họ tên hoặc số điện thoại..." autocomplete="off" />
           </div>
           <div class="dd-chips" id="hs-chips"></div>
           <label style="display:flex; align-items:center; gap:6px; font-size:14px; white-space:nowrap;">
@@ -242,12 +242,13 @@
       const loc = dsHoSo.filter((h) => {
         if (boLocChucDanh !== "tat_ca" && h.chuc_danh !== boLocChucDanh) return false;
         if (!tk) return true;
-        return boDau(`${h.ho_ten} ${h.so_dien_thoai}`).includes(tk);
+        return boDau(`${h.ma || ""} ${h.ho_ten} ${h.so_dien_thoai}`).includes(tk);
       });
 
       renderDataTable(
         bangHoSo,
         [
+          { key: "ma", label: "Mã", render: (r) => (r.ma ? `<strong style="font-family:monospace;">${esc(r.ma)}</strong>` : "—") },
           { key: "ho_ten", label: "Họ tên" },
           { key: "so_dien_thoai", label: "Số điện thoại" },
           { key: "chuc_danh", label: "Chức danh", render: (r) => htmlPill(NHAN_CHUC_DANH[r.chuc_danh].lop, NHAN_CHUC_DANH[r.chuc_danh].nhan) },
@@ -295,7 +296,7 @@
         const ds = await apiGet("/quan-ly-nhan-su/tai-khoan-phu-xe-chua-gan");
         oTaiKhoan.innerHTML =
           `<option value="">${ds.length ? "— Chọn tài khoản phụ xe —" : "Không còn tài khoản phụ xe nào chưa gắn hồ sơ"}</option>` +
-          ds.map((t) => `<option value="${esc(t.id)}">${esc(t.ho_ten)} — ${esc(t.email)}</option>`).join("");
+          ds.map((t) => `<option value="${esc(t.id)}">${t.ma ? esc(t.ma) + " — " : ""}${esc(t.ho_ten)} — ${esc(t.email)}</option>`).join("");
       } catch (err) {
         oTaiKhoan.innerHTML = `<option value="">${esc(err.message)}</option>`;
       }
@@ -363,7 +364,7 @@
     async function moModalSua(row) {
       try {
         const hoSo = await apiGet(`/quan-ly-nhan-su/ho-so/${row.id}`);
-        document.getElementById("modal-tieu-de").textContent = "Sửa hồ sơ";
+        document.getElementById("modal-tieu-de").textContent = hoSo.ma ? `Sửa hồ sơ — ${hoSo.ma}` : "Sửa hồ sơ";
         document.getElementById("nhan_su_id").value = hoSo.id;
         document.getElementById("ho_ten").value = hoSo.ho_ten;
         document.getElementById("so_dien_thoai").value = hoSo.so_dien_thoai;

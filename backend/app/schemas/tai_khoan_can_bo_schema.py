@@ -49,6 +49,7 @@ class TaoTaiKhoanCanBoRequest(BaseModel):
 
 class TaoTaiKhoanCanBoResponse(BaseModel):
     id: UUID
+    ma: str = Field(description="Mã nhân viên tự sinh theo vai trò, VD PX0001 — không đổi sau khi tạo")
     email: str
     ho_ten: str
     vai_tro: str
@@ -62,12 +63,13 @@ class TaiKhoanCanBoResponse(BaseModel):
     """Một dòng trong danh sách tài khoản cán bộ."""
 
     id: UUID
+    ma: str | None = Field(description="Mã nhân viên; null với tài khoản tạo trực tiếp vào DB (VD script demo) chưa được cấp mã")
     email: str
     ho_ten: str
     so_dien_thoai: str
     vai_tro: str
     dang_hoat_dong: bool
-    da_dat_mat_khau: bool = Field(description="false = vừa được mời, chưa tự đặt mật khẩu lần đầu")
+    da_dat_mat_khau: bool = Field(description="true = tài khoản đã có mật khẩu (tạo mới luôn có mật khẩu ban đầu); false chỉ gặp ở dữ liệu cũ chưa có mật khẩu")
     van_phong_id: UUID | None
     ten_van_phong: str | None
     ngay_tao: datetime
