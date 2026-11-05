@@ -189,3 +189,70 @@ def xe_thieu_phu_xe(nguoi_dung_id: str) -> list[dict]:
             return [dict(zip(cols, r)) for r in cur.fetchall()]
     finally:
         release_connection(conn)
+
+
+# ---------------------------------------------------------
+# Đổi văn phòng của cán bộ — nhánh kèm UC-36 (KE_HOACH_DOI_VAN_PHONG.md)
+# ---------------------------------------------------------
+def doi_van_phong(nguoi_dung_id: str, van_phong_moi_id: str) -> tuple[str, str | None]:
+    """Đổi (hoặc gán lần đầu) văn phòng của quầy vé / gửi hàng trong MỘT transaction.
+
+    Quy tắc "văn phòng cũ còn ≥ 1 người": khóa dòng văn phòng cũ (`FOR UPDATE`) rồi mới đếm đồng nghiệp CÙNG VAI TRÒ
+    đang hoạt động ở văn phòng cũ, không tính người chuyển — nhờ khóa này hai người cùng chuyển một lúc khỏi văn
+    phòng chỉ có 2 người sẽ xếp hàng, người sau bị chặn. Không áp dụng khi: chưa có văn phòng cũ (gán lần đầu), hoặc
+    người chuyển đang bị khóa tài khoản (họ vốn không được tính là đang làm).
+
+    Trả về (mã kết quả, van_phong_cu_id): 'ok' | 'khong_tim_thay' | 'trung_van_phong' | 'het_nguoi'. Khác 'ok' thì
+    không ghi gì. Không dùng nguoi_dung_repository.gan_van_phong (của phần gửi hàng) để khỏi sửa file của họ."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT nd.vai_tro, nd.dang_hoat_dong, h.van_phong_id
+                FROM nguoi_dung nd
+                LEFT JOIN ho_so_can_bo_diem h ON h.nguoi_dung_id = nd.id
+                WHERE nd.id = %s
+                FOR UPDATE OF nd
+                """,
+                (nguoi_dung_id,),
+            )
+            row = cur.fetchone()
+            if not row:
+                conn.rollback()
+                return "khong_tim_thay", None
+            vai_tro, dang_hoat_dong, van_phong_cu_id = row
+            if van_phong_cu_id is not None and str(van_phong_cu_id) == str(van_phong_moi_id):
+                conn.rollback()
+                return "trung_van_phong", van_phong_cu_id
+
+            if van_phong_cu_id is not None and dang_hoat_dong:
+                cur.execute("SELECT id FROM diem_don_tra WHERE id = %s FOR UPDATE", (van_phong_cu_id,))
+                cur.execute(
+                    """
+                    SELECT count(*)
+                    FROM ho_so_can_bo_diem h
+                    JOIN nguoi_dung u ON u.id = h.nguoi_dung_id
+                    WHERE h.van_phong_id = %s AND u.vai_tro = %s AND u.dang_hoat_dong = true AND u.id <> %s
+                    """,
+                    (van_phong_cu_id, vai_tro, nguoi_dung_id),
+                )
+                if cur.fetchone()[0] < 1:
+                    conn.rollback()
+                    return "het_nguoi", van_phong_cu_id
+
+            cur.execute(
+                """
+                INSERT INTO ho_so_can_bo_diem (nguoi_dung_id, van_phong_id)
+                VALUES (%s, %s)
+                ON CONFLICT (nguoi_dung_id) DO UPDATE SET van_phong_id = EXCLUDED.van_phong_id
+                """,
+                (nguoi_dung_id, van_phong_moi_id),
+            )
+        conn.commit()
+        return "ok", van_phong_cu_id
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)

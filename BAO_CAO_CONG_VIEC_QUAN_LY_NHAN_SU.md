@@ -13,7 +13,7 @@
 |---|---|
 | **UC-49** Quản lý hồ sơ nhân sự vận hành (tài xế/phụ xe) + cảnh báo giấy tờ hết hạn | ✅ Xong cả backend và frontend, **đã merge** vào `integration/gop-nhanh-thanh-vien` (#36). Chưa có test tự động |
 | **UC-36** Tạo tài khoản cán bộ | ✅ Backend + frontend xong, **đã merge** (#38, squash `f912340`); đã xem trên trình duyệt thật 5/11. Từ 5/11 còn tự cấp mã nhân viên (mục 2C) |
-| Nhánh kèm theo UC-36: **đổi văn phòng** | 📐 Đã ghi nghiệp vụ + sơ đồ + kế hoạch. **Chưa code**: chờ nhóm chốt 2 quy tắc (còn đơn đang xử lý có chặn không; lý do có bắt buộc không) |
+| Nhánh kèm theo UC-36: **đổi văn phòng** | ✅ Backend + frontend + test xong (6/11, nhánh `feature/Nghia-doi-van-phong`, chưa merge; có 1 migration mới). Quy tắc chốt 6/11: không chặn khi còn đơn; văn phòng cũ phải còn ≥ 1 người cùng vai trò; lý do bắt buộc ≤ 200 từ |
 | **UC-37** Khóa / mở khóa tài khoản cán bộ | ✅ Backend + frontend + `nhat_ky_admin` xong, **đã merge** (#44). Đã thử thật: QLNS, `quan_ly` thường, token cũ bị chặn ngay khi khóa. **Chưa thử thật:** `quan_ly` **gốc** và ca phụ xe thiếu xe (chỉ unit test); cảnh báo tuyến hết điều độ viên chờ nhóm điều độ viên |
 | **Mã nhân viên** (tiền tố theo vai trò + số tự tăng) | ✅ Backend + frontend xong, đã kiểm tra (mục 2C), **chưa commit**. Còn: sửa tài liệu cho khớp (đang làm), commit, PR, báo nhóm |
 | UC-51 | ✅ Backend + frontend + test xong (5/11, nhánh `feature/Nghia-uc51-cho-nghi-viec`, chưa merge) |
@@ -243,6 +243,25 @@ Kế hoạch: `KE_HOACH_UC52_XEM_NHAT_KY.md`. **Không có migration mới; khô
 
 **Đã kiểm tra thật:** API qua HTTP bằng tài khoản `quan_ly` gốc; 27 ca trên DB thật trong một transaction rồi rollback (DB sạch; gồm cả hai bảng, thứ tự, biên giờ VN, phân trang, lọc, đối tượng lạ, QLNS không thấy dòng của người khác); giao diện trên Edge với API giả. **Chưa:** nhánh QLNS qua HTTP thật (chưa có mật khẩu tài khoản QLNS), bấm lọc từ trình duyệt qua backend thật nối liền.
 
+## 2F. Code đổi văn phòng của cán bộ — nhánh kèm UC-36 (làm 6/11, **chưa commit**)
+
+Kế hoạch: `KE_HOACH_DOI_VAN_PHONG.md`. **1 migration mới**; không sửa hàm cũ của ai (chỉ thêm cuối file).
+
+Quy tắc (Nghĩa chốt 6/11): (1) không chặn khi còn đơn đang xử lý; (2) văn phòng cũ phải còn ≥ 1 nhân viên **cùng vai trò, đang hoạt động**, không tính người chuyển (quầy vé và gửi hàng đếm riêng); (3) lý do bắt buộc, tối đa **200 từ**.
+
+| File | Nội dung |
+|---|---|
+| `backend/migrations/20261106_0900_nhat_ky_qlns_them_doi_van_phong.sql` (mới) | Nới `CHECK` của `nhat_ky_quan_ly_nhan_su` thêm `doi_van_phong` (đã áp dụng thật trên DB local) |
+| `backend/app/repositories/tai_khoan_can_bo_repository.py` | `doi_van_phong`: 1 transaction, khóa dòng văn phòng cũ (`FOR UPDATE`) rồi đếm đồng nghiệp; trả `ok` / `khong_tim_thay` / `trung_van_phong` / `het_nguoi`. Không dùng `nguoi_dung_repository.gan_van_phong` của phần gửi hàng |
+| `backend/app/schemas/tai_khoan_can_bo_schema.py` | `DoiVanPhongRequest` (lý do ≤ 200 từ, ≤ 2000 ký tự), `DoiVanPhongResponse` |
+| `backend/app/services/tai_khoan_can_bo_service.py` | `doi_van_phong` (quyền, vai trò, lý do, văn phòng hợp lệ, nhật ký `doi_van_phong`: QLNS → bảng riêng, `quan_ly` → `nhat_ky_admin`) |
+| `backend/app/routes/tai_khoan_can_bo.py` | `PUT /quan-ly-nhan-su/tai-khoan/{id}/van-phong` |
+| `backend/app/services/nhat_ky_service.py` | Nhãn "Đổi văn phòng" cho màn nhật ký UC-52 |
+| `backend/tests/unit/test_doi_van_phong.py` (mới) | 44 test |
+| `frontend/nhan-vien/quan-li-nhan-su/tai-khoan.html` | Nút "Đổi văn phòng" / "Gán văn phòng", hộp thoại chọn văn phòng + lý do (đếm từ /200) |
+
+**Đã kiểm tra thật:** 20 ca trên DB thật trong một transaction rồi rollback (DB sạch); giao diện trên Edge với API giả. **Chưa:** hai người cùng chuyển lúc văn phòng chỉ có 2 người (cần hai kết nối thật), bấm đổi từ trình duyệt qua backend thật nối liền.
+
 ## 3. File của người khác mà tôi **có sửa**
 
 | File | Sửa gì | Lý do / mức độ |
@@ -358,8 +377,8 @@ Chi tiết và 9 bước ở `KE_HOACH_UC37_KHOA_MO_KHOA_TAI_KHOAN.md`.
 3. **Báo nhóm** (chưa báo việc nào trong `TAC_DONG_...`): bản tóm tắt ở mục 11 của file đó. Nhớ nhắc cả nhóm chạy `yoyo apply ./migrations` sau khi PR merge.
 4. **Test tay ca `quan_ly` gốc** của UC-37 (cần đặt tạm mật khẩu `admin@nhaxekhach.com` rồi khôi phục; hỏi trước khi làm) và ca phụ xe thiếu xe.
 5. ~~UC-51 (cho nghỉ việc)~~ — xong 5/11 (mục 2D); ~~UC-52 (xem nhật ký)~~ — xong 5/11 (mục 2E).
-6. **Đổi văn phòng**: làm sau khi nhóm chốt 2 quy tắc ở `TAC_DONG_...` mục 7; sửa lại nhánh trong `NGHIEP_VU.md` nếu quy tắc đổi.
-7. **Sau cùng**: xóa chuỗi hàm `gan_van_phong_can_bo` (4 file) khi nhóm đồng ý và đổi văn phòng đã chạy được.
+6. ~~Đổi văn phòng~~ — xong 6/11 (mục 2F).
+7. ~~Xóa chuỗi hàm `gan_van_phong_can_bo`~~ — **không thuộc phần của mình** (Nghĩa chốt 6/11): để phần gửi hàng tự làm sau khi đổi văn phòng merge.
 8. Còn nợ: test tự động cho `ho_so_nhan_su_service.py`; cờ bắt buộc đổi mật khẩu lần đầu (cần cột mới ở bảng dùng chung); cảnh báo "tuyến hết điều độ viên" khi khóa điều độ viên (chờ bảng `dieu_do_vien_tuyen`).
 9. Không dùng `docker-compose down -v` (mất tài khoản test `quanlynhansu@gmail.com`).
 
@@ -372,7 +391,7 @@ Chi tiết và 9 bước ở `KE_HOACH_UC37_KHOA_MO_KHOA_TAI_KHOAN.md`.
 | 3 | ✅ **Đã sửa 5/11** (`ELSE ma IS NULL`, đã áp dụng lại trên DB local) — **`ELSE false` trong `CHECK` mã** | Thêm vai trò mới vào `nguoi_dung` thì mọi `INSERT` của vai trò đó bị từ chối cho tới khi sửa `CHECK nguoi_dung_ma_hop_le` |
 | 4 | ✅ **Đã sửa 5/11** — **Mô tả `da_dat_mat_khau` lỗi thời** | `tai_khoan_can_bo_schema.py` ghi "false = vừa được mời"; sau khi bỏ OTP không còn đúng |
 | 5 | **Nhánh `quan_ly` gốc của UC-37** | Chưa chạy thật; ca phụ xe thiếu xe cũng chỉ có unit test |
-| 6 | **Đổi văn phòng sẽ cần migration** | `nhat_ky_quan_ly_nhan_su` có `CHECK` chỉ cho 6 hành động, nên ghi `doi_van_phong` phải sửa `CHECK` |
+| 6 | ✅ **Đã làm 6/11** (migration `20261106_0900`) — **Đổi văn phòng cần migration** | `nhat_ky_quan_ly_nhan_su` có `CHECK` chỉ cho 6 hành động, nên ghi `doi_van_phong` phải sửa `CHECK` |
 | 7 | **Tên vai trò phụ xe** | `NGHIEP_VU.md` ghi `nhan_vien_van_hanh`, DB / code là `phu_xe` |
 | 8 | `main.py` có 3 dòng `from app.jobs import ...` chồng lặp tên (dòng 10–12) | Do các lần merge, vô hại; nên báo Trưởng nhóm |
 
@@ -381,9 +400,9 @@ Chi tiết và 9 bước ở `KE_HOACH_UC37_KHOA_MO_KHOA_TAI_KHOAN.md`.
 - ~~Khóa khách hàng (UC-37)~~ — đã chốt 23/10: không ai khóa/mở khách hàng, hệ thống tự khóa.
 - Tên vai trò phụ xe: tài liệu `nhan_vien_van_hanh`, DB và code `phu_xe`.
 - ~~Mã OTP 1 phút có hợp lý cho thư mời cán bộ không?~~ Không còn đặt ra: UC-36 đã bỏ OTP, dùng mật khẩu mặc định. Nhưng đây là thay đổi so với spec cũ nên **cần báo nhóm**.
-- Đổi văn phòng: còn đơn đang xử lý thì có chặn không? Lý do đổi có bắt buộc không? (đang ghi: không chặn, không bắt buộc)
-- Khi làm đổi văn phòng: có ghi nhật ký cho `quan_ly` (qua `nhat_ky_admin`) không, hay chỉ QLNS như spec cũ? (xem vấn đề 1 và 6 ở trên)
-- Nhóm gửi hàng có đồng ý xóa chuỗi `gan_van_phong_can_bo` (ưu tiên để họ tự xóa)?
+- ~~Đổi văn phòng: còn đơn đang xử lý có chặn không? Lý do có bắt buộc không?~~ Đã chốt 6/11: không chặn; bắt buộc, tối đa 200 từ; thêm quy tắc văn phòng cũ phải còn ≥ 1 người cùng vai trò.
+- ~~Đổi văn phòng có ghi nhật ký cho `quan_ly` không?~~ Có: `quan_ly` ghi `nhat_ky_admin`, QLNS ghi bảng riêng.
+- Xóa chuỗi `gan_van_phong_can_bo`: **để phần gửi hàng tự làm** (không thuộc phần mình).
 - Còn chỗ tài liệu nhắc điều độ viên gắn văn phòng (`NGHIEP_VU.md` mục 2 "Nguyên tắc xuyên suốt", phần UC-44) — thuộc nhóm điều độ viên.
 
 ---

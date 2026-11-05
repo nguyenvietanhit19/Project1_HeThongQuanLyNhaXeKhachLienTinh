@@ -1325,15 +1325,19 @@ if (Tài khoản là nhân viên quầy vé hoặc gửi hàng?) then (không)
   :Từ chối — vai trò này không gắn văn phòng;
   stop
 endif
-:Hiển thị văn phòng hiện tại\n(chưa có thì xem như gán lần đầu), chọn văn phòng mới;
-if (Điểm được chọn là văn phòng\nvà khác văn phòng hiện tại?) then (không)
-  :Báo lỗi, chọn lại;
+:Hiển thị văn phòng hiện tại\n(chưa có thì xem như gán lần đầu),\nchọn văn phòng mới và nhập lý do (1-200 từ);
+if (Lý do hợp lệ, điểm được chọn là văn phòng\nvà khác văn phòng hiện tại?) then (không)
+  :Báo lỗi, nhập lại;
   stop
 endif
-:Cập nhật văn phòng của cán bộ;
-if (Người thao tác là Quản lý nhân sự?) then (đúng)
-  :Ghi nhật ký (văn phòng cũ -> văn phòng mới);
+if (Đã có văn phòng cũ và người này đang hoạt động?) then (đúng)
+  if (Văn phòng cũ còn ít nhất 1 nhân viên\ncùng vai trò đang hoạt động (không tính người này)?) then (không)
+    :Từ chối — cần có thêm nhân viên\ncùng chức vụ trước khi chuyển;
+    stop
+  endif
 endif
+:Cập nhật văn phòng của cán bộ;
+:Ghi nhật ký (văn phòng cũ -> văn phòng mới, kèm lý do)\nQuản lý nhân sự -> nhật ký riêng, Quản lý -> nhật ký admin;
 :Từ đây cán bộ chỉ thấy dữ liệu của văn phòng mới;
 stop
 @enduml

@@ -1236,15 +1236,17 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
 - **Tiền điều kiện**: Tài khoản mục tiêu là `nhan_vien_quay_ve` hoặc `nhan_vien_gui_hang`.
 - **Luồng chính**:
   1. Tìm cán bộ cần đổi văn phòng; hệ thống hiển thị văn phòng hiện tại.
-  2. Chọn văn phòng mới.
-  3. Hệ thống kiểm tra văn phòng mới hợp lệ (xem luồng rẽ nhánh), rồi cập nhật văn phòng của cán bộ.
-  4. Ghi nhật ký thao tác (văn phòng cũ → văn phòng mới) khi actor là `quan_ly_nhan_su` (mục 8.9).
+  2. Chọn văn phòng mới và nhập **lý do** (bắt buộc, văn bản tự do, 1–200 từ).
+  3. Hệ thống kiểm tra văn phòng mới hợp lệ và văn phòng cũ còn đủ người (xem luồng rẽ nhánh), rồi cập nhật văn phòng của cán bộ.
+  4. Ghi nhật ký thao tác (văn phòng cũ → văn phòng mới, kèm lý do): `quan_ly_nhan_su` ghi `nhat_ky_quan_ly_nhan_su`, `quan_ly` ghi `nhat_ky_admin`.
 - **Luồng rẽ nhánh**:
   - Tại bước 1: tài khoản mục tiêu không phải quầy vé / gửi hàng (các vai trò khác không gắn văn phòng) → chặn, báo "vai trò này không gắn văn phòng" → kết thúc.
   - Tại bước 3: điểm được chọn không phải văn phòng, hoặc trùng văn phòng hiện tại → báo lỗi → chọn lại.
-  - Tại bước 1: cán bộ **chưa có văn phòng nào** (tài khoản cũ, tạo trước khi có quy tắc này) → thao tác được xem là gán văn phòng lần đầu, các bước còn lại như nhau.
+  - Tại bước 1: cán bộ **chưa có văn phòng nào** (tài khoản cũ, tạo trước khi có quy tắc này) → thao tác được xem là gán văn phòng lần đầu, các bước còn lại như nhau (không có văn phòng cũ nên không áp dụng quy tắc "còn đủ người").
+  - Tại bước 3: **văn phòng cũ phải còn ít nhất 1 nhân viên cùng vai trò** (quầy vé đếm riêng với quầy vé, gửi hàng đếm riêng với gửi hàng), tài khoản **đang hoạt động**, **không tính người chuyển đi** → nếu không còn ai thì chặn, báo "văn phòng hiện tại chỉ còn mình người này, cần có thêm nhân viên cùng chức vụ trước khi chuyển" → kết thúc. VD: văn phòng có 2 nhân viên gửi hàng thì chỉ 1 trong 2 người được chuyển. Nếu người chuyển đi đang bị khóa tài khoản thì họ vốn không được tính là người đang làm nên không áp dụng quy tắc này. Kiểm tra nằm trong cùng transaction và khóa dòng văn phòng cũ, để hai người cùng chuyển một lúc không làm văn phòng bị trống.
+  - Tại bước 2: lý do để trống hoặc dài quá 200 từ → báo lỗi → nhập lại.
 - **Hậu điều kiện**: Từ lần đăng nhập / request kế tiếp, cán bộ chỉ thấy và thao tác dữ liệu của văn phòng mới. Các đơn, vé đã xử lý ở văn phòng cũ **giữ nguyên** (thuộc văn phòng, không thuộc cán bộ); thông báo cho văn phòng (đơn mới, hàng tồn, sự cố) gửi tới cán bộ theo văn phòng hiện tại. Lịch sử thao tác của cán bộ vẫn giữ nguyên trên cùng một tài khoản.
-- **Ghi chú**: không chặn đổi văn phòng khi cán bộ còn đơn đang xử lý, vì quyền xem đơn tính theo văn phòng chứ không theo người thao tác — đơn đó vẫn do nhân viên còn lại của văn phòng cũ tiếp nhận.
+- **Ghi chú**: **không chặn** đổi văn phòng khi cán bộ còn đơn đang xử lý (chốt 6/11/2026): quầy vé / gửi hàng không có trạng thái xử lý kéo dài như tài xế / phụ xe (mỗi thao tác xong trong vài giây), và quyền xem đơn tính theo văn phòng chứ không theo người thao tác — đơn đó vẫn do nhân viên còn lại của văn phòng cũ tiếp nhận, nên quy tắc "còn ít nhất 1 người cùng vai trò" ở trên là điều kiện đủ để văn phòng không bị bỏ trống.
 
 ### UC-37. Khóa / mở khóa tài khoản *(gộp từ UC-37 + UC-38 cũ)*
 

@@ -557,7 +557,7 @@ Bảng này **chỉ ghi hành động do chính `quan_ly_nhan_su` thực hiện*
 |---|---|---|
 | `id` | UUID PK | |
 | `quan_ly_nhan_su_id` | UUID NOT NULL, FK → `nguoi_dung(id)` | Người thực hiện. Phải có `vai_tro = 'quan_ly_nhan_su'` — kiểm tra ở Service lúc ghi (không dùng `CHECK` được vì phải join sang `nguoi_dung`) |
-| `hanh_dong` | TEXT NOT NULL, CHECK IN (`tao_tai_khoan`, `khoa_tai_khoan`, `mo_khoa_tai_khoan`, `tao_ho_so_nhan_su`, `sua_ho_so_nhan_su`, `cho_nghi_viec`) | 6 hành động đúng phạm vi UC-36/37 (khi actor là `quan_ly_nhan_su`) + UC-51. Không có `xoa_tai_khoan` — xem mục 0.3 |
+| `hanh_dong` | TEXT NOT NULL, CHECK IN (`tao_tai_khoan`, `khoa_tai_khoan`, `mo_khoa_tai_khoan`, `tao_ho_so_nhan_su`, `sua_ho_so_nhan_su`, `cho_nghi_viec`, `doi_van_phong`) | 7 hành động đúng phạm vi UC-36/37 (khi actor là `quan_ly_nhan_su`) + UC-51 + nhánh đổi văn phòng của UC-36 (`doi_van_phong`, migration `20261106_0900`). Không có `xoa_tai_khoan` — xem mục 0.3 |
 | `doi_tuong_loai` | TEXT NOT NULL, CHECK IN (`nguoi_dung`, `nhan_su_van_hanh`) | `nguoi_dung` khi thao tác lên tài khoản (`tao_tai_khoan`/`khoa_tai_khoan`/`mo_khoa_tai_khoan`); `nhan_su_van_hanh` khi thao tác lên hồ sơ (`tao_ho_so_nhan_su`/`sua_ho_so_nhan_su`/`cho_nghi_viec`) |
 | `doi_tuong_id` | UUID NOT NULL | id tương ứng với `doi_tuong_loai` |
 | `ghi_chu` | TEXT NULLABLE | VD lý do khóa tài khoản, lý do nghỉ việc |
