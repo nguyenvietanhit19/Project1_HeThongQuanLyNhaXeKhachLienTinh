@@ -25,15 +25,15 @@ Theo UC-19, sự cố **lỗi nhà xe không bao giờ bị hủy** (luôn tìm 
 
 ### 2.1. Đã có
 - Phụ xe báo sự cố (UC-17) → chuyến `gap_su_co`, báo khách có vé + điều độ viên.
-- Màn "Hàng đến" của văn phòng nhận gắn nhãn "⚠️ Chuyến gặp sự cố" / "⛔ Chuyến đã hủy" cho đơn đang trên chuyến đó.
-- Phần A (đang làm, nhánh `feature/Trinh-gui-hang-su-co-xe`): văn phòng gửi + văn phòng nhận **nhận thông báo** khi chuyến chở hàng của họ gặp sự cố; văn phòng gửi thấy nhãn cảnh báo trên đơn gửi đi; văn phòng nhận ghi được cuộc gọi báo trễ.
+- Màn "Hàng đến" của văn phòng nhận gắn nhãn "⚠️ Chuyến gặp sự cố" / "⛔ Chuyến đã hủy" cho đơn đang trên chuyến đó (chỉ hiển thị, không có thông báo).
+- *Đã làm thử rồi bỏ (05/11/2026), lưu ở nhánh local `feature/Trinh-gui-hang-su-co-xe-luu`:* báo văn phòng gửi + nhận khi chuyến chở hàng gặp sự cố / chạy lại / bị hủy, nút ghi cuộc gọi báo trễ, nhãn + bộ lọc ở "Đơn gửi đi". Có thể lấy lại nếu nhóm cần.
 
 ### 2.2. Chưa có (thuộc người khác)
 - **UC-19 chưa có code**: chưa có thao tác điều xe thay thế, cho chuyến chạy tiếp, hay hủy chuyến giữa đường. Hiện chuyến vào `gap_su_co` là đứng luôn ở đó.
 - Khi đổi xe giữa đường: chưa có bước phụ xe **kiểm đếm hàng** khi chuyển sang xe mới (kiện thiếu → báo thất lạc theo UC-28 đã có).
 
-### 2.3. Lưới an toàn tạm thời (trong lúc chờ chốt)
-Đơn nằm trên chuyến `da_huy` **không bị tự động đổi trạng thái gì**. Văn phòng gửi, văn phòng nhận và quản lý đều thấy đơn đó gắn nhãn "⛔ Chuyến đã hủy — cần xử lý" để xử lý thủ công (gọi điện) cho tới khi nhóm chốt.
+### 2.3. Trong lúc chờ chốt
+Đơn nằm trên chuyến `da_huy` **không bị tự động đổi trạng thái gì**. Văn phòng nhận (và quản lý khi xem màn "Hàng đến") thấy đơn đó gắn nhãn "⛔ Chuyến đã hủy" để xử lý thủ công (gọi điện); văn phòng gửi hiện chưa có nhãn này.
 
 ## 3. Các yếu tố làm phát sinh nhiều trường hợp
 

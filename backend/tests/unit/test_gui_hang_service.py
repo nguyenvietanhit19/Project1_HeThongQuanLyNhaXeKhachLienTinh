@@ -897,7 +897,7 @@ def test_lay_danh_sach_don_tra_items_va_total():
         assert res == {"items": [{"ma_van_don": "DH-01"}, {"ma_van_don": "DH-02"}], "total": 42}
         mock_ds.assert_called_once_with(
             van_phong_id=van_phong_id, huong="nhan", trang_thai=None, phuong_thuc_thanh_toan=None,
-            tu_khoa=None, limit=2, offset=10, van_de_chuyen=False,
+            tu_khoa=None, limit=2, offset=10,
         )
 
 

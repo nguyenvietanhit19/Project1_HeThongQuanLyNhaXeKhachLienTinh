@@ -159,7 +159,6 @@ def lay_danh_sach_don(
     tu_khoa: str | None = Query(None, max_length=100, description="Mã vận đơn, tên hoặc SĐT người gửi/nhận"),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    van_de_chuyen: bool = Query(False, description="Chỉ đơn còn trên xe mà chuyến gặp sự cố / đã hủy / đang hoãn"),
 ):
     """Danh sách đơn của văn phòng (phân trang phía server)."""
     return gui_hang_service.lay_danh_sach_don(
@@ -170,7 +169,6 @@ def lay_danh_sach_don(
         tu_khoa=tu_khoa,
         limit=limit,
         offset=offset,
-        van_de_chuyen=van_de_chuyen,
     )
 
 

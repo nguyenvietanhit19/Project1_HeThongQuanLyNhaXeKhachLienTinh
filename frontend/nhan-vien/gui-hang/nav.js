@@ -294,9 +294,8 @@ function khoiTaoNav(tabHienTai) {
 
 let danhSachThongBao = [];
 let wsDangKetNoi = false;
-// Các thông báo của gửi hàng (hàng mới tới, sự cố, nhắc 7/14 ngày) làm đổi danh sách hàng đến;
-// thông báo chuyến chở hàng gặp sự cố / chạy lại / bị hủy làm đổi nhãn cảnh báo ở đơn gửi đi.
-const TAB_LAM_MOI_KHI_CO_THONG_BAO = ["hang-den", "hang-ton", "don-gui"];
+// Các thông báo của gửi hàng (hàng mới tới, sự cố, nhắc 7/14 ngày) chỉ làm đổi danh sách hàng đến.
+const TAB_LAM_MOI_KHI_CO_THONG_BAO = ["hang-den", "hang-ton"];
 
 async function taiThongBao() {
   try {

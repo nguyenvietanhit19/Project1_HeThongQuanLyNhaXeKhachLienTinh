@@ -17,14 +17,6 @@ def _khong_cham_db_khi_bao_dieu_do_vien(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def _khong_cham_db_khi_bao_van_phong_gui_hang(monkeypatch):
-    """bao_su_co báo văn phòng gửi hàng qua gui_hang_service — test riêng ở test_gui_hang_su_co_chuyen.py."""
-    from app.services import gui_hang_service
-
-    monkeypatch.setattr(gui_hang_service, "bao_van_phong_khi_chuyen_co_bien_dong", lambda *a, **kw: None)
-
-
-@pytest.fixture(autouse=True)
 def _khong_cham_db_khi_danh_dau_khong_den(monkeypatch):
     """Tới điểm kế tiếp thì đánh dấu khách chưa lên ở điểm vừa rời — mặc định không ai (test riêng ở cuối file)."""
     monkeypatch.setattr(svc.ve_repo, "tim_ve_chua_len_tai_diem", lambda cid, did: [])

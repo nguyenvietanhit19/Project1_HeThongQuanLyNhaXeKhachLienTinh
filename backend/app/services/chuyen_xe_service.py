@@ -338,20 +338,6 @@ def bao_su_co(chuyen_id: str, loai_su_co: str, ly_do: str, nguoi_dung_id: str) -
         _gui_thong_bao(khach["khach_hang_id"], noi_dung)
 
     _bao_dieu_do_vien_su_co(chuyen, loai_su_co, ly_do)
-    _bao_van_phong_gui_hang(chuyen_id, "gap_su_co", ly_do.strip())
-
-
-def _bao_van_phong_gui_hang(chuyen_id: str, su_kien: str, ly_do: str | None = None) -> None:
-    """Báo văn phòng gửi/nhận của hàng đang trên xe (gửi hàng — HANG_KHI_CHUYEN_HUY_GIUA_DUONG.md).
-    UC-19 khi có code gọi tiếp với su_kien 'chay_lai' / 'da_huy'. Trạng thái chuyến đã ghi xong
-    nên lỗi ở đây chỉ ghi log, không làm hỏng thao tác."""
-    try:
-        # Import trong hàm: gui_hang_service đã import module này ở đầu file (tránh vòng lặp import).
-        from app.services import gui_hang_service
-
-        gui_hang_service.bao_van_phong_khi_chuyen_co_bien_dong(chuyen_id, su_kien, ly_do)
-    except Exception:  # noqa: BLE001
-        logger.exception("Không báo được văn phòng gửi hàng về chuyến %s (%s)", chuyen_id, su_kien)
 
 
 def _bao_dieu_do_vien_su_co(chuyen: dict, loai_su_co: str, ly_do: str) -> None:

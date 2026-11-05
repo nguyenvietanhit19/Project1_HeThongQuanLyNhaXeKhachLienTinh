@@ -836,10 +836,10 @@ Kiểm tra: unit 791 pass (7 fail cũ của #39); API thật — VP Lào Cai / S
 
 Nhánh tạo từ integration `24d99ba` (sau PR #47). Tách 2 phần:
 
-- **Phần B — chưa chốt:** hàng đi đâu khi chuyến bị hủy hẳn giữa đường (nhiều trường hợp) → tài liệu riêng `HANG_KHI_CHUYEN_HUY_GIUA_DUONG.md` để nhóm thảo luận (Q1–Q5, bảng quyết định ở mục 6 của file đó).
-- **Phần A — đã làm:** những việc đúng cho mọi kết cục của sự cố, không đổi trạng thái đơn.
+- **Phần B — chưa chốt:** hàng đi đâu khi chuyến bị hủy hẳn giữa đường (nhiều trường hợp) → tài liệu riêng `HANG_KHI_CHUYEN_HUY_GIUA_DUONG.md` để nhóm thảo luận (Q1–Q5, bảng quyết định ở mục 6 của file đó). **Giữ.**
+- **Phần A — đã làm (commit `cee3a64`) rồi BỎ (05/11/2026, user: "không cần nữa"):** lưu nguyên ở nhánh **local** `feature/Trinh-gui-hang-su-co-xe-luu` (không đẩy); trên nhánh làm việc đã gỡ toàn bộ code + test + phần sửa `NGHIEP_VU_GUI_HANG.md`, đưa các file đó về đúng bản integration `24d99ba` (không sửa file người 4 nữa). Bảng 9.1 dưới đây chỉ để biết bản lưu có gì nếu cần lấy lại.
 
-### 9.1. Phần A
+### 9.1. Phần A (đã bỏ — chỉ còn ở nhánh `-luu`)
 
 | File | Sửa |
 |---|---|
@@ -857,4 +857,4 @@ Nhánh tạo từ integration `24d99ba` (sau PR #47). Tách 2 phần:
 
 Kiểm tra: unit 853 pass, 25 fail đều có sẵn (24 VNPay/vé lẻ của #39/#47 + `test_quay_ve_khach_hang_theo_sdt::test_tao_ve_khoa_sdt...` fail cả trên code chưa sửa). DB demo (Docker): gom tin đúng theo văn phòng trên 2 chuyến có hàng (chỉ in, không ghi thông báo); API `van_de_chuyen=true` trả đúng đơn trên chuyến `gap_su_co`; báo trễ qua API → lịch sử "Báo hàng tới trễ: …", cờ đã báo vẫn `false`; báo quản lý → 400 (dòng thử đã xóa). Chưa thử: bấm trên trình duyệt; UC-17 thật qua màn phụ xe (sẽ đổi trạng thái chuyến demo).
 
-**Cần báo người 4:** đã thêm 1 dòng gọi + hàm `_bao_van_phong_gui_hang` vào `chuyen_xe_service.bao_su_co`, và 1 fixture trong `test_chuyen_xe_service.py`. Khi làm UC-19: gọi `_bao_van_phong_gui_hang(chuyen_id, "chay_lai")` lúc chuyến quay lại `dang_chay`, `"da_huy", ly_do` lúc hủy giữa đường.
+~~Cần báo người 4~~ — không còn cần: đã gỡ, `chuyen_xe_service.py` và `test_chuyen_xe_service.py` trở về đúng bản integration.

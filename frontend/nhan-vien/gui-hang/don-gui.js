@@ -2,15 +2,11 @@
 
 let henGioTimDonGui = null;
 
-/** Bộ lọc đang chọn trên thanh lọc (dùng cho cả tải trang và xuất CSV).
- * "van_de_chuyen" không phải trạng thái đơn: đơn còn trên xe mà chuyến gặp sự cố / đã hủy / đang hoãn. */
+/** Bộ lọc đang chọn trên thanh lọc (dùng cho cả tải trang và xuất CSV). */
 function boLocDonGui() {
-  const trangThai = $("selectTrangThaiDonGui").value;
-  const vanDeChuyen = trangThai === "van_de_chuyen";
   return {
     huong: "gui",
-    trang_thai: vanDeChuyen ? "" : trangThai,
-    van_de_chuyen: vanDeChuyen ? "true" : "",
+    trang_thai: $("selectTrangThaiDonGui").value,
     phuong_thuc_thanh_toan: $("selectThanhToanDonGui").value,
     tu_khoa: $("inputTuKhoaDonGui").value.trim(),
     ...phamViQuery(),
@@ -23,7 +19,7 @@ async function taiDonGui() {
     const data = await apiGet(`/gui-hang/don-hang${taoQuery(params)}`);
     state.donGui.items = data.items;
     state.donGui.total = data.total;
-    if (!params.trang_thai && !params.van_de_chuyen && !params.phuong_thuc_thanh_toan && !params.tu_khoa) datText("stat-don-gui-count", data.total);
+    if (!params.trang_thai && !params.phuong_thuc_thanh_toan && !params.tu_khoa) datText("stat-don-gui-count", data.total);
     renderDonGui();
   } catch (err) {
     hienTrangThaiBang("tbodyDonGui", 7, `Lỗi tải danh sách: ${err.message}`, "table-empty table-error");
@@ -36,16 +32,14 @@ function renderDonGui() {
   if (!items.length) {
     hienTrangThaiBang("tbodyDonGui", 7, total ? "Không có đơn ở trang này." : "Không có đơn nào phù hợp.");
   } else {
-    tbody.innerHTML = items.map(d => {
-      const vanDe = vanDeChuyen(d); // chuyến chở đơn gặp sự cố / hủy / hoãn — để trả lời người gửi khi họ gọi hỏi
-      return `
-      <tr class="hd-row hd-row--tt-${escapeHtml(d.trang_thai)}${vanDe ? " hd-row--tre" : ""}">
+    tbody.innerHTML = items.map(d => `
+      <tr class="hd-row hd-row--tt-${escapeHtml(d.trang_thai)}">
         <td><strong class="order-code-badge">${escapeHtml(d.ma_van_don)}</strong><div class="cell-sub">${escapeHtml(dinhDangThoiGian(d.ngay_tao))}</div></td>
         <td><div class="party-name">${escapeHtml(d.ten_nguoi_gui)}</div><div class="cell-sub">${escapeHtml(d.sdt_nguoi_gui)}</div></td>
         <td><div class="party-name">${escapeHtml(d.ten_nguoi_nhan)}</div><div class="cell-sub">${escapeHtml(d.sdt_nguoi_nhan)} · ${escapeHtml(d.ten_diem_nhan || "--")}</div></td>
         <td><div class="goods-name">${escapeHtml(d.ten_loai_hang || "Hàng hóa")}</div><div class="cell-sub">${escapeHtml(dinhDangKg(d.can_nang_kg))}</div></td>
         <td class="text-right"><div class="price-tag">${escapeHtml(dinhDangTien(d.gia_cuoc))}</div>${badgeThanhToan(d)}</td>
-        <td class="text-center">${badgeTrangThai(d.trang_thai)}${d.trang_thai === "da_len_xe" && d.bien_so_xe ? `<div class="cell-sub">${escapeHtml(d.bien_so_xe)}</div>` : ""}${vanDe ? `<div class="cell-tags" title="${escapeHtml(vanDe.goiYGui)}">${vanDe.tag}</div><div class="cell-sub">${escapeHtml(vanDe.sub)}</div>` : ""}</td>
+        <td class="text-center">${badgeTrangThai(d.trang_thai)}${d.trang_thai === "da_len_xe" && d.bien_so_xe ? `<div class="cell-sub">${escapeHtml(d.bien_so_xe)}</div>` : ""}</td>
         <td class="text-center"><div class="table-actions-cell">
           ${coTheSuaDon(d) ? `<button type="button" class="btn-action-icon" data-hanh-dong="sua-lien-he" data-id="${escapeHtml(d.id)}" title="Sửa tên / SĐT người gửi, người nhận">✏️</button>` : ""}
           ${d.trang_thai === "da_huy"
@@ -54,8 +48,7 @@ function renderDonGui() {
           <button type="button" class="btn-action-icon" data-hanh-dong="in-nhan" data-id="${escapeHtml(d.id)}" title="In lại nhãn dán kiện hàng">🏷️</button>`}
           ${coTheHuyDon(d) ? `<button type="button" class="btn-action-icon btn-action-icon--danger" data-hanh-dong="huy-don" data-id="${escapeHtml(d.id)}" title="Hủy đơn — trả hàng cho người gửi">🗑️</button>` : ""}
         </div></td>
-      </tr>`;
-    }).join("");
+      </tr>`).join("");
   }
 
   veThanhPhanTrang("phanTrangDonGui", total, offset);

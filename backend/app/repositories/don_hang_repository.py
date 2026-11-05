@@ -382,10 +382,6 @@ class DonKhongConChoLay(Exception):
     """Đơn không còn chờ lấy / hàng tồn (vừa được giao) — không ghi liên hệ nữa."""
 
 
-# Chuyến chở đơn đang có vấn đề → hàng tới trễ (HANG_KHI_CHUYEN_HUY_GIUA_DUONG.md mục 2.1).
-_SQL_CHUYEN_CO_VAN_DE = "(c.trang_thai IN ('gap_su_co', 'da_huy') OR COALESCE(c.dang_hoan, false))"
-
-
 def ghi_lien_he(
     don_hang_id: str,
     nhan_vien_id: str,
@@ -395,7 +391,6 @@ def ghi_lien_he(
     danh_dau_da_thong_bao: bool,
     thong_bao_cho: list[str],
     noi_dung_thong_bao: str | None,
-    cho_phep_dang_tren_xe: bool = False,
 ) -> None:
     """Ghi lịch sử liên hệ + bật cờ 'đã thông báo được người nhận' + tạo thông
     báo (báo quản lý) trong CÙNG 1 transaction — không để lệch dữ liệu khi lỗi giữa chừng.
@@ -405,21 +400,13 @@ def ghi_lien_he(
 
     Khóa dòng đơn rồi kiểm tra lại trạng thái: người khác vừa giao xong thì ném DonKhongConChoLay,
     không ghi liên hệ / báo quản lý cho đơn đã giao.
-    cho_phep_dang_tren_xe: nhận thêm đơn `da_len_xe` khi chuyến chở nó gặp sự cố / đã hủy / đang hoãn
-    (gọi báo hàng tới trễ) — kiểm tra lại dưới khóa vì chuyến có thể vừa chạy lại.
     """
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                f"""SELECT d.trang_thai, {_SQL_CHUYEN_CO_VAN_DE}
-                    FROM don_hang d LEFT JOIN chuyen_xe c ON c.id = d.chuyen_id
-                    WHERE d.id = %s FOR UPDATE OF d""",
-                (don_hang_id,),
-            )
+            cur.execute("SELECT trang_thai FROM don_hang WHERE id = %s FOR UPDATE", (don_hang_id,))
             row = cur.fetchone()
-            tren_xe_tre = bool(row) and cho_phep_dang_tren_xe and row[0] == "da_len_xe" and bool(row[1])
-            if not row or (row[0] not in ("cho_lay", "qua_han_luu_kho") and not tren_xe_tre):
+            if not row or row[0] not in ("cho_lay", "qua_han_luu_kho"):
                 raise DonKhongConChoLay()
             cur.execute(
                 """INSERT INTO lich_su_lien_he_don_hang
@@ -890,28 +877,6 @@ def tim_hang_hoa_cua_chuyen(chuyen_id: str) -> list[dict]:
         release_connection(conn)
 
 
-def tim_don_dang_tren_chuyen(chuyen_id: str) -> list[dict]:
-    """Đơn còn nằm trên xe của chuyến (`da_len_xe`) — để báo văn phòng gửi/nhận khi chuyến
-    gặp sự cố, chạy lại hoặc bị hủy giữa đường. Đơn đã dỡ xuống văn phòng không còn bị ảnh hưởng."""
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT d.id::text AS id, d.ma_van_don, d.diem_gui_id::text AS diem_gui_id,
-                       d.diem_nhan_id::text AS diem_nhan_id, c.ma AS ma_chuyen
-                FROM don_hang d
-                JOIN chuyen_xe c ON c.id = d.chuyen_id
-                WHERE d.chuyen_id = %s AND d.trang_thai = 'da_len_xe'
-                ORDER BY d.ngay_tao
-                """,
-                (chuyen_id,),
-            )
-            return _thanh_danh_sach_dict(cur, cur.fetchall())
-    finally:
-        release_connection(conn)
-
-
 def dem_bao_cao_theo_loai(don_hang_ids: list[str]) -> dict[str, dict]:
     """{don_hang_id: {"hu_hong": n, "that_lac": m}} — gắn nhãn cảnh báo lên các danh sách hàng của phụ xe."""
     if not don_hang_ids:
@@ -1117,11 +1082,9 @@ def lay_danh_sach_don(
     tu_khoa: str | None = None,
     limit: int = 20,
     offset: int = 0,
-    van_de_chuyen: bool = False,
 ) -> tuple[list[dict], int]:
     """Danh sách đơn của 1 văn phòng theo hướng: 'gui' (đơn tạo tại quầy mình),
     'nhan' (đơn gửi tới mình), 'tat_ca'. van_phong_id=None: toàn hệ thống.
-    van_de_chuyen: chỉ đơn còn trên xe mà chuyến đang gặp sự cố / đã hủy / đang hoãn.
     Trả về (items, total) — total dùng cho phân trang phía giao diện."""
     clauses: list[str] = []
     params: list = []
@@ -1144,13 +1107,6 @@ def lay_danh_sach_don(
     if phuong_thuc_thanh_toan:
         clauses.append("d.phuong_thuc_thanh_toan = %s")
         params.append(phuong_thuc_thanh_toan)
-
-    if van_de_chuyen:
-        # Câu đếm không JOIN chuyen_xe nên dùng EXISTS thay vì điều kiện trên bảng c.
-        clauses.append(
-            "d.trang_thai = 'da_len_xe' AND EXISTS (SELECT 1 FROM chuyen_xe c WHERE c.id = d.chuyen_id"
-            f" AND {_SQL_CHUYEN_CO_VAN_DE})"
-        )
 
     if tu_khoa and tu_khoa.strip():
         kw = mau_tim_ilike(tu_khoa)
