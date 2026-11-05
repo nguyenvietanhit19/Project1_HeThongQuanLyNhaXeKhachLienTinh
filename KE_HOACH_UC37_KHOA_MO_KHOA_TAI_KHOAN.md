@@ -1,6 +1,6 @@
 # Kế hoạch làm UC-37 — Khóa / mở khóa tài khoản
 
-> **File này là kế hoạch từng bước, chưa có code trên nhánh.** Nhánh làm: `feature/Nghia-uc37-khoa-mo-khoa-tai-khoan` (tạo từ `integration/gop-nhanh-thanh-vien`, commit `cd77d29`, 23/10/2026).
+> **Trạng thái (cập nhật 5/11/2026): đã làm xong và đã merge (#44).** Backend, frontend và bảng `nhat_ky_admin` hoàn tất. **Chưa làm:** test tay ca `quan_ly` **gốc** và ca **phụ xe thiếu xe** trên dữ liệu thật (chỉ có unit test); cảnh báo "tuyến hết điều độ viên" (chờ bảng `dieu_do_vien_tuyen` của nhóm điều độ viên). Các mục bên dưới là kế hoạch ban đầu; ô đã tích phản ánh việc thực tế đã làm. Nhánh đã làm: `feature/Nghia-uc37-khoa-mo-khoa-tai-khoan` (tạo từ `integration/gop-nhanh-thanh-vien`, commit `cd77d29`, 23/10/2026).
 > Nguồn: `NGHIEP_VU.md` UC-37 (đã gộp UC-38 cũ), mục 8.7 điểm 5–6, mục 8.9, mục 9; `DATABASE.md` mục 1.1–1.3, 1.5, 6.3; `DIEU_DO_VIEN_THEO_TUYEN_DE_XUAT.md` mục 6; code UC-36 đã merge (#38).
 > **Có sẵn một bản nháp UC-37 đã viết rồi cất đi** trong `git stash@{0}` ("UC-37 nhap…"): 31 test, backend + frontend, đã chạy thật trên API. Dùng làm tham khảo khi làm lại (mục 9), không bắt buộc lấy lại.
 
@@ -90,10 +90,10 @@ Chặn thêm: tài khoản không tồn tại (404); khóa tài khoản đã kh�
 ## 5. Các bước làm (theo thứ tự, mỗi bước chạy kiểm tra được riêng)
 
 ### Bước 0 — Chuẩn bị
-- [ ] Đang ở nhánh `feature/Nghia-uc37-khoa-mo-khoa-tai-khoan`, `git status` sạch.
-- [ ] Docker chạy (`docker-compose up -d --build`), đã `yoyo apply ./migrations` sau lần pull gần nhất (có thêm migration `20261023_0900_thong_bao_duong_dan.sql`).
+- [x] Đang ở nhánh `feature/Nghia-uc37-khoa-mo-khoa-tai-khoan`, `git status` sạch.
+- [x] Docker chạy (`docker-compose up -d --build`), đã `yoyo apply ./migrations` sau lần pull gần nhất (có thêm migration `20261023_0900_thong_bao_duong_dan.sql`).
 - [x] Mục 4.2 đã chốt đủ 6 điểm (1 khách hàng, 2 `nhat_ky_admin`, 3 thông báo, 4 bậc, 5 điều độ viên làm sau, 6 lý do bắt buộc).
-- [ ] Báo nhóm trước khi làm: UC-36/37 đang giao Người 1 trong `CONTRIBUTING.md`; đã báo UC-36 thì UC-37 cùng ý.
+- [ ] Báo nhóm trước khi làm: UC-36/37 đang giao Người 1 trong `CONTRIBUTING.md`; đã báo UC-36 thì UC-37 cùng ý. → **chưa báo** (xem `TAC_DONG_DEN_NGUOI_KHAC_QUAN_LY_NHAN_SU.md`).
 
 ### Bước 1 — Schema (`backend/app/schemas/tai_khoan_can_bo_schema.py`, thêm vào cuối) — ✅ XONG 23/10, 11 test trong `test_tai_khoan_can_bo_schema.py`
 - [x] `DoiTrangThaiTaiKhoanRequest`: `ly_do: str` **bắt buộc**, cắt khoảng trắng hai đầu, độ dài 1–500 (validator báo "Vui lòng nhập lý do").
@@ -136,19 +136,19 @@ Mục tiêu khoảng 30 test, giả lập repository bằng `monkeypatch`:
 
 ### Bước 6 — Test tay trên API thật (PowerShell hoặc `curl`)
 Đăng nhập `quanlynhansu@gmail.com` / `Nhansu@123`, rồi:
-- [ ] Tạo tài khoản điều độ viên thử qua UC-36 (mật khẩu `12345678`).
-- [ ] Khóa → 200; khóa lại → 400; **đăng nhập tài khoản đó bị 401**; **token cũ gọi `/auth/me` bị 403 ngay**.
-- [ ] Mở khóa → 200; mở khi đang hoạt động → 400; đăng nhập lại được.
-- [ ] QLNS khóa tài khoản gốc → 403; tự khóa → 403; id lạ → 404.
-- [ ] Nhật ký có đủ `khoa_tai_khoan`, `mo_khoa_tai_khoan` và lý do.
-- [ ] Ca phụ xe: tạo xe + 2 phụ xe cố định (chèn SQL tạm). Khóa người thứ nhất → không cảnh báo; khóa người thứ hai → cảnh báo đúng biển số, thông báo xuất hiện cho quản lý, biên chế vẫn còn 2 dòng `dang_hoat_dong`.
-- [ ] **Dọn dữ liệu test** (nhật ký, thông báo, `xe_nhan_su`, `nhan_su_van_hanh`, `nguoi_dung`, `xe`, `loai_xe`, `diem_don_tra`, `khu_vuc` đã chèn).
-- [ ] Ca `quan_ly` gốc / thường / bậc: chưa test tay vì chưa có mật khẩu `admin@nhaxekhach.com`. Muốn test thì đặt mật khẩu tạm qua "Quên mật khẩu" hoặc lấy mã OTP từ DB. Cần làm **sau bước 6b** (cần bảng `nhat_ky_admin`).
+- [x] Tạo tài khoản điều độ viên thử qua UC-36 (mật khẩu `12345678`).
+- [x] Khóa → 200; khóa lại → 400; **đăng nhập tài khoản đó bị 401**; **token cũ gọi `/auth/me` bị 403 ngay**. *(đã chạy thật 23/10 và kiểm lại 5/11: token cũ gọi `/auth/me` bị 403 ngay, mở khóa xong dùng lại được)*
+- [x] Mở khóa → 200; mở khi đang hoạt động → 400; đăng nhập lại được. *("mở khi đang hoạt động → 400" mới có unit test, chưa chạy thật)*
+- [x] QLNS khóa tài khoản gốc → 403; tự khóa → 403; id lạ → 404. *(id lạ → 404 chạy thật; gốc và tự khóa chạy thật với `quan_ly` thường 5/11, với QLNS mới có unit test)*
+- [x] Nhật ký có đủ `khoa_tai_khoan`, `mo_khoa_tai_khoan` và lý do.
+- [ ] Ca phụ xe: tạo xe + 2 phụ xe cố định (chèn SQL tạm). Khóa người thứ nhất → không cảnh báo; khóa người thứ hai → cảnh báo đúng biển số, thông báo xuất hiện cho quản lý, biên chế vẫn còn 2 dòng `dang_hoat_dong`. → **chưa chạy thật** (chỉ có unit test).
+- [x] **Dọn dữ liệu test** (nhật ký, thông báo, `xe_nhan_su`, `nhan_su_van_hanh`, `nguoi_dung`, `xe`, `loai_xe`, `diem_don_tra`, `khu_vuc` đã chèn).
+- [ ] Ca `quan_ly` gốc / thường / bậc: **thường đã test tay 5/11/2026** (khóa và mở khóa QLNS đều 200; khóa `ke_toan`, `quan_ly` khác, tài khoản gốc, chính mình đều 403; nhật ký vào `nhat_ky_admin`, không ghi chéo sang bảng của QLNS). **Còn lại: ca `quan_ly` gốc** (cần đặt tạm mật khẩu cho `admin@nhaxekhach.com` rồi khôi phục; chưa làm vì cần hỏi Nghĩa).
 
 ### Bước 6b — Migration `nhat_ky_admin` ✅ (làm xong 23/10 cùng bước 2b: `20261023_1000_tao_bang_nhat_ky_admin.sql`)
 - [x] File mới trong `backend/migrations/` (đặt tên theo ngày giờ như các migration khác): tạo bảng `nhat_ky_admin` đúng `DATABASE.md` mục 6.2 (`id`, `admin_id` FK `nguoi_dung`, `hanh_dong`, `doi_tuong_loai`, `doi_tuong_id`, `ghi_chu`, `thoi_gian`) + index `(admin_id, thoi_gian DESC)` và `(doi_tuong_loai, doi_tuong_id, thoi_gian DESC)` giống bảng nhật ký của QLNS.
 - [x] Chạy `docker-compose exec backend yoyo apply ./migrations`; **báo nhóm chạy lại sau khi pull**.
-- [ ] Rồi test tay ca `quan_ly` khóa / mở khóa: dòng nhật ký xuất hiện ở `nhat_ky_admin`, không xuất hiện ở bảng của QLNS.
+- [x] Rồi test tay ca `quan_ly` khóa / mở khóa: dòng nhật ký xuất hiện ở `nhat_ky_admin`, không xuất hiện ở bảng của QLNS. *(5/11/2026, với `quan_ly` thường)*
 
 ### Bước 7 — Frontend (`frontend/nhan-vien/quan-li-nhan-su/tai-khoan.html`)
 - [x] Mỗi hàng thêm nút **Khóa** (tài khoản đang hoạt động) hoặc **Mở khóa** (đã khóa), qua `extraActions` của `renderDataTable`.
@@ -156,21 +156,21 @@ Mục tiêu khoảng 30 test, giả lập repository bằng `monkeypatch`:
 - [x] Sau khi **khóa phụ xe** mà có `canh_bao_xe_thieu_phu_xe`: đổi hộp thoại sang trạng thái cảnh báo, liệt kê biển số, nhắc "biên chế không tự đổi; nghỉ việc hẳn dùng cho nghỉ việc ở Hồ sơ nhân sự", nút "Đã hiểu".
 - [x] Lỗi từ backend (403/400/404) hiện ngay trong hộp thoại.
 - [x] Cập nhật ghi chú đầu `nav.js` (UC-37 nay cùng trang `tai-khoan.html`). Không cần thêm mục menu.
-- [ ] (id và cú pháp JS đã kiểm; CÒN xem thử trên trình duyệt) Kiểm tra: mọi `id` script dùng đều có trong HTML; cú pháp JS (VS Code kèm Node: `ELECTRON_RUN_AS_NODE=1 "/d/Software/Microsoft VS Code/Code.exe" <file kiểm tra>`); **xem thử trên trình duyệt** (Live Server cổng 5500).
+- [x] Kiểm tra: mọi `id` script dùng đều có trong HTML; cú pháp JS; **đã xem trên trình duyệt thật (Edge, 5/11/2026)**: hộp thoại Khóa hiển thị đúng, lý do bắt buộc, mô tả kèm mã nhân viên.
 
 ### Bước 8 — Tài liệu
-- [ ] `NGHIEP_VU.md` UC-37: thêm "Ghi chú triển khai" — bản đầu chỉ cán bộ; lý do chỉ vào nhật ký khi QLNS thao tác; cảnh báo điều độ viên chờ bảng `dieu_do_vien_tuyen`.
-- [ ] `BAO_CAO_CONG_VIEC_QUAN_LY_NHAN_SU.md`: thêm mục UC-37 (file, hàm, kết quả test) và cập nhật bảng tổng quan, "việc còn lại".
-- [ ] Nếu đổi điểm nào ở mục 4.2: sửa `NGHIEP_VU.md`/`UML_DIAGRAMS.md` cho khớp **trước khi** code.
+- [x] `NGHIEP_VU.md` UC-37: thêm "Ghi chú triển khai" — bản đầu chỉ cán bộ; lý do chỉ vào nhật ký khi QLNS thao tác; cảnh báo điều độ viên chờ bảng `dieu_do_vien_tuyen`.
+- [x] `BAO_CAO_CONG_VIEC_QUAN_LY_NHAN_SU.md`: thêm mục UC-37 (file, hàm, kết quả test) và cập nhật bảng tổng quan, "việc còn lại".
+- [x] Nếu đổi điểm nào ở mục 4.2: sửa `NGHIEP_VU.md`/`UML_DIAGRAMS.md` cho khớp **trước khi** code.
 
 ### Bước 9 — Chạy cả bộ test, commit, PR
-- [ ] `docker-compose exec -T backend python -m pytest tests/unit -q`. Hiện có **7 test lỗi sẵn trên integration** (`test_ve_le.py`, `test_thong_bao_khach.py::test_ipn_ve_le_thanh_cong_bao_khach`, không dính UC-37; đã kiểm bằng `git stash`). Chỉ cần đảm bảo không thêm lỗi mới.
-- [ ] Commit (không `git add .`): chỉ các file UC-37 và tài liệu liên quan.
+- [x] `docker-compose exec -T backend python -m pytest tests/unit -q`. Hiện có **7 test lỗi sẵn trên integration** (`test_ve_le.py`, `test_thong_bao_khach.py::test_ipn_ve_le_thanh_cong_bao_khach`, không dính UC-37; đã kiểm bằng `git stash`). Chỉ cần đảm bảo không thêm lỗi mới. *(tính đến 5/11/2026 integration có 25 test lỗi sẵn, không do UC-37.)*
+- [x] Commit (không `git add .`): chỉ các file UC-37 và tài liệu liên quan. *(thực tế Nghĩa chọn dùng `git add .`; commit gộp cả tài liệu.)*
   ```powershell
   git add backend/app/schemas/tai_khoan_can_bo_schema.py backend/app/repositories/tai_khoan_can_bo_repository.py backend/app/services/tai_khoan_can_bo_service.py backend/app/routes/tai_khoan_can_bo.py backend/tests/unit/test_tai_khoan_can_bo_service.py frontend/nhan-vien/quan-li-nhan-su/tai-khoan.html frontend/nhan-vien/quan-li-nhan-su/nav.js NGHIEP_VU.md BAO_CAO_CONG_VIEC_QUAN_LY_NHAN_SU.md
   git commit -m "Them UC-37 khoa/mo khoa tai khoan can bo (BE + FE)"
   ```
-- [ ] Push, mở PR vào `integration/gop-nhanh-thanh-vien` (**không** vào `main`). Mô tả PR nêu: phạm vi bản đầu, 3 điểm chưa làm (khách hàng, lý do của `quan_ly`, cảnh báo điều độ viên), 7 test lỗi có sẵn.
+- [x] Push, mở PR vào `integration/gop-nhanh-thanh-vien` (**không** vào `main`). Mô tả PR nêu: phạm vi bản đầu, 3 điểm chưa làm (khách hàng, lý do của `quan_ly`, cảnh báo điều độ viên), 7 test lỗi có sẵn. *(PR #44, đã merge.)*
 
 ---
 

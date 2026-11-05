@@ -784,7 +784,7 @@ endif
 if (Đang gia hạn giấy tờ đã có?) then (đúng)
   :Xóa trạng thái "đã nhắc" — chu kỳ nhắc hết hạn\nbắt đầu lại từ đầu;
 endif
-:Lưu hồ sơ và ghi vào nhật ký thao tác;
+:Lưu hồ sơ (tài xế được tự cấp mã nhân viên TX; phụ xe\ndùng mã của tài khoản) và ghi vào nhật ký thao tác;
 note right
   Mỗi ngày hệ thống tự rà soát giấy tờ: còn không quá 30 ngày
   là hết hạn, hoặc đã quá hạn, thì nhắc quản lý nhân sự
@@ -1308,8 +1308,8 @@ else (Quản lý)
     stop
   endif
 endif
-:Tạo tài khoản đã xác nhận với mật khẩu ban đầu mặc định\n(không gửi email) và nhắc người tạo báo cho cán bộ;
-:Người tạo báo mật khẩu ban đầu cho cán bộ;
+:Tạo tài khoản đã xác nhận, tự cấp mã nhân viên theo vai trò\nvà đặt mật khẩu ban đầu mặc định (không gửi email),\nnhắc người tạo báo cho cán bộ;
+:Người tạo báo mã nhân viên và mật khẩu ban đầu cho cán bộ;
 :Cán bộ đăng nhập và nên đổi mật khẩu ngay;
 stop
 @enduml
@@ -1455,6 +1455,7 @@ abstract class NguoiDung {
   - email : String
   - matKhau : String
   - hoTen : String
+  - maNhanVien : String
   - soDienThoai : String
   - dangHoatDong : Boolean
   - ngayTao : DateTime
@@ -1527,6 +1528,7 @@ class DiemDonTra {
 }
 
 class NhanSuVanHanh {
+  - maTaiXe : String
   - hoTen : String
   - soDienThoai : String
   - chucDanh : ChucDanh
