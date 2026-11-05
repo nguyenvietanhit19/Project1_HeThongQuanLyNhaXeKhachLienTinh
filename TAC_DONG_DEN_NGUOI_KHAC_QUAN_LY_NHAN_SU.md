@@ -27,6 +27,7 @@ Ký hiệu trạng thái: ⏳ chưa báo · 📣 đã báo, chờ trả lời ·
 | 9 | **25 test lỗi có sẵn** ở integration (không do mình; tính 5/11/2026, trước đó 7) | Người làm **vé lẻ / quầy vé / thanh toán VNPay** | Sửa test | — | ⏳ |
 | 10 | **Mã nhân viên**: migration thêm cột `ma` vào bảng dùng chung `nguoi_dung` và `nhan_su_van_hanh`; thêm hàm vào 2 file dùng chung | **Cả nhóm**; nhóm hiển thị tên nhân viên; chủ 3 script seed demo | Chạy `yoyo apply ./migrations` sau khi pull; tùy ý hiện `ma` cạnh tên; tài khoản demo do script tạo sẽ không có mã | Mã nhân viên | ⏳ (đã merge #50; chờ nhóm biết) |
 | 11 | **UC-51 cho nghỉ việc**: ghi `xe_nhan_su.trang_thai = 'tam_nghi'` (bảng của biên chế) và gửi thông báo cho `quan_ly` + `dieu_do_vien`; thêm hàm cuối `nhan_su_van_hanh_repository.py` | Người làm **biên chế / điều độ / sinh chuyến**; nhóm điều độ viên | Hiểu dòng `tam_nghi` của người đã nghỉ việc là cố ý (không tự đổi lại `dang_hoat_dong`); điều độ viên cần chỗ xem thông báo; không có migration mới | UC-51 | ✅ (đã merge #52; chờ nhóm biết) |
+| 13 | **Tách quyền quản lý / quản lý nhân sự** (đã code, chờ merge): `quan_ly` mất quyền tạo / khóa / quản lý vai trò vận hành, hồ sơ tài xế / phụ xe, nghỉ việc, đổi văn phòng (chỉ `quan_ly_nhan_su`); **thêm 2 mục cuối** vào `frontend/nhan-vien/quan-ly/nav.js`; không migration | **Nhóm làm phần quản lý** (file `quan-ly/nav.js`, người dùng quản lý); mọi người dùng tài khoản `quan_ly` | Biết `quan_ly` không còn tạo phụ xe / quầy vé / gửi hàng / điều độ viên (nhờ QLNS); xem 2 mục menu mới ở cuối menu quản lý; nếu có script / test dựa vào việc `quan_ly` tạo vai trò vận hành thì sửa | Tách quyền | ⏳ (chưa merge) |
 | 12 | **UC-52 xem nhật ký**: màn hình đọc `nhat_ky_admin` (bảng dùng chung) + `nhat_ky_quan_ly_nhan_su`; thêm file mới và 1 mục menu | Nhóm nào **ghi vào `nhat_ky_admin`** (tuyến, giá, xe, biên chế...) | Biết `quan_ly` thấy mọi dòng của bảng này ở màn nhật ký; `hanh_dong` / `ghi_chu` đừng chứa dữ liệu nhạy cảm; muốn hiện tên đối tượng đẹp thì báo để thêm; không có migration mới | UC-52 | ⏳ (chưa merge) |
 
 ---
@@ -262,6 +263,18 @@ Cả bộ `tests/unit` trên integration (`24d99ba`, 5/11/2026) có **25 test l�
 
 ---
 
+## 10D. Tách quyền quản lý / quản lý nhân sự (việc #13, đã code)
+
+**Mình làm gì:** theo quyết định của Nghĩa (6/11/2026): `quan_ly` (gốc và thường) chỉ quản lý tài khoản `ke_toan`, `quan_ly`, `quan_ly_nhan_su`; mọi việc quản lý vai trò vận hành (phụ xe, quầy vé, gửi hàng, điều độ viên), hồ sơ tài xế / phụ xe, cho nghỉ việc, đổi văn phòng **chỉ do `quan_ly_nhan_su`**. `quan_ly` vẫn xem toàn bộ nhật ký, vẫn nhận thông báo và vẫn làm biên chế xe (UC-35). Kế hoạch: `KE_HOACH_PHAN_QUYEN_QUAN_LY.md`.
+
+**Ảnh hưởng tới người khác:**
+1. **Nhóm làm phần quản lý:** (a) `frontend/nhan-vien/quan-ly/nav.js` bị **thêm 2 mục vào cuối mảng** `MENU_QUAN_LY` ("Tài khoản cán bộ", "Nhật ký thao tác" trỏ tới 2 trang của thư mục `quan-li-nhan-su`), không sửa mục cũ; (b) hai trang đó, khi vai trò là `quan_ly`, nạp `quan-ly/nav.js`, `tai-khoan.js`, `thong-bao.js` của nhóm này (không sửa file nào ngoài `nav.js`).
+2. **Mọi người dùng tài khoản `quan_ly`:** bị 403 khi tạo / khóa / mở khóa 4 vai trò vận hành và khi gọi `/quan-ly-nhan-su/ho-so*`, đổi văn phòng; việc đó nhờ `quan_ly_nhan_su`. Tài khoản vận hành tạo trước đây giữ nguyên.
+3. **Script / test của nhóm khác** nếu giả định `quan_ly` tạo được phụ xe / quầy vé / gửi hàng / điều độ viên qua `POST /quan-ly-nhan-su/tai-khoan` thì cần đổi sang QLNS (mình đã rà: giao diện `quan-ly/` không gọi API `/quan-ly-nhan-su/*` nào, không module backend nào khác import ba service này).
+4. **Không migration.** Tên `nhan_vien_van_hanh` trong tài liệu là tên nhóm gồm phụ xe và tài xế (chỉ phụ xe có tài khoản, vai trò `phu_xe`).
+
+---
+
 ## 11. Tóm tắt gửi nhóm (có thể copy)
 
 > Mình (Nghĩa, Quản lý nhân sự) báo các thay đổi ảnh hưởng đến mọi người, chi tiết ở `TAC_DONG_DEN_NGUOI_KHAC_QUAN_LY_NHAN_SU.md`:
@@ -275,3 +288,4 @@ Cả bộ `tests/unit` trên integration (`24d99ba`, 5/11/2026) có **25 test l�
 > 8. **Mã nhân viên** (`PX0001`, `DDV0001`, `TX0001`...): cột mới `ma` ở `nguoi_dung` / `nhan_su_van_hanh`, hiện ở màn hình nhân sự. Script seed demo tạo tài khoản mới sẽ không có mã. Các nhóm khác tự quyết định có hiện mã cạnh tên nhân viên không. Chi tiết `TAC_DONG_DEN_NGUOI_KHAC_QUAN_LY_NHAN_SU.md` mục 10.
 > 9. **UC-51 cho nghỉ việc** (khi PR merge): người nghỉ bị chuyển `xe_nhan_su` sang `tam_nghi` (không xóa, không tự gỡ biên chế cố định), báo `quan_ly` + `dieu_do_vien` xe nào thiếu người; chặn nếu xe đang `dang_chay` hoặc `gap_su_co`. Không có migration mới. Chi tiết mục 10A.
 > 10. **UC-52 xem nhật ký** (khi PR merge): màn hình đọc `nhat_ky_admin` + `nhat_ky_quan_ly_nhan_su`. Ai ghi vào `nhat_ky_admin` thì `quan_ly` sẽ thấy dòng đó; đối tượng loại khác người / hồ sơ hiện loại + 8 ký tự id; đừng ghi dữ liệu nhạy cảm vào `ghi_chu`. Không migration. Chi tiết mục 10B.
+> 11. **Tách quyền quản lý / quản lý nhân sự** (khi PR merge): `quan_ly` chỉ quản lý tài khoản `ke_toan` / `quan_ly` / `quan_ly_nhan_su`; vai trò vận hành, hồ sơ tài xế / phụ xe, nghỉ việc, đổi văn phòng chỉ do `quan_ly_nhan_su`. **Nhóm làm phần quản lý:** mình thêm 2 mục vào cuối `quan-ly/nav.js` (Tài khoản cán bộ, Nhật ký thao tác), không sửa mục cũ. Không migration. Chi tiết mục 10D.

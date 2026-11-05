@@ -214,11 +214,9 @@ rectangle "Hệ thống" {
   usecase "Quản lý chuyến đã sinh\n(xem, sửa giờ, xóa)" as UC48
   usecase "Quản lý xe" as UC34
   usecase "Phân tài xế và phụ xe\ncố định cho từng xe" as UC35
-  usecase "Quản lý hồ sơ nhân sự vận hành\n(tài xế, phụ xe, giấy tờ)" as UC49
-  usecase "Cho nghỉ việc nhân sự vận hành" as UC51
   usecase "Xem nhật ký thao tác" as UC52
-  usecase "Tạo tài khoản\ncho nhân viên/quản lý khác" as UC36
-  usecase "Khóa / mở khóa tài khoản" as UC37
+  usecase "Tạo tài khoản\ncho kế toán, quản lý,\nquản lý nhân sự" as UC36
+  usecase "Khóa / mở khóa tài khoản\n(kế toán, quản lý, quản lý nhân sự)" as UC37
   usecase "Xem thống kê\ntoàn hệ thống" as UC39
 }
 
@@ -233,8 +231,6 @@ QL --> UC47
 QL --> UC48
 QL --> UC34
 QL --> UC35
-QL --> UC49
-QL --> UC51
 QL --> UC52
 QL --> UC36
 QL --> UC37
@@ -250,8 +246,6 @@ UC47 ..> UC02 : <<include>>
 UC48 ..> UC02 : <<include>>
 UC34 ..> UC02 : <<include>>
 UC35 ..> UC02 : <<include>>
-UC49 ..> UC02 : <<include>>
-UC51 ..> UC02 : <<include>>
 UC52 ..> UC02 : <<include>>
 UC36 ..> UC02 : <<include>>
 UC37 ..> UC02 : <<include>>
@@ -757,7 +751,7 @@ stop
 
 ### UC-49. Quản lý hồ sơ nhân sự vận hành (tài xế, phụ xe) *(gồm cơ chế UC-50 cũ)*
 
-*Quản lý nhân sự hoặc quản lý đều làm được. Tài xế không có tài khoản nên hồ sơ này là nơi duy nhất lưu thông tin của họ.*
+*Chỉ quản lý nhân sự làm (quản lý không làm — chốt 6/11/2026). Tài xế không có tài khoản nên hồ sơ này là nơi duy nhất lưu thông tin của họ.*
 
 ```plantuml
 @startuml AD_UC49_HoSoNhanSu
@@ -1287,7 +1281,7 @@ stop
 
 ### UC-36. Tạo tài khoản cho nhân viên/quản lý khác
 
-*Quản lý nhân sự cũng thực hiện được use case này, nhưng phạm vi hẹp hơn quản lý — xem nhánh rẽ.*
+*Chia hai bên (chốt 6/11/2026): quản lý nhân sự tạo 4 vai trò vận hành; quản lý tạo kế toán (quản lý và quản lý nhân sự chỉ quản lý gốc tạo được). Bên này không tạo vai trò của bên kia — xem nhánh rẽ.*
 
 ```plantuml
 @startuml AD_UC36_TaoTaiKhoanNhanVien
@@ -1303,6 +1297,10 @@ if (Người đang thao tác là ai?) then (Quản lý nhân sự)
     stop
   endif
 else (Quản lý)
+  if (Vai trò muốn tạo là nhân viên vận hành\n(phụ xe/quầy vé/gửi hàng/điều độ viên)?) then (đúng, việc của quản lý nhân sự)
+    :Từ chối, báo không đủ quyền;
+    stop
+  endif
   if (Vai trò muốn tạo là quản lý hoặc quản lý nhân sự,\nVÀ người thao tác không phải tài khoản quản lý gốc?) then (đúng, chặn lại)
     :Từ chối, báo chỉ tài khoản quản lý gốc mới tạo được;
     stop
@@ -1345,7 +1343,7 @@ stop
 
 ### UC-37. Khóa / mở khóa tài khoản *(gộp từ UC-37 + UC-38 cũ)*
 
-*Quản lý nhân sự cũng thực hiện được use case này, nhưng phạm vi hẹp hơn quản lý — xem nhánh rẽ. Chỉ áp dụng cho tài khoản **cán bộ**: khách hàng do hệ thống tự khóa khi vi phạm (mục 9), không ai khóa hay mở khóa được.*
+*Chia hai bên (chốt 6/11/2026): quản lý (gốc hoặc thường) chỉ khóa / mở khóa tài khoản cấp cao theo bậc; quản lý nhân sự lo 4 vai trò vận hành — xem nhánh rẽ. Chỉ áp dụng cho tài khoản **cán bộ**: khách hàng do hệ thống tự khóa khi vi phạm (mục 9), không ai khóa hay mở khóa được.*
 
 ```plantuml
 @startuml AD_UC37_KhoaMoKhoa
@@ -1363,7 +1361,7 @@ if (Khóa hay mở khóa?) then (khóa)
 else (mở khóa)
   :Tìm tài khoản cán bộ đang bị khóa;
 endif
-if (Tài khoản mục tiêu có bậc cùng hoặc cao hơn người thao tác?\n(gốc > quản lý thường = kế toán > quản lý nhân sự > vận hành;\nchỉ quản lý gốc khóa được kế toán)) then (đúng, chặn lại)
+if (Tài khoản mục tiêu có bậc cùng hoặc cao hơn người thao tác?\n(gốc > quản lý thường = kế toán > quản lý nhân sự > vận hành;\nchỉ quản lý gốc khóa được kế toán; quản lý không khóa vai trò vận hành,\nquản lý nhân sự không khóa vai trò cấp cao)) then (đúng, chặn lại)
   :Từ chối, báo không đủ quyền;
   stop
 endif
