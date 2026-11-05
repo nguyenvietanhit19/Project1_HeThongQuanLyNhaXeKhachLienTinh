@@ -939,6 +939,56 @@ def test_doi_soat_tien_cong_tong_tien_hoan():
 
 
 # ---------------------------------------------------------------------
+# Thống kê chia theo giờ / ngày / tháng (KE_HOACH_SUA_GUI_HANG.md mục 10)
+# ---------------------------------------------------------------------
+
+def test_thong_ke_chuoi_truyen_dung_tham_so_xuong_repo():
+    tu, den = date(2026, 11, 1), date(2026, 11, 30)
+    with patch("app.repositories.don_hang_repository.thong_ke_chuoi_thoi_gian") as mock_chuoi:
+        mock_chuoi.return_value = [{"moc": "2026-11-01", "tiep_nhan": 3}]
+        res = gui_hang_service.thong_ke_chuoi(None, tu, den, "ngay")
+    assert res == [{"moc": "2026-11-01", "tiep_nhan": 3}]
+    mock_chuoi.assert_called_once_with(None, tu, den, "ngay")
+
+
+def test_thong_ke_chuoi_gio_chi_cho_mot_ngay():
+    with pytest.raises(GiaTriLoi, match="theo giờ"):
+        gui_hang_service.thong_ke_chuoi(None, date(2026, 11, 1), date(2026, 11, 2), "gio")
+
+
+def test_thong_ke_chuoi_ngay_toi_da_62_ngay():
+    with patch("app.repositories.don_hang_repository.thong_ke_chuoi_thoi_gian", return_value=[]) as mock_chuoi:
+        gui_hang_service.thong_ke_chuoi(None, date(2026, 9, 1), date(2026, 11, 1), "ngay")  # 62 ngày
+        assert mock_chuoi.called
+        with pytest.raises(GiaTriLoi, match="62 ngày"):
+            gui_hang_service.thong_ke_chuoi(None, date(2026, 9, 1), date(2026, 11, 2), "ngay")  # 63 ngày
+
+
+def test_thong_ke_chuoi_don_vi_khong_hop_le():
+    with pytest.raises(GiaTriLoi, match="Đơn vị"):
+        gui_hang_service.thong_ke_chuoi(None, date(2026, 11, 1), date(2026, 11, 1), "tuan")
+
+
+def test_thong_ke_chuoi_khoang_nguoc_va_qua_mot_nam():
+    with pytest.raises(GiaTriLoi, match="Ngày bắt đầu"):
+        gui_hang_service.thong_ke_chuoi(None, date(2026, 11, 5), date(2026, 11, 1), "ngay")
+    with pytest.raises(GiaTriLoi, match="tối đa 1 năm"):
+        gui_hang_service.thong_ke_chuoi(None, date(2025, 1, 1), date(2026, 1, 2), "thang")  # 367 ngày
+
+
+def test_thong_ke_chuoi_nam_nhuan_theo_thang_hop_le():
+    with patch("app.repositories.don_hang_repository.thong_ke_chuoi_thoi_gian", return_value=[]) as mock_chuoi:
+        gui_hang_service.thong_ke_chuoi(None, date(2028, 1, 1), date(2028, 12, 31), "thang")
+    mock_chuoi.assert_called_once_with(None, date(2028, 1, 1), date(2028, 12, 31), "thang")
+
+
+def test_thong_ke_chuoi_diem_khong_ton_tai():
+    with patch("app.repositories.dia_diem_repository.tim_diem_don_tra_theo_id", return_value=None):
+        with pytest.raises(GiaTriLoi, match="không tồn tại"):
+            gui_hang_service.thong_ke_chuoi(str(uuid4()), date(2026, 11, 1), date(2026, 11, 1), "gio")
+
+
+# ---------------------------------------------------------------------
 # Hủy đơn tại văn phòng gửi (KE_HOACH_SUA_GUI_HANG.md mục 6)
 # ---------------------------------------------------------------------
 

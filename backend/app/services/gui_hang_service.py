@@ -30,6 +30,8 @@ logger = logging.getLogger(__name__)
 MUI_GIO_VN = ZoneInfo("Asia/Ho_Chi_Minh")
 SO_LAN_THU_SINH_MA = 3
 SO_NGAY_THONG_KE_TOI_DA = 366
+DON_VI_CHUOI = ("gio", "ngay", "thang")
+SO_NGAY_CHUOI_THEO_NGAY_TOI_DA = 62
 
 
 def _gui_thong_bao(nguoi_nhan_id: str, noi_dung: str, don_hang_id: str | None = None) -> None:
@@ -832,10 +834,19 @@ def thong_ke_hang_tai_diem(diem_id: str | None, tu_ngay: date, den_ngay: date) -
     return don_hang_repo.thong_ke_hang_tai_diem(diem_id, tu_ngay, den_ngay)
 
 
-def thong_ke_hang_theo_ngay(diem_id: str | None, so_ngay: int) -> list[dict]:
-    if so_ngay not in (7, 14, 30):
-        raise GiaTriLoi("Khoảng thống kê chỉ hỗ trợ 7, 14 hoặc 30 ngày")
-    return don_hang_repo.thong_ke_hang_theo_ngay(diem_id, so_ngay)
+def thong_ke_chuoi(diem_id: str | None, tu_ngay: date, den_ngay: date, don_vi: str) -> list[dict]:
+    """Số liệu chia theo giờ (1 ngày) / ngày (≤ 62 ngày) / tháng, đủ mọi mốc trong kỳ —
+    cộng các mốc lại bằng đúng chỉ số cùng tên của thong_ke_hang_tai_diem."""
+    if don_vi not in DON_VI_CHUOI:
+        raise GiaTriLoi("Đơn vị thống kê chỉ nhận giờ, ngày hoặc tháng")
+    _kiem_tra_khoang_ngay(tu_ngay, den_ngay)
+    if don_vi == "gio" and tu_ngay != den_ngay:
+        raise GiaTriLoi("Thống kê theo giờ chỉ áp dụng cho 1 ngày")
+    if don_vi == "ngay" and (den_ngay - tu_ngay).days >= SO_NGAY_CHUOI_THEO_NGAY_TOI_DA:
+        raise GiaTriLoi(f"Thống kê theo ngày tối đa {SO_NGAY_CHUOI_THEO_NGAY_TOI_DA} ngày")
+    if diem_id and not dia_diem_repo.tim_diem_don_tra_theo_id(diem_id):
+        raise GiaTriLoi("Điểm/văn phòng không tồn tại")
+    return don_hang_repo.thong_ke_chuoi_thoi_gian(diem_id, tu_ngay, den_ngay, don_vi)
 
 
 def doi_soat_tien(diem_id: str | None, tu_ngay: date, den_ngay: date) -> dict:

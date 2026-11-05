@@ -1195,31 +1195,76 @@ def thong_ke_hang_tai_diem(diem_id: str | None, tu_ngay: date, den_ngay: date) -
         release_connection(conn)
 
 
-def thong_ke_hang_theo_ngay(diem_id: str | None, so_ngay: int) -> list[dict]:
-    """Số đơn tiếp nhận (văn phòng gửi) và đơn giao xong (văn phòng nhận) theo từng ngày giờ Việt Nam."""
+_DON_VI_CHUOI_SQL = {  # don_vi → (đơn vị date_trunc, bước mốc, định dạng nhãn mốc)
+    "gio": ("hour", "1 hour", "%Y-%m-%dT%H:00"),
+    "ngay": ("day", "1 day", "%Y-%m-%d"),
+    "thang": ("month", "1 month", "%Y-%m-01"),
+}
+
+
+def thong_ke_chuoi_thoi_gian(diem_id: str | None, tu_ngay: date, den_ngay: date, don_vi: str) -> list[dict]:
+    """Chỉ số của thong_ke_hang_tai_diem chia theo giờ / ngày / tháng (giờ Việt Nam), đủ mọi mốc trong kỳ.
+
+    Mỗi chỉ số dùng đúng mốc thời gian và đúng phía văn phòng như thong_ke_hang_tai_diem, nên cộng
+    các mốc lại bằng đúng chỉ số cùng tên của nó. Mốc đầu/cuối cắt theo date_trunc để kỳ tùy chọn
+    bắt đầu giữa tháng vẫn có mốc tháng đó; sự kiện ngoài [tu_ngay, den_ngay] bị loại.
+    """
+    trunc, buoc, dinh_dang = _DON_VI_CHUOI_SQL[don_vi]
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
                 f"""
-                WITH homnay AS (SELECT (now() AT TIME ZONE '{MUI_GIO_VN}')::date AS d),
-                ngay AS (
-                    SELECT generate_series(homnay.d - (%(so_ngay)s - 1), homnay.d, interval '1 day')::date AS d
-                    FROM homnay
+                WITH p AS (SELECT %(vp)s::uuid AS vp, %(tu)s::date AS tu, %(den)s::date AS den),
+                moc AS (
+                    SELECT generate_series(date_trunc(%(trunc)s, p.tu::timestamp),
+                                           date_trunc(%(trunc)s, (p.den + 1)::timestamp - interval '1 second'),
+                                           %(buoc)s::interval) AS m
+                    FROM p
+                ),
+                su_kien AS (
+                    SELECT d.ngay_tao AT TIME ZONE '{MUI_GIO_VN}' AS t, 'tiep_nhan' AS loai, 0::bigint AS tien
+                    FROM don_hang d, p WHERE p.vp IS NULL OR d.diem_gui_id = p.vp
+                    UNION ALL
+                    SELECT d.ngay_giao AT TIME ZONE '{MUI_GIO_VN}', 'da_giao', 0
+                    FROM don_hang d, p WHERE d.trang_thai = 'da_giao' AND (p.vp IS NULL OR d.diem_nhan_id = p.vp)
+                    UNION ALL
+                    SELECT d.thoi_gian_huy AT TIME ZONE '{MUI_GIO_VN}', 'huy', 0
+                    FROM don_hang d, p WHERE d.trang_thai = 'da_huy' AND (p.vp IS NULL OR d.diem_gui_id = p.vp)
+                    UNION ALL
+                    SELECT d.thoi_gian_thu AT TIME ZONE '{MUI_GIO_VN}', 'tra_truoc', d.gia_cuoc
+                    FROM don_hang d, p WHERE d.phuong_thuc_thanh_toan = 'nguoi_gui_tra_truoc' AND d.da_thu_tien
+                                         AND (p.vp IS NULL OR d.diem_gui_id = p.vp)
+                    UNION ALL
+                    SELECT d.thoi_gian_thu AT TIME ZONE '{MUI_GIO_VN}', 'cod', d.gia_cuoc
+                    FROM don_hang d, p WHERE d.phuong_thuc_thanh_toan = 'cod_nguoi_nhan_tra' AND d.da_thu_tien
+                                         AND (p.vp IS NULL OR d.diem_nhan_id = p.vp)
+                    UNION ALL
+                    SELECT d.thoi_gian_huy AT TIME ZONE '{MUI_GIO_VN}', 'hoan', d.so_tien_hoan
+                    FROM don_hang d, p WHERE d.so_tien_hoan IS NOT NULL AND (p.vp IS NULL OR d.diem_gui_id = p.vp)
+                ),
+                trong_ky AS (
+                    SELECT s.* FROM su_kien s, p WHERE s.t::date BETWEEN p.tu AND p.den
                 )
-                SELECT ngay.d AS ngay,
-                       (SELECT count(*) FROM don_hang x
-                        WHERE (x.ngay_tao AT TIME ZONE '{MUI_GIO_VN}')::date = ngay.d
-                          AND (%(vp)s::uuid IS NULL OR x.diem_gui_id = %(vp)s::uuid)) AS tiep_nhan,
-                       (SELECT count(*) FROM don_hang x
-                        WHERE x.trang_thai = 'da_giao'
-                          AND (x.ngay_giao AT TIME ZONE '{MUI_GIO_VN}')::date = ngay.d
-                          AND (%(vp)s::uuid IS NULL OR x.diem_nhan_id = %(vp)s::uuid)) AS da_giao
-                FROM ngay ORDER BY ngay.d
+                SELECT moc.m AS moc,
+                       count(s.loai) FILTER (WHERE s.loai = 'tiep_nhan') AS tiep_nhan,
+                       count(s.loai) FILTER (WHERE s.loai = 'da_giao') AS da_giao,
+                       count(s.loai) FILTER (WHERE s.loai = 'huy') AS so_huy,
+                       COALESCE(sum(s.tien) FILTER (WHERE s.loai = 'tra_truoc'), 0) AS tien_tra_truoc,
+                       COALESCE(sum(s.tien) FILTER (WHERE s.loai = 'cod'), 0) AS tien_cod,
+                       COALESCE(sum(s.tien) FILTER (WHERE s.loai = 'hoan'), 0) AS tien_hoan
+                FROM moc LEFT JOIN trong_ky s ON date_trunc(%(trunc)s, s.t) = moc.m
+                GROUP BY moc.m
+                ORDER BY moc.m
                 """,
-                {"so_ngay": so_ngay, "vp": diem_id},
+                {"vp": diem_id, "tu": tu_ngay, "den": den_ngay, "trunc": trunc, "buoc": buoc},
             )
-            return _thanh_danh_sach_dict(cur, cur.fetchall())
+            ket_qua = []
+            for r in _thanh_danh_sach_dict(cur, cur.fetchall()):
+                dong = {k: int(v or 0) for k, v in r.items() if k != "moc"}
+                dong["doanh_thu"] = dong["tien_tra_truoc"] + dong["tien_cod"] - dong["tien_hoan"]
+                ket_qua.append({"moc": r["moc"].strftime(dinh_dang), **dong})
+            return ket_qua
     finally:
         release_connection(conn)
 
