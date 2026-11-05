@@ -61,6 +61,7 @@ class ChuyenQuanLyResponse(BaseModel):
     ten_tuyen: str
     chieu: str
     gio_khoi_hanh: datetime
+    gio_ket_thuc: datetime | None = None  # dự kiến = giờ khởi hành + thời gian chạy cả tuyến; None nếu tuyến chưa có thời gian chạy
     loai_xe_id: UUID
     ma_loai_xe: str
     ten_loai_xe: str

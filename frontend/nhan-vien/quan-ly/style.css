@@ -3988,7 +3988,7 @@ body.nhan-vien-shell {
 .cyn-the {
   --mau: var(--color-secondary);
   display: grid;
-  grid-template-columns: 104px minmax(0, 1fr) 150px 92px;
+  grid-template-columns: 118px minmax(0, 1fr) 150px 92px;
   align-items: center;
   gap: 16px;
   width: 100%;
@@ -4013,7 +4013,7 @@ body.nhan-vien-shell {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   padding: 8px 6px;
   border-radius: 12px;
   background: color-mix(in srgb, var(--chieu, var(--mau)) 14%, white);
@@ -4031,6 +4031,36 @@ body.nhan-vien-shell {
   font-weight: 700;
   color: var(--mau);
   white-space: nowrap;
+}
+
+/* Giờ kết thúc dự kiến: to, đậm, màu chữ chính để đọc rõ ngay dưới giờ khởi hành */
+.cyn-the__den {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.cyn-the__den i {
+  font-style: normal;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--chieu, var(--mau));
+}
+
+/* "+1" dạng mũ khi giờ kết thúc sang ngày hôm sau — cùng kiểu với trang Lịch chạy */
+.qua-ngay {
+  margin-left: 1px;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 0;
+  color: var(--color-danger);
+  vertical-align: super;
 }
 
 .cyn-the__chinh {

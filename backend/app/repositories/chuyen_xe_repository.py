@@ -368,6 +368,7 @@ def sinh_nhieu_chuyen_tu_lich(ke_hoach: list[dict]) -> list[dict]:
 # ---------------------------------------------------------
 _SELECT_CHUYEN_QL = """
     SELECT c.id, c.ma, c.tuyen_id, t.ma AS ma_tuyen, t.ten AS ten_tuyen, c.chieu, c.gio_khoi_hanh,
+           CASE WHEN tp.tong_phut > 0 THEN c.gio_khoi_hanh + tp.tong_phut * interval '1 minute' END AS gio_ket_thuc,
            c.loai_xe_id, lx.ma AS ma_loai_xe, lx.ten AS ten_loai_xe, c.he_so_gia, c.he_so_ghe, c.trang_thai,
            c.xe_id, x.bien_so AS bien_so_xe, c.lich_chay_dinh_ky_id,
            (SELECT count(*) FROM ve v WHERE v.chuyen_id = c.id AND v.trang_thai IN ('giu_cho', 'da_thanh_toan')) AS so_ve_dang_hoat_dong
@@ -375,6 +376,9 @@ _SELECT_CHUYEN_QL = """
     JOIN tuyen t ON t.id = c.tuyen_id
     JOIN loai_xe lx ON lx.id = c.loai_xe_id
     LEFT JOIN xe x ON x.id = c.xe_id
+    JOIN LATERAL (
+        SELECT COALESCE(MAX(thoi_gian_du_kien_phut), 0) AS tong_phut FROM tuyen_diem_don_tra WHERE tuyen_id = c.tuyen_id
+    ) tp ON true
 """
 
 

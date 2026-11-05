@@ -247,7 +247,7 @@
       const gio = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
       return `
         <button type="button" class="cyn-the" data-id="${c.id}" style="--mau:${mauTrangThai(c.trang_thai)}; --chieu:${ChuyenChiTiet.mauChieu(c.chieu)}">
-          <span class="cyn-the__gio"><b>${gio}</b><small>${NHAN_TRANG_THAI[c.trang_thai] || c.trang_thai}</small></span>
+          <span class="cyn-the__gio"><b>${gio}</b>${(() => { const k = ChuyenChiTiet.gioKetThuc(c); return k ? `<span class="cyn-the__den"><i>→</i>${k.gio}${ChuyenChiTiet.htmlQuaNgay(k.lech)}</span>` : ""; })()}<small>${NHAN_TRANG_THAI[c.trang_thai] || c.trang_thai}</small></span>
           <span class="cyn-the__chinh">
             <span class="cyn-the__tuyen">${esc(c.ten_tuyen)}</span>
             <span class="cyn-the__phu">
