@@ -358,6 +358,10 @@
                   </span>
                   <button type="button" class="tk-nut-ky" id="tkToi" title="Kỳ sau" aria-label="Kỳ sau">▶</button>
                 </div>
+                <div class="toolbar-actions tk-xuat">
+                  <button type="button" class="btn-action-sm" id="btnXuatExcelThongKe">📊 Xuất Excel</button>
+                  <button type="button" class="btn-action-sm" id="btnInBaoCaoThongKe">🖨️ In báo cáo</button>
+                </div>
               </div>
             </div>
           </div>
@@ -885,6 +889,9 @@
 
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
+  <!-- Báo cáo in của tab Thống kê (bao-cao.js dựng nội dung) — để ngoài .nv-layout để khi in bỏ hẳn layout, không in trang trắng -->
+  <section id="baoCaoThongKe" class="bao-cao-in" aria-hidden="true"></section>
+
   <script src="auth-check.js"></script>
   <script src="api-client.js"></script>
   <script src="nav.js"></script>
@@ -898,6 +905,7 @@
   <script src="don-gui.js"></script>
   <script src="bieu-do.js"></script>
   <script src="thong-ke.js"></script>
+  <script src="bao-cao.js"></script>
   <script src="phim-tat.js"></script>
   <script src="sua-don.js"></script>
   <script src="huy-don.js"></script>

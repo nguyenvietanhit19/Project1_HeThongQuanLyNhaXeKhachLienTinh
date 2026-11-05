@@ -4291,4 +4291,115 @@ g:hover > .chart-vung {
   .phim-tat-goi-y {
     display: none !important;
   }
+
+  /* Báo cáo thống kê: nằm ngoài .nv-layout (layout bị bỏ hẳn) nên đi theo luồng trang, nhiều trang A4 dọc */
+  body.dang-in .bao-cao-in.print-target {
+    display: block;
+    position: static;
+    page: bao-cao;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
+
+@page bao-cao {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
+/* ===== 18. Báo cáo thống kê để in (bao-cao.js) — chỉ hiện khi in ===== */
+.bao-cao-in {
+  display: none;
+  color: #111827;
+  font-family: var(--font-body);
+  font-size: 12px;
+}
+
+.bao-cao-in h1 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  color: var(--color-secondary-dark);
+}
+
+.bao-cao-in h2 {
+  margin: 14px 0 6px;
+  font-size: 13px;
+  color: var(--color-secondary-dark);
+}
+
+.bc-dau {
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--color-secondary);
+}
+
+.bc-thong-tin {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 24px;
+}
+
+.bc-thong-tin span {
+  color: #6B7280;
+}
+
+.bc-hai-cot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.bc-bang {
+  width: 100%;
+  margin-top: 8px;
+  border-collapse: collapse;
+  break-inside: avoid;
+}
+
+.bc-bang th,
+.bc-bang td {
+  padding: 4px 6px;
+  border: 1px solid #D1D5DB;
+  text-align: left;
+}
+
+.bc-bang thead th {
+  background: #F3F0FA;
+}
+
+.bc-bang .text-right {
+  text-align: right;
+}
+
+.bc-ghi-chu {
+  margin: 4px 0 0;
+  font-size: 10.5px;
+  color: #6B7280;
+}
+
+.bc-bieu-do,
+.bc-doi-soat,
+.bc-ky {
+  break-inside: avoid;
+}
+
+.bc-ky {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 24px;
+  min-height: 110px;
+  text-align: center;
+}
+
+.bc-ky div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bc-ky span {
+  font-size: 11px;
+  font-style: italic;
+  color: #6B7280;
 }

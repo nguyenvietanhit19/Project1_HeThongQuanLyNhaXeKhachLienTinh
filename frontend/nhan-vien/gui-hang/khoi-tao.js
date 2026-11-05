@@ -145,6 +145,8 @@ function ganSuKien() {
     }
     chonKy(taoKy("tuy_chon", tu, den));
   }));
+  $("btnXuatExcelThongKe").addEventListener("click", xuatExcelThongKe);
+  $("btnInBaoCaoThongKe").addEventListener("click", inBaoCaoThongKe);
   $("btnXuatCsvDoiSoat").addEventListener("click", xuatCsvDoiSoat);
   $("btnInDoiSoat").addEventListener("click", () => inPhanTu($("tbodyDoiSoat").closest(".card-panel")));
 
