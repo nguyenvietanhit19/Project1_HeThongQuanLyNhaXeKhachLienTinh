@@ -2,9 +2,9 @@
  * Menu điều hướng cho các trang Quản lý nhân sự — mảng link, tự thêm entry
  * vào cuối mảng khi có UC mới.
  *
- * Hiện có UC-49 (hồ sơ nhân sự vận hành) và UC-36 (tạo tài khoản cán bộ,
- * tai-khoan.html). Còn thiếu backend nên CHƯA thêm vào menu: UC-37
- * (khóa/mở khóa tài khoản), UC-51 (cho nghỉ việc, hiện lồng trong modal sửa
+ * Hiện có UC-49 (hồ sơ nhân sự vận hành), UC-36 (tạo tài khoản cán bộ) và
+ * UC-37 (khóa/mở khóa) — hai UC sau cùng trang tai-khoan.html. Còn thiếu
+ * backend nên CHƯA thêm vào menu: UC-51 (cho nghỉ việc, hiện lồng trong modal sửa
  * hồ sơ ở ho-so.html chứ chưa tách trang riêng), UC-52 (xem nhật ký thao tác).
  *
  * Riêng của domain Quản lý nhân sự — không dùng chung với

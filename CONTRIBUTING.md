@@ -122,7 +122,7 @@ frontend/nhan-vien/
   quay-ve/             # người 2 — tự có nav.js/api-client.js/auth-check.js/css riêng, không import từ quan-ly/
   phu-xe/
     chuyen-dang-chay.html   # người 3 — gộp UC-12, UC-13, UC-15, UC-17, UC-26, UC-27
-    bao-that-lac.html       # người 3 — UC-28
+    bao-su-co-hang.html       # người 3 — UC-28
   dieu-do/             # người 4 — tự có file riêng
   gui-hang/  ke-toan/  # người 5 — tự có file riêng
 ```

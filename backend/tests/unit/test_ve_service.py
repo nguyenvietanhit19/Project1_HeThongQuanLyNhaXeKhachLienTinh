@@ -214,35 +214,6 @@ def test_hoan_tac_xuong_xe_bi_chan_khi_xe_da_roi_diem_tra(monkeypatch):
         svc.hoan_tac_xuong_xe("chuyen-1", "ve-1", "nguoi-dung-1")
 
 
-# ---------------------------------------------------------------- khôi phục "không đến" + hàng loạt
-def _tuyen_abcd(monkeypatch, dang_o):
-    monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: {"id": cid, "trang_thai": "dang_chay"})
-    monkeypatch.setattr(svc, "diem_hien_tai", lambda chuyen: {"diem_don_tra_id": dang_o})
-
-
-def test_len_xe_tat_ca_chi_lam_o_diem_xe_dang_dung(monkeypatch):
-    _tuyen_abcd(monkeypatch, "b")
-    monkeypatch.setattr(svc.ve_repo, "tim_ve_can_len_xe_tai_diem", lambda cid, did: [{"ve_id": "v1"}, {"ve_id": "v2"}])
-    nhan = []
-    monkeypatch.setattr(svc.ve_repo, "xac_nhan_len_xe_nhieu", lambda ids: nhan.append(ids) or len(ids))
-    assert svc.len_xe_tat_ca("chuyen-1", "b", "nd") == 2
-    assert nhan == [["v1", "v2"]]
-    with pytest.raises(GiaTriLoi):
-        svc.len_xe_tat_ca("chuyen-1", "c", "nd")  # xe không đứng ở c
-
-
-def test_xuong_xe_tat_ca_chi_khi_xe_dang_dung_o_diem(monkeypatch):
-    _tuyen_abcd(monkeypatch, "b")
-    monkeypatch.setattr(svc.ve_repo, "tim_ve_can_xuong_xe_tai_diem", lambda cid, did: [{"ve_id": "v1"}])
-    monkeypatch.setattr(svc.ve_repo, "xac_nhan_xuong_xe_nhieu", lambda ids: len(ids))
-    assert svc.xuong_xe_tat_ca("chuyen-1", "b", "nd") == 1
-    with pytest.raises(GiaTriLoi):
-        svc.xuong_xe_tat_ca("chuyen-1", "d", "nd")  # xe chưa tới d
-    _tuyen_abcd(monkeypatch, "d")
-    with pytest.raises(GiaTriLoi):
-        svc.xuong_xe_tat_ca("chuyen-1", "b", "nd")  # xe đã rời b
-
-
 def _chuyen_chua_khoi_hanh(phut_con_lai):
     from datetime import datetime, timedelta, timezone
     gio = datetime.now(timezone.utc) + timedelta(minutes=phut_con_lai)

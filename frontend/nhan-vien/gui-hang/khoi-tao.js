@@ -7,6 +7,9 @@ function hienThongBaoChuaGanVanPhong() {
       <p>Nhân viên gửi hàng chỉ thao tác tại văn phòng được phân công.
       Vui lòng liên hệ quản lý hoặc quản lý nhân sự để được gán văn phòng phụ trách, sau đó tải lại trang.</p>
     </div>`;
+  // Chưa có văn phòng thì các tab đều không dùng được — chỉ giữ khối tài khoản (đăng xuất) ở sidebar.
+  document.querySelectorAll("#nv-sidebar .nv-sidebar__nav, #nv-sidebar .nv-sidebar__section-title")
+    .forEach(el => { el.style.display = "none"; });
 }
 
 async function khoiTaoVanPhong() {
@@ -205,6 +208,7 @@ function ganSuKien() {
 async function khoiTaoTrang() {
   if (!nguoiDungHienTai) return;
   renderTopbar();
+  renderSidebar($("nv-sidebar"), null);
   khoiTaoChuong();
 
   try {

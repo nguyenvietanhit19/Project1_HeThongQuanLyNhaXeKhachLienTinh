@@ -33,6 +33,8 @@
   function mo({ loai, tieuDe, noiDung, nhanXacNhan, nhanHuy }) {
     return new Promise((xong) => {
       const mau = MAU[loai] || "tin";
+      // Hộp cảnh báo / xác nhận nguy hiểm có tiếng "cảnh báo" (lỗi API và thành công đã có tiếng riêng ở phu-xe-pro.js nên không phát lại ở đây)
+      if ((loai === "canh-bao" || loai === "nguy-hiem") && window.phuXe && window.phuXe.am) window.phuXe.am("canhBao");
       const ov = document.createElement("div");
       ov.className = "tb-overlay";
       ov.innerHTML = `
@@ -48,7 +50,8 @@
       const truoc = document.activeElement;
       const dong = (giaTri) => {
         document.removeEventListener("keydown", phim, true);
-        ov.remove();
+        ov.classList.add("dang-dong");
+        setTimeout(() => ov.remove(), 170);
         dangMo = null;
         if (truoc && truoc.focus && document.body.contains(truoc)) truoc.focus();
         xong(giaTri);

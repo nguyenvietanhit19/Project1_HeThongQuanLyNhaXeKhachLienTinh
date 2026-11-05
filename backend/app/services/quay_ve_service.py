@@ -1,13 +1,13 @@
 import datetime
 from zoneinfo import ZoneInfo
 
-from app.config import HAN_THANH_TOAN_NGAY_PHUT, VNPAY_CHE_DO
+from app.config import HAN_THANH_TOAN_NGAY_PHUT, VNPAY_CHE_DO, VNPAY_TMN_CODE
 from app.repositories import lich_su_hoan_tien_repository as hoan_tien_repo
 from app.repositories import quay_ve_repository as repo
 from app.repositories import tim_kiem_chuyen_repository as chuyen_repo
 from app.repositories import ve_lock_repository as lock_repo
 from app.repositories import ve_thanh_toan_repository as thanh_toan_repo
-from app.services import dat_ve_service, tim_kiem_chuyen_service, vnpay_service
+from app.services import dat_ve_service, thanh_toan_service, thong_bao_khach_service as thong_bao, tim_kiem_chuyen_service, vnpay_service
 from app.utils.loi import CamTruyCap, GiaTriLoi, KhongTimThay
 from app.utils.so_dien_thoai import chuan_hoa_so_dien_thoai
 
@@ -28,7 +28,28 @@ def tim_chuyen(nguoi_dung, diem_di_id: str, diem_den_id: str, ngay: datetime.dat
     if str(diem_di_id) != str(vp["khu_vuc_id"]):
         raise CamTruyCap("Điểm đi phải thuộc khu vực văn phòng của bạn")
     result = tim_kiem_chuyen_service.tim_chuyen(diem_di_id, diem_den_id, ngay)
-    return [x for x in result if repo.chuyen_co_van_phong(str(x["id"]), str(vp["id"]))]
+    diem_quay = repo.thong_tin_chuyen_tai_van_phong([str(x["id"]) for x in result], str(vp["id"]), str(diem_den_id))
+    doan_ve: dict[str, list[dict]] = {}
+    for ve in chuyen_repo.tim_doan_ve_dang_giu(list(diem_quay)):
+        doan_ve.setdefault(str(ve["chuyen_id"]), []).append(ve)
+    ket_qua = []
+    for chuyen in result:
+        ma_chuyen = str(chuyen["id"])
+        if ma_chuyen not in diem_quay:
+            continue
+        diem = diem_quay[ma_chuyen]
+        ghe_bi_giu = tim_kiem_chuyen_service.tinh_ghe_dang_giu(
+            doan_ve.get(ma_chuyen, []), diem["hl_don"], diem["hl_tra"]
+        )
+        ket_qua.append({
+            **chuyen,
+            "diem_don_id": vp["id"], "ten_diem_don": vp["ten"],
+            "gio_don_du_kien": diem["gio_don_du_kien"],
+            "diem_tra_id": diem["diem_tra_id"], "ten_diem_tra": diem["ten_diem_tra"],
+            "gio_den_du_kien": diem["gio_den_du_kien"],
+            "so_ghe_trong": max(int(chuyen["tong_ghe"]) - len(ghe_bi_giu), 0),
+        })
+    return ket_qua
 
 
 def diem_tra(nguoi_dung, chuyen_id: str, diem_den_id: str) -> list[dict]:
@@ -104,24 +125,35 @@ def ban_ve(nguoi_dung, du_lieu) -> dict:
     seat_map = {g["ma_ghe"]: int(g["gia"]) for g in detail["so_do_ghe"]}
     if not set(ghe) <= set(seat_map):
         raise GiaTriLoi("Có ghế không thuộc sơ đồ chuyến")
+    tong_tien = sum(seat_map[s] for s in ghe)
+    so_ve_coc = (
+        dat_ve_service.so_ve_coc_hotline(len(ghe), tong_tien)
+        if du_lieu.kenh_ban == "hotline" and du_lieu.phuong_thuc == "thanh_toan_tai_quay"
+        else 0
+    )
+    ghe_dat_coc = sorted(ghe)[:so_ve_coc]
     ma_dat_cho = dat_ve_service.sinh_ma_dat_cho()
     phuong_thuc = du_lieu.phuong_thuc
     created = lock_repo.tao_ve_quay(
         str(du_lieu.chuyen_id), ghe, str(vp["id"]), str(du_lieu.diem_tra_id),
         {s: seat_map[s] for s in ghe}, ma_dat_cho, str(nguoi_dung.id), khach_hang_id, ten, sdt,
-        du_lieu.kenh_ban, phuong_thuc,
+        du_lieu.kenh_ban, phuong_thuc, ghe_dat_coc,
     )
     return {
         "ma_dat_cho": ma_dat_cho,
         "kenh_ban": du_lieu.kenh_ban,
         "tong_tien": sum(int(x["gia"]) for x in created),
+        "can_dat_coc": bool(so_ve_coc),
+        "so_ve_dat_coc": so_ve_coc,
+        "tien_dat_coc": sum(int(x["gia"]) for x in created if x.get("la_ve_dat_coc")),
         "ten_khach": created[0].get("ten_khach_vang_lai", ten),
         "ve": created,
         "trang_thai": "da_thanh_toan" if all(v["trang_thai"] == "da_thanh_toan" for v in created) else "giu_cho",
     }
 
 
-def _dung_ve(v: dict) -> dict:
+def _dung_ve(v: dict, dang_cho_dat_coc: bool = False, luot_co_dat_coc: bool = False,
+             dat_coc_da_thanh_toan: bool = False) -> dict:
     now = datetime.datetime.now(MUI_GIO)
     gio_don = v["gio_don_du_kien"]
     before_cutoff = dat_ve_service.con_truoc_moc_chot(gio_don, now)
@@ -133,8 +165,12 @@ def _dung_ve(v: dict) -> dict:
     return {
         **v,
         "co_the_in": v["trang_thai"] == "da_thanh_toan",
-        "co_the_thanh_toan": unpaid_hold and before_cutoff,
-        "co_the_huy_giu_cho": unpaid_hold and before_cutoff,
+        "co_the_thanh_toan": unpaid_hold and before_cutoff and (not luot_co_dat_coc or dat_coc_da_thanh_toan)
+            and v["loai_hinh_thanh_toan"] == "thanh_toan_tai_quay",
+        "co_the_tao_qr": unpaid_hold and before_cutoff and not (luot_co_dat_coc and not dang_cho_dat_coc)
+            and v.get("kenh_ban") in ("tai_quay", "hotline"),
+        "co_the_huy_giu_cho": unpaid_hold and before_cutoff and not luot_co_dat_coc
+            and v["loai_hinh_thanh_toan"] == "thanh_toan_tai_quay",
         "co_the_huy_hoan_tien": refund_allowed,
         "ten_khach": v["ten_khach"] or "Khách vãng lai",
         "gia": int(v["gia"]),
@@ -146,7 +182,28 @@ def tra_cuu(nguoi_dung, ma_dat_cho: str | None = None, sdt: str | None = None) -
     if not ma_dat_cho and not sdt:
         raise GiaTriLoi("Nhập mã đặt chỗ hoặc số điện thoại để tra cứu")
     phone = chuan_hoa_so_dien_thoai(sdt) if sdt else None
-    return [_dung_ve(v) for v in repo.tra_cuu(str(vp["id"]), ma_dat_cho, phone)]
+    tickets = repo.tra_cuu(str(vp["id"]), ma_dat_cho, phone)
+    bookings_waiting_deposit = {
+        v["ma_dat_cho"] for v in tickets
+        if v.get("la_ve_dat_coc") and v["trang_thai"] == "giu_cho"
+    }
+    bookings_with_deposit = {v["ma_dat_cho"] for v in tickets if v.get("la_ve_dat_coc")}
+    bookings_unpaid_deposit = {
+        v["ma_dat_cho"] for v in tickets
+        if v.get("la_ve_dat_coc") and v["trang_thai"] != "da_thanh_toan"
+    }
+    result = []
+    for ticket in tickets:
+        waiting_deposit = ticket["ma_dat_cho"] in bookings_waiting_deposit
+        has_deposit = ticket["ma_dat_cho"] in bookings_with_deposit
+        result.append({
+            **_dung_ve(
+                ticket, waiting_deposit, has_deposit,
+                has_deposit and ticket["ma_dat_cho"] not in bookings_unpaid_deposit,
+            ),
+            "cho_dat_coc": has_deposit,
+        })
+    return result
 
 
 def ve_cho_thanh_toan(nguoi_dung, trang: int, kich_thuoc_trang: int) -> dict:
@@ -172,6 +229,10 @@ def thu_tien(nguoi_dung, ma_dat_cho: str, phuong_thuc: str) -> dict:
     held = [v for v in tickets if v["trang_thai"] == "giu_cho"]
     if not held:
         raise GiaTriLoi("Không có vé giữ chỗ chưa thanh toán tại văn phòng này")
+    if any(v.get("la_ve_dat_coc") and v["trang_thai"] != "da_thanh_toan" for v in tickets):
+        raise GiaTriLoi("Lượt này cần hoàn tất thanh toán đặt cọc qua VNPay trước khi thu tiền phần còn lại")
+    if any(v["loai_hinh_thanh_toan"] != "thanh_toan_tai_quay" for v in held):
+        raise GiaTriLoi("Lượt này đang chờ thanh toán QR; không thể ghi nhận thêm tiền mặt")
     now = datetime.datetime.now(MUI_GIO)
     if any(v.get("han_giu_cho_den") and v["han_giu_cho_den"] <= now for v in held):
         raise GiaTriLoi("Đã hết hạn giữ vé")
@@ -182,7 +243,58 @@ def thu_tien(nguoi_dung, ma_dat_cho: str, phuong_thuc: str) -> dict:
     updated = lock_repo.thanh_toan_ve_quay(ma_dat_cho, str(vp["id"]), str(nguoi_dung.id), phuong_thuc, len(held))
     if updated != len(held):
         raise GiaTriLoi("Một số vé đã thay đổi trạng thái; tải lại danh sách trước khi thu tiền")
+    thong_bao.don_nhac_quay_ve(ma_dat_cho)
     return {"ma_dat_cho": ma_dat_cho, "so_ve_da_thanh_toan": updated}
+
+
+def tao_link_thanh_toan_dat_cho(nguoi_dung, ma_dat_cho: str, frontend_origin: str, ip: str = "127.0.0.1") -> str:
+    vp = lay_van_phong(nguoi_dung)
+    # Xác thực origin trước khi đổi trạng thái đặt chỗ.
+    vnpay_service.kiem_tra_origin_frontend(frontend_origin)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    giao_dich = thanh_toan_repo.bat_dau_thanh_toan_qr_quay(
+        ma_dat_cho, str(vp["id"]), vnpay_service.tao_ma_giao_dich(ma_dat_cho, now), HAN_THANH_TOAN_NGAY_PHUT,
+    )
+    return vnpay_service.tao_url_thanh_toan(
+        ma_dat_cho, giao_dich["tong_tien"], giao_dich["han_thanh_toan"],
+        frontend_origin, ip, now, giao_dich["ma_giao_dich"],
+        noi_dung=f"Thanh toan luot ve xe {ma_dat_cho}", tra_ve_quay_ve=True,
+    )
+
+
+def xac_nhan_vnpay_sandbox(nguoi_dung, tham_so: dict[str, str]) -> dict:
+    """Cho nhân viên chốt giao dịch sandbox từ Return URL đã ký khi IPN/querydr không về máy local."""
+    if VNPAY_CHE_DO != "sandbox":
+        raise GiaTriLoi("Chức năng xác nhận bằng kết quả trả về chỉ dùng trong VNPay sandbox")
+    if not vnpay_service.chu_ky_hop_le(tham_so) or tham_so.get("vnp_TmnCode") != VNPAY_TMN_CODE:
+        raise GiaTriLoi("Kết quả VNPay không có chữ ký hợp lệ")
+    if tham_so.get("vnp_ResponseCode") != "00" or tham_so.get("vnp_TransactionStatus") != "00":
+        raise GiaTriLoi("VNPay chưa xác nhận thanh toán thành công")
+    ma_giao_dich = tham_so.get("vnp_TxnRef", "")
+    if vnpay_service.la_giao_dich_cua_ve(ma_giao_dich) or not tham_so.get("vnp_TransactionNo"):
+        raise GiaTriLoi("Mã giao dịch VNPay không hợp lệ cho lượt bán tại quầy")
+    ma_dat_cho = vnpay_service.ma_dat_cho_tu_ma_giao_dich(ma_giao_dich)
+    vp = lay_van_phong(nguoi_dung)
+    tickets = repo.tra_cuu(str(vp["id"]), ma_dat_cho=ma_dat_cho)
+    if not tickets or any(v["kenh_ban"] not in ("tai_quay", "hotline") for v in tickets):
+        raise GiaTriLoi("Không tìm thấy lượt đặt chỗ thuộc văn phòng của bạn")
+    ve_thanh_toan = [
+        v for v in tickets
+        if v["loai_hinh_thanh_toan"] == "thanh_toan_ngay" and v["ma_tham_chieu_vnpay"] == ma_giao_dich
+    ]
+    so_tien_vnpay = tham_so.get("vnp_Amount", "")
+    if not ve_thanh_toan or not so_tien_vnpay.isdecimal() or int(so_tien_vnpay) != sum(int(v["gia"]) for v in ve_thanh_toan) * 100:
+        raise GiaTriLoi("Số tiền hoặc mã giao dịch không khớp với lượt đặt chỗ")
+    ket_qua = thanh_toan_service.xu_ly_ipn(tham_so)
+    if ket_qua["RspCode"] not in ("00", "02"):
+        raise GiaTriLoi("Chưa thể ghi nhận thanh toán; vui lòng kiểm tra trạng thái lượt đặt chỗ")
+    tickets = repo.tra_cuu(str(vp["id"]), ma_dat_cho=ma_dat_cho)
+    da_thanh_toan = [v for v in tickets if v["ma_tham_chieu_vnpay"] == ma_giao_dich]
+    if len(da_thanh_toan) != len(ve_thanh_toan) or any(v["trang_thai"] != "da_thanh_toan" for v in da_thanh_toan):
+        raise GiaTriLoi("Giao dịch chưa được ghi nhận hoặc vé đã hết hạn; cần đối soát VNPay")
+    return {"trang_thai": "da_xac_nhan", "ma_dat_cho": ma_dat_cho,
+            "so_ve_da_thanh_toan": len(da_thanh_toan),
+            "la_dat_coc": any(v["la_ve_dat_coc"] for v in da_thanh_toan)}
 
 
 def tao_link_thanh_toan(nguoi_dung, ve_id: str, frontend_origin: str, ip: str = "127.0.0.1") -> str:
@@ -190,20 +302,7 @@ def tao_link_thanh_toan(nguoi_dung, ve_id: str, frontend_origin: str, ip: str = 
     v = repo.ve_va_chuyen(ve_id, str(vp["id"]))
     if not v:
         raise KhongTimThay("Không tìm thấy vé thuộc văn phòng này")
-    if v["trang_thai"] != "giu_cho":
-        raise GiaTriLoi("Vé không còn chờ thanh toán")
-    now = datetime.datetime.now(datetime.timezone.utc)
-    if v["gio_khoi_hanh"] <= now:
-        raise GiaTriLoi("Chuyến đã qua giờ khởi hành; không thể tạo link thanh toán")
-    txn = vnpay_service.tao_ma_giao_dich(v["ma_ve"], now)
-    deadline = min(now + datetime.timedelta(minutes=HAN_THANH_TOAN_NGAY_PHUT), v["gio_khoi_hanh"])
-    url = vnpay_service.tao_url_thanh_toan(
-        v["ma_ve"], int(v["gia"]), deadline,
-        frontend_origin, ip, now, txn, noi_dung=f"Thanh toan ve xe {v['ma_ve']}",
-    )
-    if not thanh_toan_repo.luu_ma_tham_chieu_vnpay_ve(str(v["id"]), txn, deadline):
-        raise GiaTriLoi("Vé vừa thay đổi trạng thái; vui lòng tra cứu và thử lại")
-    return url
+    return tao_link_thanh_toan_dat_cho(nguoi_dung, v["ma_dat_cho"], frontend_origin, ip)
 
 
 def huy_dat_cho(nguoi_dung, ma_dat_cho: str) -> dict:
@@ -211,6 +310,8 @@ def huy_dat_cho(nguoi_dung, ma_dat_cho: str) -> dict:
     tickets = repo.tra_cuu(str(vp["id"]), ma_dat_cho=ma_dat_cho)
     if not tickets or any(v["trang_thai"] != "giu_cho" for v in tickets):
         raise GiaTriLoi("Chỉ có thể hủy lượt đặt còn giữ chỗ chưa thanh toán")
+    if any(v["loai_hinh_thanh_toan"] != "thanh_toan_tai_quay" for v in tickets):
+        raise GiaTriLoi("Lượt đang thanh toán QR sẽ tự hết hạn; vui lòng chờ kết quả giao dịch")
     now = datetime.datetime.now(MUI_GIO)
     if any(not dat_ve_service.con_truoc_moc_chot(v["gio_don_du_kien"], now) for v in tickets):
         raise GiaTriLoi("Đã qua thời điểm hủy giữ chỗ")
@@ -236,6 +337,7 @@ def huy_ve_hoan_tien(nguoi_dung, ve_id: str, ly_do: str | None = None) -> dict:
         and v.get("phuong_thuc_thanh_toan") == "chuyen_khoan"
         and v.get("ma_tham_chieu_vnpay")
         and v.get("ma_giao_dich_cong_thanh_toan")
+        and vnpay_service.la_giao_dich_cua_ve(v["ma_tham_chieu_vnpay"])
         and VNPAY_CHE_DO == "sandbox"
     ):
         result = vnpay_service.hoan_tien_toan_phan(
@@ -274,6 +376,44 @@ def lich_su_ban_ve(
     vp = lay_van_phong(nguoi_dung)
     ma_ve = ma_ve.strip() if ma_ve else None
     return repo.lich_su_ban_ve(str(vp["id"]), tu_ngay, den_ngay, trang, kich_thuoc_trang, ma_ve or None)
+
+
+def ve_da_huy(nguoi_dung, ngay: datetime.date, trang: int = 1, kich_thuoc_trang: int = 20) -> dict:
+    vp = lay_van_phong(nguoi_dung)
+    return repo.ve_da_huy(str(vp["id"]), ngay, trang, kich_thuoc_trang)
+
+
+def ve_theo_trang_thai(nguoi_dung, trang_thai: str, tu_ngay: datetime.date,
+                       den_ngay: datetime.date, trang: int = 1,
+                       kich_thuoc_trang: int = 20, ma_ve: str | None = None) -> dict:
+    _kiem_tra_khoang_thong_ke(tu_ngay, den_ngay)
+    if trang_thai not in ("giu_cho", "da_huy"):
+        raise GiaTriLoi("Trạng thái vé không hợp lệ")
+    vp = lay_van_phong(nguoi_dung)
+    return repo.ve_theo_trang_thai(str(vp["id"]), trang_thai, tu_ngay, den_ngay,
+                                   trang, kich_thuoc_trang, ma_ve.strip() or None if ma_ve else None)
+
+
+def bieu_do_doanh_thu(nguoi_dung, tu_ngay: datetime.date, den_ngay: datetime.date,
+                      ma_ve: str | None = None) -> dict:
+    _kiem_tra_khoang_thong_ke(tu_ngay, den_ngay)
+    vp = lay_van_phong(nguoi_dung)
+    nhom = "day" if (den_ngay - tu_ngay).days <= 45 else "month"
+    rows = repo.bieu_do_doanh_thu(str(vp["id"]), tu_ngay, den_ngay,
+                                  ma_ve.strip() or None if ma_ve else None, nhom)
+    by_date = {row["moc"]: row for row in rows}
+    current = tu_ngay if nhom == "day" else tu_ngay.replace(day=1)
+    end = den_ngay if nhom == "day" else den_ngay.replace(day=1)
+    points = []
+    while current <= end:
+        row = by_date.get(current, {})
+        points.append({"moc": current.isoformat(), "so_ve": int(row.get("so_ve") or 0),
+                       "doanh_thu": int(row.get("doanh_thu") or 0)})
+        if nhom == "day":
+            current += datetime.timedelta(days=1)
+        else:
+            current = (current.replace(day=28) + datetime.timedelta(days=4)).replace(day=1)
+    return {"nhom": "ngay" if nhom == "day" else "thang", "diem": points}
 
 
 def tra_cuu_hoan_tien(nguoi_dung, ma_dat_cho: str | None = None, sdt: str | None = None) -> list[dict]:

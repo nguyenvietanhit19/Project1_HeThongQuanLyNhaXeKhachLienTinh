@@ -90,6 +90,7 @@ class HoSoTomTatResponse(BaseModel):
     dùng HoSoNhanSuResponse."""
 
     id: UUID
+    ma: str | None = Field(default=None, description="Mã nhân viên: tài xế TX..., phụ xe lấy mã của tài khoản (PX...); null nếu chưa được cấp")
     ho_ten: str
     so_dien_thoai: str
     chuc_danh: str
@@ -101,6 +102,7 @@ class HoSoNhanSuResponse(BaseModel):
     """Hồ sơ đầy đủ (có CCCD, ngày sinh, ảnh, danh sách giấy tờ)."""
 
     id: UUID
+    ma: str | None = Field(default=None, description="Mã nhân viên: tài xế TX..., phụ xe lấy mã của tài khoản (PX...); null nếu chưa được cấp")
     ho_ten: str
     so_dien_thoai: str
     chuc_danh: str
@@ -125,6 +127,7 @@ class TaiKhoanPhuXeResponse(BaseModel):
     """1 tài khoản phu_xe chưa gắn hồ sơ (phục vụ ô chọn khi tạo hồ sơ phụ xe)."""
 
     id: UUID
+    ma: str | None = None
     ho_ten: str
     email: str
     so_dien_thoai: str | None = None

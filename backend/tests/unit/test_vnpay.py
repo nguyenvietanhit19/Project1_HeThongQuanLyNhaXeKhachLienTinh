@@ -95,7 +95,9 @@ def test_moi_lan_thanh_toan_co_ma_giao_dich_khac_nhau():
 # IPN
 # ---------------------------------------------------------
 def _ve(so_ghe, gia, trang_thai="giu_cho", loai="thanh_toan_ngay"):
-    return {"id": f"v{so_ghe}", "so_ghe": so_ghe, "gia": gia, "trang_thai": trang_thai, "loai_hinh_thanh_toan": loai, "han_giu_cho_den": None}
+    return {"id": f"v{so_ghe}", "so_ghe": so_ghe, "gia": gia, "trang_thai": trang_thai,
+            "loai_hinh_thanh_toan": loai, "han_giu_cho_den": None,
+            "kenh_ban": None, "ma_tham_chieu_vnpay": None, "khach_hang_id": None}
 
 
 def _ipn(so_tien=400000, ma_phan_hoi="00", trang_thai="00", ma_gd="DCAB12-20261010150000", **them):
@@ -110,8 +112,8 @@ def _ipn(so_tien=400000, ma_phan_hoi="00", trang_thai="00", ma_gd="DCAB12-202610
 @pytest.fixture
 def kho(monkeypatch):
     ghi = {"da_tra": [], "huy": []}
-    monkeypatch.setattr(tt.repo, "ghi_nhan_thanh_toan_ngay", lambda ma, gd: ghi["da_tra"].append((ma, gd)) or 2)
-    monkeypatch.setattr(tt.repo, "huy_thanh_toan_ngay", lambda ma: ghi["huy"].append(ma) or 2)
+    monkeypatch.setattr(tt.repo, "ghi_nhan_thanh_toan_ngay", lambda ma, gd, *_: ghi["da_tra"].append((ma, gd)) or 2)
+    monkeypatch.setattr(tt.repo, "huy_thanh_toan_ngay", lambda ma, *_: ghi["huy"].append(ma) or 2)
     monkeypatch.setattr(tt.repo, "lay_ve_cua_dat_cho", lambda ma: ghi.get("ve", []))
     return ghi
 
@@ -154,7 +156,7 @@ def test_ipn_thanh_cong_ghi_nhan_ma_giao_dich_cua_cong(kho):
 
 def test_ipn_thanh_cong_nhung_ve_da_qua_han_khong_ghi_nhan(kho, monkeypatch):
     kho["ve"] = [_ve("1", 200000), _ve("2", 200000)]
-    monkeypatch.setattr(tt.repo, "ghi_nhan_thanh_toan_ngay", lambda ma, gd: 0)
+    monkeypatch.setattr(tt.repo, "ghi_nhan_thanh_toan_ngay", lambda ma, gd, *_: 0)
     assert tt.xu_ly_ipn(_ipn())["RspCode"] == "02"  # dừng cổng gọi lại; cần hoàn tiền thủ công
 
 

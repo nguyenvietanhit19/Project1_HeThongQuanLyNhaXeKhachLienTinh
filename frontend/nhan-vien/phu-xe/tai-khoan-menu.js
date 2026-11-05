@@ -18,7 +18,7 @@
   }
 
   function dinhDangNgay(iso) {
-    return iso ? new Date(iso).toLocaleDateString("vi-VN") : "";
+    return iso ? window.phuXe.ngay(iso) : "";
   }
 
   // ---------- Điều hướng: các mục chung + các mục theo chuyến đang xem (có ?chuyen_id=) ----------
@@ -76,10 +76,28 @@
     <div class="tk-menu" id="tk-menu" role="menu" hidden>
       <div class="tk-menu__ten"><span class="tk-menu__chu" id="tk-menu-chu"></span><span id="tk-menu-ten"></span></div>
       ${veMucDieuHuong()}
-      <button type="button" class="tk-menu__muc" id="tk-ho-so" role="menuitem">
-        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="7.5" r="4.2"/><path d="M3.8 21c0-4.2 3.6-7 8.2-7s8.2 2.8 8.2 7c0 .6-.4 1-1 1H4.8c-.6 0-1-.4-1-1Z"/></svg>
-        Hồ sơ
-      </button>
+      <div class="tk-cd" id="tk-cd">
+        <button type="button" class="tk-menu__muc tk-cd__nut" id="tk-cd-nut" aria-expanded="false" aria-controls="tk-cd-con">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+          Cài đặt <span class="tk-cd__mui" aria-hidden="true">▾</span>
+        </button>
+        <div class="tk-cd__con" id="tk-cd-con" role="group" aria-label="Cài đặt" hidden>
+          <div class="tk-cd__in">
+          <button type="button" class="tk-menu__muc tk-menu__muc--con" data-cd="giao-dien" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+            Giao diện <span class="tk-menu__gt" id="px-giao-dien-gt"></span>
+          </button>
+          <button type="button" class="tk-menu__muc tk-menu__muc--con" data-cd="am-bao" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+            Âm báo <span class="tk-menu__gt" id="px-am-bao-gt"></span>
+          </button>
+          <button type="button" class="tk-menu__muc tk-menu__muc--con" id="tk-ho-so" data-cd="ho-so" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="7.5" r="4.2"/><path d="M3.8 21c0-4.2 3.6-7 8.2-7s8.2 2.8 8.2 7c0 .6-.4 1-1 1H4.8c-.6 0-1-.4-1-1Z"/></svg>
+            Hồ sơ
+          </button>
+          </div>
+        </div>
+      </div>
       <button type="button" class="tk-menu__muc tk-menu__muc--dang-xuat" id="tk-dang-xuat" role="menuitem">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
         Đăng xuất
@@ -122,110 +140,145 @@
     if (e.key === "Escape") moMenu(false);
   });
   khungNut.querySelector("#tk-dang-xuat").addEventListener("click", () => dangXuat());
-  khungNut.querySelector("#tk-ho-so").addEventListener("click", () => {
-    moMenu(false);
-    moHoSo();
-  });
-
-  // ---------- Hộp thoại hồ sơ ----------
-  const hop = document.createElement("div");
-  hop.className = "modal-overlay";
-  hop.hidden = true;
-  hop.innerHTML = `
-    <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="tk-tieu-de">
-      <div class="tk-ho-so" id="tk-noi-dung"></div>
-    </div>`;
-  document.body.appendChild(hop);
-  const noiDung = hop.querySelector("#tk-noi-dung");
-  hop.addEventListener("click", (e) => {
-    if (e.target === hop) dongHoSo();
-  });
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !hop.hidden) dongHoSo();
-  });
-
-  let hoSo = null;
-  let baoLoi = "";
-  let baoOk = "";
-
-  function dongHoSo() {
-    hop.hidden = true;
+  // ---------- Cài đặt (xổ ra 3 mục: Giao diện · Âm báo · Hồ sơ) ----------
+  const nutCaiDat = khungNut.querySelector("#tk-cd-nut");
+  const conCaiDat = khungNut.querySelector("#tk-cd-con");
+  function xoCaiDat(mo) {
+    conCaiDat.hidden = !mo;
+    nutCaiDat.setAttribute("aria-expanded", String(mo));
+    nutCaiDat.classList.toggle("is-mo", mo);
   }
+  nutCaiDat.addEventListener("click", (e) => {
+    e.stopPropagation();   // không để click lan ra document làm đóng cả menu
+    xoCaiDat(conCaiDat.hidden);
+  });
 
-  async function moHoSo() {
-    baoLoi = "";
-    baoOk = "";
-    hop.hidden = false;
-    noiDung.innerHTML = '<p class="empty-state">Đang tải...</p>';
-    try {
-      hoSo = await apiGet("/auth/toi");
-      veHoSo();
-    } catch (err) {
-      noiDung.innerHTML = `<p class="text-error">${esc(err.message)}</p>
-        <button type="button" class="btn-confirm btn-confirm--outline btn-confirm--block" data-dong>Đóng</button>`;
-      noiDung.querySelector("[data-dong]").addEventListener("click", dongHoSo);
+  const TEN_GD = { auto: "Tự động", sang: "Sáng", toi: "Tối" };
+  function capNhatGiaTri() {
+    const gd = khungNut.querySelector("#px-giao-dien-gt");
+    if (gd && window.phuXeGiaoDien) gd.textContent = TEN_GD[window.phuXeGiaoDien.lay()];
+    const am = khungNut.querySelector("#px-am-bao-gt");
+    if (am && window.phuXe && window.phuXe.amThanh) {
+      const c = window.phuXe.amThanh.lay();
+      am.textContent = c.bat ? "Bật" : "Tắt";
     }
   }
+  window.addEventListener("phuxe:cai-dat-doi", capNhatGiaTri);
 
-  function veHoSo() {
-    noiDung.innerHTML = `
-      <div class="tk-ho-so__dau">
-        <div class="tk-ho-so__avatar">${esc(chuDau(hoSo.ho_ten))}</div>
-        <div>
-          <h2 id="tk-tieu-de">${esc(hoSo.ho_ten)}</h2>
-          <span class="chip chip--tim">${esc(VAI_TRO[hoSo.vai_tro] || hoSo.vai_tro)}</span>
-        </div>
+  conCaiDat.querySelectorAll("[data-cd]").forEach((nut) =>
+    nut.addEventListener("click", () => {
+      moMenu(false);
+      const cd = window.phuXeCaiDat;
+      if (!cd) return;
+      ({ "giao-dien": cd.moGiaoDien, "am-bao": cd.moAmThanh, "ho-so": cd.moHoSo })[nut.dataset.cd]();
+    })
+  );
+  // Mở menu → làm mới giá trị hiện bên phải từng mục
+  nutAvatar.addEventListener("click", capNhatGiaTri);
+  window.phuXeCapNhatTen = capNhatTen;
+  capNhatGiaTri();
+
+  // ---------- Chuông thông báo (bên trái nút ☰) ----------
+  // Dùng chung API mọi vai trò: GET /thong-bao/cua-toi, PUT /thong-bao/{id}/da-doc, PUT /thong-bao/da-doc-tat-ca.
+  // Mỗi trang là 1 lần tải mới nên không giữ WebSocket: hỏi API khi tải trang, mỗi 30 giây, và khi tab hiện lại.
+  const CHU_KY_MS = 30000;
+  const chuong = document.createElement("div");
+  chuong.className = "tk-khung tk-chuong";
+  chuong.innerHTML = `
+    <button type="button" class="btn-icon-circle btn-icon-circle--dark tk-chuong__nut" id="tk-chuong-nut"
+            aria-haspopup="true" aria-expanded="false" aria-label="Thông báo" title="Thông báo">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <span class="tk-chuong__so" id="tk-chuong-so" hidden>0</span>
+    </button>
+    <div class="tk-chuong__bang" id="tk-chuong-bang" role="dialog" aria-label="Thông báo" hidden>
+      <div class="tk-chuong__dau">
+        <strong>Thông báo</strong>
+        <button type="button" class="tk-chuong__doc-het" id="tk-chuong-doc-het">Đánh dấu đã đọc hết</button>
       </div>
-      ${baoOk ? `<p class="text-success">${esc(baoOk)}</p>` : ""}
-      <form id="tk-form" novalidate>
-        <label class="tk-nhan" for="tk-ho-ten">Họ và tên</label>
-        <input class="input-field" id="tk-ho-ten" autocomplete="name" value="${esc(hoSo.ho_ten)}" required />
-        <label class="tk-nhan" for="tk-sdt">Số điện thoại</label>
-        <input class="input-field" id="tk-sdt" type="tel" inputmode="tel" autocomplete="tel" value="${esc(hoSo.so_dien_thoai)}" required />
-        <label class="tk-nhan" for="tk-email">Email (không sửa được)</label>
-        <input class="input-field" id="tk-email" value="${esc(hoSo.email)}" disabled />
-        <p class="hint">Tham gia từ ${esc(dinhDangNgay(hoSo.ngay_tao))}</p>
-        ${baoLoi ? `<div class="text-error">${esc(baoLoi)}</div>` : ""}
-        <button class="btn-primary" type="submit">Lưu thay đổi</button>
-        <button class="btn-confirm btn-confirm--outline btn-confirm--block" type="button" data-dong>Đóng</button>
-      </form>`;
-    noiDung.querySelector("[data-dong]").addEventListener("click", dongHoSo);
-    noiDung.querySelector("#tk-form").addEventListener("submit", luuHoSo);
+      <div class="tk-chuong__ds" id="tk-chuong-ds"></div>
+    </div>`;
+  nhomNut.insertBefore(chuong, khungNut);
+
+  const nutChuong = chuong.querySelector("#tk-chuong-nut");
+  const soChuong = chuong.querySelector("#tk-chuong-so");
+  const bangChuong = chuong.querySelector("#tk-chuong-bang");
+  const dsChuong = chuong.querySelector("#tk-chuong-ds");
+  let dsThongBao = [];
+  let soChuaDoc = 0;
+
+  function tuongDoi(iso) {
+    const t = new Date(iso).getTime();
+    if (isNaN(t)) return "";
+    const giay = Math.max(0, (Date.now() - t) / 1000);
+    if (giay < 60) return "Vừa xong";
+    if (giay < 3600) return `${Math.floor(giay / 60)} phút trước`;
+    if (giay < 86400) return `${Math.floor(giay / 3600)} giờ trước`;
+    if (giay < 172800) return "Hôm qua";
+    return window.phuXe && window.phuXe.ngay ? window.phuXe.ngay(iso) : new Date(t).toLocaleDateString("vi-VN");
   }
 
-  async function luuHoSo(e) {
-    e.preventDefault();
-    const hoTen = noiDung.querySelector("#tk-ho-ten").value.trim();
-    const sdt = noiDung.querySelector("#tk-sdt").value.trim();
-    const nut = e.submitter;
-    baoLoi = "";
-    baoOk = "";
+  // Chỉ đi tới trang nội bộ của khu nhân viên
+  function duongDanAnToan(d) {
+    return typeof d === "string" && d.startsWith("/nhan-vien/") && !d.includes("//") ? d : null;
+  }
 
-    // Chỉ gửi trường thật sự đổi (API cho sửa từng trường)
-    const thayDoi = {};
-    if (hoTen !== hoSo.ho_ten) thayDoi.ho_ten = hoTen;
-    if (sdt !== hoSo.so_dien_thoai) thayDoi.so_dien_thoai = sdt;
-    if (!hoTen) {
-      baoLoi = "Họ và tên không được để trống";
-      return veHoSo();
-    }
-    if (Object.keys(thayDoi).length === 0) {
-      baoOk = "Không có gì thay đổi.";
-      return veHoSo();
-    }
+  function veChuong() {
+    soChuong.textContent = soChuaDoc > 99 ? "99+" : String(soChuaDoc);
+    soChuong.hidden = soChuaDoc === 0;
+    nutChuong.setAttribute("aria-label", soChuaDoc ? `Thông báo, ${soChuaDoc} chưa đọc` : "Thông báo");
+    if (bangChuong.hidden) return;
+    dsChuong.innerHTML = dsThongBao.length
+      ? dsThongBao.map((tb) => `
+        <button type="button" class="tk-chuong__muc${tb.da_doc ? "" : " chua-doc"}" data-id="${esc(tb.id)}">
+          <span class="tk-chuong__cham" aria-hidden="true"></span>
+          <span class="tk-chuong__nd"><span>${esc(tb.noi_dung)}</span><small>${esc(tuongDoi(tb.ngay_tao))}</small></span>
+        </button>`).join("")
+      : '<div class="tk-chuong__trong">Chưa có thông báo nào.</div>';
+  }
 
-    if (nut) nut.disabled = true;
+  async function taiThongBao() {
     try {
-      await apiPut("/auth/toi", thayDoi);
-      hoSo = await apiGet("/auth/toi");
-      localStorage.setItem("ho_ten", hoSo.ho_ten);
-      capNhatTen(hoSo.ho_ten);
-      const loiChao = document.getElementById("loi-chao");
-      if (loiChao) loiChao.textContent = `Xin chào, ${hoSo.ho_ten}`;
-      baoOk = "Đã lưu thông tin.";
+      const d = await apiGet("/thong-bao/cua-toi?limit=30");
+      dsThongBao = d.items || [];
+      soChuaDoc = d.so_chua_doc || 0;
+      veChuong();
     } catch (err) {
-      baoLoi = err.message;
+      console.error("Không tải được thông báo:", err);
     }
-    veHoSo();
   }
+
+  function moChuong(mo) {
+    bangChuong.hidden = !mo;
+    nutChuong.setAttribute("aria-expanded", String(mo));
+    if (mo) { moMenu(false); veChuong(); taiThongBao(); }
+  }
+
+  nutChuong.addEventListener("click", (e) => {
+    e.stopPropagation();
+    moChuong(bangChuong.hidden);
+  });
+  nutAvatar.addEventListener("click", () => moChuong(false));
+  bangChuong.addEventListener("click", (e) => e.stopPropagation());
+  document.addEventListener("click", () => { if (!bangChuong.hidden) moChuong(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !bangChuong.hidden) moChuong(false); });
+
+  dsChuong.addEventListener("click", async (e) => {
+    const muc = e.target.closest(".tk-chuong__muc");
+    if (!muc) return;
+    const tb = dsThongBao.find((x) => x.id === muc.dataset.id);
+    if (tb && !tb.da_doc) {
+      try { await apiPut(`/thong-bao/${encodeURIComponent(tb.id)}/da-doc`); } catch (_) { /* vẫn cho đi tiếp */ }
+    }
+    const dich = duongDanAnToan(tb && tb.duong_dan);
+    if (dich) { location.href = dich; return; }
+    taiThongBao();
+  });
+  chuong.querySelector("#tk-chuong-doc-het").addEventListener("click", async () => {
+    try { await apiPut("/thong-bao/da-doc-tat-ca"); } catch (_) { /* tải lại bên dưới cho thấy trạng thái thật */ }
+    taiThongBao();
+  });
+
+  taiThongBao();
+  setInterval(() => { if (!document.hidden) taiThongBao(); }, CHU_KY_MS);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) taiThongBao(); });
 })();

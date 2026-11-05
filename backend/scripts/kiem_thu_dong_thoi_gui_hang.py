@@ -52,7 +52,7 @@ def _sql(cau_lenh: str, tham_so: tuple = (), lay: str | None = None):
 
 
 def _chuan_bi() -> dict:
-    """Lấy 1 văn phòng gửi, 1 văn phòng nhận có >= 2 nhân viên, tuyến nối 2 điểm, 1 chuyến của tuyến."""
+    """Lấy 1 văn phòng gửi, 1 văn phòng nhận (khác khu vực) có >= 2 nhân viên, tuyến nối 2 điểm, 1 chuyến của tuyến."""
     hang = _sql(
         """SELECT h.van_phong_id::text, array_agg(nd.id::text ORDER BY nd.email)
            FROM ho_so_can_bo_diem h JOIN nguoi_dung nd ON nd.id = h.nguoi_dung_id
@@ -63,8 +63,9 @@ def _chuan_bi() -> dict:
     nhan = next(((vp, nv) for vp, nv in hang if len(nv) >= 2), None)
     if not nhan:
         sys.exit("Cần 1 văn phòng có >= 2 nhân viên gửi hàng — chạy seed_gui_hang_demo.py trước.")
+    khu_vuc = dict(_sql("SELECT id::text, khu_vuc_id::text FROM diem_don_tra WHERE loai = 'van_phong'", lay="het"))
     for vp_gui, nv_gui in hang:
-        if vp_gui == nhan[0]:
+        if khu_vuc[vp_gui] == khu_vuc[nhan[0]]:  # không gửi nội khu vực (gồm cả trùng văn phòng)
             continue
         tuyen = repo.tim_cac_tuyen_qua_hai_diem(vp_gui, nhan[0])
         if not tuyen:

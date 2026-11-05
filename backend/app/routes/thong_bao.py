@@ -36,6 +36,7 @@ def danh_dau_tat_ca_da_doc(nguoi_dung: NguoiDungHienTai = Depends(yeu_cau_dang_n
 
 @router.put("/{thong_bao_id}/da-doc")
 def danh_dau_da_doc(thong_bao_id: UUID, nguoi_dung: NguoiDungHienTai = Depends(yeu_cau_dang_nhap)):
-    if not thong_bao_repo.danh_dau_da_doc(str(thong_bao_id), nguoi_dung.id):
+    ket_qua = thong_bao_repo.danh_dau_da_doc(str(thong_bao_id), nguoi_dung.id)
+    if ket_qua == "not_found":
         raise KhongTimThay("Không tìm thấy thông báo")
     return {"thong_bao": "Đã đánh dấu đã đọc"}

@@ -35,7 +35,7 @@ async function taiDiemNhanKhaDung() {
   try {
     state.diemNhan = await apiGet("/gui-hang/diem-nhan-kha-dung");
     if (!state.diemNhan.length) {
-      selectKv.innerHTML = '<option value="">⚠️ Chưa có tuyến nào nối văn phòng này với văn phòng khác</option>';
+      selectKv.innerHTML = '<option value="">⚠️ Chưa có tuyến nào nối văn phòng này với văn phòng ở khu vực khác</option>';
       return;
     }
     selectKv.innerHTML = '<option value="">-- Chọn khu vực đến --</option>' + state.diemNhan

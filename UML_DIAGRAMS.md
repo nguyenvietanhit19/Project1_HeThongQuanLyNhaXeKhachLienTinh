@@ -784,7 +784,7 @@ endif
 if (Đang gia hạn giấy tờ đã có?) then (đúng)
   :Xóa trạng thái "đã nhắc" — chu kỳ nhắc hết hạn\nbắt đầu lại từ đầu;
 endif
-:Lưu hồ sơ và ghi vào nhật ký thao tác;
+:Lưu hồ sơ (tài xế được tự cấp mã nhân viên TX; phụ xe\ndùng mã của tài khoản) và ghi vào nhật ký thao tác;
 note right
   Mỗi ngày hệ thống tự rà soát giấy tờ: còn không quá 30 ngày
   là hết hạn, hoặc đã quá hạn, thì nhắc quản lý nhân sự
@@ -1308,8 +1308,8 @@ else (Quản lý)
     stop
   endif
 endif
-:Tạo tài khoản đã xác nhận với mật khẩu ban đầu mặc định\n(không gửi email) và nhắc người tạo báo cho cán bộ;
-:Người tạo báo mật khẩu ban đầu cho cán bộ;
+:Tạo tài khoản đã xác nhận, tự cấp mã nhân viên theo vai trò\nvà đặt mật khẩu ban đầu mặc định (không gửi email),\nnhắc người tạo báo cho cán bộ;
+:Người tạo báo mã nhân viên và mật khẩu ban đầu cho cán bộ;
 :Cán bộ đăng nhập và nên đổi mật khẩu ngay;
 stop
 @enduml
@@ -1341,13 +1341,13 @@ stop
 
 ### UC-37. Khóa / mở khóa tài khoản *(gộp từ UC-37 + UC-38 cũ)*
 
-*Quản lý nhân sự cũng thực hiện được use case này, nhưng phạm vi hẹp hơn quản lý — xem nhánh rẽ.*
+*Quản lý nhân sự cũng thực hiện được use case này, nhưng phạm vi hẹp hơn quản lý — xem nhánh rẽ. Chỉ áp dụng cho tài khoản **cán bộ**: khách hàng do hệ thống tự khóa khi vi phạm (mục 9), không ai khóa hay mở khóa được.*
 
 ```plantuml
 @startuml AD_UC37_KhoaMoKhoa
 start
 if (Khóa hay mở khóa?) then (khóa)
-  :Tìm tài khoản cần khóa;
+  :Tìm tài khoản cán bộ cần khóa;
   if (Tài khoản này có phải quản lý gốc\n(tài khoản khởi tạo hệ thống) không?) then (phải)
     :Từ chối tuyệt đối — không ai khóa được tài khoản này;
     stop
@@ -1357,20 +1357,20 @@ if (Khóa hay mở khóa?) then (khóa)
     stop
   endif
 else (mở khóa)
-  :Tìm tài khoản đang bị khóa;
+  :Tìm tài khoản cán bộ đang bị khóa;
 endif
-if (Người đang thao tác là quản lý nhân sự,\nVÀ tài khoản mục tiêu là kế toán/quản lý/quản lý nhân sự khác?) then (đúng, chặn lại)
+if (Tài khoản mục tiêu có bậc cùng hoặc cao hơn người thao tác?\n(gốc > quản lý thường = kế toán > quản lý nhân sự > vận hành;\nchỉ quản lý gốc khóa được kế toán)) then (đúng, chặn lại)
   :Từ chối, báo không đủ quyền;
   stop
 endif
 if (Khóa hay mở khóa?) then (khóa)
-  :Nhập lý do khóa;
+  :Nhập lý do khóa (bắt buộc, gõ chữ tự do);
   :Khóa tài khoản lại — người này không đăng nhập được nữa,\nnhưng dữ liệu cũ vẫn giữ nguyên;
   if (Là phụ xe đang thuộc biên chế của một xe?) then (đúng)
     :Hiện cảnh báo xe đó thiếu phụ xe và báo quản lý,\nđiều độ viên — không tự đổi biên chế;
   endif
 else (mở khóa)
-  :Xem lại lý do bị khóa trước đó;
+  :Xem lại lý do bị khóa trước đó, nhập lý do mở khóa (bắt buộc);
   :Mở khóa để người này đăng nhập lại được;
 endif
 stop
@@ -1455,6 +1455,7 @@ abstract class NguoiDung {
   - email : String
   - matKhau : String
   - hoTen : String
+  - maNhanVien : String
   - soDienThoai : String
   - dangHoatDong : Boolean
   - ngayTao : DateTime
@@ -1527,6 +1528,7 @@ class DiemDonTra {
 }
 
 class NhanSuVanHanh {
+  - maTaiXe : String
   - hoTen : String
   - soDienThoai : String
   - chucDanh : ChucDanh
@@ -1598,7 +1600,7 @@ NguoiDung <|-- QuanLy
 
 NhanVienQuayVe "*" --> "1" DiemDonTra : phụ trách văn phòng
 NhanVienGuiHang "*" --> "1" DiemDonTra : phụ trách văn phòng
-DieuDoVien "*" --> "1" DiemDonTra : phụ trách văn phòng
+DieuDoVien "*" --> "*" Tuyen : phụ trách tuyến
 
 PhuXe "0..1" -- "1" NhanSuVanHanh : có hồ sơ
 NhanSuVanHanh "1" *-- "0..2" GiayToNhanSu : có giấy tờ

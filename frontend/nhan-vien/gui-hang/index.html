@@ -832,11 +832,22 @@
     </div>
   </div>
 
+  <!-- ========================================================== -->
+  <!-- MODAL: TÀI KHOẢN CỦA TÔI (nội dung do tai-khoan.js dựng)    -->
+  <!-- ========================================================== -->
+  <div id="modalTaiKhoan" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="tkTieuDe">
+    <div class="modal-box modal-box--nho">
+      <h3 class="modal-heading" id="tkTieuDe">Tài khoản của tôi</h3>
+      <div id="tkNoiDung" class="tk-noi-dung"></div>
+    </div>
+  </div>
+
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
   <script src="auth-check.js"></script>
   <script src="api-client.js"></script>
   <script src="nav.js"></script>
+  <script src="tai-khoan.js"></script>
   <script src="vendor/JsBarcode.code128.min.js"></script>
   <script src="ma-vach.js"></script>
   <script src="core.js"></script>

@@ -6,6 +6,8 @@ from app.services import thong_bao_khach_service as thong_bao
 
 def chay() -> int:
     ve_da_huy = lock_repo.huy_ve_chua_thanh_toan_qua_gio_chay()
+    for ma_dat_cho in {ve["ma_dat_cho"] for ve in ve_da_huy}:
+        thong_bao.don_nhac_quay_ve(ma_dat_cho)
     theo_luot: dict[tuple[str, str], list[dict]] = {}
     for ve in ve_da_huy:
         if ve["khach_hang_id"]:

@@ -13,6 +13,7 @@ Tài liệu này mô tả đầy đủ cấu trúc bảng của cơ sở dữ li
 - **Xóa dữ liệu**: hệ thống không xóa cứng (`DELETE`) tài khoản/vé/đơn hàng — khóa/vô hiệu hóa bằng cờ boolean hoặc chuyển trạng thái, giữ lại lịch sử (`NGHIEP_VU.md` mục 8.7 điểm 5: "không xóa vĩnh viễn, giữ lịch sử").
 - **Class Table Inheritance cho `nguoi_dung`**: bảng `nguoi_dung` là bảng cha chung cho mọi vai trò **có tài khoản đăng nhập**; mỗi vai trò có bảng con riêng chứa cột chỉ áp dụng cho vai trò đó — tránh một bảng khổng lồ với hàng loạt cột `NULL` tùy vai trò. **Tài xế không có bảng con trong `nguoi_dung`** vì không có tài khoản (`NGHIEP_VU.md` mục 3.2/8.3) — xem mục 1.3.
 - **Mã hiển thị `ma` (mục 10)**: `khu_vuc`, `diem_don_tra`, `tuyen`, `loai_xe`, `chuyen_xe` (và `ve.ma_ve`) có thêm cột mã (TEXT NOT NULL UNIQUE) do **hàm Python tự sinh lúc `INSERT`** (`app/utils/ma_tu_sinh.py`, số thứ tự lấy từ sequence) — chỉ để người đọc/tra cứu (`NGHIEP_VU.md` mục 3.6), **không thay `id`**: mọi khóa ngoại vẫn trỏ về `id` UUID. Mã không sửa được (trigger BEFORE UPDATE giữ nguyên, trừ mã chuyến) và số thứ tự không tái sử dụng.
+- **Mã nhân viên `ma` (mục 10.2)**: `nguoi_dung.ma` (cán bộ) và `nhan_su_van_hanh.ma` (tài xế) — tiền tố theo vai trò + số tự tăng 4 chữ số (`PX0001`...), sinh lúc tạo và **không đổi**. Khác các mã ở trên: cột **cho phép trống** (khách hàng và hồ sơ phụ xe không có mã riêng).
 - **Không có bảng gán nhân sự theo từng chuyến** (`phan_cong_chuyen`) — quyết định có chủ đích của `NGHIEP_VU.md` mục 3.2: tài xế/phụ xe của 1 chuyến luôn suy ra từ `xe_nhan_su` tại thời điểm truy vấn, không lưu tĩnh.
 - **Không có ràng buộc `UNIQUE(chuyen_id, so_ghe)` trên bảng `ve`** — cố ý: 1 ghế hợp lệ có nhiều vé cùng lúc nếu chặng không giao nhau (`NGHIEP_VU.md` mục 6). Chống trùng ghế thực hiện bằng khóa dòng (`SELECT ... FOR UPDATE`) + kiểm tra overlap ở tầng Service, không phải constraint của DB.
 
@@ -35,6 +36,7 @@ Tài liệu này mô tả đầy đủ cấu trúc bảng của cơ sở dữ li
 | `da_xac_nhan` | BOOLEAN NOT NULL DEFAULT false | `true` sau khi `khach_hang` xác thực OTP; cán bộ do UC-36 tạo thì `true` ngay lúc tạo (email do công ty cấp) |
 | `ma_xac_nhan` | TEXT NULLABLE | Mã OTP 6 số — tên cột giữ nguyên như bản v1 để tái dùng thẳng `email_service.py`/`mat_khau_service.py` |
 | `ma_het_han` | TIMESTAMPTZ NULLABLE | Hạn hiệu lực của `ma_xac_nhan` — mặc định 1 phút (mục 2.1) |
+| `ma` | TEXT NULLABLE, `UNIQUE` khi khác `NULL` | **Mã nhân viên** (không liên quan `ma_xac_nhan` ở trên, đó là OTP): tự sinh lúc tạo tài khoản cán bộ (UC-36), dạng `PX0001` / `QV0001` / `GH0001` / `DDV0001` / `KT0001` / `NS0001` / `QL0001`; tài khoản `quan_ly` gốc là `QL0000`. **`khach_hang` luôn `NULL`.** Không đổi sau khi cấp. Tiền tố phải đúng `vai_tro`. Cho phép trống kể cả với cán bộ (script seed demo chèn thẳng) — xem mục 10.2 |
 | `ngay_tao` | TIMESTAMPTZ NOT NULL DEFAULT now() | |
 
 ### 1.2. `ho_so_khach_hang` (con — vai_tro = `khach_hang`)
@@ -43,23 +45,23 @@ Tài liệu này mô tả đầy đủ cấu trúc bảng của cơ sở dữ li
 |---|---|---|
 | `nguoi_dung_id` | UUID PK, FK → `nguoi_dung(id)` ON DELETE CASCADE | |
 | `khoa_thanh_toan_tai_quay` | BOOLEAN NOT NULL DEFAULT false | Đủ N lần vi phạm no-show (mục 9) → tự động `true`, chỉ còn đặt được vé kiểu "thanh toán ngay" |
-| `bi_khoa` | BOOLEAN NOT NULL DEFAULT false | Vi phạm nghiêm trọng hơn ngưỡng thứ 2 (mục 9) — khóa tạm, khác `nguoi_dung.dang_hoat_dong` (khóa hẳn do quản lý) |
+| `bi_khoa` | BOOLEAN NOT NULL DEFAULT false | Vi phạm nghiêm trọng hơn ngưỡng thứ 2 (mục 9) — **hệ thống tự đặt, không ai mở lại** (khách bị khóa coi như mất tài khoản). Khác `nguoi_dung.dang_hoat_dong`, chỉ do UC-37 khóa/mở **cán bộ** |
 | `ly_do_khoa` | TEXT NULLABLE | |
 
 Số lần vi phạm no-show **không lưu thành cột đếm riêng** (mục 7) — tính động bằng đếm `ve` của khách có `trang_thai = 'khong_den'`, theo đúng định nghĩa 1 loại vi phạm duy nhất ở mục 9 `NGHIEP_VU.md`.
 
 ### 1.3. `ho_so_can_bo_diem` (con dùng chung — `nhan_vien_quay_ve`, `nhan_vien_gui_hang`)
 
-Cả 2 vai trò chỉ cần thêm đúng 1 thông tin giống nhau: văn phòng phụ trách hiện tại (chọn lúc tạo tài khoản, đổi được khi điều chuyển — nhánh kèm theo UC-36 `NGHIEP_VU.md`; mỗi cán bộ đúng 1 dòng nên đổi là `UPDATE`) — gộp chung 1 bảng con, phân biệt qua `nguoi_dung.vai_tro`.
+Cả 2 vai trò chỉ cần thêm đúng 1 thông tin giống nhau: văn phòng phụ trách hiện tại (chọn lúc tạo tài khoản, đổi được khi điều chuyển — nhánh kèm theo UC-36 `NGHIEP_VU.md`; mỗi cán bộ đúng 1 dòng nên đổi là `UPDATE`) — gộp chung 1 bảng con, phân biệt qua `nguoi_dung.vai_tro`. **`dieu_do_vien` không còn gắn văn phòng** (phụ trách theo tuyến — nhóm đã duyệt, xem `DIEU_DO_VIEN_THEO_TUYEN_DE_XUAT.md`) nên không có dòng nào ở bảng này; UC-36 chặn việc gán văn phòng cho vai trò này.
 
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `nguoi_dung_id` | UUID PK, FK → `nguoi_dung(id)` ON DELETE CASCADE | |
 | `van_phong_id` | UUID NOT NULL, FK → `diem_don_tra(id)` | Bắt buộc `loai = 'van_phong'` — phạm vi thao tác được xác thực ở BE |
 
-Migration triển khai: `20261002_0900_ho_so_va_thanh_toan_gui_hang.sql`. Quản lý gán/cập nhật qua `PUT /quan-ly/ho-so-can-bo-diem/{nguoi_dung_id}`.
+Migration triển khai: `20261002_0900_ho_so_va_thanh_toan_gui_hang.sql`. Văn phòng được gán lúc tạo tài khoản cán bộ (UC-36); đổi sau đó qua nhánh "Đổi văn phòng" của UC-36, hoặc `PUT /quan-ly/ho-so-can-bo-diem/{nguoi_dung_id}` (hàm của phần gửi hàng, dự kiến bỏ khi UC-36 thay thế).
 
-`dieu_do_vien` **không còn bảng con theo văn phòng** — phạm vi của điều độ viên là các tuyến được phân công (mục 2.6). `phu_xe`, `ke_toan`, `quan_ly_nhan_su`, và `quan_ly` **không có bảng con** — phụ xe gắn với xe qua `xe_nhan_su` (mục 1.5), không gắn 1 văn phòng; `ke_toan`/`quan_ly_nhan_su`/`quan_ly` phạm vi toàn hệ thống, không cần cột phạm vi nào thêm.
+`phu_xe`, `dieu_do_vien`, `ke_toan`, `quan_ly_nhan_su`, và `quan_ly` **không có bảng con** — phụ xe gắn với xe qua `xe_nhan_su` (mục 1.5), không gắn 1 văn phòng; điều độ viên phụ trách theo tuyến, không gắn văn phòng; `ke_toan`/`quan_ly_nhan_su`/`quan_ly` phạm vi toàn hệ thống, không cần cột phạm vi nào thêm.
 
 ### 1.4. `nhan_su_van_hanh` (hồ sơ tài xế + phụ xe — **không phải** bảng tài khoản)
 
@@ -79,6 +81,7 @@ Tách riêng khỏi `nguoi_dung` vì tài xế không có tài khoản (mục 3.
 | `trang_thai` | TEXT NOT NULL DEFAULT `'dang_lam'`, CHECK IN (`dang_lam`, `da_nghi_viec`) | Trạng thái làm việc **của cả hồ sơ** — khác `xe_nhan_su.trang_thai` (mục 1.5). `da_nghi_viec` không được đưa vào biên chế mới (UC-35) và bị job UC-49 bỏ qua |
 | `ngay_nghi_viec` | DATE NULLABLE | Chỉ có giá trị khi `trang_thai = 'da_nghi_viec'` (UC-51) |
 | `ly_do_nghi_viec` | TEXT NULLABLE | |
+| `ma` | TEXT NULLABLE, `UNIQUE` khi khác `NULL` | **Mã tài xế** `TX0001`... cấp lúc tạo hồ sơ (UC-49). **Phụ xe để `NULL`** vì dùng mã của tài khoản (`nguoi_dung.ma`); API hồ sơ lấy `COALESCE(nhan_su_van_hanh.ma, nguoi_dung.ma)`. `CHECK`: chỉ `chuc_danh = 'tai_xe'` mới có mã (mục 10.2) |
 
 Ràng buộc DB: `UNIQUE (nguoi_dung_id)`; `CHECK (chuc_danh = 'phu_xe' OR nguoi_dung_id IS NULL)`; `CHECK ((trang_thai = 'da_nghi_viec') = (ngay_nghi_viec IS NOT NULL))`. Tài khoản gắn cho hồ sơ phụ xe phải có `nguoi_dung.vai_tro = 'phu_xe'` — kiểm tra ở Service.
 
@@ -538,7 +541,7 @@ Nhật ký thao tác của **`quan_ly`** — phục vụ tra soát. Hành độn
 |---|---|---|
 | `id` | UUID PK | |
 | `admin_id` | UUID NOT NULL, FK → `nguoi_dung(id)` | |
-| `hanh_dong` | TEXT NOT NULL | VD `tao_tai_khoan`, `khoa_tai_khoan`, `sua_bien_che_co_dinh`, `cau_hinh_gia_ve`, `go_han_che_khach_hang`... |
+| `hanh_dong` | TEXT NOT NULL | VD `tao_tai_khoan`, `khoa_tai_khoan`, `mo_khoa_tai_khoan`, `sua_bien_che_co_dinh`, `cau_hinh_gia_ve`... (không còn gỡ hạn chế khách hàng: khách do hệ thống tự khóa, không ai gỡ — `NGHIEP_VU.md` mục 9). `ghi_chu` lưu lý do khóa/mở khóa (bắt buộc ở UC-37). Migration: `20261023_1000_tao_bang_nhat_ky_admin.sql` |
 | `doi_tuong_loai` | TEXT NOT NULL | Bảng/loại đối tượng bị tác động |
 | `doi_tuong_id` | UUID NOT NULL | |
 | `ghi_chu` | TEXT NULLABLE | |
@@ -659,6 +662,8 @@ nguoi_dung(quan_ly_nhan_su) 1──N nhat_ky_quan_ly_nhan_su
 
 ## 10. Mã hiển thị tự sinh (`ma`)
 
+### 10.1. Khu vực, điểm đón/trả, tuyến, loại xe, chuyến, vé
+
 Áp dụng cho 6 mã: `khu_vuc.ma`, `diem_don_tra.ma`, `tuyen.ma`, `loai_xe.ma`, `chuyen_xe.ma` và `ve.ma_ve` — quy tắc nghiệp vụ ở `NGHIEP_VU.md` mục 3.6. Mã được **hàm Python dựng lúc `INSERT`** (migration `20261008_1100_ma_tu_sinh_bang_ham_python.sql` đã gỡ các trigger sinh mã trước đây):
 
 - `app/utils/ma_tu_sinh.py`: các hàm thuần `ma_khu_vuc`, `ma_tuyen`, `ma_loai_xe`, `ma_diem_don_tra`, `ma_chuyen`, `ma_ve` — unit test được (`tests/unit/test_ma_tu_sinh.py`). Số đệm 0 bằng định dạng Python nên **không cắt** khi số dài hơn độ rộng (`KV1000`, `VE1000000`).
@@ -680,3 +685,29 @@ nguoi_dung(quan_ly_nhan_su) 1──N nhat_ky_quan_ly_nhan_su
 - Số thứ tự sequence/`so_diem_da_cap` **không lùi** khi xóa bản ghi → mã đã cấp không tái sử dụng.
 - Migration `20260930_1000` đã điền mã cho dữ liệu có sẵn trước (khu vực theo tỉnh + tên; điểm theo tên trong từng khu vực; tuyến theo `ngay_tao`; loại xe theo tên), đặt lại sequence/bộ đếm, rồi mới `SET NOT NULL` + `UNIQUE`; migration `20261008_1000` đánh số bù `ma_ve` cho vé cũ.
 - Mã chuyến có `UNIQUE`: sau khi sửa giờ, mã mới không thể trùng chuyến khác vì Service đã chặn trùng (loại xe, ngày, giờ) trước khi ghi; `UNIQUE` chỉ còn là lưới an toàn cuối.
+
+### 10.2. Mã nhân viên (`nguoi_dung.ma`, `nhan_su_van_hanh.ma`)
+
+Quy tắc nghiệp vụ ở `NGHIEP_VU.md` mục 2. Migration `20261105_0900_ma_nhan_vien.sql`. Khác 6 mã ở mục 10.1 ở chỗ **mã dựng từ tiền tố vai trò** và **cột cho phép trống**.
+
+| Tiền tố | Ai | Cột | Sequence |
+|---|---|---|---|
+| `TX` | Tài xế (hồ sơ, không có tài khoản) | `nhan_su_van_hanh.ma` | `seq_ma_tai_xe` |
+| `PX` | Phụ xe | `nguoi_dung.ma` (hồ sơ dùng lại, không có mã riêng) | `seq_ma_phu_xe` |
+| `QV` | Nhân viên quầy vé | `nguoi_dung.ma` | `seq_ma_quay_ve` |
+| `GH` | Nhân viên gửi hàng | `nguoi_dung.ma` | `seq_ma_gui_hang` |
+| `DDV` | Điều độ viên | `nguoi_dung.ma` | `seq_ma_dieu_do_vien` |
+| `KT` | Kế toán | `nguoi_dung.ma` | `seq_ma_ke_toan` |
+| `NS` | Quản lý nhân sự | `nguoi_dung.ma` | `seq_ma_quan_ly_nhan_su` |
+| `QL` | Quản lý (tài khoản gốc cố định `QL0000`, không dùng sequence; các quản lý khác từ `QL0001`) | `nguoi_dung.ma` | `seq_ma_quan_ly` (bắt đầu từ 1) |
+
+Khách hàng **không có mã**. Dạng mã `<tiền tố><số 4 chữ số>` (`PX0001`, `DDV0012`); quá 9999 thì số dài ra, không cắt.
+
+- **Sinh mã:** `app/utils/ma_tu_sinh.py` (`TIEN_TO_NHAN_VIEN`, `MA_QUAN_LY_GOC`, `ma_nhan_vien(vai_tro, so)`) và `app/repositories/ma_repository.py` (`cap_ma_nhan_vien(cur, vai_tro)`). Mã được cấp **trong cùng transaction với lệnh `INSERT`**: `tai_khoan_can_bo_repository.tao_tai_khoan` (UC-36) và `nhan_su_van_hanh_repository.tao_ho_so` (UC-49, chỉ tài xế). Vai trò không có mã (khách hàng...) bị từ chối **trước khi lấy số** nên không làm hao sequence.
+- **Cột cho phép NULL** (khác 6 mã trên là `NOT NULL`): khách hàng không có mã; hồ sơ phụ xe không có mã riêng; các script seed demo chèn thẳng `nguoi_dung` (không đi qua UC-36) không điền mã. **Không có `CHECK` bắt buộc cán bộ phải có mã** — đường tạo cán bộ trên môi trường thật chỉ có UC-36 (và tài khoản gốc seed trong migration) và cả hai đều tự điền mã.
+- **Ràng buộc:** `UNIQUE` một phần (`nguoi_dung_ma_duy_nhat`, `nhan_su_van_hanh_ma_duy_nhat`, bỏ qua dòng trống); `nguoi_dung_ma_hop_le` (khách hàng phải trống; có mã thì đúng tiền tố của `vai_tro`, `^<TIỀN TỐ>[0-9]{4,}$`); `nguoi_dung_ql0000_chi_cho_tai_khoan_goc`; `nhan_su_van_hanh_ma_hop_le` (chỉ `chuc_danh = 'tai_xe'`, `^TX[0-9]{4,}$`).
+- **Mã không sửa được:** trigger `BEFORE UPDATE` `giu_ma_nhan_vien()` chỉ giữ mã khi mã **đã có** (khác `giu_nguyen_ma()` luôn ghi đè): tài khoản chưa có mã vẫn điền bù được, đã có mã thì không đổi được.
+- **Dữ liệu cũ:** migration điền mã trước, tạo trigger sau; quản lý gốc `QL0000`, cán bộ còn lại theo `(ngay_tao, id)` trong từng vai trò, tài xế theo `(ngay_vao_lam, id)` (hồ sơ không có `ngay_tao`); rồi đặt lại sequence cho khớp.
+- **Số không tái sử dụng**, có thể có chỗ trống (transaction hỏng sau khi lấy số) — giống các mã khác. Giữ nguyên khi khóa tài khoản hay cho nghỉ việc.
+- **Hiển thị:** API trả `ma` ở danh sách / chi tiết tài khoản cán bộ, hồ sơ nhân sự (tài xế: mã hồ sơ; phụ xe: mã tài khoản liên kết qua `COALESCE`) và ô chọn tài khoản phụ xe; tìm kiếm được theo mã.
+- **Lưu ý bảo trì:** thêm vai trò mới vào `nguoi_dung.vai_tro` thì phải thêm tiền tố / sequence và sửa `CHECK nguoi_dung_ma_hop_le` (nhánh `ELSE false` hiện từ chối mọi `INSERT` của vai trò chưa khai báo).

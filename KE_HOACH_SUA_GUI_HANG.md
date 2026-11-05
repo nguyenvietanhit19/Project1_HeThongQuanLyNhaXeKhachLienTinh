@@ -778,3 +778,56 @@ docker compose exec backend python scripts/kiem_thu_dong_thoi_gui_hang.py 30
 - Migration mới `20261023_0900_thong_bao_duong_dan` (thêm cột `thong_bao.duong_dan`, NULL được) — **đã `yoyo apply` DB local**.
 - Kiểm tra lại: unit **790 pass, 7 fail** (chỉ còn 7 test #39); A3 30/30 cả 5 tình huống; thử API B2 6/6.
 - `db.py` vẫn `SimpleConnectionPool` → phát hiện ở 7.8 vẫn còn.
+
+## 8. Đợt D — Chỉnh giao diện (nhánh `feature/Trinh-giao-dien-gui-hang`, từ 23/10/2026)
+
+Nhánh tạo từ integration `bd6ee84` (sau PR #43).
+
+### 8.1. Sidebar đồng bộ với trang Quản lý
+
+Theo sidebar của `frontend/nhan-vien/quan-ly/nav.js` (người làm Quản lý), nhưng viết riêng trong thư mục gửi hàng (quy ước của file đó: mỗi vai trò tự có menu/CSS/JS riêng).
+
+| File | Sửa |
+|---|---|
+| `gui-hang/nav.js` | Sidebar có nút **thu gọn / mở rộng** (logo thành nút mở rộng khi thu gọn), nhớ trong `localStorage` **cùng khóa `nv_sidebar_thu_gon` với Quản lý**. Bỏ khối trang trí ở đáy, thay bằng **khối tài khoản**: avatar (chữ cái tên), họ tên, vai trò, menu "Tài khoản của tôi" / "Đăng xuất" mở lên trên. "Đăng xuất" vẫn qua hộp xác nhận cũ (cảnh báo đơn đang nhập dở). Topbar bỏ avatar + tên + nút Đăng xuất — chỉ còn tiêu đề, văn phòng, chuông |
+| `gui-hang/tai-khoan.js` (mới) | Modal "Tài khoản của tôi": xem họ tên / SĐT / email / vai trò / **văn phòng** / ngày tham gia, sửa họ tên + SĐT tại chỗ, đổi mật khẩu (`GET/PUT /auth/toi`, `PUT /auth/doi-mat-khau` — có sẵn cho mọi vai trò, không sửa BE) |
+| `gui-hang/index.html` | Khung `#modalTaiKhoan`, nạp `tai-khoan.js` |
+| `gui-hang/khoi-tao.js` | Dựng sidebar **ngay khi mở trang** (trước khi nạp văn phòng) để tài khoản chưa gán văn phòng vẫn đăng xuất được; khi đó ẩn menu tab, chỉ giữ khối tài khoản |
+| `gui-hang/style.css` | CSS thu gọn (chỉ ≥ 1280px), khối tài khoản, modal tài khoản; 900–1279px (thanh icon): khối tài khoản chỉ còn avatar, menu bật sang phải; < 900px (thanh đáy): avatar là ô cuối thanh đáy, menu mở lên trên. Xóa CSS không còn dùng (`.nv-topbar__user/avatar/identity/role`, `.nv-btn-secondary`, `.nv-sidebar__deco`) |
+
+Kiểm tra: chụp màn hình trang thật bằng Edge headless (đăng nhập tài khoản demo Mỹ Đình) ở 1920 / 1100 / 400 px — sidebar mở, menu tài khoản, modal tài khoản (sửa tên + đổi mật khẩu), thu gọn (`localStorage` 1 → 0 khi mở lại), hộp xác nhận đăng xuất; không có lỗi JS.
+
+### 8.2. Responsive sidebar theo đúng trang Quản lý
+
+Bỏ 2 chế độ riêng của gửi hàng (thanh icon 900–1279px, thanh điều hướng ở đáy < 900px), dùng đúng mô hình của `quan-ly/style.css`:
+
+| Màn hình | Trước | Sau (= Quản lý) |
+|---|---|---|
+| > 880px | ≥ 1280 đầy đủ; 900–1279 thanh icon tự thu gọn | Sidebar dọc đầy đủ, **thu gọn được ở mọi cỡ > 880px** |
+| ≤ 880px | Thanh điều hướng cố định ở đáy | **Thanh ngang trên đầu trang**, cuộn ngang được, ẩn logo; tài khoản là avatar ở cuối thanh, menu mở xuống (fixed, góc trên phải) |
+
+- Nội dung giữ responsive cũ (bảng → thẻ ≤ 1279px, thẻ 2 cột ≤ 899px, modal trượt từ dưới < 640px).
+- Bỏ `padding-bottom` chừa chỗ thanh đáy, toast về sát đáy màn hình, bảng thông báo bám dưới chuông (không còn `position: fixed; top: 64px` — sẽ đè lên thanh sidebar ở trên); xóa token `--gh-rail-w`, `--gh-bottom-nav-h`.
+- Kiểm tra (Edge headless, so ảnh cùng cỡ với trang `quan-ly/khu-vuc.html`): 1100 / 880 / 400 px — bố cục khớp Quản lý, trang không cuộn ngang, thanh ngang cuộn được; thu gọn ở 1100px; menu tài khoản + bảng thông báo ở 400px; **quản lý xem trang gửi hàng** (1600 / 880 / 400px: "Quản lý (chỉ xem)", không có tab Tiếp nhận, ô chọn văn phòng). Không có lỗi JS. Token quản lý để chụp sinh tạm bằng `tao_token` trên DB local, file tạm đã xóa.
+- Giống Quản lý nên ở điện thoại avatar tài khoản nằm cuối thanh ngang — phải vuốt thanh sang phải mới thấy.
+- Chưa thử: tài khoản chưa gán văn phòng.
+
+### 8.3. Chỉ gửi tới văn phòng ở khu vực khác (23/10/2026)
+
+Yêu cầu: hàng chỉ gửi tới văn phòng nhận ở **khu vực khác** khu vực của văn phòng gửi; không gửi giữa các văn phòng cùng khu vực (dữ liệu hiện có: VP Lào Cai ↔ VP Sa Pa cùng khu vực Lào Cai).
+
+| File | Sửa |
+|---|---|
+| `repositories/don_hang_repository.py` `danh_sach_diem_nhan_kha_dung` | Lọc `dd.khu_vuc_id <> khu vực văn phòng gửi` (thay cho `dd.id <> gửi` — đã bao gồm) → ô "Điểm đến (khu vực)" không còn khu vực của mình |
+| `services/gui_hang_service.py` `tao_don_hang` | Chặn ở BE: cùng `khu_vuc_id` → 400 "Chỉ nhận gửi tới văn phòng ở khu vực khác với văn phòng gửi" (gọi API thẳng hoặc dữ liệu cũ trên form vẫn bị chặn) |
+| `tests/unit/test_gui_hang_service.py` | +1 test chặn cùng khu vực; mock văn phòng thêm `khu_vuc_id` khác nhau |
+| `gui-hang/tao-don.js` | Câu báo khi không có điểm đến nào ("…văn phòng ở khu vực khác"). Đã thử thêm nhãn "(khác khu vực văn phòng gửi)" nhưng làm nhãn xuống 2 dòng, lệch với ô "Văn phòng nhận" → bỏ |
+| `scripts/seed_gui_hang_demo.py` | 4 chỗ tạo đơn LC ↔ SP đổi sang Yên Bái (cùng tuyến, khác khu vực), giữ nguyên tình huống |
+| `scripts/kiem_thu_dong_thoi_gui_hang.py` | Chọn cặp văn phòng khác khu vực |
+| `NGHIEP_VU_GUI_HANG.md` | Nguyên tắc 3b, mục 3 tiếp nhận, UC-23 bước 2 + luồng rẽ nhánh, bảng 9.2 |
+
+Kiểm tra: unit 791 pass (7 fail cũ của #39); API thật — VP Lào Cai / Sa Pa không thấy nhau trong điểm nhận, Mỹ Đình vẫn thấy cả 2; tạo đơn Lào Cai → Sa Pa qua API → 400; chạy lại seed OK, DB local còn **0 đơn** cùng khu vực; A3 10/10.
+
+Đơn cũ không đụng tới (quy tắc chỉ áp khi tạo đơn mới). Phụ xe chất/dỡ, giao hàng, hủy không đổi.
+
+**C6 thêm 1 điểm:** `NGHIEP_VU.md` (file chung) mục 10.1 chưa có quy tắc "chỉ gửi khác khu vực" → nhờ người giữ file bổ sung.

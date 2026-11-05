@@ -23,6 +23,7 @@ Dịch vụ gửi hàng là hàng hóa **độc lập**: người gửi mang hà
 1. **Cước do nhân viên tự nhập tay** — không có công thức hay bảng giá nào tính/gợi ý (khác hẳn `gia_ve`).
 2. **Không có kênh báo tin tự động** (SMS/email) cho người gửi/người nhận — họ không có tài khoản, không thu email. Báo tin hoàn toàn bằng gọi điện thủ công.
 3. **Hai đầu gửi/nhận bắt buộc là văn phòng** (`loai = 'van_phong'`), không được là điểm dừng dọc đường — vì cả 2 đầu đều cần nhân viên thao tác tại quầy.
+3b. ⏳ **Chỉ gửi tới văn phòng ở khu vực khác** khu vực của văn phòng gửi (23/10/2026) — không nhận gửi giữa 2 văn phòng cùng khu vực (VD VP Lào Cai ↔ VP Sa Pa cùng khu vực Lào Cai).
 4. **Chỉ tạo đơn tại quầy** — không có luồng khách tự đặt gửi hàng online (cần cân/đo/kiểm tra hàng thực tế).
 5. **Chọn tuyến, không chọn chuyến** lúc nhận hàng; hệ thống **không tính sức chứa** khoang hàng theo kg — phụ xe tự đánh giá lúc chất hàng.
 6. **Không bao giờ tự động hủy/thanh lý hàng** — các mốc 7/14 ngày chỉ nhắc con người xử lý.
@@ -97,7 +98,7 @@ cho_van_chuyen (đã nhận hàng tại quầy gửi, chuyen_id còn để trố
 
 1. Đăng nhập — hệ thống tự biết điểm gửi = văn phòng của nhân viên.
 2. Nhập người gửi (tên + SĐT) và người nhận (tên + SĐT — dùng để văn phòng nhận gọi báo khi hàng tới).
-3. Chọn **khu vực đến** rồi **văn phòng nhận** trong khu vực đó (chỉ văn phòng có tuyến nối với văn phòng gửi).
+3. Chọn **khu vực đến** rồi **văn phòng nhận** trong khu vực đó (chỉ khu vực **khác** khu vực văn phòng gửi, và chỉ văn phòng có tuyến nối với văn phòng gửi).
 4. Hệ thống tìm **tuyến** đi qua cả 2 văn phòng: 1 tuyến thì tự điền, nhiều tuyến thì nhân viên chọn 1, không có tuyến thì từ chối nhận. **Không chọn chuyến.**
 5. Cân/đo hàng, nhập cân nặng + kích thước, chọn loại hàng → hệ thống **chặn ngay nếu là hàng cấm**.
 6. Nhân viên **tự nhập cước**, đọc lại thông tin và **báo giá cho khách xác nhận** trước khi tạo đơn.
@@ -206,7 +207,7 @@ Hỗ trợ tại quầy (đã có trong code): gợi ý tên khách quen theo S�
 - **Tiền điều kiện**: Đã đăng nhập, tại đúng văn phòng phụ trách.
 - **Luồng chính**:
   1. Nhập thông tin người gửi + người nhận (tên + SĐT).
-  2. Chọn điểm đến (khu vực) → chọn văn phòng nhận cụ thể.
+  2. Chọn điểm đến (khu vực, chỉ liệt kê khu vực **khác** khu vực văn phòng gửi) → chọn văn phòng nhận cụ thể.
   3. Hệ thống xác định **tuyến** đi từ điểm gửi tới điểm nhận (nhiều tuyến thì nhân viên chọn 1) — **không chọn chuyến cụ thể**.
   4. Cân/đo hàng thực tế, nhập cân nặng + kích thước, chọn loại hàng.
   5. Hệ thống kiểm tra hàng cấm.
@@ -214,6 +215,7 @@ Hỗ trợ tại quầy (đã có trong code): gợi ý tên khách quen theo S�
   7. Chọn phương thức thanh toán.
   8. Tạo đơn `cho_van_chuyen` (gắn tuyến, chưa gắn chuyến), in biên nhận + mã vận đơn cho người gửi.
 - **Luồng rẽ nhánh**:
+  - Tại bước 2: ⏳ văn phòng nhận cùng khu vực với văn phòng gửi → từ chối nhận → kết thúc. Giao diện không liệt kê các văn phòng này; backend vẫn chặn nếu gọi API trực tiếp.
   - Tại bước 3: không có tuyến nào nối 2 điểm → báo lỗi, từ chối nhận → kết thúc.
   - Tại bước 5: hàng cấm → chặn ngay, từ chối nhận → kết thúc.
   - Tại bước 7: người gửi trả trước → thu tiền mặt ngay. COD → không thu, để người nhận trả sau.
@@ -321,3 +323,4 @@ Hỗ trợ tại quầy (đã có trong code): gợi ý tên khách quen theo S�
 | Hàng trên chuyến gặp sự cố / hoãn / hủy (mục 5.2) | Màn "Hàng đến" gắn nhãn cảnh báo + "Hàng sẽ tới trễ". **Chưa** tự gửi thông báo cho văn phòng nhận khi chuyến báo sự cố — cần phần chuyến xe (UC-17) gọi sang gửi hàng | Chưa có |
 | Đổi SĐT người nhận (mục 5.5) | Bắt buộc lý do / căn cứ; đơn quay về "cần gọi báo", nhắc 24 giờ lại theo mốc mới, lịch sử liên hệ giữ nguyên | "Cờ đã báo chỉ đi lên" (10.3.1) |
 | Ý nghĩa "COD" (mục 6) | Chỉ là người nhận trả cước vận chuyển, không thu hộ tiền hàng; giao diện ghi "Người nhận trả cước" | Chưa nói rõ |
+| Chỉ gửi khác khu vực (mục 1, nguyên tắc 3b) | Văn phòng nhận phải ở khu vực khác văn phòng gửi — lọc ở danh sách điểm nhận và chặn khi tạo đơn | Chỉ yêu cầu 2 đầu là văn phòng, khác nhau (10.1) |

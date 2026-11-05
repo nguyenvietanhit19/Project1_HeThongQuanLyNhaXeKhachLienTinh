@@ -458,11 +458,11 @@ def main() -> None:
             mo_ta="Đã hủy hôm qua (nhập sai), đơn COD nên không hoàn")
     tao_don("LC", "MD", phut(-60), tuyen_kh="T1", cuoc=110000, kg=7, nguoi_gui=("Vàng Seo Pao", "0388123456"),
             mo_ta="Chờ xếp xe, trả trước — thử HỦY ĐƠN (hoàn 110.000đ)")
-    tao_don("LC", "SP", phut(-180), cod=True, cuoc=40000, kg=2, mo_ta="Chờ xếp xe, người nhận trả cước")
+    tao_don("LC", "YB", phut(-180), cod=True, cuoc=40000, kg=2, mo_ta="Chờ xếp xe, người nhận trả cước")
     tao_don("LC", "MD", phut(-300), cuoc=70000, kg=3,
             huy=("khac", "Người gửi muốn chuyển sang gửi chuyến khác của nhà xe bạn", phut(-240)),
             mo_ta="Đã hủy hôm nay (lý do khác), đã hoàn 70.000đ")
-    tao_don("SP", "LC", phut(-120), cuoc=45000, kg=2.5, mo_ta="Chờ xếp xe, trả trước")
+    tao_don("SP", "YB", phut(-120), cuoc=45000, kg=2.5, mo_ta="Chờ xếp xe, trả trước")
     tao_don("YB", "MD", phut(-240), cod=True, cuoc=80000, kg=5, mo_ta="Chờ xếp xe, người nhận trả cước")
 
     # ===== Sắp đến (đang trên xe)
@@ -504,7 +504,7 @@ def main() -> None:
     tao_don("MD", "LC", c["gio"]["MD"] - 5 * h, chuyen=c, cuoc=100000, kg=8, lien_he=[goi_ok(c["gio"]["LC"] + 40 * h / 60)],
             mo_ta="Chờ lấy, đã báo, trả trước — thử GIAO HÀNG")
     c = chuyen_ngay("TM", "nguoc", 2)
-    tao_don("SP", "LC", c["gio"]["SP"] - 4 * h, chuyen=c, cod=True, cuoc=85000, kg=6, lien_he=[goi_ok(c["gio"]["LC"] + h)],
+    tao_don("SP", "YB", c["gio"]["SP"] - 4 * h, chuyen=c, cod=True, cuoc=85000, kg=6, lien_he=[goi_ok(c["gio"]["YB"] + h)],
             mo_ta="Chờ lấy, đã báo, COD 85.000đ — giao phải xác nhận đã thu")
     c = chuyen_ngay("T1", "xuoi", 3)
     tao_don("MD", "LC", c["gio"]["MD"] - 3 * h, chuyen=c, cuoc=95000, kg=7, nguoi_nhan=("Trần Văn Tùng", "0987111222"),
@@ -569,7 +569,8 @@ def main() -> None:
             if rng.random() < 0.65:
                 gui, nhan = "MD", rng.choices(["LC", "SP", "YB"], weights=[5, 3, 2])[0]
             else:
-                gui, nhan = rng.choice([("LC", "MD"), ("SP", "MD"), ("YB", "MD"), ("SP", "LC"), ("LC", "YB")])
+                # Không có cặp nội khu vực (LC ↔ SP cùng khu vực Lào Cai) — chỉ gửi khác khu vực
+                gui, nhan = rng.choice([("LC", "MD"), ("SP", "MD"), ("YB", "MD"), ("SP", "YB"), ("LC", "YB")])
             tuyen_kh = rng.choice(tuyen_qua(gui, nhan))
             c = chuyen_ngay(tuyen_kh, chieu_tren(tuyen_kh, gui, nhan), ngay_truoc)
             kg = rng.choice([0.5, 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20])

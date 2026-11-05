@@ -12,6 +12,7 @@ services/dat_ve_service.py.
 
 import datetime
 
+from app.config import HAN_THANH_TOAN_NGAY_PHUT
 from app.db import get_connection, release_connection
 from app.repositories import ma_repository
 from app.utils import ma_tu_sinh
@@ -142,11 +143,12 @@ def tao_ve_quay(
     sdt_khach: str,
     kenh_ban: str,
     phuong_thuc: str,
+    ghe_dat_coc: list[str] | None = None,
 ) -> list[dict]:
     """Tạo vé qua quầy, dùng chung transaction khóa/kiểm tra ghế.
 
     Tiền mặt tại quầy được ghi nhận cùng transaction tạo vé. Vé hotline chưa thu tiền
-    giữ chỗ tới giờ khởi hành; VNPay hoàn tất qua callback riêng cho từng mã vé.
+    giữ chỗ tới giờ khởi hành; đơn QR giữ chỗ 5 phút và hoàn tất theo cả mã đặt chỗ.
     """
     if not danh_sach_ghe or len(set(danh_sach_ghe)) != len(danh_sach_ghe):
         raise GiaTriLoi("Danh sách ghế không hợp lệ")
@@ -154,6 +156,12 @@ def tao_ve_quay(
         raise GiaTriLoi("Kênh bán không hợp lệ")
     if phuong_thuc not in ("tien_mat", "chuyen_khoan", "thanh_toan_tai_quay"):
         raise GiaTriLoi("Phương thức thanh toán không hợp lệ")
+    ghe_dat_coc = ghe_dat_coc or []
+    if ghe_dat_coc and (
+        kenh_ban != "hotline" or phuong_thuc != "thanh_toan_tai_quay"
+        or not set(ghe_dat_coc) <= set(danh_sach_ghe)
+    ):
+        raise GiaTriLoi("Danh sách ghế đặt cọc không hợp lệ")
 
     conn = get_connection()
     try:
@@ -211,22 +219,29 @@ def tao_ve_quay(
 
             ve_tao = []
             da_thanh_toan = phuong_thuc == "tien_mat" and kenh_ban == "tai_quay"
-            loai_hinh = "thanh_toan_tai_quay"
+            co_han_thanh_toan = phuong_thuc == "chuyen_khoan" or bool(ghe_dat_coc)
             for so_ghe in danh_sach_ghe:
+                la_ve_dat_coc = so_ghe in ghe_dat_coc
+                loai_hinh = "thanh_toan_ngay" if phuong_thuc == "chuyen_khoan" or la_ve_dat_coc else "thanh_toan_tai_quay"
                 cur.execute(
                     """INSERT INTO ve (
                            ma_ve, chuyen_id, so_ghe, diem_don_id, diem_tra_id, khach_hang_id, gia, ma_dat_cho,
-                           loai_hinh_thanh_toan, trang_thai, han_giu_cho_den,
+                           loai_hinh_thanh_toan, la_ve_dat_coc, trang_thai, han_giu_cho_den, gio_bat_dau_dem_han,
                            ten_khach_vang_lai, sdt_khach_vang_lai, nhan_vien_ban_id,
                            nhan_vien_thu_id, kenh_ban, phuong_thuc_thanh_toan, gio_thanh_toan
                        ) VALUES (
-                           %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL,
+                           %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                           CASE WHEN %s THEN LEAST(now() + make_interval(mins => %s), %s) ELSE NULL END,
+                           CASE WHEN %s THEN now() ELSE NULL END,
                            %s, %s, %s, %s, %s, %s, CASE WHEN %s THEN now() ELSE NULL END
-                       ) RETURNING id, ma_ve, ma_dat_cho, so_ghe, gia, trang_thai, ten_khach_vang_lai""",
+                       ) RETURNING id, ma_ve, ma_dat_cho, so_ghe, gia, trang_thai, han_giu_cho_den,
+                                 ten_khach_vang_lai, la_ve_dat_coc, loai_hinh_thanh_toan""",
                     (
                         ma_tu_sinh.ma_ve(ma_repository.so_tiep_theo(cur, "ve")), chuyen_id, so_ghe,
                         diem_don_id, diem_tra_id, khach_hang_id, gia_theo_ghe[so_ghe], ma_dat_cho, loai_hinh,
-                        "da_thanh_toan" if da_thanh_toan else "giu_cho", ten_khach, sdt_khach,
+                        la_ve_dat_coc, "da_thanh_toan" if da_thanh_toan else "giu_cho",
+                        co_han_thanh_toan, HAN_THANH_TOAN_NGAY_PHUT, chuyen[1], co_han_thanh_toan,
+                        ten_khach, sdt_khach,
                         nhan_vien_id, nhan_vien_id if da_thanh_toan else None, kenh_ban,
                         "tien_mat" if da_thanh_toan else None, da_thanh_toan,
                     ),
@@ -253,6 +268,11 @@ def thanh_toan_ve_quay(ma_dat_cho: str, van_phong_id: str, nhan_vien_id: str, ph
                    WHERE v.diem_don_id = d.id AND d.id = %s AND v.ma_dat_cho = %s
                      AND v.trang_thai = 'giu_cho' AND v.loai_hinh_thanh_toan = 'thanh_toan_tai_quay'
                      AND (v.han_giu_cho_den IS NULL OR v.han_giu_cho_den > now())
+                     AND NOT EXISTS (
+                         SELECT 1 FROM ve coc
+                         WHERE coc.ma_dat_cho = v.ma_dat_cho AND coc.la_ve_dat_coc = true
+                           AND coc.trang_thai <> 'da_thanh_toan'
+                     )
                      AND EXISTS (SELECT 1 FROM chuyen_xe c
                                  WHERE c.id = v.chuyen_id AND c.gio_khoi_hanh > now())
                      AND d.loai = 'van_phong'""",
@@ -303,7 +323,7 @@ def lay_dat_cho(ma_dat_cho: str, khach_hang_id: str) -> list[dict]:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT v.id, v.so_ghe, v.gia, v.trang_thai, v.loai_hinh_thanh_toan, v.la_ve_dat_coc,
+                SELECT v.id, v.so_ghe, v.gia, v.trang_thai, v.loai_hinh_thanh_toan, v.la_ve_dat_coc, v.kenh_ban,
                        v.han_giu_cho_den, v.gio_bat_dau_dem_han, v.ma_dat_cho, v.chuyen_id, v.diem_don_id, v.diem_tra_id,
                        c.ma AS ma_chuyen, c.gio_khoi_hanh, c.tuyen_id, c.chieu, c.trang_thai AS trang_thai_chuyen,
                        lx.ten AS ten_loai_xe,
@@ -367,6 +387,7 @@ def tim_ma_dat_cho_con_giu(khach_hang_id: str) -> list[str]:
                 """
                 SELECT ma_dat_cho FROM ve
                 WHERE khach_hang_id = %s AND trang_thai = 'giu_cho'
+                  AND kenh_ban IS NULL
                   AND han_giu_cho_den IS NOT NULL AND han_giu_cho_den > now()
                 GROUP BY ma_dat_cho ORDER BY MIN(han_giu_cho_den)
                 """,

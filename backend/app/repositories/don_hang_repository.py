@@ -611,9 +611,10 @@ def lay_bao_cao_su_co(don_hang_id: str) -> list[dict]:
 # ====================================================================
 
 def danh_sach_diem_nhan_kha_dung(van_phong_gui_id: str) -> list[dict]:
-    """Văn phòng có thể nhận hàng từ văn phòng gửi: loai='van_phong', khác văn
-    phòng gửi, và có ít nhất 1 tuyến đi qua cả 2 (tuyến chạy 2 chiều nên không
-    xét thứ tự). Kèm khu vực để giao diện chọn 2 tầng khu_vực → văn phòng (mục 10.4.1 bước 3)."""
+    """Văn phòng có thể nhận hàng từ văn phòng gửi: loai='van_phong', ở khu vực
+    KHÁC khu vực văn phòng gửi (không gửi nội khu vực), và có ít nhất 1 tuyến đi
+    qua cả 2 (tuyến chạy 2 chiều nên không xét thứ tự). Kèm khu vực để giao diện
+    chọn 2 tầng khu_vực → văn phòng (mục 10.4.1 bước 3)."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -624,7 +625,7 @@ def danh_sach_diem_nhan_kha_dung(van_phong_gui_id: str) -> list[dict]:
                 FROM diem_don_tra dd
                 JOIN khu_vuc kv ON kv.id = dd.khu_vuc_id
                 WHERE dd.loai = 'van_phong'
-                  AND dd.id <> %(gui)s
+                  AND dd.khu_vuc_id <> (SELECT khu_vuc_id FROM diem_don_tra WHERE id = %(gui)s)
                   AND EXISTS (
                       SELECT 1
                       FROM tuyen_diem_don_tra a

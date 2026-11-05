@@ -32,6 +32,38 @@ def gui(nguoi_nhan_id: str | None, noi_dung: str, ve_id: str | None = None, duon
         logger.exception("Không gửi được thông báo cho khách %s", nguoi_nhan_id)
 
 
+def gui_nhac_quay_ve(nguoi_nhan_id: str, ma_dat_cho: str, noi_dung: str) -> bool:
+    """Ghi một nhắc cho mỗi nhân viên/lượt đặt; đã đọc vẫn không tạo lại."""
+    try:
+        da_tao = thong_bao_repo.tao_nhac_quay_ve(str(nguoi_nhan_id), ma_dat_cho, noi_dung)
+        if da_tao:
+            broadcast_sync(str(nguoi_nhan_id), noi_dung)
+        return da_tao
+    except Exception:  # noqa: BLE001 — thông báo không được chặn job/luồng bán vé
+        logger.exception("Không gửi được nhắc quầy cho lượt %s", ma_dat_cho)
+        return False
+
+
+def don_nhac_quay_ve(ma_dat_cho: str) -> None:
+    """Gỡ cảnh báo sau nghiệp vụ; lỗi thông báo không làm sai kết quả thanh toán.
+
+    Job nhắc quầy sẽ đồng bộ lại các cảnh báo chưa gỡ ở lần quét kế tiếp.
+    """
+    try:
+        dong_bo_chuong_quay_ve(thong_bao_repo.xoa_nhac_quay_ve_neu_da_xu_ly(ma_dat_cho))
+    except Exception:  # noqa: BLE001
+        logger.exception("Không gỡ được nhắc quầy cho lượt %s", ma_dat_cho)
+
+
+def dong_bo_chuong_quay_ve(nguoi_nhan_ids: list[str]) -> None:
+    """Báo các chuông tải lại sau khi một cảnh báo bị gỡ."""
+    for nguoi_nhan_id in set(nguoi_nhan_ids):
+        try:
+            broadcast_sync(nguoi_nhan_id, "")
+        except Exception:  # noqa: BLE001
+            logger.exception("Không đồng bộ được chuông của %s", nguoi_nhan_id)
+
+
 # ---------------------------------------------------------
 # Dựng nội dung
 # ---------------------------------------------------------

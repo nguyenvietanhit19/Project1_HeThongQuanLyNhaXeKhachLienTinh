@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field, model_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 # Vai trò cán bộ có thể được tạo qua UC-36 (khách hàng tự đăng ký, không tạo ở đây).
 VaiTroCanBo = Literal[
@@ -49,6 +49,7 @@ class TaoTaiKhoanCanBoRequest(BaseModel):
 
 class TaoTaiKhoanCanBoResponse(BaseModel):
     id: UUID
+    ma: str = Field(description="Mã nhân viên tự sinh theo vai trò, VD PX0001 — không đổi sau khi tạo")
     email: str
     ho_ten: str
     vai_tro: str
@@ -62,12 +63,13 @@ class TaiKhoanCanBoResponse(BaseModel):
     """Một dòng trong danh sách tài khoản cán bộ."""
 
     id: UUID
+    ma: str | None = Field(description="Mã nhân viên; null với tài khoản tạo trực tiếp vào DB (VD script demo) chưa được cấp mã")
     email: str
     ho_ten: str
     so_dien_thoai: str
     vai_tro: str
     dang_hoat_dong: bool
-    da_dat_mat_khau: bool = Field(description="false = vừa được mời, chưa tự đặt mật khẩu lần đầu")
+    da_dat_mat_khau: bool = Field(description="true = tài khoản đã có mật khẩu (tạo mới luôn có mật khẩu ban đầu); false chỉ gặp ở dữ liệu cũ chưa có mật khẩu")
     van_phong_id: UUID | None
     ten_van_phong: str | None
     ngay_tao: datetime
@@ -86,3 +88,37 @@ class VaiTroDuocTaoResponse(BaseModel):
 
     vai_tro: list[str]
     vai_tro_can_van_phong: list[str]
+
+
+# ---------------------------------------------------------
+# UC-37: khóa / mở khóa tài khoản (NGHIEP_VU.md UC-37; KE_HOACH_UC37 bước 1)
+# ---------------------------------------------------------
+class DoiTrangThaiTaiKhoanRequest(BaseModel):
+    """Body của POST khóa / mở khóa. Lý do BẮT BUỘC (cả khóa lẫn mở khóa), chỉ là chữ tự do — không chọn từ danh sách."""
+
+    ly_do: str = Field(min_length=1, max_length=500, description="Lý do khóa / mở khóa, 1–500 ký tự sau khi cắt khoảng trắng hai đầu")
+
+    # mode="before": cắt khoảng trắng TRƯỚC khi Field kiểm độ dài, để "   " bị coi là rỗng
+    # và "  abc  " tính 3 ký tự chứ không phải 7.
+    @field_validator("ly_do", mode="before")
+    @classmethod
+    def cat_khoang_trang(cls, gia_tri):
+        if isinstance(gia_tri, str):
+            gia_tri = gia_tri.strip()
+            if not gia_tri:
+                raise ValueError("Vui lòng nhập lý do")
+        return gia_tri
+
+
+class XeThieuPhuXe(BaseModel):
+    xe_id: UUID
+    bien_so: str
+
+
+class DoiTrangThaiTaiKhoanResponse(BaseModel):
+    id: UUID
+    dang_hoat_dong: bool
+    canh_bao_xe_thieu_phu_xe: list[XeThieuPhuXe] = Field(
+        default_factory=list,
+        description="Chỉ có khi khóa tài khoản phụ xe làm xe nào đó thiếu phụ xe cố định; hệ thống KHÔNG tự đổi biên chế",
+    )

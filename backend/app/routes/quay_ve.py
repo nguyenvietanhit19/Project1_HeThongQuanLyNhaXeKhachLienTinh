@@ -1,11 +1,11 @@
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
 
 from app.middleware.auth_middleware import NguoiDungHienTai, yeu_cau_vai_tro
-from app.schemas.quay_ve_schema import BanVeRequest, HuyVeRequest, TaoLinkThanhToanRequest, ThanhToanQuayRequest
+from app.schemas.quay_ve_schema import BanVeRequest, HuyVeRequest, TaoLinkThanhToanRequest, ThanhToanQuayRequest, XacNhanKetQuaVnpayQuayRequest
 from app.services import quay_ve_service as service
 
 router = APIRouter(prefix="/quay-ve", tags=["quay-ve"])
@@ -72,6 +72,16 @@ def ve_cho_thanh_toan(
     return service.ve_cho_thanh_toan(nguoi_dung, trang, kich_thuoc_trang)
 
 
+@router.get("/ve-da-huy")
+def ve_da_huy(
+    nguoi_dung: NhanVienQuayVe,
+    ngay: date,
+    trang: int = Query(1, ge=1),
+    kich_thuoc_trang: int = Query(20, ge=1, le=50),
+):
+    return service.ve_da_huy(nguoi_dung, ngay, trang, kich_thuoc_trang)
+
+
 @router.post("/dat-cho/{ma_dat_cho}/thanh-toan")
 def thu_tien(ma_dat_cho: str, body: ThanhToanQuayRequest, nguoi_dung: NhanVienQuayVe):
     return service.thu_tien(nguoi_dung, ma_dat_cho, body.phuong_thuc)
@@ -81,6 +91,19 @@ def thu_tien(ma_dat_cho: str, body: ThanhToanQuayRequest, nguoi_dung: NhanVienQu
 def tao_link_thanh_toan(ve_id: UUID, body: TaoLinkThanhToanRequest, nguoi_dung: NhanVienQuayVe, request: Request):
     ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "127.0.0.1")).split(",")[0].strip()
     return {"duong_dan_thanh_toan": service.tao_link_thanh_toan(nguoi_dung, str(ve_id), body.frontend_origin, ip)}
+
+
+@router.post("/dat-cho/{ma_dat_cho}/duong-dan-thanh-toan")
+def tao_link_thanh_toan_dat_cho(ma_dat_cho: str, body: TaoLinkThanhToanRequest,
+                                nguoi_dung: NhanVienQuayVe, request: Request):
+    ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "127.0.0.1")).split(",")[0].strip()
+    return {"duong_dan_thanh_toan": service.tao_link_thanh_toan_dat_cho(
+        nguoi_dung, ma_dat_cho, body.frontend_origin, ip)}
+
+
+@router.post("/xac-nhan-vnpay-sandbox")
+def xac_nhan_vnpay_sandbox(body: XacNhanKetQuaVnpayQuayRequest, nguoi_dung: NhanVienQuayVe):
+    return service.xac_nhan_vnpay_sandbox(nguoi_dung, body.tham_so)
 
 
 @router.post("/dat-cho/{ma_dat_cho}/huy")
@@ -124,6 +147,30 @@ def lich_su_ban_ve(
     return service.lich_su_ban_ve(nguoi_dung, tu_ngay, den_ngay, trang, kich_thuoc_trang, ma_ve)
 
 
+@router.get("/ve-theo-trang-thai")
+def ve_theo_trang_thai(
+    nguoi_dung: NhanVienQuayVe,
+    trang_thai: Literal["giu_cho", "da_huy"],
+    tu_ngay: date,
+    den_ngay: date,
+    trang: int = Query(1, ge=1),
+    kich_thuoc_trang: int = Query(20, ge=1, le=50),
+    ma_ve: str | None = Query(None, max_length=32),
+):
+    return service.ve_theo_trang_thai(nguoi_dung, trang_thai, tu_ngay, den_ngay,
+                                     trang, kich_thuoc_trang, ma_ve)
+
+
+@router.get("/bieu-do-doanh-thu")
+def bieu_do_doanh_thu(
+    nguoi_dung: NhanVienQuayVe,
+    tu_ngay: date,
+    den_ngay: date,
+    ma_ve: str | None = Query(None, max_length=32),
+):
+    return service.bieu_do_doanh_thu(nguoi_dung, tu_ngay, den_ngay, ma_ve)
+
+
 @router.get("/ve/{ve_id}/in")
 def du_lieu_in_ve(ve_id: UUID, nguoi_dung: NhanVienQuayVe):
     from app.utils.loi import GiaTriLoi, KhongTimThay
@@ -132,6 +179,6 @@ def du_lieu_in_ve(ve_id: UUID, nguoi_dung: NhanVienQuayVe):
     ve = repo.ve_va_chuyen(str(ve_id), str(vp["id"]))
     if not ve:
         raise KhongTimThay("Không tìm thấy vé thuộc văn phòng này")
-    if ve["trang_thai"] != "da_thanh_toan":
+    if ve["trang_thai"] not in ("da_thanh_toan", "da_len_xe", "da_xuong_xe", "khong_den"):
         raise GiaTriLoi("Chỉ được in vé đã thanh toán")
     return ve

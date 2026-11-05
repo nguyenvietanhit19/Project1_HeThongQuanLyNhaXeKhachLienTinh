@@ -11,6 +11,7 @@ hàng thiếu văn phòng nếu bước gán lỗi giữa chừng.
 from psycopg2 import errors
 
 from app.db import get_connection, release_connection
+from app.repositories import ma_repository
 from app.utils.loi import GiaTriLoi
 
 
@@ -38,17 +39,21 @@ def tao_tai_khoan(
 ) -> dict:
     """Tạo tài khoản cán bộ: có sẵn mật khẩu (đã băm) và ĐÃ xác nhận
     (da_xac_nhan = true) — email do công ty cấp nên không cần xác minh qua OTP,
-    và dang_nhap chặn mọi tài khoản có da_xac_nhan = false."""
+    và dang_nhap chặn mọi tài khoản có da_xac_nhan = false.
+
+    Mã nhân viên (PX0001, QV0001...) được cấp TRONG cùng transaction: lấy số từ sequence của vai trò rồi điền vào `ma`.
+    Nếu INSERT hỏng sau đó (VD trùng email) thì số đã lấy bị bỏ, mã kế tiếp sẽ nhảy cách một số — đúng như các mã khác."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
+            ma = ma_repository.cap_ma_nhan_vien(cur, vai_tro)
             cur.execute(
                 """
-                INSERT INTO nguoi_dung (email, mat_khau, ho_ten, so_dien_thoai, vai_tro, da_xac_nhan)
-                VALUES (%s, %s, %s, %s, %s, true)
-                RETURNING id, email, ho_ten, vai_tro
+                INSERT INTO nguoi_dung (email, mat_khau, ho_ten, so_dien_thoai, vai_tro, da_xac_nhan, ma)
+                VALUES (%s, %s, %s, %s, %s, true, %s)
+                RETURNING id, ma, email, ho_ten, vai_tro
                 """,
-                (email, mat_khau_hash, ho_ten, so_dien_thoai, vai_tro),
+                (email, mat_khau_hash, ho_ten, so_dien_thoai, vai_tro, ma),
             )
             tai_khoan = _thanh_dict(cur, cur.fetchone())
             tai_khoan["van_phong_id"] = None
@@ -73,20 +78,20 @@ def tao_tai_khoan(
 
 def danh_sach_tai_khoan_can_bo(vai_tro_cho_phep: list[str], tu_khoa: str | None = None) -> list[dict]:
     """Tài khoản cán bộ thuộc các vai trò `vai_tro_cho_phep`, kèm văn phòng (nếu có).
-    `tu_khoa` tìm theo email / họ tên / số điện thoại (không phân biệt hoa thường)."""
+    `tu_khoa` tìm theo mã / email / họ tên / số điện thoại (không phân biệt hoa thường)."""
     if not vai_tro_cho_phep:
         return []
     dieu_kien = ["nd.vai_tro = ANY(%s)"]
     tham_so: list = [vai_tro_cho_phep]
     if tu_khoa:
-        dieu_kien.append("(nd.email ILIKE %s OR nd.ho_ten ILIKE %s OR nd.so_dien_thoai ILIKE %s)")
-        tham_so += [f"%{tu_khoa}%"] * 3
+        dieu_kien.append("(nd.ma ILIKE %s OR nd.email ILIKE %s OR nd.ho_ten ILIKE %s OR nd.so_dien_thoai ILIKE %s)")
+        tham_so += [f"%{tu_khoa}%"] * 4
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
                 f"""
-                SELECT nd.id, nd.email, nd.ho_ten, nd.so_dien_thoai, nd.vai_tro, nd.dang_hoat_dong,
+                SELECT nd.id, nd.ma, nd.email, nd.ho_ten, nd.so_dien_thoai, nd.vai_tro, nd.dang_hoat_dong,
                        (nd.mat_khau IS NOT NULL) AS da_dat_mat_khau,
                        h.van_phong_id, d.ten AS ten_van_phong, nd.ngay_tao
                 FROM nguoi_dung nd
@@ -109,6 +114,77 @@ def danh_sach_van_phong() -> list[dict]:
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT id, ten, dia_chi FROM diem_don_tra WHERE loai = 'van_phong' ORDER BY ten")
+            cols = [c[0] for c in cur.description]
+            return [dict(zip(cols, r)) for r in cur.fetchall()]
+    finally:
+        release_connection(conn)
+
+
+# ---------------------------------------------------------
+# UC-37: khóa / mở khóa tài khoản (KE_HOACH_UC37 bước 2)
+# ---------------------------------------------------------
+def tim_tai_khoan(nguoi_dung_id: str) -> dict | None:
+    """Thông tin tối thiểu để Service kiểm tra quyền khóa / mở khóa (None nếu không có tài khoản)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, ma, email, ho_ten, vai_tro, dang_hoat_dong, la_tai_khoan_goc
+                FROM nguoi_dung
+                WHERE id = %s
+                """,
+                (nguoi_dung_id,),
+            )
+            return _thanh_dict(cur, cur.fetchone())
+    finally:
+        release_connection(conn)
+
+
+def dat_trang_thai_hoat_dong(nguoi_dung_id: str, dang_hoat_dong: bool) -> None:
+    """Khóa (false) / mở khóa (true). Chỉ đổi cờ, không xóa gì — lịch sử của tài khoản vẫn giữ nguyên."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE nguoi_dung SET dang_hoat_dong = %s WHERE id = %s", (dang_hoat_dong, nguoi_dung_id))
+        conn.commit()
+    finally:
+        release_connection(conn)
+
+
+def xe_thieu_phu_xe(nguoi_dung_id: str) -> list[dict]:
+    """Các xe mà tài khoản phụ xe này đang thuộc biên chế CỐ ĐỊNH và, khi không tính người này,
+    không còn phụ xe cố định nào đang hoạt động — NGHIEP_VU.md UC-37, hậu điều kiện.
+
+    "Đang hoạt động" = dòng `xe_nhan_su` cố định ở trạng thái `dang_hoat_dong`, hồ sơ `dang_lam`
+    VÀ tài khoản `dang_hoat_dong = true`. Gọi SAU khi đã khóa: tài khoản vừa bị khóa tự bị loại khỏi
+    phép đếm nhờ điều kiện cuối, không cần loại trừ riêng. Trả danh sách rỗng nếu người này không
+    phải phụ xe hoặc không thuộc biên chế xe nào."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT DISTINCT x.id AS xe_id, x.bien_so
+                FROM xe_nhan_su ns
+                JOIN nhan_su_van_hanh t ON t.id = ns.nhan_su_van_hanh_id
+                JOIN xe x ON x.id = ns.xe_id
+                WHERE t.nguoi_dung_id = %s
+                  AND ns.loai = 'co_dinh' AND ns.trang_thai = 'dang_hoat_dong'
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM xe_nhan_su ns2
+                      JOIN nhan_su_van_hanh p ON p.id = ns2.nhan_su_van_hanh_id
+                      JOIN nguoi_dung u ON u.id = p.nguoi_dung_id
+                      WHERE ns2.xe_id = ns.xe_id
+                        AND ns2.loai = 'co_dinh' AND ns2.trang_thai = 'dang_hoat_dong'
+                        AND p.chuc_danh = 'phu_xe' AND p.trang_thai = 'dang_lam'
+                        AND u.dang_hoat_dong = true
+                  )
+                ORDER BY x.bien_so
+                """,
+                (nguoi_dung_id,),
+            )
             cols = [c[0] for c in cur.description]
             return [dict(zip(cols, r)) for r in cur.fetchall()]
     finally:

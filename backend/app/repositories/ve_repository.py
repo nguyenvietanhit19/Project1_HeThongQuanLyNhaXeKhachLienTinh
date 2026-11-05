@@ -254,43 +254,6 @@ def xac_nhan_len_xe(ve_id: str) -> None:
         release_connection(conn)
 
 
-def xac_nhan_len_xe_nhieu(ve_ids: list[str]) -> int:
-    """Lên xe hàng loạt — điều kiện trạng thái nằm trong WHERE, trả số vé thực sự đổi."""
-    if not ve_ids:
-        return 0
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """UPDATE ve SET trang_thai = 'da_len_xe', gio_len_xe = now()
-                   WHERE id = ANY(%s::uuid[]) AND trang_thai = 'da_thanh_toan'""",
-                (ve_ids,),
-            )
-            so_luong = cur.rowcount
-        conn.commit()
-        return so_luong
-    finally:
-        release_connection(conn)
-
-
-def xac_nhan_xuong_xe_nhieu(ve_ids: list[str]) -> int:
-    if not ve_ids:
-        return 0
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """UPDATE ve SET trang_thai = 'da_xuong_xe', gio_xuong_xe = now()
-                   WHERE id = ANY(%s::uuid[]) AND trang_thai = 'da_len_xe'""",
-                (ve_ids,),
-            )
-            so_luong = cur.rowcount
-        conn.commit()
-        return so_luong
-    finally:
-        release_connection(conn)
-
-
 def hoan_tac_len_xe(ve_id: str) -> bool:
     """da_len_xe -> da_thanh_toan. Điều kiện nằm trong WHERE để 2 lần bấm
     liên tiếp không làm hỏng trạng thái. Trả False nếu vé không còn da_len_xe."""
@@ -340,7 +303,8 @@ def xac_nhan_xuong_xe(ve_id: str) -> None:
 
 
 def tim_ve_chua_len_tai_diem(chuyen_id: str, diem_don_id: str) -> list[dict]:
-    """Vé đã thanh toán nhưng chưa lên xe tại điểm đón này; vé chưa trả tiền được tự hủy riêng."""
+    """Vé chưa lên xe tại điểm đón này: đã thanh toán, hoặc đang giữ chỗ còn hiệu lực (gồm "thanh toán tại quầy" —
+    không có hạn). Vé giữ chỗ quá hạn không tính vì ghế đã mở lại (het_han). NGHIEP_VU.md mục 8.2 điểm 6, mục 9."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -350,7 +314,9 @@ def tim_ve_chua_len_tai_diem(chuyen_id: str, diem_don_id: str) -> list[dict]:
                        COALESCE(nd.ho_ten, v.ten_khach_vang_lai) AS ho_ten
                 FROM ve v
                 LEFT JOIN nguoi_dung nd ON nd.id = v.khach_hang_id
-                WHERE v.chuyen_id = %s AND v.diem_don_id = %s AND v.trang_thai = 'da_thanh_toan'
+                WHERE v.chuyen_id = %s AND v.diem_don_id = %s
+                  AND (v.trang_thai = 'da_thanh_toan'
+                       OR (v.trang_thai = 'giu_cho' AND (v.han_giu_cho_den IS NULL OR v.han_giu_cho_den > now())))
                 ORDER BY length(v.so_ghe), v.so_ghe
                 """,
                 (chuyen_id, diem_don_id),

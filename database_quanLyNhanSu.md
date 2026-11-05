@@ -1,5 +1,7 @@
 # Thiết kế cơ sở dữ liệu — phạm vi Quản lý nhân sự (`quan_ly_nhan_su`)
 
+> ⚠️ **Bản thiết kế sớm (đầu 10/2026), không còn là nguồn chính thức** (ghi chú 5/11/2026). Nguồn đúng là `DATABASE.md` (mục 1.4, 1.6, 6.2, 6.3, 10.2) và các migration. File này còn đánh số use case kiểu cũ (UC-47→50; nay là UC-49, UC-51, UC-52) và **chưa có**: bảng `nhat_ky_admin` (nhật ký của `quan_ly`) và cột `ma` (mã nhân viên). Giữ lại để tham khảo lý do thiết kế, đừng làm theo khi thấy khác `DATABASE.md`.
+
 > File riêng, phạm vi hẹp: chỉ các bảng mà vai trò `quan_ly_nhan_su` **tạo/sửa/đọc** trong nghiệp vụ đã bàn ở `NHAP_QUAN_LY_NHAN_SU.md` (UC-49→50). Không phải bản thay thế `DATABASE.md` — khi nhóm chốt xong, nội dung ở đây được dán vào đúng vị trí đã chỉ trong `NHAP_QUAN_LY_NHAN_SU.md`. Quy ước chung (UUID PK, `TIMESTAMPTZ`, enum bằng `TEXT + CHECK`, không xóa cứng) giữ nguyên như `DATABASE.md` mục 0 — không nhắc lại.
 
 ---

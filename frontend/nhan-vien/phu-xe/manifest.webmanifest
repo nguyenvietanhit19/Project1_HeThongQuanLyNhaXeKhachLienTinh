@@ -1,0 +1,15 @@
+{
+  "name": "Phụ xe — Nhà xe khách liên tỉnh",
+  "short_name": "Phụ xe",
+  "description": "Theo dõi chuyến, đón/trả khách và chất/dỡ hàng trên xe.",
+  "lang": "vi",
+  "start_url": "/nhan-vien/phu-xe/chuyen-cua-toi.html",
+  "scope": "/nhan-vien/phu-xe/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0E0E14",
+  "theme_color": "#5B3E96",
+  "icons": [
+    { "src": "/shared/assets/logo-mark.png", "sizes": "256x256", "type": "image/png", "purpose": "any" }
+  ]
+}

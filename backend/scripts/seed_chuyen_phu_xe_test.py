@@ -83,7 +83,7 @@ def main() -> None:
     ma_loai_xe = mot("SELECT ma FROM loai_xe WHERE id = %s", (loai_xe,))
     so_do_ghe = mot("SELECT so_do_ghe FROM loai_xe WHERE id = %s", (loai_xe,))
     ds_ghe = [g["ma_ghe"] for g in (so_do_ghe if isinstance(so_do_ghe, list) else __import__("json").loads(so_do_ghe))]
-    gia_goc = mot("SELECT MAX(gia_goc) FROM gia_ve WHERE tuyen_id = %s", (tuyen,)) or 300000
+    gia_goc = mot("SELECT MAX(gia_goc) FROM gia_ve") or 300000  # gia_ve không còn gắn tuyen_id (giá theo bộ giá + khu vực)
 
     phu_xe_nd = mot("SELECT id FROM nguoi_dung WHERE email = %s", (EMAIL_PHU_XE,))
     nhan_su = mot("SELECT id FROM nhan_su_van_hanh WHERE nguoi_dung_id = %s", (phu_xe_nd,))
