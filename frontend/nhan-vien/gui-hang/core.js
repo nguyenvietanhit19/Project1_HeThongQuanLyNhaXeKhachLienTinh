@@ -46,10 +46,11 @@ const state = {
   duLieuTaoDon: null,
   dangTaoDon: false,
   phienTuyen: 0,
-  bieuDoSoNgay: 7,
   khoaTaoDon: null,        // {json, khoa}: khóa chống trùng gắn với đúng nội dung đã xác nhận
   phienGoiY: { gui: 0, nhan: 0 },
-  doiSoat: null,           // kết quả đối soát lần tải gần nhất (xuất CSV)
+  ky: null,                // kỳ thống kê đang chọn (thong-ke.js taoKy)
+  thongKe: null,           // {ky, tk, chuoi, doiSoat, loi, vanPhong} — số liệu đang hiện; xuất / in dùng lại đúng bản này
+  phienThongKe: 0,         // tăng mỗi lần tải — phản hồi của lần tải cũ về muộn thì bỏ
 };
 
 const laQuanLyXem = () => state.vaiTro === "quan_ly";

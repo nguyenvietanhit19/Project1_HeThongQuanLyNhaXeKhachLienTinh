@@ -162,10 +162,12 @@ Hỗ trợ tại quầy (đã có trong code): gợi ý tên khách quen theo S�
 - 🆕 **Tiền hoàn khi hủy đơn** chi ở văn phòng gửi, ghi vào người hủy, theo ngày hủy. Không đi qua kế toán.
 - **Doanh thu** gửi hàng trong kỳ = trả trước đã thu + COD đã thu − tiền đã hoàn. Mỗi khoản tính theo đúng ngày của nó, nên ngày chỉ có hoàn (thu từ hôm trước) có thể có doanh thu **âm** — đúng tiền mặt thực tế.
 - ⏳ **Đối soát két cuối ca** theo từng nhân viên: tiền đã thu − tiền đã hoàn trong kỳ; xuất CSV / in được.
-- **Thống kê (UC-39)** — nhân viên chỉ xem văn phòng mình, `quan_ly` / `quan_ly_nhan_su` xem toàn hệ thống; chọn khoảng ngày:
+- **Thống kê (UC-39)** — nhân viên chỉ xem văn phòng mình, `quan_ly` / `quan_ly_nhan_su` xem toàn hệ thống; 🆕 chọn **kỳ**: **Ngày** (biểu đồ chia theo giờ), **Tháng** (mặc định, chia theo ngày), **Năm** (chia theo tháng) hoặc **Tùy chọn** từ–đến (≤ 62 ngày chia theo ngày, dài hơn chia theo tháng; tối đa 1 năm). Nút ◀ ▶ lùi / tiến 1 kỳ, không xem kỳ tương lai. Mọi số trên tab theo cùng một kỳ:
   - Hàng gửi đi: đơn tiếp nhận trong kỳ, đang chờ xếp xe, đang trên xe, 🆕 hủy trong kỳ.
   - Hàng nhận về: tới văn phòng trong kỳ, đã giao, sắp đến, chờ lấy, chưa gọi báo được, chờ quá 7 ngày, hàng tồn.
-  - Biểu đồ sản lượng theo ngày (tiếp nhận / đã giao).
+  - Các chỉ số "đang …" / chờ lấy / chưa báo / chờ quá 7 ngày / tồn là ảnh chụp **tại thời điểm xem**, không theo kỳ.
+  - 🆕 4 biểu đồ: sản lượng (tiếp nhận / đã giao), tiền mặt theo thời gian (trả trước + thu khi giao, đường "còn lại" sau khi trừ hoàn, có thể âm), tỉ lệ cách trả cước, tiền mặt theo nhân viên. Cộng các mốc của biểu đồ luôn bằng số tổng của kỳ.
+  - 🆕 **Xuất Excel** (3 trang tính: Tổng quan, Theo giờ/ngày/tháng, Đối soát nhân viên) và **In báo cáo** (A4, có biểu đồ, ô ký "Người lập" / "Người nhận tiền", lưu PDF qua hộp thoại in). Cả hai lấy đúng số đang hiện trên màn hình.
 - Chỉ đọc, không thay đổi dữ liệu.
 
 ---
@@ -262,7 +264,7 @@ Hỗ trợ tại quầy (đã có trong code): gợi ý tên khách quen theo S�
 ### 8.6. UC-39. Xem thống kê (phần nhân viên gửi hàng)
 
 - **Actor**: Nhân viên gửi hàng (chỉ hàng, văn phòng mình); `quan_ly`, `quan_ly_nhan_su` (toàn hệ thống).
-- **Luồng chính**: chọn khoảng thời gian → hệ thống lọc theo phạm vi vai trò → tính động các chỉ số (mục 6) → hiển thị.
+- **Luồng chính**: chọn kỳ thống kê (Ngày / Tháng / Năm / Tùy chọn) → hệ thống lọc theo phạm vi vai trò → tính động các chỉ số và chuỗi theo giờ / ngày / tháng (mục 6) → hiển thị số và biểu đồ → (tùy chọn) xuất Excel / in báo cáo.
 - **Hậu điều kiện**: chỉ đọc.
 
 ### 8.7. 🆕 UC-54. Hủy đơn gửi hàng
