@@ -12,6 +12,9 @@ from app.schemas.dieu_do_schema import (
     GanXeRequest,
     LoaiXeChiTietResponse,
     LoTrinhChuTrinhResponse,
+    SuCoDangXayRa,
+    ThayXeRequest,
+    TongQuanResponse,
     TuyenPhuTrachResponse,
     XeChoChuTrinhResponse,
 )
@@ -43,8 +46,29 @@ def chi_tiet_loai_xe(loai_xe_id: UUID, nguoi_dung: NguoiGan):
 
 
 @router.get("/chu-trinh/{chu_trinh_id}/xe", response_model=list[XeChoChuTrinhResponse])
-def danh_sach_xe_cho_chu_trinh(chu_trinh_id: UUID, nguoi_dung: NguoiGan):
-    return dieu_do_service.danh_sach_xe_cho_chu_trinh(nguoi_dung, str(chu_trinh_id))
+def danh_sach_xe_cho_chu_trinh(chu_trinh_id: UUID, nguoi_dung: NguoiGan, che_do: str = "gan"):
+    """`che_do=gan` (mặc định): chọn xe gán/đổi xe gốc; `che_do=thay`: chọn xe chạy thay khi xe gốc hỏng (UC-20)."""
+    return dieu_do_service.danh_sach_xe_cho_chu_trinh(nguoi_dung, str(chu_trinh_id), che_do)
+
+
+@router.get("/thong-ke", response_model=TongQuanResponse)
+def thong_ke_tong_quan(nguoi_dung: NguoiGan, so_ngay: int = dieu_do_service.CUA_SO_MAC_DINH_NGAY):
+    return dieu_do_service.thong_ke_tong_quan(nguoi_dung, so_ngay)
+
+
+@router.get("/su-co", response_model=list[SuCoDangXayRa])
+def danh_sach_su_co(nguoi_dung: NguoiGan):
+    return dieu_do_service.danh_sach_su_co(nguoi_dung)
+
+
+@router.put("/chu-trinh/{chu_trinh_id}/xe-thay-the", response_model=ChuTrinhResponse)
+def thay_xe(chu_trinh_id: UUID, du_lieu: ThayXeRequest, nguoi_dung: NguoiGan):
+    return dieu_do_service.thay_xe(nguoi_dung, str(chu_trinh_id), str(du_lieu.xe_id), du_lieu.ly_do)
+
+
+@router.delete("/chu-trinh/{chu_trinh_id}/xe-thay-the", response_model=ChuTrinhResponse)
+def tra_xe_goc(chu_trinh_id: UUID, nguoi_dung: NguoiGan):
+    return dieu_do_service.tra_xe_goc(nguoi_dung, str(chu_trinh_id))
 
 
 @router.put("/chu-trinh/{chu_trinh_id}/xe", response_model=ChuTrinhResponse)

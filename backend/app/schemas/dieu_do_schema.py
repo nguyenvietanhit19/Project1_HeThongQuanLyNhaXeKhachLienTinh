@@ -1,10 +1,10 @@
 """Pydantic schemas cho điều độ viên gán xe theo chu trình — UC-44, DIEU_DO_VIEN_THIET_KE_MOI.md mục 8."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ChuyenTrongChuTrinh(BaseModel):
@@ -18,6 +18,19 @@ class ChuyenTrongChuTrinh(BaseModel):
     trang_thai: str
     xe_id: UUID | None = None
     bien_so_xe: str | None = None
+    xe_thuc_te_id: UUID | None = None  # xe đang chạy thay xe gốc (UC-20); None = chạy bằng xe gốc
+    bien_so_xe_thuc_te: str | None = None
+    dang_hoan: bool = False  # đã quá giờ khởi hành mà chưa có xe (UC-44 ⏱)
+
+
+class CanChuY(BaseModel):
+    """Một việc điều độ viên cần xử lý ở chu trình."""
+
+    ma: Literal["dang_hoan", "chua_gan_sap_toi", "xe_hong", "xe_goc_san_sang", "canh_bao_vi_tri"]
+    muc_do: Literal["khan", "canh_bao", "thong_tin"]
+    noi_dung: str
+    ma_chuyen: str | None = None  # chuyến liên quan
+    gio_khoi_hanh: datetime | None = None  # giờ khởi hành của chuyến đó — giao diện tự tính thời gian còn lại / đã quá
 
 
 class ChuTrinhResponse(BaseModel):
@@ -28,7 +41,20 @@ class ChuTrinhResponse(BaseModel):
     loai_xe_id: UUID
     ten_loai_xe: str
     trang_thai_gan: Literal["chua_gan", "mot_phan", "da_gan"]
+    can_chu_y: list[CanChuY] = []
     cac_chuyen: list[ChuyenTrongChuTrinh]
+
+
+class SuCoDangXayRa(BaseModel):
+    chuyen_id: UUID
+    chu_trinh_id: UUID | None = None
+    ma: str
+    ma_tuyen: str
+    ten_tuyen: str
+    gio_khoi_hanh: datetime
+    bien_so_xe: str | None = None
+    loai_su_co: str | None = None  # loi_nha_xe | loi_khach_quan
+    ly_do_su_co: str | None = None
 
 
 class TuyenPhuTrachResponse(BaseModel):
@@ -126,5 +152,63 @@ class LoTrinhChuTrinhResponse(BaseModel):
     cac_chuyen: list[ChuyenLoTrinh]
 
 
+class NhomGanXe(BaseModel):
+    """Đếm chu trình theo tình trạng gán xe; mỗi chu trình thuộc đúng một nhóm (đang hoãn > đã gán > chưa gán, gồm gán một phần)."""
+
+    so_chu_trinh: int
+    da_gan: int
+    chua_gan: int
+    dang_hoan: int
+
+
+class TongQuanTong(NhomGanXe):
+    so_chuyen: int
+    dang_chay_thay: int  # chu trình đang có xe chạy thay
+    viec_khan: int  # chu trình có ít nhất 1 việc mức khẩn
+    viec_can_chu_y: int  # tổng số việc cần chú ý
+    su_co_dang_xay_ra: int
+
+
+class TongQuanTheoTuyen(NhomGanXe):
+    tuyen_id: UUID
+    ma_tuyen: str
+    ten_tuyen: str
+
+
+class TongQuanTheoNgay(NhomGanXe):
+    ngay: date  # ngày khởi hành của chuyến đầu, giờ Việt Nam
+
+
+class TongQuanDoiXe(BaseModel):
+    hoat_dong: int
+    bao_tri: int
+    du_phong: int  # xe hoạt động không cố định tuyến
+    co_dinh_tuyen: int
+    ranh: int  # xe hoạt động chưa có chuyến nào trong khoảng đang xem
+    dang_chay_thay: int  # số xe đang chạy thay trong các chu trình đang xem
+
+
+class TongQuanChuyenGanDay(BaseModel):
+    so_ngay: int
+    hoan_thanh: int
+    dang_chay: int
+    gap_su_co: int
+    da_huy: int
+
+
+class TongQuanResponse(BaseModel):
+    so_ngay: int
+    tong: TongQuanTong
+    theo_tuyen: list[TongQuanTheoTuyen]
+    theo_ngay: list[TongQuanTheoNgay]
+    doi_xe: TongQuanDoiXe
+    chuyen_gan_day: TongQuanChuyenGanDay
+
+
 class GanXeRequest(BaseModel):
     xe_id: UUID
+
+
+class ThayXeRequest(BaseModel):
+    xe_id: UUID
+    ly_do: str | None = Field(default=None, max_length=200)  # kèm vào thông báo cho khách
