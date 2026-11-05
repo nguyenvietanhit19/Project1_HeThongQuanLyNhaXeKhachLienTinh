@@ -871,3 +871,31 @@ Playwright điều khiển Edge (headless). Script đã đưa vào repo: `backen
 - Các ca còn lại: **54/55 đạt** — A2–A6, B3, B7–B11, C2–C6, D2–D7, E1–E4, F2, F4, F6–F11, G1–G9, H2–H4, I1–I2, J3–J6, K (1920/1100/880/400 px), K5, P. Chưa tự động: H5 (dữ liệu demo không có đơn chờ chất ở điểm xe đang đứng, cùng chiều).
 - **Lỗi thật — I1 (từ PR #47, file chung `repositories/thong_bao_repository.py`, không phải code gửi hàng):** không đánh dấu đã đọc được thông báo nào có `duong_dan` NULL (mọi thông báo gửi hàng, phụ xe, quản lý…). `_DU_DIEU_KIEN_AN` = `NOT (tb.duong_dan LIKE …) OR (…)`: `duong_dan` NULL → `NOT (NULL)` = NULL → điều kiện không đúng → `PUT /thong-bao/{id}/da-doc` trả **400 "Không thể ẩn cảnh báo…"**, `PUT /thong-bao/da-doc-tat-ca` đánh dấu **0** → số chưa đọc trên chuông không bao giờ giảm. Sửa 1 dòng: `NOT ({_NHAC_QUAY_VE})` → `tb.duong_dan IS NULL OR NOT ({_NHAC_QUAY_VE})`. Đã báo user, chờ người làm #47 sửa.
 - Sửa quy trình theo hành vi thật: B5 (hàng cấm bị khóa ngay trong danh sách), G8 (chạy job bằng lệnh không đẩy real-time — xem trên chuông), I2 (tin lúc mất kết nối chỉ lên chuông), P3 (403 chứ không phải 400), cổng Live Server 5501 + cách xử lý "Failed to fetch".
+
+---
+
+## 10. Đợt F — Thống kê theo ngày / tháng / năm, biểu đồ, xuất báo cáo (05/11/2026)
+
+Cùng nhánh `feature/Trinh-gui-hang-su-co-xe` (user chọn làm chung 1 PR). Thiết kế: `docs/superpowers/specs/2026-11-05-thong-ke-theo-ky-gui-hang-design.md`; kế hoạch từng bước: `docs/superpowers/plans/2026-11-05-thong-ke-theo-ky-gui-hang.md`.
+
+### 10.1. Đã làm
+
+| Commit | Phần | Nội dung |
+|---|---|---|
+| `7666523` | Backend | API mới `GET /gui-hang/thong-ke-chuoi?tu_ngay&den_ngay&don_vi=gio\|ngay\|thang[&diem_id]` — đủ mọi mốc trong kỳ (giờ VN), mỗi mốc có `tiep_nhan, da_giao, so_huy, tien_tra_truoc, tien_cod, tien_hoan, doanh_thu`, đúng mốc thời gian + phía văn phòng như `/thong-ke` (cộng các mốc = `/thong-ke`). Chặn: `gio` chỉ 1 ngày, `ngay` ≤ 62 ngày, tối đa 1 năm, `don_vi` lạ, văn phòng không tồn tại; phạm vi qua `_pham_vi_van_phong`. **Gỡ** `GET /gui-hang/thong-ke-theo-ngay` (chỉ tab này dùng). 7 unit test |
+| `bfc12f2` | Giao diện | Bộ chọn kỳ Ngày / Tháng (mặc định) / Năm / Tùy chọn + ◀ ▶ (▶ khóa khi kỳ đã chạm hôm nay; ô ngày/tháng có `max` = hôm nay); cả tab (ô số, tiền mặt, biểu đồ, đối soát) theo 1 kỳ; bỏ nút 7/14/30 ngày riêng của biểu đồ. Bấm nhanh: phản hồi của kỳ cũ về muộn bị bỏ (`state.phienThongKe`). API nào lỗi chỉ khung đó báo lỗi. File mới `bieu-do.js` (vẽ SVG dùng chung, trục âm, mốc tương lai không vẽ) |
+| `7c9cd61` | Giao diện | 3 biểu đồ mới: tiền mặt theo thời gian (cột chồng trả trước + thu khi giao, đường "còn lại" có thể âm), vành khuyên cách trả cước (tiền · % · số đơn), cột ngang tiền theo nhân viên (> 10 người gộp "Khác (n người)", âm màu đỏ) |
+| `d211425` | Giao diện | **📊 Xuất Excel** (`vendor/xlsx.mini.min.js` = SheetJS CE 0.20.3, nạp khi bấm lần đầu): 3 sheet Tổng quan / Theo giờ\|ngày\|tháng / Đối soát nhân viên, ô tiền là số `#,##0`, tên người luôn là ô chữ. **🖨️ In báo cáo**: vùng `#baoCaoThongKe` ngoài layout, A4 dọc, 4 biểu đồ có màu, bảng đối soát, ô ký Người lập / Người nhận tiền. Cả hai dùng lại `state.thongKe`, không gọi API |
+| (commit này) | Test + tài liệu | Script giao diện thêm J7–J12, sửa J1/J3/J4 theo bộ chọn kỳ; `requirements-kiem-thu-giao-dien.txt` thêm `openpyxl`, bỏ dấu chú thích (pip trên Windows đọc file bằng cp1252 → lỗi `UnicodeDecodeError`); `QUY_TRINH_TEST_GUI_HANG.md` (J1, J4, J7–J12, P6, số ca); `NGHIEP_VU_GUI_HANG.md` mục 6, 8.6 |
+
+### 10.2. Quyết định (đã ghi trong spec)
+
+- Kỳ chưa hết: trục đủ cả kỳ, mốc tương lai để trống. Chỉ số tồn vẫn là ảnh chụp lúc xem (ghi chú dưới 2 khung số).
+- Bất biến "cộng mốc = tổng kỳ" xét trên dữ liệu đứng yên; tab gọi 3 API riêng, đơn mới chen giữa thì lệch tạm, tải lại là khớp. Xuất / in luôn khớp màn hình vì dùng lại dữ liệu đang hiện.
+- Biểu đồ vẫn vẽ SVG tay (không thêm thư viện); Excel không chứa biểu đồ (biểu đồ ở bản in).
+
+### 10.3. Kiểm tra
+
+- Unit: `tests/unit/test_gui_hang_service.py … test_phu_xe_hang.py` **181 pass** (174 + 7).
+- DB demo: cộng mốc = `/thong-ke` cho giờ / ngày / tháng × (toàn hệ thống, VP Mỹ Đình); mỗi mốc ngày = `/thong-ke` ngày đó; số mốc 24 / 30 / 12 / 3 (tùy chọn 15/09–02/11 theo tháng). HTTP: NV Mỹ Đình xem Lào Cai 403, API cũ 404.
+- Giao diện tự động (`tat-ca`): **73/74** — J7–J12 đạt, chỉ lỗi I1 (PR #47, mục 9.3).

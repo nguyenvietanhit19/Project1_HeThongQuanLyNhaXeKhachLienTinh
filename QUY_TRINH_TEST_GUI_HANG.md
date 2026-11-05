@@ -82,7 +82,7 @@ Get-ChildItem frontend\nhan-vien\gui-hang\*.js | ForEach-Object { node --check $
 ```
 
 **Đạt khi:**
-- Lệnh thứ nhất: **100% pass** (05/11/2026: 174 test).
+- Lệnh thứ nhất: **100% pass** (05/11/2026: 181 test — thêm 7 test thống kê theo kỳ).
 - Lệnh thứ hai: không có test fail **nào có tên liên quan gửi hàng**. Test fail ngoài role → ghi tên vào phiếu kết quả (mục 5) và báo người phụ trách, không tự sửa file của người khác. (05/11/2026 trên integration `24d99ba`: 25 fail có sẵn — VNPay / vé lẻ / thông báo khách / quầy vé.)
 - Lệnh thứ ba: không in lỗi nào.
 
@@ -108,7 +108,7 @@ Script chỉ chạy trên DB local và tự dọn đơn thử. **Đạt khi cả
 
 ### 3.0. Chạy tự động (khuyên dùng)
 
-`backend/scripts/kiem_thu_giao_dien_gui_hang.py` tự bấm các ca của bước 3 + bước 4 trên **Microsoft Edge** (Playwright, chạy ẩn) — 13 ca [Khói] + 55 ca còn lại. Chạy trên máy, từ thư mục gốc dự án, khi Docker và Live Server (cổng 5501) đang chạy:
+`backend/scripts/kiem_thu_giao_dien_gui_hang.py` tự bấm các ca của bước 3 + bước 4 trên **Microsoft Edge** (Playwright, chạy ẩn) — 13 ca [Khói] + 61 ca còn lại. Chạy trên máy, từ thư mục gốc dự án, khi Docker và Live Server (cổng 5501) đang chạy:
 
 ```powershell
 # Cài 1 lần vào .venv của máy (không vào Docker, không vào CI)
@@ -125,6 +125,7 @@ Script chỉ chạy trên DB local và tự dọn đơn thử. **Đạt khi cả
 - Cuối cùng in bảng **ĐẠT / LỖI** từng ca, lỗi Console của trình duyệt, đường dẫn ảnh chụp ca lỗi (`*_LOI.png`). Mã thoát 0 = mọi ca đạt.
 - Không tự động: **H5** (dữ liệu demo không có đơn chờ chất phù hợp) và việc **nhìn bằng mắt** bố cục / màu sắc — vẫn nên lướt qua ảnh chụp và tự bấm vài ca trước demo.
 - Kết quả 05/11/2026 trên integration `24d99ba`: [Khói] 13/13; còn lại 54/55 — ca lỗi duy nhất **I1** là lỗi của PR #47 (không đánh dấu đã đọc thông báo được, xem `KE_HOACH_SUA_GUI_HANG.md` mục 9.3).
+- Kết quả 05/11/2026 sau đợt F (thống kê theo kỳ, `KE_HOACH_SUA_GUI_HANG.md` mục 10): 73/74 — J7–J12 đạt; vẫn chỉ lỗi **I1** (PR #47).
 
 ### 3.1. Test tay
 
@@ -240,12 +241,18 @@ Cách ghi: mỗi ca đánh **Đạt / Lỗi / Bỏ qua** vào phiếu (mục 5).
 
 | Mã | Tài khoản | Bước | Kết quả mong đợi |
 |---|---|---|---|
-| J1 **[Khói]** | NV Mỹ Đình | Tab Thống kê, khoảng hôm nay | Đủ chỉ số hàng gửi đi (tiếp nhận, chờ xếp xe, trên xe, hủy) và hàng nhận về; biểu đồ 7/14/30 ngày đổi được |
+| J1 **[Khói]** | NV Mỹ Đình | Mở tab Thống kê | Kỳ mặc định "Tháng MM/YYYY" (tháng này); đủ chỉ số hàng gửi đi (tiếp nhận, chờ xếp xe, trên xe, hủy) và hàng nhận về; 4 biểu đồ hiện |
 | J2 | NV Mỹ Đình | Đối chiếu doanh thu | **Doanh thu = trả trước đã thu + COD đã thu − tiền hoàn**; ngày chỉ có hoàn được phép âm |
 | J3 | NV Mỹ Đình | Sau D1, xem đối soát hôm nay | Dòng của nhân viên hủy có tiền hoàn 100.000 (cộng với 95.000 của đơn demo "Đã hủy hôm nay"); tổng = thu − hoàn |
-| J4 | NV Mỹ Đình | Chọn từ ngày > đến ngày, hoặc khoảng > 1 năm | Báo lỗi, không tải |
+| J4 | NV Mỹ Đình | Chế độ **Tùy chọn**: từ ngày > đến ngày | Báo "Khoảng ngày không hợp lệ", không tải kỳ mới |
 | J5 | NV Mỹ Đình | Xuất CSV / in đối soát | Đúng số liệu trên màn hình |
 | J6 | Quản lý | Thống kê không chọn văn phòng / chọn 1 văn phòng | Toàn hệ thống / đúng văn phòng đó |
+| J7 | NV Mỹ Đình | Tháng này: ▶ bị khóa; bấm ◀ → tháng trước; bấm ◀ 3 lần thật nhanh | Nhãn kỳ, ô số và biểu đồ luôn là của kỳ chọn sau cùng (không bị kỳ cũ về muộn đè lên) |
+| J8 | NV Mỹ Đình | Đổi Tháng / Ngày / Năm | Biểu đồ: tháng đủ số ngày (ngày chưa tới để trống, không có cột), ngày 24 mốc 0h–23h, năm 12 mốc Th1–Th12 |
+| J9 | — (API) | `GET /gui-hang/thong-ke-chuoi` theo giờ / ngày / tháng; NV, quản lý toàn hệ thống, quản lý 1 văn phòng | Cộng các mốc = `/gui-hang/thong-ke` cùng kỳ; mỗi mốc ngày = `/thong-ke` của riêng ngày đó; NV Mỹ Đình gọi với `diem_id` Lào Cai → 403 |
+| J10 | NV Mỹ Đình | Bấm **📊 Xuất Excel** (tháng này) | Tải `thong-ke-gui-hang_YYYY-MM.xlsx`, 3 sheet Tổng quan / Theo ngày / Đối soát nhân viên; dòng TỔNG khớp ô số trên tab; ô tiền là số có phân cách nghìn |
+| J11 | NV Mỹ Đình | Bấm **🖨️ In báo cáo** | Xem trước bản in A4 dọc: đầu trang văn phòng / kỳ / người in, bảng chỉ số, 4 biểu đồ có màu, bảng đối soát, ô ký "Người lập" / "Người nhận tiền"; không có sidebar |
+| J12 | NV Mỹ Đình | Biểu đồ tiền mặt có mốc doanh thu âm (ngày chỉ có hoàn) | Trục dọc có phần âm, điểm "Còn lại" nằm dưới vạch 0, không tràn khung |
 
 ### K. Giao diện và thiết bị
 
@@ -273,6 +280,7 @@ Trên `http://localhost:8000/docs` → Authorize bằng token đăng nhập (`PO
 | P3 | `POST /gui-hang/tao-don` với `diem_gui_id` là văn phòng khác văn phòng của mình | 403 "Không có quyền thao tác tại văn phòng này" |
 | P4 | `POST /gui-hang/tao-don` từ VP Lào Cai tới VP Sa Pa | 400 "Chỉ nhận gửi tới văn phòng ở khu vực khác…" |
 | P5 | `GET /gui-hang/tra-cuu/{ma}` (công khai) | Không lộ tên / SĐT người gửi, người nhận |
+| P6 | `GET /gui-hang/thong-ke-chuoi?tu_ngay=…&den_ngay=…&don_vi=gio` với 2 ngày khác nhau; `don_vi=ngay` cho khoảng > 62 ngày; `don_vi=tuan` | 400 kèm lý do ("chỉ áp dụng cho 1 ngày" / "tối đa 62 ngày" / "chỉ nhận giờ, ngày hoặc tháng") |
 
 ---
 

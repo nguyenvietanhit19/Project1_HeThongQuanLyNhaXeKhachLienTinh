@@ -18,6 +18,7 @@ Mã thoát: 0 = mọi ca đạt, 1 = có ca lỗi.
 """
 
 import argparse
+import calendar
 import json
 import re
 import subprocess
@@ -27,9 +28,10 @@ import time
 import traceback
 import urllib.error
 import urllib.request
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
+from openpyxl import load_workbook
 from playwright.sync_api import Page, expect, sync_playwright
 
 FE = "http://127.0.0.1:5501"
@@ -903,11 +905,24 @@ def i2(lc: Page, tk_px_lay_lai, id_don: str, ma: str):
 
 
 # ================================================================== J. Thống kê
+def cho_thong_ke(page: Page):
+    page.wait_for_load_state("networkidle"); page.wait_for_timeout(500)
+
+
+def chon_che_do(page: Page, che_do: str):
+    page.click(f"#tkCheDo [data-che-do='{che_do}']")
+    cho_thong_ke(page)
+
+
+def ve_thang_nay(page: Page):
+    page.evaluate("chonKy(taoKy('thang', ngayISO(new Date())))")
+    cho_thong_ke(page)
+
+
 @ca("J3", "Đối soát hôm nay: tổng = thu − hoàn, có dòng tiền hoàn")
 def j3(page: Page):
     mo_tab(page, "thong-ke")
-    page.click("#tkPreset [data-so-ngay='1']")
-    page.wait_for_load_state("networkidle"); page.wait_for_timeout(500)
+    chon_che_do(page, "ngay")  # kỳ mặc định (tháng này) chứa hôm nay → chế độ Ngày neo vào hôm nay
     hang = page.locator("#tbodyDoiSoat tr").all_inner_texts()
     tong = so(page, "#tkDoiSoatTong"); hoan = abs(so(page, "#tkDoiSoatHoan"))
     tung = []
@@ -922,11 +937,14 @@ def j3(page: Page):
 
 @ca("J4", "Từ ngày > đến ngày → báo lỗi")
 def j4(page: Page):
+    chon_che_do(page, "tuy_chon")
+    nhan_truoc = page.inner_text("#tkNhanKy")
     page.fill("#tkTuNgay", "2026-11-10"); page.fill("#tkDenNgay", "2026-11-01")
     xoa_toast(page)
     page.dispatch_event("#tkDenNgay", "change")
     t = toast_cuoi(page, "Khoảng ngày không hợp lệ")
-    page.click("#tkPreset [data-so-ngay='1']")
+    assert page.inner_text("#tkNhanKy") == nhan_truoc, "khoảng sai mà vẫn tải kỳ mới"
+    ve_thang_nay(page)
     return t[:80]
 
 
@@ -953,6 +971,122 @@ def j6(page: Page, tk_ql: str):
     chon(page, "#selectVanPhongXem", "Toàn hệ thống")
     assert toan >= md and md > 0, (toan, md)
     return f"toàn hệ thống {toan} đơn gửi, Mỹ Đình {md}"
+
+
+@ca("J7", "Kỳ: mặc định tháng này, ▶ khóa, ◀ lùi đúng 1 tháng, bấm ◀ 3 lần liền vẫn khớp số của kỳ cuối")
+def j7(page: Page):
+    mo_tab(page, "thong-ke")
+    ve_thang_nay(page)
+    nay = page.inner_text("#tkNhanKy")
+    assert page.is_disabled("#tkToi"), "▶ phải khóa ở tháng hiện tại"
+    page.click("#tkLui"); cho_thong_ke(page)
+    truoc = page.inner_text("#tkNhanKy")
+    assert truoc != nay and not page.is_disabled("#tkToi"), (nay, truoc)
+    for _ in range(3):
+        page.click("#tkLui")  # không chờ — phản hồi cũ về muộn không được ghi đè kỳ mới
+    cho_thong_ke(page); page.wait_for_timeout(800)
+    nhan, tu, den, ky_chon = page.evaluate("[state.thongKe.ky.nhan, state.thongKe.ky.tu, state.thongKe.ky.den, state.ky.nhan]")
+    assert nhan == ky_chon, f"đang hiện số của {nhan} nhưng kỳ chọn sau cùng là {ky_chon}"
+    assert page.inner_text("#tkNhanKy") == nhan, (page.inner_text("#tkNhanKy"), nhan)
+    tk = api("GET", f"/gui-hang/thong-ke?tu_ngay={tu}&den_ngay={den}", page.evaluate("localStorage.getItem('token')"))[1]
+    assert so(page, "#tkTongGuiDi") == tk["tong_don_gui_di"], (so(page, "#tkTongGuiDi"), tk["tong_don_gui_di"])
+    ve_thang_nay(page)
+    return f"{nay} → {truoc} → {nhan}, {tk['tong_don_gui_di']} đơn khớp API"
+
+
+@ca("J8", "Số mốc: Tháng = số ngày của tháng (mốc tương lai không có cột), Ngày 24, Năm 12")
+def j8(page: Page):
+    ve_thang_nay(page)
+    hom_nay = date.today()
+    so_ngay = calendar.monthrange(hom_nay.year, hom_nay.month)[1]
+    moc = page.locator("#bdSanLuong g[data-moc]").count()
+    tuong_lai = page.locator("#bdSanLuong g[data-tuong-lai]").count()
+    assert moc == so_ngay and tuong_lai == so_ngay - hom_nay.day, (moc, tuong_lai)
+    assert page.locator("#bdSanLuong g[data-tuong-lai] rect.chart-cot").count() == 0, "mốc tương lai có cột"
+    chon_che_do(page, "ngay")
+    gio = page.locator("#bdSanLuong g[data-moc]").count()
+    chon_che_do(page, "nam")
+    thang = page.locator("#bdSanLuong g[data-moc]").count()
+    ve_thang_nay(page)
+    assert gio == 24 and thang == 12, (gio, thang)
+    return f"tháng {moc} mốc ({tuong_lai} tương lai), ngày {gio}, năm {thang}"
+
+
+CAP_CHUOI = {"tiep_nhan": "tong_don_gui_di", "da_giao": "so_don_da_giao", "so_huy": "so_don_huy",
+             "tien_tra_truoc": "tien_cuoc_gui_tra_truoc", "tien_cod": "tien_cod_da_thu",
+             "tien_hoan": "tien_da_hoan", "doanh_thu": "tong_doanh_thu"}
+
+
+@ca("J9", "API thong-ke-chuoi: tổng mốc = /thong-ke (giờ/ngày/tháng; NV, toàn hệ thống, 1 VP), mốc ngày = /thong-ke ngày đó, NV xem VP khác 403")
+def j9(tk_md: str, tk_ql: str, ids: dict):
+    hn = date.today()
+    ky = [(hn.replace(day=1), hn.replace(day=calendar.monthrange(hn.year, hn.month)[1]), "ngay"),
+          (date(hn.year, 1, 1), date(hn.year, 12, 31), "thang"), (hn, hn, "gio")]
+    so_kiem = 0
+    for tk, vp in ((tk_md, None), (tk_ql, None), (tk_ql, ids["md"])):
+        them = f"&diem_id={vp}" if vp else ""
+        for tu, den, dv in ky:
+            chuoi = api("GET", f"/gui-hang/thong-ke-chuoi?tu_ngay={tu}&den_ngay={den}&don_vi={dv}{them}", tk)[1]
+            tong = api("GET", f"/gui-hang/thong-ke?tu_ngay={tu}&den_ngay={den}{them}", tk)[1]
+            for k, k2 in CAP_CHUOI.items():
+                assert sum(x[k] for x in chuoi) == tong[k2], f"{dv} {vp or 'NV/toàn'} {k} {sum(x[k] for x in chuoi)} ≠ {tong[k2]}"
+            if dv == "ngay":
+                for x in [x for x in chuoi if x["tiep_nhan"] or x["tien_hoan"] or x["da_giao"]][:3]:
+                    mot = api("GET", f"/gui-hang/thong-ke?tu_ngay={x['moc']}&den_ngay={x['moc']}{them}", tk)[1]
+                    assert all(x[k] == mot[k2] for k, k2 in CAP_CHUOI.items()), f"mốc {x['moc']} lệch /thong-ke ngày đó"
+            so_kiem += 1
+    code, b = api("GET", f"/gui-hang/thong-ke-chuoi?tu_ngay={hn}&den_ngay={hn}&don_vi=gio&diem_id={ids['lc']}", tk_md, loi_ok=True)
+    assert code == 403, (code, b)
+    return f"{so_kiem} tổ hợp kỳ/phạm vi khớp; NV Mỹ Đình xem Lào Cai → 403"
+
+
+@ca("J10", "Xuất Excel: 3 sheet, dòng TỔNG khớp màn hình, ô tiền là số")
+def j10(page: Page):
+    ve_thang_nay(page)
+    with page.expect_download(timeout=20000) as dl:
+        page.click("#btnXuatExcelThongKe")
+    duong = ANH / dl.value.suggested_filename
+    dl.value.save_as(duong)
+    wb = load_workbook(duong)
+    assert wb.sheetnames == ["Tổng quan", "Theo ngày", "Đối soát nhân viên"], wb.sheetnames
+    ws = wb["Theo ngày"]
+    tong = [c.value for c in ws[ws.max_row]]
+    assert tong[0] == "TỔNG" and tong[1] == so(page, "#tkTongGuiDi") and tong[7] == so(page, "#tkDoanhThu"), tong
+    assert isinstance(ws["E2"].value, int) and ws["E2"].number_format == "#,##0", (ws["E2"].value, ws["E2"].number_format)
+    return f"{dl.value.suggested_filename}: {ws.max_row - 2} mốc, TỔNG {tong[1]} đơn / {tong[7]:,}đ"
+
+
+@ca("J11", "In báo cáo: chỉ vùng báo cáo, đủ 4 biểu đồ, có ô ký, không sidebar")
+def j11(page: Page):
+    assert page.evaluate("dungBaoCaoThongKe()"), "không dựng được báo cáo"
+    # Giống inPhanTu() nhưng không mở hộp in thật
+    page.evaluate("document.querySelector('#baoCaoThongKe').classList.add('print-target'); document.body.classList.add('dang-in')")
+    page.emulate_media(media="print")
+    bieu_do = page.locator("#baoCaoThongKe svg").count()
+    sb = page.locator("#nv-sidebar").is_visible()
+    bc = page.locator("#baoCaoThongKe").is_visible()
+    chu = page.inner_text("#baoCaoThongKe")
+    page.pdf(path=str(ANH / "J11_bao_cao.pdf"), prefer_css_page_size=True, print_background=True)
+    page.emulate_media(media="screen")
+    page.evaluate("window.dispatchEvent(new Event('afterprint'))")
+    assert bieu_do == 4 and bc and not sb and "Người lập" in chu and "Người nhận tiền" in chu, (bieu_do, bc, sb)
+    assert not page.locator("#baoCaoThongKe").is_visible(), "báo cáo còn hiện trên màn hình sau khi in"
+    return "4 biểu đồ, ô ký đủ; PDF: J11_bao_cao.pdf"
+
+
+@ca("J12", "Biểu đồ tiền mặt: doanh thu âm vẽ dưới vạch 0, trong khung")
+def j12(page: Page):
+    y0, cy, h = page.evaluate("""() => {
+      const d = document.createElement('div'); d.style.width = '600px'; document.body.appendChild(d);
+      veBieuDoCot(d, { nhan: ['a', 'b'], moc: ['2026-11-01', '2026-11-02'], soMocDaQua: 2, chong: true,
+        cot: [{ ten: 'Trả trước', lop: 'chart-cot--tra-truoc', giaTri: [0, 50000] }],
+        duong: { ten: 'Còn lại', lop: 'chart-duong--con-lai', giaTri: [-95000, 50000] },
+        dinhDangTruc: rutGonTien, tieuDeMoc: () => '', chuTrong: '' });
+      const kq = [+d.querySelector('.chart-grid--goc').getAttribute('y1'),
+        [...d.querySelectorAll('circle')].map(c => +c.getAttribute('cy')), +d.querySelector('svg').getAttribute('height')];
+      d.remove(); return kq; }""")
+    assert y0 < cy[0] < h and cy[1] < y0, (y0, cy, h)
+    return f"vạch 0 y={y0:.0f}, điểm âm y={cy[0]:.0f}, khung cao {h}"
 
 
 # ================================================================== K. Giao diện
@@ -1131,7 +1265,9 @@ def k_j1(page: Page) -> str:
     page.wait_for_function("document.querySelector('#tkDoanhThu').innerText.trim() !== '' && !/^[-–—]+$/.test(document.querySelector('#tkDoanhThu').innerText.trim())")
     dt, tt, cod, hoan = so(page, "#tkDoanhThu"), so(page, "#tkTienTraTruoc"), so(page, "#tkTienCod"), abs(so(page, "#tkTienHoan"))
     assert dt == tt + cod - hoan, f"doanh thu {dt} ≠ {tt} + {cod} − {hoan}"
-    return f"{dt:,} = {tt:,} + {cod:,} − {hoan:,}"
+    ky = page.inner_text("#tkNhanKy")
+    assert re.fullmatch(r"Tháng \d{2}/\d{4}", ky), f"kỳ mặc định phải là tháng này, đang là '{ky}'"
+    return f"{ky}: {dt:,} = {tt:,} + {cod:,} − {hoan:,}"
 
 
 @ca("F1", "Hàng đến: chip nhóm có số đếm, bấm chip lọc đúng nhóm")
@@ -1302,7 +1438,9 @@ print('TOKEN', tao_token(ql, 'quan_ly'), tao_token(tam, 'nhan_vien_gui_hang'))
         h2(lc, tk_px, don_lc_xe); h3(lc, tk_px, tk_lc, don_lc_xe)
         h4(lc, tk_px, tk_ql, str(don_de_vo["id"]), MA["lc_de_vo_tren_xe"])
         print("I, J, K, P", flush=True)
-        i1(lc); j3(md); j4(md); j5(md); j6(ql, tk_ql); k(md); k5(md); p_api(tk_ql, tk_lc, ids)
+        i1(lc); j3(md); j4(md); j5(md); j6(ql, tk_ql)
+        j7(md); j8(md); j9(tk_md, tk_ql, ids); j10(md); j11(md); j12(md)
+        k(md); k5(md); p_api(tk_ql, tk_lc, ids)
         i2(lc, lambda: token_dang_nhap("phuxe.guihang@demo.nhaxe.vn", "PhuXe@123"), str(don_de_vo["id"]), MA["lc_de_vo_tren_xe"])
     finally:
         tr.close()
