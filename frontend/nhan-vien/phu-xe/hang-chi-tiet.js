@@ -102,7 +102,7 @@
         <ul class="timeline-list">${baoCao}</ul>
         ${tuyChon.hanhDong ? `<button class="btn-primary" type="button" id="hct-hanh-dong" style="margin-bottom:8px;">${esc(tuyChon.hanhDong.nhan)}</button>` : ""}
         <a class="btn-confirm btn-confirm--block" style="display:flex;align-items:center;justify-content:center;text-decoration:none;"
-           href="bao-that-lac.html?don_hang_id=${encodeURIComponent(d.id)}&ma_van_don=${encodeURIComponent(d.ma_van_don)}${lienKetBao}">Báo thất lạc / hư hỏng đơn này</a>`;
+           href="bao-su-co-hang.html?don_hang_id=${encodeURIComponent(d.id)}&ma_van_don=${encodeURIComponent(d.ma_van_don)}${lienKetBao}">Báo thất lạc / hư hỏng đơn này</a>`;
       const nut = noiDung.querySelector("#hct-hanh-dong");
       if (nut) {
         nut.addEventListener("click", async () => {

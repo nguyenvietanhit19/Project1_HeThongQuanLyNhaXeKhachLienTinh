@@ -16,15 +16,13 @@ from app.schemas.chuyen_xe_schema import (
     ChiTietDonHangResponse,
     ChuyenDaChayResponse,
     ChuyenPhuXeResponse,
-    DiemHienTaiResponse,
-    HanhTrinhDiemResponse,
     ThongKePhuXeResponse,
     TongQuanChuyenResponse,
     XacNhanToiDiemRequest,
     XacNhanToiDiemResponse,
 )
 from app.schemas.don_hang_schema import (
-    BaoThatLacRequest,
+    BaoSuCoHangRequest,
     DonHangChoChatResponse,
     DonHangChoDoResponse,
     DonHangHoanTacResponse,
@@ -74,16 +72,6 @@ def chi_tiet_chuyen(chuyen_id: str, nguoi_dung: _phu_xe):
     return chuyen_xe_service.chi_tiet_cho_phu_xe(chuyen_id, nguoi_dung.id)
 
 
-@router.get("/chuyen/{chuyen_id}/hanh-trinh", response_model=list[HanhTrinhDiemResponse])
-def hanh_trinh(chuyen_id: str, nguoi_dung: _phu_xe):
-    return chuyen_xe_service.hanh_trinh(chuyen_id, nguoi_dung.id)
-
-
-@router.get("/chuyen/{chuyen_id}/diem-hien-tai", response_model=DiemHienTaiResponse)
-def diem_hien_tai(chuyen_id: str, nguoi_dung: _phu_xe):
-    return chuyen_xe_service.khach_tai_diem_hien_tai(chuyen_id, nguoi_dung.id)
-
-
 @router.post("/chuyen/{chuyen_id}/bat-dau-di-chuyen")
 def bat_dau_di_chuyen(chuyen_id: str, du_lieu: BatDauDiChuyenRequest, nguoi_dung: _phu_xe):
     kq = di_chuyen_service.bat_dau_di_chuyen(chuyen_id, du_lieu.bo_qua_canh_bao, nguoi_dung.id)
@@ -126,28 +114,6 @@ def hoan_tac_xuong_xe(chuyen_id: str, ve_id: str, nguoi_dung: _phu_xe):
     return {"thong_bao": "Đã hoàn tác, khách quay về trạng thái đang trên xe"}
 
 
-@router.post("/chuyen/{chuyen_id}/diem/{diem_id}/len-xe-tat-ca")
-def len_xe_tat_ca(chuyen_id: str, diem_id: str, nguoi_dung: _phu_xe):
-    so_luong = ve_service.len_xe_tat_ca(chuyen_id, diem_id, nguoi_dung.id)
-    return {"so_luong": so_luong, "thong_bao": f"Đã cho {so_luong} khách lên xe"}
-
-
-@router.post("/chuyen/{chuyen_id}/diem/{diem_id}/xuong-xe-tat-ca")
-def xuong_xe_tat_ca(chuyen_id: str, diem_id: str, nguoi_dung: _phu_xe):
-    so_luong = ve_service.xuong_xe_tat_ca(chuyen_id, diem_id, nguoi_dung.id)
-    return {"so_luong": so_luong, "thong_bao": f"Đã cho {so_luong} khách xuống xe"}
-
-
-@router.post("/chuyen/{chuyen_id}/chat-hang-tat-ca")
-def chat_hang_tat_ca(chuyen_id: str, nguoi_dung: _phu_xe):
-    return gui_hang_service.chat_tat_ca(chuyen_id, nguoi_dung.id)
-
-
-@router.post("/chuyen/{chuyen_id}/do-hang-tat-ca")
-def do_hang_tat_ca(chuyen_id: str, nguoi_dung: _phu_xe):
-    return gui_hang_service.do_tat_ca(chuyen_id, nguoi_dung.id)
-
-
 @router.get("/chuyen/{chuyen_id}/hang-cho-chat", response_model=list[DonHangChoChatResponse])
 def hang_cho_chat(chuyen_id: str, nguoi_dung: _phu_xe):
     return gui_hang_service.danh_sach_cho_chat(chuyen_id, nguoi_dung.id)
@@ -187,7 +153,7 @@ def hoan_tac_do_hang(don_hang_id: str, du_lieu: XacNhanChatHangRequest, nguoi_du
     return {"thong_bao": "Đã hoàn tác, đơn quay lại trên xe"}
 
 
-@router.post("/don-hang/{don_hang_id}/bao-that-lac")
-def bao_that_lac(don_hang_id: str, du_lieu: BaoThatLacRequest, nguoi_dung: _phu_xe):
-    gui_hang_service.bao_that_lac(don_hang_id, du_lieu.mo_ta, nguoi_dung.id, du_lieu.loai)
+@router.post("/don-hang/{don_hang_id}/bao-su-co-hang")
+def bao_su_co_hang(don_hang_id: str, du_lieu: BaoSuCoHangRequest, nguoi_dung: _phu_xe):
+    gui_hang_service.bao_su_co_hang(don_hang_id, du_lieu.mo_ta, nguoi_dung.id, du_lieu.loai)
     return {"thong_bao": "Đã ghi nhận báo cáo"}

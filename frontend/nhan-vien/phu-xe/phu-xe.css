@@ -1379,14 +1379,6 @@ textarea.input-field {
   font-style: italic;
 }
 
-/* Nút thao tác hàng loạt (cho lên/xuống/chất/dỡ tất cả) */
-.btn-hang-loat {
-  display: block;
-  width: 100%;
-  box-sizing: border-box;
-  margin: 4px 0 8px;
-}
-
 
 /* =====================================================================
    Giao diện nâng cấp (v10) — chỉ thêm/ghi đè hiển thị, không đổi cấu trúc hay nghiệp vụ.
@@ -1549,10 +1541,6 @@ body.phu-xe-page {
 
 .btn-danger-outline:hover {
   background: #FEF2F2;
-}
-
-.btn-hang-loat {
-  border-style: dashed;
 }
 
 /* ---- Dòng khách / hàng ---- */
@@ -2266,3 +2254,115 @@ body[data-phan="hang"] #khu-tim-kiem { display: none !important; }
 .tk-loc .input-field { margin: 0; min-width: 0; }
 .tk-loc__tim { grid-column: 1 / -1; }
 @media (min-width: 720px) { .tk-loc { grid-template-columns: 2fr 1fr 1fr 1fr; } .tk-loc__tim { grid-column: auto; } }
+
+/* ---------- Chuông thông báo (tai-khoan-menu.js) ---------- */
+.tk-chuong__nut {
+  position: relative;
+}
+
+.tk-chuong__so {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #d64045;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+  box-shadow: 0 0 0 2px var(--color-bg-surface);
+}
+
+.tk-chuong__bang:not([hidden]) {
+  position: absolute;
+  right: -52px;   /* lùi qua nút ☰ bên phải để bảng không tràn khỏi màn hình điện thoại */
+  top: calc(100% + 10px);
+  z-index: 15;
+  width: min(360px, calc(100vw - 24px));
+  border-radius: var(--radius-button);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-soft), 0 0 0 1px rgba(20, 20, 30, 0.06);
+  overflow: hidden;
+}
+
+.tk-chuong__dau {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(128, 128, 140, 0.2);
+}
+
+.tk-chuong__doc-het {
+  border: none;
+  background: none;
+  padding: 6px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.tk-chuong__ds {
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+}
+
+.tk-chuong__muc {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-bottom: 1px solid rgba(128, 128, 140, 0.12);
+  background: none;
+  text-align: left;
+  color: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.tk-chuong__muc.chua-doc {
+  background: rgba(91, 75, 181, 0.08);
+  font-weight: 600;
+}
+
+.tk-chuong__cham {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.tk-chuong__muc.chua-doc .tk-chuong__cham {
+  background: #d64045;
+}
+
+.tk-chuong__nd {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tk-chuong__nd small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.tk-chuong__trong {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 14px;
+}

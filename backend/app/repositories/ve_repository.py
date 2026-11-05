@@ -254,43 +254,6 @@ def xac_nhan_len_xe(ve_id: str) -> None:
         release_connection(conn)
 
 
-def xac_nhan_len_xe_nhieu(ve_ids: list[str]) -> int:
-    """Lên xe hàng loạt — điều kiện trạng thái nằm trong WHERE, trả số vé thực sự đổi."""
-    if not ve_ids:
-        return 0
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """UPDATE ve SET trang_thai = 'da_len_xe', gio_len_xe = now()
-                   WHERE id = ANY(%s::uuid[]) AND trang_thai = 'da_thanh_toan'""",
-                (ve_ids,),
-            )
-            so_luong = cur.rowcount
-        conn.commit()
-        return so_luong
-    finally:
-        release_connection(conn)
-
-
-def xac_nhan_xuong_xe_nhieu(ve_ids: list[str]) -> int:
-    if not ve_ids:
-        return 0
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """UPDATE ve SET trang_thai = 'da_xuong_xe', gio_xuong_xe = now()
-                   WHERE id = ANY(%s::uuid[]) AND trang_thai = 'da_len_xe'""",
-                (ve_ids,),
-            )
-            so_luong = cur.rowcount
-        conn.commit()
-        return so_luong
-    finally:
-        release_connection(conn)
-
-
 def hoan_tac_len_xe(ve_id: str) -> bool:
     """da_len_xe -> da_thanh_toan. Điều kiện nằm trong WHERE để 2 lần bấm
     liên tiếp không làm hỏng trạng thái. Trả False nếu vé không còn da_len_xe."""

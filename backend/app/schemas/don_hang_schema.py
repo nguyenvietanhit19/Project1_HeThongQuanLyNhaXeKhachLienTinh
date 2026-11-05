@@ -320,6 +320,6 @@ class XacNhanChatHangRequest(BaseModel):
     chuyen_id: str
 
 
-class BaoThatLacRequest(BaseModel):
+class BaoSuCoHangRequest(BaseModel):
     mo_ta: str
     loai: Literal["hu_hong", "that_lac"] = "hu_hong"

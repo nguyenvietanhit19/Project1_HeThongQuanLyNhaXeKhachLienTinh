@@ -279,63 +279,63 @@ def _chuan_bi_bao_cao(monkeypatch, don, chuyen_cua_toi=()):
     return luu, hoi_diem, da_bao
 
 
-def test_bao_that_lac_don_tren_xe_bao_nhan_vien_diem_nhan_va_quan_ly(monkeypatch):
+def test_bao_su_co_hang_don_tren_xe_bao_nhan_vien_diem_nhan_va_quan_ly(monkeypatch):
     luu, hoi_diem, da_bao = _chuan_bi_bao_cao(monkeypatch, _don(trang_thai="da_len_xe", chuyen_id="chuyen-1"))
-    svc.bao_that_lac("don-1", "  vỡ kiện  ", "nguoi-dung-1")
+    svc.bao_su_co_hang("don-1", "  vỡ kiện  ", "nguoi-dung-1")
     assert luu == [("don-1", "nguoi-dung-1", "vỡ kiện")]  # đã cắt khoảng trắng
     assert hoi_diem == ["d3"]  # đã lên xe -> báo điểm NHẬN
     assert da_bao == [["nv-1", "ql-1"]]
 
 
-def test_bao_that_lac_don_dang_cho_chat_bao_nhan_vien_diem_gui(monkeypatch):
+def test_bao_su_co_hang_don_dang_cho_chat_bao_nhan_vien_diem_gui(monkeypatch):
     luu, hoi_diem, _ = _chuan_bi_bao_cao(monkeypatch, _don(), chuyen_cua_toi=[{"tuyen_id": "tuyen-1"}])
-    svc.bao_that_lac("don-1", "rách bao bì", "nguoi-dung-1")
+    svc.bao_su_co_hang("don-1", "rách bao bì", "nguoi-dung-1")
     assert len(luu) == 1
     assert hoi_diem == ["d1"]  # chưa lên xe -> báo điểm GỬI
 
 
 @pytest.mark.parametrize("mo_ta", ["", "   "])
-def test_bao_that_lac_thieu_mo_ta(monkeypatch, mo_ta):
+def test_bao_su_co_hang_thieu_mo_ta(monkeypatch, mo_ta):
     luu, _, _ = _chuan_bi_bao_cao(monkeypatch, _don(trang_thai="da_len_xe", chuyen_id="chuyen-1"))
     with pytest.raises(GiaTriLoi):
-        svc.bao_that_lac("don-1", mo_ta, "nguoi-dung-1")
+        svc.bao_su_co_hang("don-1", mo_ta, "nguoi-dung-1")
     assert luu == []
 
 
-def test_bao_that_lac_khong_tim_thay_don(monkeypatch):
+def test_bao_su_co_hang_khong_tim_thay_don(monkeypatch):
     luu, _, _ = _chuan_bi_bao_cao(monkeypatch, None)
     with pytest.raises(GiaTriLoi):
-        svc.bao_that_lac("don-1", "mất", "nguoi-dung-1")
+        svc.bao_su_co_hang("don-1", "mất", "nguoi-dung-1")
     assert luu == []
 
 
-def test_bao_that_lac_don_cua_chuyen_khac_xe_bi_chan(monkeypatch):
+def test_bao_su_co_hang_don_cua_chuyen_khac_xe_bi_chan(monkeypatch):
     luu, _, _ = _chuan_bi_bao_cao(monkeypatch, _don(trang_thai="da_len_xe", chuyen_id="chuyen-khac"))
     monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", _khong_thuoc_xe)
     with pytest.raises(KhongDuQuyen):
-        svc.bao_that_lac("don-1", "mất", "nguoi-dung-khac")
+        svc.bao_su_co_hang("don-1", "mất", "nguoi-dung-khac")
     assert luu == []
 
 
-def test_bao_that_lac_don_cho_chat_khac_tuyen_bi_chan(monkeypatch):
+def test_bao_su_co_hang_don_cho_chat_khac_tuyen_bi_chan(monkeypatch):
     luu, _, _ = _chuan_bi_bao_cao(monkeypatch, _don(), chuyen_cua_toi=[{"tuyen_id": "tuyen-khac"}])
     with pytest.raises(CamTruyCap):
-        svc.bao_that_lac("don-1", "mất", "nguoi-dung-1")
+        svc.bao_su_co_hang("don-1", "mất", "nguoi-dung-1")
     assert luu == []
 
 
-def test_bao_that_lac_phu_xe_chua_co_chuyen_nao_bi_chan(monkeypatch):
+def test_bao_su_co_hang_phu_xe_chua_co_chuyen_nao_bi_chan(monkeypatch):
     luu, _, _ = _chuan_bi_bao_cao(monkeypatch, _don(), chuyen_cua_toi=[])
     with pytest.raises(CamTruyCap):
-        svc.bao_that_lac("don-1", "mất", "nguoi-dung-1")
+        svc.bao_su_co_hang("don-1", "mất", "nguoi-dung-1")
     assert luu == []
 
 
 @pytest.mark.parametrize("trang_thai", ["cho_lay", "da_giao", "qua_han_luu_kho"])
-def test_bao_that_lac_don_ngoai_giai_doan_chat_do_khong_co_chuyen(monkeypatch, trang_thai):
+def test_bao_su_co_hang_don_ngoai_giai_doan_chat_do_khong_co_chuyen(monkeypatch, trang_thai):
     luu, _, _ = _chuan_bi_bao_cao(monkeypatch, _don(trang_thai=trang_thai, chuyen_id=None), chuyen_cua_toi=[{"tuyen_id": "tuyen-1"}])
     with pytest.raises(GiaTriLoi):
-        svc.bao_that_lac("don-1", "mất", "nguoi-dung-1")
+        svc.bao_su_co_hang("don-1", "mất", "nguoi-dung-1")
     assert luu == []
 
 
@@ -407,26 +407,6 @@ def test_danh_sach_hoan_tac_chi_hoi_tai_diem_xe_dang_dung(monkeypatch):
     assert ket_qua[0]["loai"] == "chat"
 
 
-# ---------------------------------------------------------------- chất / dỡ hàng loạt
-def test_chat_tat_ca_dem_don_thanh_cong_va_liet_ke_don_loi(monkeypatch):
-    monkeypatch.setattr(svc, "danh_sach_cho_chat", lambda cid, nid: [{"id": "a", "ma_van_don": "VA"}, {"id": "b", "ma_van_don": "VB"}])
-
-    def chat(did, cid, nid):
-        if did == "b":
-            raise GiaTriLoi("sai chiều")
-
-    monkeypatch.setattr(svc, "xac_nhan_chat_hang", chat)
-    kq = svc.chat_tat_ca("chuyen-1", "nd")
-    assert kq["so_luong"] == 1
-    assert kq["loi"] == ["VB: sai chiều"]
-
-
-def test_do_tat_ca_dem_don_da_do(monkeypatch):
-    monkeypatch.setattr(svc, "danh_sach_cho_do", lambda cid, nid: [{"id": "a", "ma_van_don": "VA"}, {"id": "b", "ma_van_don": "VB"}])
-    monkeypatch.setattr(svc, "xac_nhan_do_hang", lambda did, nid: None)
-    assert svc.do_tat_ca("chuyen-1", "nd") == {"so_luong": 2, "loi": []}
-
-
 def test_danh_sach_cho_do_gan_nhan_bao_cao_hu_hong_va_that_lac(monkeypatch):
     _chuyen_cua_phu_xe(monkeypatch)
     _dang_o_diem(monkeypatch, "d3")
@@ -439,16 +419,7 @@ def test_danh_sach_cho_do_gan_nhan_bao_cao_hu_hong_va_that_lac(monkeypatch):
     assert (ds[1]["so_bao_hu_hong"], ds[1]["so_bao_that_lac"]) == (0, 2)
 
 
-def test_do_tat_ca_bo_qua_don_da_bao_that_lac(monkeypatch):
-    monkeypatch.setattr(svc, "danh_sach_cho_do", lambda cid, nid: [
-        {"id": "a", "ma_van_don": "VA", "so_bao_that_lac": 0}, {"id": "b", "ma_van_don": "VB", "so_bao_that_lac": 1}])
-    da_do = []
-    monkeypatch.setattr(svc, "xac_nhan_do_hang", lambda did, nid: da_do.append(did))
-    kq = svc.do_tat_ca("chuyen-1", "nd")
-    assert da_do == ["a"] and kq["so_luong"] == 1 and "VB" in kq["loi"][0]
-
-
-def test_bao_that_lac_loai_khong_hop_le(monkeypatch):
+def test_bao_su_co_hang_loai_khong_hop_le(monkeypatch):
     _chuan_bi_bao_cao(monkeypatch, _don(trang_thai="da_len_xe", chuyen_id="chuyen-1"))
     with pytest.raises(GiaTriLoi):
-        svc.bao_that_lac("don-1", "mô tả", "nguoi-dung-1", "khac")
+        svc.bao_su_co_hang("don-1", "mô tả", "nguoi-dung-1", "khac")

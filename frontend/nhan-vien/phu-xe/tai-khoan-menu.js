@@ -177,4 +177,108 @@
   nutAvatar.addEventListener("click", capNhatGiaTri);
   window.phuXeCapNhatTen = capNhatTen;
   capNhatGiaTri();
+
+  // ---------- Chuông thông báo (bên trái nút ☰) ----------
+  // Dùng chung API mọi vai trò: GET /thong-bao/cua-toi, PUT /thong-bao/{id}/da-doc, PUT /thong-bao/da-doc-tat-ca.
+  // Mỗi trang là 1 lần tải mới nên không giữ WebSocket: hỏi API khi tải trang, mỗi 30 giây, và khi tab hiện lại.
+  const CHU_KY_MS = 30000;
+  const chuong = document.createElement("div");
+  chuong.className = "tk-khung tk-chuong";
+  chuong.innerHTML = `
+    <button type="button" class="btn-icon-circle btn-icon-circle--dark tk-chuong__nut" id="tk-chuong-nut"
+            aria-haspopup="true" aria-expanded="false" aria-label="Thông báo" title="Thông báo">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <span class="tk-chuong__so" id="tk-chuong-so" hidden>0</span>
+    </button>
+    <div class="tk-chuong__bang" id="tk-chuong-bang" role="dialog" aria-label="Thông báo" hidden>
+      <div class="tk-chuong__dau">
+        <strong>Thông báo</strong>
+        <button type="button" class="tk-chuong__doc-het" id="tk-chuong-doc-het">Đánh dấu đã đọc hết</button>
+      </div>
+      <div class="tk-chuong__ds" id="tk-chuong-ds"></div>
+    </div>`;
+  nhomNut.insertBefore(chuong, khungNut);
+
+  const nutChuong = chuong.querySelector("#tk-chuong-nut");
+  const soChuong = chuong.querySelector("#tk-chuong-so");
+  const bangChuong = chuong.querySelector("#tk-chuong-bang");
+  const dsChuong = chuong.querySelector("#tk-chuong-ds");
+  let dsThongBao = [];
+  let soChuaDoc = 0;
+
+  function tuongDoi(iso) {
+    const t = new Date(iso).getTime();
+    if (isNaN(t)) return "";
+    const giay = Math.max(0, (Date.now() - t) / 1000);
+    if (giay < 60) return "Vừa xong";
+    if (giay < 3600) return `${Math.floor(giay / 60)} phút trước`;
+    if (giay < 86400) return `${Math.floor(giay / 3600)} giờ trước`;
+    if (giay < 172800) return "Hôm qua";
+    return window.phuXe && window.phuXe.ngay ? window.phuXe.ngay(iso) : new Date(t).toLocaleDateString("vi-VN");
+  }
+
+  // Chỉ đi tới trang nội bộ của khu nhân viên
+  function duongDanAnToan(d) {
+    return typeof d === "string" && d.startsWith("/nhan-vien/") && !d.includes("//") ? d : null;
+  }
+
+  function veChuong() {
+    soChuong.textContent = soChuaDoc > 99 ? "99+" : String(soChuaDoc);
+    soChuong.hidden = soChuaDoc === 0;
+    nutChuong.setAttribute("aria-label", soChuaDoc ? `Thông báo, ${soChuaDoc} chưa đọc` : "Thông báo");
+    if (bangChuong.hidden) return;
+    dsChuong.innerHTML = dsThongBao.length
+      ? dsThongBao.map((tb) => `
+        <button type="button" class="tk-chuong__muc${tb.da_doc ? "" : " chua-doc"}" data-id="${esc(tb.id)}">
+          <span class="tk-chuong__cham" aria-hidden="true"></span>
+          <span class="tk-chuong__nd"><span>${esc(tb.noi_dung)}</span><small>${esc(tuongDoi(tb.ngay_tao))}</small></span>
+        </button>`).join("")
+      : '<div class="tk-chuong__trong">Chưa có thông báo nào.</div>';
+  }
+
+  async function taiThongBao() {
+    try {
+      const d = await apiGet("/thong-bao/cua-toi?limit=30");
+      dsThongBao = d.items || [];
+      soChuaDoc = d.so_chua_doc || 0;
+      veChuong();
+    } catch (err) {
+      console.error("Không tải được thông báo:", err);
+    }
+  }
+
+  function moChuong(mo) {
+    bangChuong.hidden = !mo;
+    nutChuong.setAttribute("aria-expanded", String(mo));
+    if (mo) { moMenu(false); veChuong(); taiThongBao(); }
+  }
+
+  nutChuong.addEventListener("click", (e) => {
+    e.stopPropagation();
+    moChuong(bangChuong.hidden);
+  });
+  nutAvatar.addEventListener("click", () => moChuong(false));
+  bangChuong.addEventListener("click", (e) => e.stopPropagation());
+  document.addEventListener("click", () => { if (!bangChuong.hidden) moChuong(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !bangChuong.hidden) moChuong(false); });
+
+  dsChuong.addEventListener("click", async (e) => {
+    const muc = e.target.closest(".tk-chuong__muc");
+    if (!muc) return;
+    const tb = dsThongBao.find((x) => x.id === muc.dataset.id);
+    if (tb && !tb.da_doc) {
+      try { await apiPut(`/thong-bao/${encodeURIComponent(tb.id)}/da-doc`); } catch (_) { /* vẫn cho đi tiếp */ }
+    }
+    const dich = duongDanAnToan(tb && tb.duong_dan);
+    if (dich) { location.href = dich; return; }
+    taiThongBao();
+  });
+  chuong.querySelector("#tk-chuong-doc-het").addEventListener("click", async () => {
+    try { await apiPut("/thong-bao/da-doc-tat-ca"); } catch (_) { /* tải lại bên dưới cho thấy trạng thái thật */ }
+    taiThongBao();
+  });
+
+  taiThongBao();
+  setInterval(() => { if (!document.hidden) taiThongBao(); }, CHU_KY_MS);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) taiThongBao(); });
 })();
