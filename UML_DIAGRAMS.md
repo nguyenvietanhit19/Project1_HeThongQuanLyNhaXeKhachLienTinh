@@ -801,8 +801,8 @@ stop
 @startuml AD_UC51_ChoNghiViec
 start
 :Chọn hồ sơ cần cho nghỉ việc, nhập ngày nghỉ và lý do;
-if (Xe người này thuộc biên chế đang có chuyến chạy?) then (đúng)
-  :Từ chối — chờ chuyến kết thúc rồi làm lại;
+if (Xe người này thuộc biên chế đang có chuyến chạy\nhoặc gặp sự cố?) then (đúng)
+  :Từ chối — chờ chuyến kết thúc / xử lý xong sự cố rồi làm lại;
   stop
 endif
 if (Người này đang thuộc biên chế của xe nào?) then (có)

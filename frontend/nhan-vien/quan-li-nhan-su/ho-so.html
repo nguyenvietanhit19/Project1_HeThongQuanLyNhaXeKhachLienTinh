@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/shared/design-tokens.css" />
 <!-- Dùng chung bộ khung "nv-*" với frontend/nhan-vien/quan-ly/ — xem ghi chú ở nav.js -->
 <link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+<style>.nv-btn-phu:empty { display: none; }</style>
 </head>
 <body class="nhan-vien-shell">
   <div class="nv-layout">
@@ -176,6 +177,48 @@
     </div>
   </div>
 
+  <!-- Hộp thoại cho nghỉ việc (UC-51): mở là tự xem trước hậu quả; chỉ xác nhận được khi xe không có chuyến đang chạy / gặp sự cố -->
+  <div class="nv-modal-overlay" id="modal-nghi" hidden>
+    <div class="nv-modal" style="max-width:560px;">
+      <form id="form-nghi" novalidate>
+        <div class="nv-modal__header">
+          <div class="nv-modal__header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4"/><path d="m16 8 4 4-4 4M20 12H9"/>
+            </svg>
+          </div>
+          <h2 id="nghi-tieu-de">Cho nghỉ việc</h2>
+        </div>
+        <div class="nv-modal__body">
+          <div id="nghi-buoc-nhap">
+            <p id="nghi-mo-ta" style="margin-top:0;">Đang tải...</p>
+            <div id="nghi-xem-truoc"></div>
+            <div id="nghi-khoi-nhap" hidden>
+              <label class="nv-label" for="nghi-ngay">Ngày nghỉ</label>
+              <input class="input-field" type="date" id="nghi-ngay" />
+              <label class="nv-label" for="nghi-ly-do" style="margin-top:12px;">Lý do (bắt buộc)</label>
+              <textarea class="input-field" id="nghi-ly-do" rows="3" maxlength="500" style="resize:vertical;"></textarea>
+              <p class="nv-text-phu" style="margin-top:4px;"><span id="nghi-dem">0</span>/500 ký tự</p>
+            </div>
+            <div id="nghi-loi" class="text-error" hidden style="margin-top:12px;"></div>
+            <div class="nv-modal__actions">
+              <button type="button" class="nv-btn-secondary" id="nghi-huy">Hủy</button>
+              <button type="submit" class="btn-primary" id="nghi-xac-nhan" disabled>Xác nhận cho nghỉ việc</button>
+            </div>
+          </div>
+          <div id="nghi-buoc-ket-qua" hidden>
+            <p style="margin-top:0;" id="nghi-ket-qua-mo-ta"></p>
+            <ul id="nghi-ds-xe" style="margin:8px 0 12px 20px;"></ul>
+            <p class="nv-text-phu">Quản lý và điều độ viên đã nhận thông báo. Biên chế cố định không tự đổi (dòng của người này đã chuyển sang "tạm nghỉ"); quản lý cần gỡ hẳn và bố trí người thay ở trang biên chế xe.</p>
+            <div class="nv-modal__actions">
+              <button type="button" class="btn-primary" id="nghi-da-hieu">Đã hiểu</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script src="/nhan-vien/quan-li-nhan-su/api-client.js"></script>
   <script src="/nhan-vien/quan-li-nhan-su/auth-check.js"></script>
   <script src="/nhan-vien/quan-li-nhan-su/nav.js"></script>
@@ -256,7 +299,13 @@
           { key: "co_tai_khoan", label: "Tài khoản", render: (r) => (r.co_tai_khoan ? "Có" : "—") },
         ],
         loc,
-        { onEdit: moModalSua, editLabel: "Sửa", tenXoa: (r) => r.ho_ten }
+        {
+          onEdit: moModalSua,
+          editLabel: "Sửa",
+          tenXoa: (r) => r.ho_ten,
+          // Nút chỉ có chữ với hồ sơ đang làm (nút rỗng bị CSS ẩn)
+          extraActions: [{ label: (r) => (r.trang_thai === "dang_lam" ? "Cho nghỉ việc" : ""), onClick: moModalNghi }],
+        }
       );
     }
 
@@ -475,6 +524,101 @@
         loiForm.hidden = false;
       } finally {
         btnSubmit.classList.remove("is-loading");
+      }
+    });
+
+    // ---------- Cho nghỉ việc (UC-51) ----------
+    // Mở hộp thoại là gọi API xem trước (không ghi gì); backend vẫn kiểm tra lại lúc xác nhận.
+    const modalNghi = document.getElementById("modal-nghi");
+    const formNghi = document.getElementById("form-nghi");
+    const oNghiNgay = document.getElementById("nghi-ngay");
+    const oNghiLyDo = document.getElementById("nghi-ly-do");
+    const loiNghi = document.getElementById("nghi-loi");
+    const nutNghi = document.getElementById("nghi-xac-nhan");
+    let hsDangNghi = null;
+
+    const homNayVN = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Ho_Chi_Minh" });
+    const hienLoiNghi = (m) => { loiNghi.textContent = m; loiNghi.hidden = false; };
+    const tenNguoi = (h) => `<strong>${esc(h.ho_ten)}</strong> (${h.ma ? esc(h.ma) + ", " : ""}${esc(NHAN_CHUC_DANH[h.chuc_danh].nhan)})`;
+    const thieuGi = (x) => (x.thieu_tai_xe ? `thiếu tài xế (còn ${x.so_tai_xe_con_lai}/2)` : "không còn phụ xe cố định");
+
+    async function moModalNghi(hs) {
+      hsDangNghi = hs;
+      document.getElementById("nghi-tieu-de").textContent = "Cho nghỉ việc";
+      document.getElementById("nghi-mo-ta").innerHTML = `Đang kiểm tra ${tenNguoi(hs)}...`;
+      document.getElementById("nghi-xem-truoc").innerHTML = "";
+      document.getElementById("nghi-khoi-nhap").hidden = true;
+      document.getElementById("nghi-buoc-nhap").hidden = false;
+      document.getElementById("nghi-buoc-ket-qua").hidden = true;
+      loiNghi.hidden = true;
+      nutNghi.disabled = true;
+      oNghiNgay.value = homNayVN();
+      oNghiNgay.max = homNayVN();
+      oNghiLyDo.value = "";
+      document.getElementById("nghi-dem").textContent = "0";
+      modalNghi.hidden = false;
+      try {
+        renderXemTruocNghi(await apiGet(`/quan-ly-nhan-su/ho-so/${hs.id}/xem-truoc-nghi-viec`));
+      } catch (err) {
+        document.getElementById("nghi-mo-ta").innerHTML = "";
+        hienLoiNghi(err.message);
+      }
+    }
+
+    function renderXemTruocNghi(xt) {
+      document.getElementById("nghi-mo-ta").innerHTML =
+        `Cho ${tenNguoi(xt)} nghỉ việc. Hồ sơ được đóng (không xóa)` +
+        (xt.se_khoa_tai_khoan ? ", <strong>tài khoản bị khóa</strong> (không đăng nhập được)" : "") +
+        ", và mọi dòng biên chế chuyển sang <strong>tạm nghỉ</strong>.";
+      let html = "";
+      if (xt.xe_dang_chay.length) {
+        html += `<div class="text-error" style="margin:8px 0;"><strong>Chưa thể cho nghỉ:</strong> xe đang có chuyến chạy hoặc gặp sự cố: ${xt.xe_dang_chay.map((x) => `<strong>${esc(x.bien_so)}</strong>`).join(", ")}. Chờ chuyến kết thúc / xử lý xong sự cố rồi thực hiện lại.</div>`;
+      }
+      html += xt.bien_che.length
+        ? `<p class="nv-label" style="margin:12px 0 4px;">Biên chế hiện tại</p><ul style="margin:0 0 8px 20px;">${xt.bien_che
+            .map((b) => `<li><strong>${esc(b.bien_so)}</strong> — ${b.loai === "co_dinh" ? "cố định" : "tạm thời"}${b.trang_thai === "tam_nghi" ? " (đang tạm nghỉ)" : ""}</li>`)
+            .join("")}</ul>`
+        : `<p class="nv-text-phu">Người này không thuộc biên chế xe nào.</p>`;
+      if (xt.xe_thieu_nguoi.length) {
+        html += `<div style="margin:8px 0; padding:10px 12px; border-radius:8px; background:#fff7e6; border:1px solid #f5c26b;"><strong>Cảnh báo: xe sẽ thiếu người sau khi nghỉ</strong><ul style="margin:6px 0 0 20px;">${xt.xe_thieu_nguoi
+          .map((x) => `<li><strong>${esc(x.bien_so)}</strong> — ${thieuGi(x)}</li>`)
+          .join("")}</ul><span class="nv-text-phu">Quản lý và điều độ viên sẽ được báo ngay.</span></div>`;
+      }
+      document.getElementById("nghi-xem-truoc").innerHTML = html;
+      document.getElementById("nghi-khoi-nhap").hidden = false;
+      nutNghi.disabled = !xt.co_the_nghi;
+      if (xt.co_the_nghi) oNghiLyDo.focus();
+    }
+
+    oNghiLyDo.addEventListener("input", () => { document.getElementById("nghi-dem").textContent = oNghiLyDo.value.length; });
+    document.getElementById("nghi-huy").addEventListener("click", () => { modalNghi.hidden = true; });
+    document.getElementById("nghi-da-hieu").addEventListener("click", () => { modalNghi.hidden = true; });
+
+    formNghi.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loiNghi.hidden = true;
+      const lyDo = oNghiLyDo.value.trim();
+      if (!lyDo) return hienLoiNghi("Vui lòng nhập lý do.");
+      if (lyDo.length > 500) return hienLoiNghi("Lý do tối đa 500 ký tự.");
+      if (oNghiNgay.value && oNghiNgay.value > homNayVN()) return hienLoiNghi("Ngày nghỉ không được ở tương lai.");
+
+      nutNghi.classList.add("is-loading");
+      try {
+        const kq = await apiPost(`/quan-ly-nhan-su/ho-so/${hsDangNghi.id}/nghi-viec`, { ngay_nghi: oNghiNgay.value || null, ly_do: lyDo });
+        taiDanhSach();
+        if (kq.xe_thieu_nguoi.length) {
+          document.getElementById("nghi-tieu-de").textContent = "Đã cho nghỉ việc — xe thiếu người";
+          document.getElementById("nghi-ket-qua-mo-ta").innerHTML = `${tenNguoi(hsDangNghi)} đã nghỉ việc. <strong>Các xe sau đang thiếu người:</strong>`;
+          document.getElementById("nghi-ds-xe").innerHTML = kq.xe_thieu_nguoi.map((x) => `<li><strong>${esc(x.bien_so)}</strong> — ${thieuGi(x)}</li>`).join("");
+          document.getElementById("nghi-buoc-nhap").hidden = true;
+          document.getElementById("nghi-buoc-ket-qua").hidden = false;
+        } else {
+          modalNghi.hidden = true;
+        }
+      } catch (err) {
+        hienLoiNghi(err.message);
+      } finally {
+        nutNghi.classList.remove("is-loading");
       }
     });
   </script>

@@ -14,11 +14,14 @@ from fastapi import APIRouter, Depends, File, UploadFile
 from app.middleware.auth_middleware import NguoiDungHienTai, yeu_cau_vai_tro
 from app.schemas.nhan_su_schema import (
     AnhResponse,
+    ChoNghiViecRequest,
+    ChoNghiViecResponse,
     HoSoNhanSuResponse,
     HoSoTomTatResponse,
     SuaHoSoRequest,
     TaiKhoanPhuXeResponse,
     TaoHoSoRequest,
+    XemTruocNghiViecResponse,
 )
 from app.services import ho_so_nhan_su_service as service
 
@@ -75,3 +78,15 @@ async def tai_anh_giay_to_len(nhan_su_id: UUID, loai: str, nguoi_dung: QuyenQuan
     du_lieu = await file.read()
     url = service.cap_nhat_anh_giay_to(nguoi_dung.id, nguoi_dung.vai_tro, str(nhan_su_id), loai, du_lieu)
     return {"url": url}
+
+
+# GET /quan-ly-nhan-su/ho-so/{id}/xem-truoc-nghi-viec — UC-51 bước 2: chỉ xem, không ghi gì
+@router.get("/ho-so/{nhan_su_id}/xem-truoc-nghi-viec", response_model=XemTruocNghiViecResponse)
+def xem_truoc_nghi_viec(nhan_su_id: UUID, nguoi_dung: QuyenQuanLyNhanSu):
+    return service.xem_truoc_nghi_viec(str(nhan_su_id))
+
+
+# POST /quan-ly-nhan-su/ho-so/{id}/nghi-viec — UC-51: cho nghỉ việc (ngày nghỉ bỏ trống = hôm nay)
+@router.post("/ho-so/{nhan_su_id}/nghi-viec", response_model=ChoNghiViecResponse)
+def cho_nghi_viec(nhan_su_id: UUID, du_lieu: ChoNghiViecRequest, nguoi_dung: QuyenQuanLyNhanSu):
+    return service.cho_nghi_viec(nguoi_dung.id, nguoi_dung.vai_tro, str(nhan_su_id), du_lieu)

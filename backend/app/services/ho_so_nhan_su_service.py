@@ -16,12 +16,16 @@ cap_nhat_anh_ho_so) và 1 hàm đã có sẵn từ trước (tim_theo_nguoi_dung
 không sửa hàm nào cũ của họ.
 """
 
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
+
 from app.repositories import giay_to_nhan_su_repository as giay_to_repo
 from app.repositories import nguoi_dung_repository as nguoi_dung_repo
 from app.repositories import nhan_su_van_hanh_repository as nhan_su_repo
 from app.repositories import nhat_ky_admin_repository as nhat_ky_admin_repo
 from app.repositories import nhat_ky_quan_ly_nhan_su_repository as nhat_ky_repo
 from app.services import luu_tru_anh_service
+from app.services import thong_bao_khach_service as thong_bao
 from app.utils.loi import GiaTriLoi, KhongTimThay, LoiHeThong
 
 
@@ -192,3 +196,93 @@ def cap_nhat_anh_giay_to(actor_id: str, actor_vai_tro: str, nhan_su_id: str, loa
 def danh_sach_tai_khoan_phu_xe_chua_gan() -> list[dict]:
     """Các tài khoản phu_xe chưa có hồ sơ — đổ vào ô chọn tài khoản khi tạo hồ sơ phụ xe."""
     return nhan_su_repo.danh_sach_tai_khoan_phu_xe_chua_gan()
+
+
+# ---------------------------------------------------------
+# UC-51: cho nghỉ việc
+# ---------------------------------------------------------
+MUI_GIO_VN = ZoneInfo("Asia/Ho_Chi_Minh")
+
+
+def _tim_ho_so_dang_lam(nhan_su_id: str) -> dict:
+    ho_so = nhan_su_repo.tim_ho_so_day_du(nhan_su_id)
+    if not ho_so:
+        raise KhongTimThay("Không tìm thấy hồ sơ nhân sự")
+    if ho_so["trang_thai"] == "da_nghi_viec":
+        raise GiaTriLoi("Hồ sơ này đã nghỉ việc")
+    return ho_so
+
+
+def xem_truoc_nghi_viec(nhan_su_id: str) -> dict:
+    """Bước 2 của UC-51: chỉ ĐỌC, không ghi gì. Cho người thao tác thấy biên chế, xe thiếu người, xe đang chạy."""
+    ho_so = _tim_ho_so_dang_lam(nhan_su_id)
+    xe_dang_chay = nhan_su_repo.xe_co_chuyen_chua_xong(nhan_su_id)
+    return {
+        "id": ho_so["id"],
+        "ma": ho_so["ma"],
+        "ho_ten": ho_so["ho_ten"],
+        "chuc_danh": ho_so["chuc_danh"],
+        "se_khoa_tai_khoan": ho_so["nguoi_dung_id"] is not None,
+        "bien_che": nhan_su_repo.bien_che_cua_nhan_su(nhan_su_id),
+        "xe_thieu_nguoi": nhan_su_repo.xe_thieu_nguoi_neu_nghi(nhan_su_id),
+        "xe_dang_chay": xe_dang_chay,
+        "co_the_nghi": not xe_dang_chay,
+    }
+
+
+def _kiem_tra_ngay_nghi(ngay_nghi: date | None, ho_so: dict) -> date:
+    hom_nay = datetime.now(MUI_GIO_VN).date()
+    ngay = ngay_nghi or hom_nay
+    if ngay > hom_nay:
+        raise GiaTriLoi("Ngày nghỉ không được ở tương lai")
+    if ho_so.get("ngay_vao_lam") and ngay < ho_so["ngay_vao_lam"]:
+        raise GiaTriLoi("Ngày nghỉ không được trước ngày vào làm")
+    return ngay
+
+
+def _bao_xe_thieu_nguoi(ho_so: dict, xe_thieu: list[dict]) -> None:
+    """Báo quan_ly + dieu_do_vien đang hoạt động, mỗi xe thiếu một thông báo. Chỉ nhắc, không tự đổi biên chế.
+    Lỗi gửi thông báo được `thong_bao.gui` nuốt, không làm hỏng việc đã nghỉ."""
+    nguoi_nhan: set[str] = set()
+    for vai_tro in ("quan_ly", "dieu_do_vien"):
+        nguoi_nhan.update(str(i) for i in nguoi_dung_repo.danh_sach_id_theo_vai_tro(vai_tro, chi_dang_hoat_dong=True))
+    ma = f" ({ho_so['ma']})" if ho_so.get("ma") else ""
+    ten_chuc_danh = "Tài xế" if ho_so["chuc_danh"] == "tai_xe" else "Phụ xe"
+    for xe in xe_thieu:
+        thieu = "tài xế" if xe["thieu_tai_xe"] else "phụ xe"
+        noi_dung = (
+            f"{ten_chuc_danh} {ho_so['ho_ten']}{ma} vừa nghỉ việc; xe {xe['bien_so']} thiếu {thieu} cố định. "
+            "Vui lòng bố trí người thay thế."
+        )
+        for nguoi_id in nguoi_nhan:
+            thong_bao.gui(nguoi_id, noi_dung)
+
+
+def cho_nghi_viec(actor_id: str, actor_vai_tro: str, nhan_su_id: str, du_lieu) -> dict:
+    """Thứ tự: kiểm tra hồ sơ/ngày -> tính xe thiếu người -> ghi 1 transaction (repo kiểm tra lại có khóa dòng)
+    -> nhật ký -> thông báo. Không xóa hồ sơ, không gỡ biên chế cố định (việc của quan_ly, UC-35)."""
+    ho_so = _tim_ho_so_dang_lam(nhan_su_id)
+    ngay = _kiem_tra_ngay_nghi(du_lieu.ngay_nghi, ho_so)
+    ly_do = du_lieu.ly_do.strip()
+    xe_thieu = nhan_su_repo.xe_thieu_nguoi_neu_nghi(nhan_su_id)
+
+    ket_qua = nhan_su_repo.cho_nghi_viec(nhan_su_id, ngay, ly_do)
+    if ket_qua == "khong_tim_thay":
+        raise KhongTimThay("Không tìm thấy hồ sơ nhân sự")
+    if ket_qua == "da_nghi_viec":
+        raise GiaTriLoi("Hồ sơ này đã nghỉ việc")
+    if ket_qua == "xe_dang_chay":
+        raise GiaTriLoi("Xe của nhân sự này đang có chuyến chạy hoặc gặp sự cố; chờ chuyến kết thúc rồi thực hiện lại")
+
+    da_khoa = ho_so["nguoi_dung_id"] is not None
+    ghi_chu = f"Nghỉ việc ngày {ngay.isoformat()}: {ly_do}" + ("; đã khóa tài khoản" if da_khoa else "")
+    _ghi_nhat_ky(actor_id, actor_vai_tro, "cho_nghi_viec", nhan_su_id, ghi_chu)
+    if xe_thieu:
+        _bao_xe_thieu_nguoi(ho_so, xe_thieu)
+    return {
+        "id": ho_so["id"],
+        "trang_thai": "da_nghi_viec",
+        "ngay_nghi_viec": ngay,
+        "da_khoa_tai_khoan": da_khoa,
+        "xe_thieu_nguoi": xe_thieu,
+    }
