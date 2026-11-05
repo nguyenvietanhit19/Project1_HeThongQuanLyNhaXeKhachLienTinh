@@ -32,6 +32,7 @@
   let thongBao = []; // 30 thông báo gần nhất, mới nhất trước
   let soChuaDoc = 0;
   let daBiet = null; // tập id đã thấy — null cho tới lần tải đầu tiên (lần đầu không bật toast)
+  let lanTai = 0;
   let ws = null;
   let henNoiLai = null;
   let dangDong = false;
@@ -121,9 +122,9 @@
             <span class="nv-bell__text">${esc(tb.noi_dung)}</span>
             <span class="nv-bell__cuoi">
               <span class="nv-bell__time">${esc(thoiGianTuongDoi(tb.ngay_tao))}</span>
-              ${laNhacQuayVe(tb) ? `<span class="nv-bell__hanh-dong">${tb.co_the_danh_dau_da_doc ? "Mở lượt vé →" : "Mở để liên hệ →"}</span>` : ""}
+              <span class="nv-bell__trang-thai${tb.da_doc ? "" : " nv-bell__trang-thai--moi"}">${tb.da_doc ? "Đã đọc" : "Chưa đọc"}</span>
+              ${laNhacQuayVe(tb) ? '<span class="nv-bell__hanh-dong">Xem các vé cần liên hệ →</span>' : ""}
             </span>
-            ${laNhacQuayVe(tb) && !tb.co_the_danh_dau_da_doc ? '<span class="nv-bell__giu-lai">Giữ cảnh báo đến khi chuyến khởi hành và vé đã thanh toán</span>' : ""}
           </span>
         </button>`
       )
@@ -243,12 +244,11 @@
       const copyStatus = modalBody.querySelector(".nv-bell-detail__copy-status");
       copyButton?.addEventListener("click", () => saoChepSoDienThoai(phone, copyStatus));
 
-      if (tb.co_the_danh_dau_da_doc) {
-        try {
-          await apiPut(`/thong-bao/${encodeURIComponent(tb.id)}/da-doc`);
-          tai();
-        } catch (_) { /* giữ modal mở; người dùng vẫn xem được chi tiết */ }
-      }
+      if (!modalChiTiet.open) return;
+      try {
+        await apiPut(`/thong-bao/${encodeURIComponent(tb.id)}/da-doc`);
+        await tai();
+      } catch (_) { /* giữ modal mở; người dùng vẫn xem được chi tiết */ }
     } catch (err) {
       modalBody.innerHTML = `<div class="nv-bell-detail__error"><strong>Chưa tải được thông tin vé</strong><span>${esc(err.message || "Vui lòng thử lại.")}</span></div>`;
     }
@@ -284,8 +284,10 @@
 
   // ---------- Tải dữ liệu ----------
   async function tai() {
+    const lan = ++lanTai;
     try {
       const data = await apiGet("/thong-bao/cua-toi?limit=30");
+      if (lan !== lanTai) return;
       const moi = (data.items || []).filter((tb) => !tb.da_doc && daBiet && !daBiet.has(tb.id));
       thongBao = data.items || [];
       soChuaDoc = data.so_chua_doc || 0;
@@ -305,12 +307,10 @@
       moChiTietNhacQuayVe(tb);
       return;
     }
-    if (!laNhacQuayVe(tb) || tb.co_the_danh_dau_da_doc) {
-      try {
-        await apiPut(`/thong-bao/${encodeURIComponent(id)}/da-doc`);
-      } catch (_) {
-        /* vẫn cho đi tiếp */
-      }
+    try {
+      await apiPut(`/thong-bao/${encodeURIComponent(id)}/da-doc`);
+    } catch (_) {
+      /* vẫn cho đi tiếp */
     }
     dongBang();
     const dich = duongDanAnToan(tb && tb.duong_dan);

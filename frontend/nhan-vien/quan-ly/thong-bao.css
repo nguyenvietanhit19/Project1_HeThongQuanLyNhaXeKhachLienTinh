@@ -149,6 +149,20 @@
   background: #FFE4E1;
 }
 
+.nv-bell__item--urgent:not(.chua-doc) {
+  background: #fff8f7;
+  border-left-color: #ddb5b0;
+}
+
+.nv-bell__item--urgent:not(.chua-doc) .nv-bell__cham {
+  background: transparent;
+  box-shadow: none;
+}
+
+.nv-bell__item--urgent:not(.chua-doc):hover {
+  background: #fff0ed;
+}
+
 .nv-bell__item--urgent .nv-bell__cham {
   background: #C62828;
   box-shadow: 0 0 0 4px #FAD9D6;
@@ -208,6 +222,9 @@
 }
 
 .nv-bell__cuoi .nv-bell__time { margin-top: 0; }
+
+.nv-bell__trang-thai { color: #707789; font-size: 11px; font-weight: 700; }
+.nv-bell__trang-thai--moi { color: #b42323; }
 
 .nv-bell__hanh-dong {
   color: #A61B1B;

@@ -135,6 +135,6 @@ def test_tao_ve_khoa_sdt_va_lay_lai_ten_trong_transaction(monkeypatch):
     queries = [call.args[0] for call in cur.execute.call_args_list]
     assert any("pg_advisory_xact_lock" in query for query in queries)
     insert_call = next(call for call in cur.execute.call_args_list if "INSERT INTO ve" in call.args[0])
-    assert insert_call.args[1][10:12] == ("Tên đã lưu", PHONE)
+    assert insert_call.args[1][15:17] == ("Tên đã lưu", PHONE)
     assert result[0]["ten_khach_vang_lai"] == "Tên đã lưu"
     conn.commit.assert_called_once()

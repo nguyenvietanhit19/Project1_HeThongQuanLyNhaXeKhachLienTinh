@@ -66,8 +66,9 @@
 
       (async () => {
         if (!ref) return showError("Thiếu mã giao dịch", "Không tìm thấy mã giao dịch VNPay trong đường dẫn trả về.");
+        let xacNhan = null;
         try {
-          await apiPost("/thanh-toan/vnpay/xac-nhan", { ma_giao_dich: ref });
+          xacNhan = await apiPost("/thanh-toan/vnpay/xac-nhan", { ma_giao_dich: ref });
         } catch (_) {
           // VNPay IPN vẫn là nguồn cập nhật chính; tiếp tục đọc kết quả trả về đã ký.
         }
@@ -75,8 +76,15 @@
           const result = await apiGet(`/thanh-toan/vnpay/ket-qua${query}`);
           if (!result.hop_le) return showError("Không xác thực được giao dịch", "Thông tin VNPay trả về không hợp lệ. Vui lòng tra cứu trạng thái vé trước khi thu tiền lại.");
           if (!result.thanh_cong) return showError("Thanh toán chưa hoàn tất", `VNPay trả mã ${result.ma_phan_hoi || "không xác định"}. Vui lòng kiểm tra trạng thái vé trước khi thử lại.`);
+          if (!xacNhan || !["thanh_cong", "da_xac_nhan"].includes(xacNhan.trang_thai)) {
+            try {
+              xacNhan = await apiPost("/quay-ve/xac-nhan-vnpay-sandbox", { tham_so: Object.fromEntries(params.entries()) });
+            } catch (_) {
+              // Chỉ báo cọc thành công khi tra cứu vé xác nhận trạng thái đã thanh toán.
+            }
+          }
           title.textContent = "VNPay báo thanh toán thành công";
-          message.textContent = "Hệ thống đang xác nhận và phát hành vé cho cả lượt đặt chỗ.";
+          message.textContent = "Hệ thống đang xác nhận giao dịch và cập nhật trạng thái lượt đặt chỗ.";
           if (result.ma_dat_cho) {
             code.textContent = `Mã đặt chỗ: ${result.ma_dat_cho}`;
             code.hidden = false;
@@ -87,13 +95,19 @@
             try {
               for (let attempt = 0; attempt < 5; attempt++) {
                 const ve = await apiGet(`/quay-ve/tra-cuu?ma_dat_cho=${encodeURIComponent(result.ma_dat_cho)}`);
+                if (ve.some(item => item.trang_thai === "het_han" || item.trang_thai === "da_huy")) {
+                  return showError("Cần đối soát giao dịch", "VNPay báo thành công nhưng có vé đã hết hạn hoặc bị hủy. Không thu tiền lại trước khi kiểm tra giao dịch.");
+                }
+                const veDatCoc = ve.filter(item => item.la_ve_dat_coc);
+                if (veDatCoc.length && veDatCoc.every(item => item.trang_thai === "da_thanh_toan")) {
+                  title.textContent = `Đặt cọc thành công · ${veDatCoc.length} vé`;
+                  message.textContent = "VNPay đã xác nhận tiền cọc. Quay lại tab Bán vé để xem các vé đã thanh toán và thu tiền mặt cho phần còn lại.";
+                  return;
+                }
                 if (ve.length && ve.every(item => item.trang_thai === "da_thanh_toan")) {
                   title.textContent = `Đã thanh toán và phát hành ${ve.length} vé`;
                   message.textContent = "Một lần thanh toán đã hoàn tất cho toàn bộ lượt. Mở tra cứu để in các vé.";
                   return;
-                }
-                if (ve.some(item => item.trang_thai === "het_han" || item.trang_thai === "da_huy")) {
-                  return showError("Cần đối soát giao dịch", "VNPay báo thành công nhưng chỗ đã hết hạn hoặc bị hủy. Không thu tiền lại trước khi kiểm tra giao dịch.");
                 }
                 if (attempt < 4) await new Promise(resolve => setTimeout(resolve, 1200));
               }

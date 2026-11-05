@@ -57,6 +57,13 @@ def so_ve_phai_dat_coc(so_ve: int, tong_tien: int) -> int:
     return math.floor(so_ve * TY_LE_DAT_COC) if can_dat_coc(so_ve, tong_tien) else 0
 
 
+def so_ve_coc_hotline(so_ve: int, tong_tien: int) -> int:
+    """Đơn hotline hẹn trả tại quầy cần cọc nếu đạt ngưỡng số vé hoặc giá trị."""
+    if so_ve < 2 and tong_tien <= NGUONG_GIA_TRI_DAT_COC:
+        return 0
+    return max(1, math.floor(so_ve * TY_LE_DAT_COC))
+
+
 def sinh_ma_dat_cho() -> str:
     return "DC" + secrets.token_hex(4).upper()
 
