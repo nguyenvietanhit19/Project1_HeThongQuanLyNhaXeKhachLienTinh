@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="vi">
   <head>
     <meta charset="utf-8" />
@@ -66,7 +66,7 @@
           <section class="nv-card qv-card qv-revenue-chart-card" aria-labelledby="revenue-chart-title">
             <div class="qv-toolbar"><div><h2 id="revenue-chart-title">Xu hướng doanh thu</h2><p class="qv-muted" id="revenue-chart-note">Doanh thu từ vé đã thanh toán theo ngày lập vé.</p></div><span class="qv-badge" id="revenue-chart-group">—</span></div>
             <div class="qv-chart-metrics"><div><span>Tổng doanh thu</span><strong id="chart-total">—</strong></div><div><span>Trung bình mỗi kỳ</span><strong id="chart-average">—</strong></div><div><span>Kỳ cao nhất</span><strong id="chart-peak">—</strong></div></div>
-            <div id="revenue-chart" class="qv-revenue-chart" role="img" aria-label="Biểu đồ doanh thu theo thời gian">Đang tải biểu đồ…</div>
+            <div id="revenue-chart" class="qv-revenue-chart" role="group" aria-label="Biểu đồ doanh thu theo thời gian">Đang tải biểu đồ…</div>
           </section>
 
           <div class="qv-two-col qv-stats-breakdown">
@@ -125,15 +125,23 @@
       </div>
     </div>
 
-    <dialog class="qv-history-ticket-dialog" id="history-ticket-dialog" aria-labelledby="history-ticket-title">
+    <dialog class="qv-history-ticket-dialog qv-day-sales-dialog" id="day-sales-dialog" aria-labelledby="day-sales-title">
       <div class="qv-history-ticket-dialog__head">
-        <div><span>CHI TIẾT VÉ ĐÃ BÁN</span><h2 id="history-ticket-title">Thông tin vé</h2></div>
-        <button class="qv-history-ticket-dialog__x" type="button" data-close-ticket-dialog aria-label="Đóng">×</button>
+        <div><span>DOANH THU THEO NGÀY</span><h2 id="day-sales-title">Chi tiết doanh thu</h2></div>
+        <button class="qv-history-ticket-dialog__x" type="button" data-close-day-sales aria-label="Đóng">×</button>
       </div>
-      <div class="qv-history-ticket-dialog__body" id="history-ticket-content" aria-live="polite">
-        <p class="qv-history-ticket-dialog__loading">Đang tải vé…</p>
+      <div class="qv-history-ticket-dialog__body">
+        <div id="day-sales-summary" class="qv-day-sales-summary"></div>
+        <div id="day-sales-error" class="qv-alert error qv-hidden" role="alert"></div>
+        <h3 class="qv-day-sales-list-title">Danh sách vé đã bán</h3>
+        <div class="qv-table-wrap">
+          <table class="qv-table"><thead><tr><th>Giờ lập vé</th><th>Mã vé / đặt chỗ</th><th>Khách hàng</th><th>Chuyến / ghế</th><th>Phương thức</th><th>Kênh bán</th><th>Giá vé</th></tr></thead>
+            <tbody id="day-sales-rows"><tr><td colspan="7" class="qv-empty">Chọn một cột để xem chi tiết.</td></tr></tbody>
+          </table>
+        </div>
+        <div class="qv-history-pagination"><span class="qv-muted" id="day-sales-page">—</span><div class="qv-actions-inline"><button type="button" class="qv-btn secondary" id="day-sales-prev" disabled>Trang trước</button><button type="button" class="qv-btn secondary" id="day-sales-next" disabled>Trang sau</button></div></div>
       </div>
-      <div class="qv-history-ticket-dialog__foot"><button class="qv-btn secondary" type="button" data-close-ticket-dialog>Đóng</button></div>
+      <div class="qv-history-ticket-dialog__foot"><button class="qv-btn secondary" type="button" data-close-day-sales>Đóng</button></div>
     </dialog>
 
     <script src="api-client.js"></script>
@@ -141,6 +149,7 @@
     <script src="/nhan-vien/quan-ly/thong-bao.js"></script>
     <script src="nav.js"></script>
     <script src="/nhan-vien/gui-hang/vendor/JsBarcode.code128.min.js"></script>
+    <script src="ticket-detail-modal.js"></script>
     <script>
       const $ = (selector) => document.querySelector(selector);
       let statsRequest = 0;
@@ -151,6 +160,103 @@
       let detailMode = null;
       let detailPage = 1;
       let currentStats = null;
+      let dailySalesRequest = 0;
+      let dailyTicketsRequest = 0;
+      let dailySalesPage = 1;
+      let dailySalesRange = null;
+
+      const daySalesDialog = $("#day-sales-dialog");
+      daySalesDialog.querySelectorAll("[data-close-day-sales]").forEach(button => button.addEventListener("click", () => daySalesDialog.close()));
+      daySalesDialog.addEventListener("click", event => { if (event.target === daySalesDialog) daySalesDialog.close(); });
+      daySalesDialog.addEventListener("close", () => { ++dailySalesRequest; ++dailyTicketsRequest; });
+      $("#day-sales-prev").addEventListener("click", () => loadDaySalesTickets(dailySalesPage - 1));
+      $("#day-sales-next").addEventListener("click", () => loadDaySalesTickets(dailySalesPage + 1));
+
+      function formatChartDate(value) {
+        const [year, month, day] = value.split("-").map(Number);
+        return new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric" })
+          .format(new Date(Date.UTC(year, month - 1, day, 12)));
+      }
+
+      function getPointRange(point, group) {
+        if (group === "day") return { tu_ngay: point.moc, den_ngay: point.moc };
+        const [year, month] = point.moc.split("-").map(Number);
+        const first = new Date(year, month - 1, 1);
+        const last = new Date(year, month, 0);
+        return {
+          tu_ngay: formatDate(new Date(Math.max(first, new Date(`${$("#from-date").value}T00:00:00`)))),
+          den_ngay: formatDate(new Date(Math.min(last, new Date(`${$("#to-date").value}T00:00:00`)))),
+        };
+      }
+
+      async function openDaySales(point, group) {
+        const range = getPointRange(point, group);
+        dailySalesRange = range;
+        dailySalesPage = 1;
+        ++dailySalesRequest;
+        const title = group === "day" ? `Chi tiết ngày ${formatChartDate(point.moc)}` : `Chi tiết tháng ${point.moc.slice(5, 7)}/${point.moc.slice(0, 4)}`;
+        $("#day-sales-title").textContent = title;
+        $("#day-sales-summary").innerHTML = '<div class="qv-chart-empty">Đang tải dữ liệu…</div>';
+        $("#day-sales-rows").innerHTML = '<tr><td colspan="7" class="qv-empty">Đang tải danh sách vé…</td></tr>';
+        $("#day-sales-page").textContent = "—";
+        $("#day-sales-error").classList.add("qv-hidden");
+        daySalesDialog.showModal();
+        const requestId = dailySalesRequest;
+        try {
+          const [stats] = await Promise.all([
+            apiGet(`/quay-ve/thong-ke?${queryString({ ...range, ma_ve: $("#ticket-code").value.trim() })}`),
+            loadDaySalesTickets(1, requestId),
+          ]);
+          if (requestId !== dailySalesRequest) return;
+          renderDaySalesSummary(stats);
+        } catch (error) {
+          if (requestId !== dailySalesRequest) return;
+          $("#day-sales-error").textContent = error.message || "Không tải được chi tiết ngày.";
+          $("#day-sales-error").classList.remove("qv-hidden");
+        }
+      }
+
+      function renderDaySalesSummary(stats) {
+        const channelItems = [
+          ["Tại quầy", stats.so_ve_tai_quay, stats.doanh_thu_tai_quay],
+          ["Hotline", stats.so_ve_hotline, stats.doanh_thu_hotline],
+          ["Trực tuyến", stats.so_ve_truc_tuyen, stats.doanh_thu_truc_tuyen],
+        ];
+        const cards = (title, items, colorClasses) => {
+          const maxAmount = Math.max(0, ...items.map(([, , amount]) => Number(amount) || 0));
+          return `<section class="qv-day-sales-card"><h3>${title}</h3><div class="qv-day-sales-bars">${items.map(([name, count, amount], index) => {
+            const revenue = Number(amount) || 0;
+            const width = maxAmount ? Math.max(revenue ? 3 : 0, revenue / maxAmount * 100) : 0;
+            return `<div class="qv-day-sales-bar-row"><div><strong>${name}</strong><span>${Number(count) || 0} vé</span><b>${dinhDangTien(revenue)}</b></div><div class="qv-day-sales-track"><span class="${colorClasses[index]}" style="width:${width}%"></span></div></div>`;
+          }).join("")}</div></section>`;
+        };
+        const totalRevenue = Number(stats.doanh_thu) || 0;
+        const cashRevenue = Number(stats.doanh_thu_tien_mat) || 0;
+        const cashShare = totalRevenue ? Math.round(cashRevenue / totalRevenue * 100) : 0;
+        const paymentCard = `<section class="qv-day-sales-card qv-day-sales-card--payment"><h3>Phương thức thanh toán</h3><div class="qv-day-sales-payment-layout"><div class="qv-day-sales-donut" style="background:${totalRevenue ? `conic-gradient(#f5a51d 0 ${cashShare}%, #5d4295 ${cashShare}% 100%)` : "#e9e4f1"}"><div><strong>${totalRevenue ? `${cashShare}%` : "—"}</strong><small>tiền mặt</small></div></div><div class="qv-day-sales-payment-legend"><div><span class="is-cash"></span><p><strong>Tiền mặt</strong><small>${Number(stats.so_ve_tien_mat) || 0} vé</small></p><b>${dinhDangTien(cashRevenue)}</b></div><div><span class="is-transfer"></span><p><strong>Chuyển khoản</strong><small>${Number(stats.so_ve_chuyen_khoan) || 0} vé</small></p><b>${dinhDangTien(stats.doanh_thu_chuyen_khoan)}</b></div></div></div></section>`;
+        $("#day-sales-summary").innerHTML = `<div class="qv-day-sales-total"><span>Tổng doanh thu · ${Number(stats.so_ve_da_ban) || 0} vé</span><strong>${dinhDangTien(stats.doanh_thu)}</strong></div><div class="qv-day-sales-breakdowns">${paymentCard}${cards("Kênh bán", channelItems, ["is-walkin", "is-hotline", "is-online"])}</div>`;
+      }
+
+      async function loadDaySalesTickets(page = 1, parentRequest = dailySalesRequest) {
+        if (!dailySalesRange || parentRequest !== dailySalesRequest) return;
+        const requestId = ++dailyTicketsRequest;
+        $("#day-sales-rows").innerHTML = '<tr><td colspan="7" class="qv-empty">Đang tải danh sách vé…</td></tr>';
+        $("#day-sales-prev").disabled = true;
+        $("#day-sales-next").disabled = true;
+        try {
+          const result = await apiGet(`/quay-ve/lich-su-ban-ve?${queryString({ ...dailySalesRange, ma_ve: $("#ticket-code").value.trim(), trang: page, kich_thuoc_trang: 50 })}`);
+          if (parentRequest !== dailySalesRequest || requestId !== dailyTicketsRequest || !daySalesDialog.open) return;
+          dailySalesPage = result.trang;
+          const pages = Math.max(1, Math.ceil(result.tong_so / result.kich_thuoc_trang));
+          $("#day-sales-page").textContent = `${result.tong_so} vé · Trang ${dailySalesPage}/${pages}`;
+          $("#day-sales-prev").disabled = dailySalesPage <= 1;
+          $("#day-sales-next").disabled = dailySalesPage >= pages;
+          $("#day-sales-rows").innerHTML = result.ve.map(ticket => `<tr><td>${dinhDangNgay(ticket.ngay_tao)}</td><td><strong>${escapeHtml(ticket.ma_ve)}</strong><br><small>${escapeHtml(ticket.ma_dat_cho || "—")}</small></td><td>${escapeHtml(ticket.ten_khach || "—")}<br><small>${escapeHtml(ticket.sdt_khach || "—")}</small></td><td>${escapeHtml(ticket.ma_chuyen || "—")}<br><small>Ghế ${escapeHtml(ticket.so_ghe || "—")}</small></td><td>${escapeHtml(paymentLabels[ticket.phuong_thuc_thanh_toan] || "—")}</td><td>${escapeHtml(channelLabels[ticket.kenh_ban] || "Trực tuyến")}</td><td><strong>${dinhDangTien(ticket.gia)}</strong></td></tr>`).join("") || '<tr><td colspan="7" class="qv-empty">Ngày này chưa có vé đã bán.</td></tr>';
+        } catch (error) {
+          if (parentRequest !== dailySalesRequest || requestId !== dailyTicketsRequest) return;
+          $("#day-sales-rows").innerHTML = `<tr><td colspan="7" class="qv-empty">${escapeHtml(error.message || "Không tải được danh sách vé.")}</td></tr>`;
+        }
+      }
 
       function currentFilters() {
         return { tu_ngay: $("#from-date").value, den_ngay: $("#to-date").value, ma_ve: $("#ticket-code").value.trim() };
@@ -314,12 +420,13 @@
           const total = values.reduce((sum, amount) => sum + amount, 0);
           const peak = Math.max(0, ...values);
           const peakIndex = values.indexOf(peak);
-          const group = result.nhom === "thang" ? "tháng" : "ngày";
+          const isMonthly = result.nhom === "tháng";
+          const group = isMonthly ? "tháng" : "ngày";
           $("#revenue-chart-group").textContent = `Theo ${group}`;
           $("#revenue-chart-note").textContent = `Doanh thu vé đã thanh toán theo ${group} lập vé trong bộ lọc hiện tại.`;
           $("#chart-total").textContent = dinhDangTien(total);
           $("#chart-average").textContent = dinhDangTien(points.length ? Math.round(total / points.length) : 0);
-          $("#chart-peak").textContent = peak ? `${dinhDangTien(peak)} · ${result.nhom === "thang" ? points[peakIndex].moc.slice(0, 7) : points[peakIndex].moc.slice(5)}` : "—";
+          $("#chart-peak").textContent = peak ? `${dinhDangTien(peak)} · ${isMonthly ? points[peakIndex].moc.slice(0, 7) : points[peakIndex].moc.slice(5)}` : "—";
           if (!points.length || !total) {
             chart.innerHTML = '<div class="qv-chart-empty">Chưa có doanh thu trong khoảng ngày này.</div>';
             chart.setAttribute("aria-label", "Chưa có doanh thu trong khoảng ngày này");
@@ -343,12 +450,16 @@
             const barHeight = amount ? Math.max(3, amount / ceiling * plotHeight) : 0;
             const x = left + slot * index + (slot - barWidth) / 2;
             const y = top + plotHeight - barHeight;
-            const label = result.nhom === "thang" ? point.moc.slice(5, 7) + "/" + point.moc.slice(2, 4) : point.moc.slice(8, 10) + "/" + point.moc.slice(5, 7);
+            const label = isMonthly ? point.moc.slice(5, 7) + "/" + point.moc.slice(2, 4) : point.moc.slice(8, 10) + "/" + point.moc.slice(5, 7);
             const showLabel = index === lastIndex || (index % labelEvery === 0 && (lastIndex - index) * slot >= minLabelGap);
-            return `<rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="4" class="qv-chart-bar"><title>${escapeHtml(point.moc)}: ${dinhDangTien(amount)} · ${Number(point.so_ve) || 0} vé</title></rect>${showLabel ? `<text x="${x + barWidth / 2}" y="${height - 16}" text-anchor="middle" class="qv-chart-axis-label">${escapeHtml(label)}</text>` : ""}`;
+            const periodName = isMonthly ? `tháng ${label}` : `ngày ${formatChartDate(point.moc)}`;
+            const column = amount > 0
+              ? `<g class="qv-chart-column" data-revenue-point="${escapeHtml(point.moc)}" data-revenue-group="${isMonthly ? "month" : "day"}" role="button" tabindex="0" aria-label="${periodName}, doanh thu ${dinhDangTien(amount)}, ${Number(point.so_ve) || 0} vé"><rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="4" class="qv-chart-bar"><title>${escapeHtml(point.moc)}: ${dinhDangTien(amount)} · ${Number(point.so_ve) || 0} vé</title></rect></g>`
+              : "";
+            return `${column}${showLabel ? `<text x="${x + barWidth / 2}" y="${height - 16}" text-anchor="middle" class="qv-chart-axis-label">${escapeHtml(label)}</text>` : ""}`;
           }).join("");
           chart.setAttribute("aria-label", `Doanh thu theo ${group}, tổng ${dinhDangTien(total)}, cao nhất ${dinhDangTien(peak)}`);
-          chart.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">${grid}${bars}</svg>`;
+          chart.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="list" aria-label="Doanh thu theo ${group}">${grid}${bars}</svg>`;
         } catch (error) {
           if (requestId !== chartRequest) return;
           chart.textContent = `Không tải được biểu đồ: ${error.message}`;
@@ -356,71 +467,17 @@
         }
       }
 
-      const historyTicketDialog = $("#history-ticket-dialog");
-      const historyTicketContent = $("#history-ticket-content");
-      historyTicketDialog.querySelectorAll("[data-close-ticket-dialog]").forEach(button =>
-        button.addEventListener("click", () => historyTicketDialog.close())
-      );
-      historyTicketDialog.addEventListener("click", event => {
-        if (event.target === historyTicketDialog) historyTicketDialog.close();
+      $("#revenue-chart").addEventListener("click", event => {
+        const column = event.target.closest("[data-revenue-point]");
+        if (column) openDaySales({ moc: column.dataset.revenuePoint }, column.dataset.revenueGroup);
       });
-
-      function ticketTime(value, options) {
-        if (!value) return "—";
-        const date = new Date(value);
-        return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", ...options }).format(date);
-      }
-
-      function ticketPreview(ticket) {
-        const paidStatuses = ["da_thanh_toan", "da_len_xe", "da_xuong_xe", "khong_den"];
-        const paid = paidStatuses.includes(ticket.trang_thai) ? Number(ticket.gia || 0) : 0;
-        const status = ticket.trang_thai === "da_huy" ? "ĐÃ HỦY" : paid ? "ĐÃ THANH TOÁN" : "CHỜ THANH TOÁN";
-        const stampClass = ticket.trang_thai === "da_huy" ? "qv-ticket__stamp--cancelled" : paid ? "" : "qv-ticket__stamp--pending";
-        return `
-          <div class="qv-ticket" aria-label="Vé ${escapeHtml(ticket.ma_ve)}">
-            <div class="qv-ticket__main">
-              <header class="qv-ticket__header">
-                <div class="qv-ticket__brand"><img src="/shared/assets/logo-mark.png" alt="" /><strong>GoBus</strong><span>VÉ XE KHÁCH LIÊN TỈNH</span></div>
-                <div class="qv-ticket__code"><small>MÃ VÉ</small><strong>${escapeHtml(ticket.ma_ve)}</strong></div>
-              </header>
-              <div class="qv-ticket__body">
-                <div class="qv-ticket__route"><h2>${escapeHtml(ticket.ten_tuyen || "Thông tin chuyến")}</h2><span class="qv-ticket__stamp ${stampClass}">${status}</span></div>
-                <div class="qv-ticket__stops">
-                  <div><small>ĐIỂM ĐÓN</small><strong>${escapeHtml(ticket.ten_diem_don || "—")}</strong><span>${ticketTime(ticket.gio_don_du_kien, { hour: "2-digit", minute: "2-digit", weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" })}</span></div>
-                  <span class="qv-ticket__arrow" aria-hidden="true">→</span>
-                  <div><small>ĐIỂM TRẢ</small><strong>${escapeHtml(ticket.ten_diem_tra || "—")}</strong><span>${ticketTime(ticket.gio_den_du_kien, { hour: "2-digit", minute: "2-digit", weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" })} (dự kiến)</span></div>
-                </div>
-                <dl class="qv-ticket__details">
-                  <div><dt>LOẠI XE</dt><dd>${escapeHtml(ticket.ten_loai_xe || "—")}</dd></div>
-                  <div><dt>BIỂN SỐ</dt><dd>${escapeHtml(ticket.bien_so || "Chưa gán xe")}</dd></div>
-                  <div><dt>GIÁ VÉ</dt><dd>${dinhDangTien(ticket.gia)}</dd></div>
-                  <div><dt>ĐÃ THANH TOÁN</dt><dd>${dinhDangTien(paid)}</dd></div>
-                  <div><dt>CÒN LẠI</dt><dd>${dinhDangTien(Math.max(0, Number(ticket.gia || 0) - paid))}</dd></div>
-                  <div><dt>MÃ ĐẶT CHỖ</dt><dd>${escapeHtml(ticket.ma_dat_cho || "—")}</dd></div>
-                </dl>
-                <div class="qv-ticket__passenger"><span>HÀNH KHÁCH <strong>${escapeHtml(ticket.ten_khach || "Khách vãng lai")}${ticket.sdt_khach ? ` · ${escapeHtml(ticket.sdt_khach)}` : ""}</strong></span><span>CHUYẾN <strong>${escapeHtml(ticket.ma_chuyen || "—")}</strong></span></div>
-              </div>
-            </div>
-            <aside class="qv-ticket__stub"><div class="qv-ticket__seat"><small>GHẾ</small><strong>${escapeHtml(ticket.so_ghe || "—")}</strong></div><div class="qv-ticket__barcode-wrap"><svg class="qv-ticket__barcode" aria-label="Mã vạch vé ${escapeHtml(ticket.ma_ve)}"></svg><strong>${escapeHtml(ticket.ma_ve)}</strong></div><p class="qv-ticket__reminder">Vui lòng có mặt tại điểm đón trước giờ lên xe và xuất trình vé khi được yêu cầu.</p></aside>
-          </div>`;
-      }
-
-      async function showHistoryTicket(ticketId) {
-        historyTicketContent.innerHTML = '<p class="qv-history-ticket-dialog__loading">Đang tải vé…</p>';
-        historyTicketDialog.showModal();
-        try {
-          const ticket = await apiGet(`/quay-ve/ve/${encodeURIComponent(ticketId)}/in`);
-          $("#history-ticket-title").textContent = `Vé ${ticket.ma_ve}`;
-          historyTicketContent.innerHTML = ticketPreview(ticket);
-          if (typeof JsBarcode === "function") {
-            JsBarcode(historyTicketContent.querySelector(".qv-ticket__barcode"), String(ticket.ma_ve), {
-              format: "CODE128", width: 2, height: 50, displayValue: false, margin: 0, lineColor: "#282038",
-            });
-          }
-        } catch (error) {
-          historyTicketContent.innerHTML = `<div class="qv-history-ticket-dialog__error"><strong>Không tải được vé</strong><span>${escapeHtml(error.message || "Vui lòng thử lại.")}</span></div>`;
+      $("#revenue-chart").addEventListener("keydown", event => {
+        const column = event.target.closest("[data-revenue-point]");
+        if (column && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault();
+          openDaySales({ moc: column.dataset.revenuePoint }, column.dataset.revenueGroup);
         }
-      }
+      });
 
       async function loadHistory(page = 1) {
         const requestId = ++historyRequest;
@@ -455,7 +512,7 @@
               <td>${escapeHtml(ticket.ten_diem_don)} → ${escapeHtml(ticket.ten_diem_tra)}<br><small>Ghế ${escapeHtml(ticket.so_ghe)}</small></td>
               <td><strong>${dinhDangTien(ticket.gia)}</strong></td>
               <td>${escapeHtml(paymentLabels[ticket.phuong_thuc_thanh_toan] || "—")}<br><small>${escapeHtml(channelLabels[ticket.kenh_ban] || "Trực tuyến")} · ${dinhDangNgay(ticket.gio_thanh_toan)}</small></td>
-              <td><span class="qv-badge green">${escapeHtml(statusLabels[ticket.trang_thai] || ticket.trang_thai)}</span><br><small>${escapeHtml(ticket.nhan_vien_ban || (ticket.kenh_ban ? "Chưa ghi nhận nhân viên" : "Đặt trực tuyến"))}</small><button class="qv-btn secondary qv-table-link qv-history-view-button" type="button" data-view-ticket="${escapeHtml(ticket.id)}" aria-label="Xem chi tiết vé ${escapeHtml(ticket.ma_ve)}">Xem chi tiết</button></td>
+              <td><span class="qv-badge green">${escapeHtml(statusLabels[ticket.trang_thai] || ticket.trang_thai)}</span><br><small>${escapeHtml(ticket.nhan_vien_ban || (ticket.kenh_ban ? "Chưa ghi nhận nhân viên" : "Đặt trực tuyến"))}</small><button class="qv-btn secondary qv-table-link qv-history-view-button" type="button" data-view-booking="${escapeHtml(ticket.ma_dat_cho)}" data-first-ticket="${escapeHtml(ticket.id)}" aria-label="Xem chi tiết vé ${escapeHtml(ticket.ma_ve)} và các vé cùng lượt">Xem chi tiết</button></td>
             </tr>`).join("") || '<tr><td colspan="8" class="qv-empty">Không có vé đã bán phù hợp bộ lọc.</td></tr>';
         } catch (error) {
           if (requestId !== historyRequest) return;
@@ -466,8 +523,8 @@
       }
 
       $("#history-rows").addEventListener("click", event => {
-        const button = event.target.closest("[data-view-ticket]");
-        if (button) showHistoryTicket(button.dataset.viewTicket);
+        const button = event.target.closest("[data-view-booking]");
+        if (button) qvTicketDetail.open(button.dataset.viewBooking, button.dataset.firstTicket);
       });
 
       if (quayVeKiemTraQuyen()) {

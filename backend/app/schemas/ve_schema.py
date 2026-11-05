@@ -97,6 +97,9 @@ class VeTrongLichSu(BaseModel):
     ten_diem_tra: str
     gio_don_du_kien: datetime
     gio_den_du_kien: datetime
+    nhan_vien_ban: str | None = None
+    ma_nhan_vien_ban: str | None = None
+    van_phong_nhan_vien_ban: str | None = None
 
 
 class ChuyenTrongLichSu(ChuyenTrongDatCho):

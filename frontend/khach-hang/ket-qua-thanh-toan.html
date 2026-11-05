@@ -94,8 +94,21 @@
       }
       if (!kq.hop_le) return veThatBai("Kết quả không hợp lệ", "Không xác thực được thông tin trả về từ cổng thanh toán.");
       if (!kq.thanh_cong) return veThatBai("Thanh toán không thành công", `${LY_DO[kq.ma_phan_hoi] || "Giao dịch không hoàn tất."} Ghế đã được nhả, bạn có thể đặt lại.`);
+      // ReturnURL có chữ ký hợp lệ nhưng IPN/querydr của sandbox đôi lúc không cập nhật vé.
+      // Backend chỉ chấp nhận tham số đã ký, đối chiếu đúng đơn khách hàng và ghi nhận đúng số tiền.
       try {
-        veThanhCong(await apiGet(`/ve/dat-cho/${encodeURIComponent(kq.ma_dat_cho)}`));
+        const thamSo = Object.fromEntries(new URLSearchParams(location.search).entries());
+        const xacNhan = await apiPost("/thanh-toan/vnpay/xac-nhan-return-khach-hang", { tham_so: thamSo });
+        if (!xacNhan.xac_nhan) throw new Error("Cổng thanh toán chưa xác nhận được khoản tiền. Vui lòng tải lại sau ít phút hoặc liên hệ hỗ trợ.");
+      } catch (err) {
+        return veThatBai("Chưa ghi nhận được khoản thanh toán", err.message || "Vé chưa được xác nhận thanh toán. Vui lòng liên hệ hỗ trợ trước khi đặt lại.");
+      }
+      try {
+        const datCho = await apiGet(`/ve/dat-cho/${encodeURIComponent(kq.ma_dat_cho)}`);
+        if (!datCho.ve.some((v) => v.trang_thai === "da_thanh_toan")) {
+          return veThatBai("Chưa ghi nhận được khoản thanh toán", "Các vé chưa được xác nhận trong hệ thống. Vui lòng liên hệ hỗ trợ để kiểm tra giao dịch.");
+        }
+        veThanhCong(datCho);
       } catch {
         // Chưa đăng nhập trên trình duyệt này: vẫn báo thành công, không có chi tiết vé
         noiDung.innerHTML = `
