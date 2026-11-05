@@ -14,6 +14,8 @@ from fastapi import APIRouter, Depends
 from app.middleware.auth_middleware import NguoiDungHienTai, yeu_cau_vai_tro
 from app.schemas.tai_khoan_can_bo_schema import (
     DoiTrangThaiTaiKhoanRequest,
+    DoiVanPhongRequest,
+    DoiVanPhongResponse,
     DoiTrangThaiTaiKhoanResponse,
     TaiKhoanCanBoResponse,
     TaoTaiKhoanCanBoRequest,
@@ -63,3 +65,10 @@ def khoa_tai_khoan(muc_tieu_id: UUID, du_lieu: DoiTrangThaiTaiKhoanRequest, nguo
 @router.post("/{muc_tieu_id}/mo-khoa", response_model=DoiTrangThaiTaiKhoanResponse)
 def mo_khoa_tai_khoan(muc_tieu_id: UUID, du_lieu: DoiTrangThaiTaiKhoanRequest, nguoi_dung: QuyenQuanLyNhanSu):
     return service.mo_khoa_tai_khoan(nguoi_dung.id, nguoi_dung.vai_tro, str(muc_tieu_id), du_lieu.ly_do)
+
+
+# PUT /quan-ly-nhan-su/tai-khoan/{muc_tieu_id}/van-phong — đổi (hoặc gán lần đầu) văn phòng quầy vé / gửi hàng;
+# body: van_phong_id + lý do bắt buộc (tối đa 200 từ)
+@router.put("/{muc_tieu_id}/van-phong", response_model=DoiVanPhongResponse)
+def doi_van_phong(muc_tieu_id: UUID, du_lieu: DoiVanPhongRequest, nguoi_dung: QuyenQuanLyNhanSu):
+    return service.doi_van_phong(nguoi_dung.id, nguoi_dung.vai_tro, str(muc_tieu_id), str(du_lieu.van_phong_id), du_lieu.ly_do)

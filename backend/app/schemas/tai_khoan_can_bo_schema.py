@@ -122,3 +122,43 @@ class DoiTrangThaiTaiKhoanResponse(BaseModel):
         default_factory=list,
         description="Chỉ có khi khóa tài khoản phụ xe làm xe nào đó thiếu phụ xe cố định; hệ thống KHÔNG tự đổi biên chế",
     )
+
+
+# ---------------------------------------------------------
+# Đổi văn phòng của cán bộ — nhánh kèm UC-36 (NGHIEP_VU.md; KE_HOACH_DOI_VAN_PHONG.md)
+# ---------------------------------------------------------
+SO_TU_TOI_DA_LY_DO_DOI_VAN_PHONG = 200
+SO_KY_TU_TOI_DA_LY_DO_DOI_VAN_PHONG = 2000  # chặn kỹ thuật: tránh 1 "từ" dài vô hạn
+
+
+def kiem_tra_ly_do_doi_van_phong(gia_tri):
+    """Cắt khoảng trắng hai đầu, bắt buộc có chữ, tối đa 200 từ (tách theo khoảng trắng) và 2000 ký tự."""
+    if isinstance(gia_tri, str):
+        gia_tri = gia_tri.strip()
+        if not gia_tri:
+            raise ValueError("Vui lòng nhập lý do")
+        if len(gia_tri.split()) > SO_TU_TOI_DA_LY_DO_DOI_VAN_PHONG:
+            raise ValueError(f"Lý do tối đa {SO_TU_TOI_DA_LY_DO_DOI_VAN_PHONG} từ")
+        if len(gia_tri) > SO_KY_TU_TOI_DA_LY_DO_DOI_VAN_PHONG:
+            raise ValueError(f"Lý do tối đa {SO_KY_TU_TOI_DA_LY_DO_DOI_VAN_PHONG} ký tự")
+    return gia_tri
+
+
+class DoiVanPhongRequest(BaseModel):
+    """Body của PUT đổi văn phòng. Lý do BẮT BUỘC, văn bản tự do, tối đa 200 từ."""
+
+    van_phong_id: UUID
+    ly_do: str = Field(min_length=1)
+
+    @field_validator("ly_do", mode="before")
+    @classmethod
+    def kiem_tra_ly_do(cls, gia_tri):
+        return kiem_tra_ly_do_doi_van_phong(gia_tri)
+
+
+class DoiVanPhongResponse(BaseModel):
+    id: UUID
+    van_phong_cu_id: UUID | None = Field(default=None, description="null = chưa có văn phòng (gán lần đầu)")
+    ten_van_phong_cu: str | None = None
+    van_phong_moi_id: UUID
+    ten_van_phong_moi: str

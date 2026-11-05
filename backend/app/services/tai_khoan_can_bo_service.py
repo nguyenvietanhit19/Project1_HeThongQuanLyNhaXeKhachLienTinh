@@ -21,7 +21,7 @@ from app.repositories import nguoi_dung_repository as nguoi_dung_repo
 from app.repositories import nhat_ky_admin_repository as nhat_ky_admin_repo
 from app.repositories import nhat_ky_quan_ly_nhan_su_repository as nhat_ky_repo
 from app.repositories import tai_khoan_can_bo_repository as repo
-from app.schemas.tai_khoan_can_bo_schema import VAI_TRO_CAN_VAN_PHONG
+from app.schemas.tai_khoan_can_bo_schema import VAI_TRO_CAN_VAN_PHONG, kiem_tra_ly_do_doi_van_phong
 from app.services import thong_bao_khach_service as thong_bao
 from app.utils.loi import CamTruyCap, GiaTriLoi, KhongTimThay
 from app.utils.so_dien_thoai import chuan_hoa_so_dien_thoai
@@ -209,3 +209,51 @@ def mo_khoa_tai_khoan(actor_id: str, actor_vai_tro: str, muc_tieu_id: str, ly_do
     repo.dat_trang_thai_hoat_dong(muc_tieu_id, True)
     _ghi_nhat_ky(actor_id, actor_vai_tro, str(muc_tieu["id"]), ly_do.strip(), "mo_khoa_tai_khoan")
     return {"id": muc_tieu["id"], "dang_hoat_dong": True, "canh_bao_xe_thieu_phu_xe": []}
+
+
+# ---------------------------------------------------------
+# Đổi văn phòng của cán bộ — nhánh kèm UC-36 (NGHIEP_VU.md; KE_HOACH_DOI_VAN_PHONG.md)
+# ---------------------------------------------------------
+def doi_van_phong(actor_id: str, actor_vai_tro: str, muc_tieu_id: str, van_phong_id: str, ly_do: str) -> dict:
+    """Quyền: quan_ly (bất kỳ) và quan_ly_nhan_su; đối tượng: quầy vé / gửi hàng. Thứ tự: quyền -> tài khoản ->
+    vai trò -> lý do -> văn phòng mới hợp lệ -> ghi (repo kiểm tra lại trùng / còn đủ người có khóa dòng) -> nhật ký.
+    KHÔNG chặn khi cán bộ còn đơn đang xử lý (đơn thuộc văn phòng; chốt 6/11/2026)."""
+    if actor_vai_tro not in _QUYEN_TAO:
+        raise CamTruyCap("Không đủ quyền đổi văn phòng")
+    muc_tieu = repo.tim_tai_khoan(muc_tieu_id)
+    if not muc_tieu:
+        raise KhongTimThay("Không tìm thấy tài khoản")
+    if muc_tieu["vai_tro"] not in VAI_TRO_CAN_VAN_PHONG:
+        raise GiaTriLoi("Vai trò này không gắn văn phòng")
+    try:
+        ly_do = kiem_tra_ly_do_doi_van_phong(ly_do)
+    except ValueError as e:
+        raise GiaTriLoi(str(e)) from e
+    if not ly_do:
+        raise GiaTriLoi("Vui lòng nhập lý do")
+
+    van_phong_moi = dia_diem_repo.tim_diem_don_tra_theo_id(van_phong_id)
+    if not van_phong_moi or van_phong_moi.get("loai") != "van_phong":
+        raise GiaTriLoi("Điểm được chọn phải là văn phòng hợp lệ")
+
+    ket_qua, van_phong_cu_id = repo.doi_van_phong(muc_tieu_id, van_phong_id)
+    van_phong_cu = dia_diem_repo.tim_diem_don_tra_theo_id(str(van_phong_cu_id)) if van_phong_cu_id else None
+    ten_cu = van_phong_cu["ten"] if van_phong_cu else None
+    if ket_qua == "khong_tim_thay":
+        raise KhongTimThay("Không tìm thấy tài khoản")
+    if ket_qua == "trung_van_phong":
+        raise GiaTriLoi("Cán bộ đang ở văn phòng này rồi")
+    if ket_qua == "het_nguoi":
+        raise GiaTriLoi(
+            f"Văn phòng hiện tại ({ten_cu}) chỉ còn mình người này; cần có thêm nhân viên cùng chức vụ trước khi chuyển"
+        )
+
+    ghi_chu = f"Đổi văn phòng {ten_cu or '(chưa có)'} → {van_phong_moi['ten']}: {ly_do}"
+    _ghi_nhat_ky(actor_id, actor_vai_tro, str(muc_tieu["id"]), ghi_chu, "doi_van_phong")
+    return {
+        "id": muc_tieu["id"],
+        "van_phong_cu_id": van_phong_cu_id,
+        "ten_van_phong_cu": ten_cu,
+        "van_phong_moi_id": van_phong_moi["id"],
+        "ten_van_phong_moi": van_phong_moi["ten"],
+    }

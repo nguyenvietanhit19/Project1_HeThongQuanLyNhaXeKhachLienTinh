@@ -24,6 +24,7 @@ NHAN_HANH_DONG = {
     "tao_ho_so_nhan_su": "Tạo hồ sơ nhân sự",
     "sua_ho_so_nhan_su": "Sửa hồ sơ nhân sự",
     "cho_nghi_viec": "Cho nghỉ việc",
+    "doi_van_phong": "Đổi văn phòng",
 }
 NHAN_DOI_TUONG = {
     "nguoi_dung": "Tài khoản",
