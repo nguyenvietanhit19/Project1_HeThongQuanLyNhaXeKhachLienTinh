@@ -89,6 +89,25 @@ def dat_phan_cong_tuyen(tuyen_id: str, nguoi_dung_ids: list[str]) -> None:
         release_connection(conn)
 
 
+def danh_sach_tuyen_cua_dieu_do_vien(nguoi_dung_id: str) -> list[dict]:
+    """Các tuyến (id, ma, ten) điều độ viên này được phân công — phạm vi gán xe của họ (UC-44)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT t.id, t.ma, t.ten FROM dieu_do_vien_tuyen d
+                JOIN tuyen t ON t.id = d.tuyen_id
+                WHERE d.nguoi_dung_id = %s
+                ORDER BY t.ma
+                """,
+                (nguoi_dung_id,),
+            )
+            return _thanh_list(cur, cur.fetchall())
+    finally:
+        release_connection(conn)
+
+
 def danh_sach_id_dieu_do_vien_cua_tuyen(tuyen_id: str) -> list[str]:
     """Id các điều độ viên đang hoạt động phụ trách tuyến — dùng gửi cảnh báo sự cố (UC-17)."""
     conn = get_connection()

@@ -1,0 +1,479 @@
+/* Modal Gán xe: 2 cột — trái: lộ trình + vị trí xe; phải: danh sách xe + chi tiết xe (gan-xe-modal.js) */
+.gxm {
+  max-width: 1120px;
+  height: min(88vh, 860px);
+}
+
+.nv-modal__header .gxm__dong {
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.nv-modal__header .gxm__dong:hover {
+  background: #F1F1F5;
+}
+
+.gxm__body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
+.gxm-luoi {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 20px;
+  height: 100%;
+}
+
+.gxm-trai,
+.gxm-phai {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px 4px 16px 2px;
+}
+
+.gxm-phai {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gxm__chan {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 24px 16px;
+  border-top: 1px solid #ECECF0;
+}
+
+.gxm__chan .text-error {
+  flex: 1 0 100%;
+  order: -1;
+  text-align: left;
+}
+
+.gxm__chan-gia {
+  margin-right: auto;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* ---- Trái ---- */
+.gxm-tom-tat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #F8F7FB;
+  font-size: 14px;
+}
+
+.gxm-tom-tat__loai {
+  color: var(--color-text-muted);
+}
+
+.gxm-tom-tat__loai b {
+  color: var(--color-text-primary);
+}
+
+.gxm-muc__tieu {
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.gxm-muc__tieu .nv-text-phu {
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.gxm-chuyen-luoi {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.gxm-chuyen {
+  padding: 10px 12px;
+  border: 1px solid #ECECF0;
+  border-radius: 12px;
+}
+
+.gxm-chuyen__tieu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.gxm-diem {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gxm-diem__dong {
+  position: relative;
+  display: grid;
+  grid-template-columns: 54px 14px minmax(0, 1fr);
+  column-gap: 8px;
+  align-items: start;
+  padding: 3px 0;
+  font-size: 13.5px;
+}
+
+.gxm-diem__dong::before {
+  content: "";
+  position: absolute;
+  left: calc(54px + 8px + 6px);
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #E3E1EC;
+}
+
+.gxm-diem__dong:first-child::before {
+  top: 12px;
+}
+
+.gxm-diem__dong:last-child::before {
+  bottom: calc(100% - 12px);
+}
+
+.gxm-diem__gio {
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.gxm-diem__cham {
+  position: relative;
+  z-index: 1;
+  width: 10px;
+  height: 10px;
+  margin: 4px 2px 0;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #B9B4CC;
+}
+
+.gxm-diem__dong--moc .gxm-diem__cham {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.gxm-diem__dong--moc .gxm-diem__ten {
+  font-weight: 700;
+}
+
+.gxm-diem__ten small {
+  margin-left: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.gxm-diem__xe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  grid-column: 3;
+  margin-top: 3px;
+}
+
+.gxm-chip {
+  padding: 2px 8px;
+  border: 1.5px solid transparent;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+i.gxm-chip {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  margin: 0 4px 0 10px;
+  vertical-align: -2px;
+  cursor: default;
+}
+
+.gxm-chip--ok {
+  background: #E4F6EA;
+  border-color: #9ED8B0;
+  color: #15663A;
+}
+
+.gxm-chip--khong {
+  background: #F1F1F4;
+  border-color: #D8D8DE;
+  color: #6B6B76;
+}
+
+.gxm-chip.is-chon {
+  outline: 3px solid var(--color-secondary);
+  outline-offset: 1px;
+}
+
+.gxm-chu-giai {
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.gxm-chu-giai i.gxm-chip:first-child {
+  margin-left: 0;
+}
+
+.gxm-ngoai {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px dashed #D5D2E3;
+  border-radius: 12px;
+}
+
+.gxm-ngoai__dong {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 3px 0;
+  font-size: 13.5px;
+}
+
+.gxm-ngoai__ten {
+  flex: 0 0 140px;
+  font-weight: 700;
+}
+
+.gxm-ngoai__dong .gxm-diem__xe {
+  margin-top: 0;
+}
+
+/* ---- Phải ---- */
+.gxm-loc-hang {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.gxm-loc {
+  padding: 5px 12px;
+  border: 1.5px solid #E3E1EC;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.gxm-loc b {
+  margin-left: 2px;
+  color: var(--color-text-primary);
+}
+
+.gxm-loc.is-active {
+  border-color: var(--color-primary);
+  background: #FFF8EA;
+  color: var(--color-text-primary);
+}
+
+.gxm-tim {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: 1.5px solid #E3E1EC;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.gxm-ds {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.gxm-xe {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 12px;
+  border: 1.5px solid #ECECF0;
+  border-radius: 12px;
+  background: #fff;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.gxm-xe:hover {
+  border-color: var(--color-secondary);
+}
+
+.gxm-xe.is-chon {
+  border-color: var(--color-primary);
+  background: #FFF8EA;
+}
+
+.gxm-xe--khong {
+  background: #F7F7F9;
+}
+
+.gxm-xe--khong .xe-bien-so {
+  opacity: 0.6;
+}
+
+.gxm-xe__dong1 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.gxm-xe__dong2 {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.gxm-xe__dong2 b {
+  color: var(--color-text-primary);
+}
+
+.gxm-ok {
+  font-size: 12px;
+  font-weight: 700;
+  color: #15663A;
+}
+
+.gxm-khong {
+  font-weight: 700;
+  color: #B91C1C;
+}
+
+.gxm-nhan {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #FDE8E8;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #B91C1C;
+}
+
+/* chi tiết xe */
+.gxm-chi-tiet {
+  padding: 12px 14px;
+  border: 1.5px solid #E3E1EC;
+  border-radius: 12px;
+  background: #FBFAFD;
+}
+
+.gxm-chi-tiet--rong {
+  font-size: 13.5px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.gxm-chi-tiet__dau {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.gxm-kv {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 5px 10px;
+  margin: 0 0 8px;
+  font-size: 13.5px;
+}
+
+.gxm-kv dt {
+  color: var(--color-text-muted);
+}
+
+.gxm-kv dd {
+  margin: 0;
+}
+
+.gxm-ly-do {
+  margin: 0 0 8px;
+  padding-left: 18px;
+  font-size: 13px;
+  color: #B91C1C;
+}
+
+.gxm-nut-so-do {
+  padding: 6px 14px;
+  border: 1.5px solid var(--color-secondary);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--color-secondary);
+  cursor: pointer;
+}
+
+.gxm-so-do {
+  margin-top: 10px;
+}
+
+@media (max-width: 900px) {
+  .gxm {
+    height: 92vh;
+  }
+
+  .gxm__body {
+    overflow-y: auto;
+  }
+
+  .gxm-luoi {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+  }
+
+  .gxm-trai,
+  .gxm-phai {
+    overflow: visible;
+  }
+
+  .gxm-phai {
+    order: -1;
+  }
+
+  .gxm-kv {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .gxm-kv dd {
+    margin-bottom: 6px;
+  }
+}

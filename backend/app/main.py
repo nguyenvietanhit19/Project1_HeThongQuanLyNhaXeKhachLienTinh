@@ -12,6 +12,7 @@ from app.jobs import quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet
 from app.jobs import canh_bao_giay_to, quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han
 from app.routes.auth import router as auth_router
 from app.routes.chuyen import router as chuyen_router
+from app.routes.dieu_do import router as dieu_do_router
 from app.routes.phu_xe import router as phu_xe_router
 from app.routes.gui_hang import router as gui_hang_router
 from app.routes.nhan_su import router as nhan_su_router
@@ -134,5 +135,6 @@ app.include_router(gui_hang_router)
 app.include_router(thong_bao_router)
 app.include_router(quay_ve_router)
 app.include_router(chuyen_router)
+app.include_router(dieu_do_router)
 app.include_router(ve_router)
 app.include_router(thanh_toan_router)

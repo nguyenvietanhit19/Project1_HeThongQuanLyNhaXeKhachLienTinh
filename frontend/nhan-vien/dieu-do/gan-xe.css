@@ -1,0 +1,155 @@
+/* Trang Gán xe của điều độ viên — bổ sung cho khung dùng chung của /nhan-vien/quan-ly/style.css (sidebar, modal, pill, ngày...). */
+
+.gx-loc {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.gx-thong-bao {
+  margin-bottom: 14px;
+  padding: 12px 18px;
+  border-radius: 14px;
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803D;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.gx-thong-bao[hidden] {
+  display: none;
+}
+
+/* Lưới thẻ chu trình trong từng ngày */
+.gx-ct-luoi {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 14px;
+  padding: 16px 20px 20px;
+}
+
+.gx-ct {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1.5px solid #ECECF0;
+  border-radius: 16px;
+  background: var(--color-bg-surface);
+  border-left: 5px solid var(--color-primary);
+}
+
+.gx-ct--da_gan {
+  border-left-color: #16A34A;
+}
+
+.gx-ct__dau {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.gx-ct__tuyen {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.gx-ct__loai {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.gx-ct__chuyen {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gx-chuyen {
+  display: grid;
+  grid-template-columns: 44px 150px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #F8F7FB;
+}
+
+.gx-chieu {
+  padding: 3px 0;
+  border-radius: var(--radius-pill);
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.gx-chieu--di {
+  background: #5B3E96;
+}
+
+.gx-chieu--ve {
+  background: #0D9488;
+}
+
+.gx-chuyen__gio {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.gx-chuyen__gio b {
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.gx-chuyen__gio small {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.gx-chuyen__hanh-trinh {
+  font-size: 14px;
+  min-width: 0;
+}
+
+.gx-chuyen__hanh-trinh i {
+  font-style: normal;
+  color: var(--color-text-muted);
+  padding: 0 2px;
+}
+
+.gx-bien-so {
+  font-size: 14px;
+  padding: 3px 10px;
+}
+
+.gx-ct__chan {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.gx-nut-gan {
+  width: auto;
+  padding: 10px 22px;
+}
+
+@media (max-width: 560px) {
+  .gx-ct-luoi {
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+
+  .gx-chuyen {
+    grid-template-columns: 40px 130px 1fr;
+  }
+
+  .gx-chuyen__xe {
+    grid-column: 1 / -1;
+  }
+}

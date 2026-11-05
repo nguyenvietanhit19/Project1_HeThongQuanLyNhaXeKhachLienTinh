@@ -56,6 +56,7 @@ const MENU_QUAN_LY = [
 const NHAN_VAI_TRO_QUAN_LY = {
   quan_ly: "Quản lý",
   quan_ly_nhan_su: "Quản lý nhân sự",
+  dieu_do_vien: "Điều độ viên",
 };
 
 /*
@@ -112,8 +113,9 @@ function svgIcon(noiDung, lop = "") {
   return `<svg class="${lop}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${noiDung}</svg>`;
 }
 
-function renderSidebar(containerEl, hrefDangMo) {
-  const links = MENU_QUAN_LY.map(
+// `menu` / `tieuDeMuc` mặc định là của Quản lý; vai trò khác (VD điều độ viên) truyền menu riêng của mình vào để dùng chung khung sidebar
+function renderSidebar(containerEl, hrefDangMo, menu = MENU_QUAN_LY, tieuDeMuc = "Danh mục quản lý") {
+  const links = menu.map(
     (muc) => `
       <a class="nv-sidebar__link${muc.href === hrefDangMo ? " active" : ""}" href="${muc.href}">
         <svg class="nv-sidebar__link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${muc.icon}</svg>
@@ -134,7 +136,7 @@ function renderSidebar(containerEl, hrefDangMo) {
       </span>
       <button type="button" class="nv-sidebar__collapse" id="nv-sidebar-thu-gon" aria-label="Thu gọn thanh bên" title="Thu gọn thanh bên">${svgIcon(ICON_SIDEBAR)}</button>
     </div>
-    <div class="nv-sidebar__section-title">Danh mục quản lý</div>
+    <div class="nv-sidebar__section-title">${tieuDeMuc}</div>
     <nav class="nv-sidebar__nav">${links}</nav>
 
     <div class="nv-sidebar__tai-khoan">

@@ -151,3 +151,16 @@ Một bản thử nghiệm của hướng cũ (theo văn phòng) đã làm và k
 | Một điều độ viên lo quá nhiều tuyến | Một tuyến có nhiều điều độ viên; có thể thêm "nhóm tuyến" sau mà không phải làm lại |
 | Nhiều điều độ viên cùng một tuyến làm trùng việc | Khóa dòng ở DB; người sau thấy chu trình đã có xe |
 | Đổi hướng đụng phần đang làm của người khác | Mục 6 liệt kê chính xác; bàn trước khi tiến hành |
+
+## 11. Trạng thái triển khai (cập nhật 2026-10-24)
+
+Nhánh `feature/vanh-dieu-do-vien`.
+
+| Bước | Nội dung | Trạng thái |
+|---|---|---|
+| 1 | Bảng `dieu_do_vien_tuyen` + trang Tuyến (phân công); `chu_trinh_id` và sinh chuyến gắn chu trình; báo sự cố theo tuyến; sửa tài liệu | **Xong** (đã commit, đã push) |
+| 2 | Trang **Gán xe** của điều độ viên: danh sách chu trình trong cửa sổ 3/5/7 ngày theo tuyến được phân công, lọc theo tuyến, chọn xe với lý do từng xe, gán/đổi cho cả chuyến đi và chuyến về | **Xong** |
+| 3 | Danh sách "Cần chú ý", đổi sang xe dự phòng (UC-20), nhắc chu trình chưa gán xe (UC-44 ⏱) | Chưa |
+| 4 | Gán hàng loạt theo khoảng ngày, xe luân phiên | Chưa |
+
+API của bước 2 (vai trò `dieu_do_vien` hoặc `quan_ly`): `GET /dieu-do/tuyen`, `GET /dieu-do/chu-trinh?so_ngay=3`, `GET /dieu-do/chu-trinh/{id}/lo-trinh` (lộ trình từng chuyến kèm giờ đến dự kiến ở mỗi điểm), `GET /dieu-do/chu-trinh/{id}/xe` (mọi xe còn dùng, cả xe không phù hợp, kèm loại xe, vị trí dự kiến lúc khởi hành, chuyến kế tiếp, mã lý do), `GET /dieu-do/loai-xe/{id}` (sơ đồ ghế, nạp khi bấm "Xem sơ đồ ghế"), `PUT /dieu-do/chu-trinh/{id}/xe`. Hộp Gán xe 2 cột: trái là lộ trình + vị trí các xe lúc khởi hành (xe gán được/không phù hợp), phải là danh sách xe (lọc Phù hợp/Không phù hợp/Tất cả, tìm biển số) + chi tiết xe đang chọn; xe không phù hợp xem được nhưng không gán được. Phạm vi: điều độ viên chỉ thấy và gán chu trình của tuyến được phân công (chưa được phân công tuyến nào thì không thấy gì, giao diện nhắc liên hệ quản lý); quản lý thấy mọi tuyến. Khoảng nghỉ giữa hai chuyến liên tiếp của một xe tạm 30 phút (câu hỏi 6 mục 7 chưa chốt).
