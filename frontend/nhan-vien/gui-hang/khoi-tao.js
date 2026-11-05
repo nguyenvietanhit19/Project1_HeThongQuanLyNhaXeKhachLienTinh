@@ -143,6 +143,10 @@ function ganSuKien() {
       showToast("warning", "Khoảng ngày không hợp lệ", "Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.");
       return;
     }
+    if (soNgayGiua(tu, den) >= SO_NGAY_THONG_KE_TOI_DA) {
+      showToast("warning", "Khoảng ngày không hợp lệ", "Khoảng thống kê tối đa 1 năm.");
+      return;
+    }
     chonKy(taoKy("tuy_chon", tu, den));
   }));
   $("btnXuatExcelThongKe").addEventListener("click", xuatExcelThongKe);

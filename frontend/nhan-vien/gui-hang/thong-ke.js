@@ -2,6 +2,7 @@
 
 const SO_NGAY_CHUOI_THEO_NGAY_TOI_DA = 62; // khớp backend: dài hơn thì chia theo tháng
 const SO_NAM_CHON = 5;                     // ô Năm: năm nay và 4 năm trước
+const SO_NGAY_THONG_KE_TOI_DA = 366;       // khớp backend: khoảng tối đa 1 năm
 
 // ---------------------------------------------------------------- kỳ thống kê (hàm thuần)
 const _so2 = n => String(n).padStart(2, "0");
@@ -139,10 +140,18 @@ function renderThongKe() {
   if (!s) return;
   datText("tkNhanKy", s.ky.nhan);
   datText("tkNhanKyBieuDo", s.ky.nhan);
+  // Lỗi tải thì xóa trắng ô số — không để số của kỳ trước nằm dưới nhãn kỳ mới
   if (s.tk) renderSoLieu(s.tk);
-  else showToast("error", "Lỗi tải thống kê", s.loi.tk);
+  else {
+    O_SO_LIEU.forEach(id => datText(id, "—"));
+    showToast("error", "Lỗi tải thống kê", s.loi.tk);
+  }
   if (s.doiSoat) renderDoiSoat(s.doiSoat);
-  else hienTrangThaiBang("tbodyDoiSoat", 5, `Không tải được đối soát: ${s.loi.doiSoat}`);
+  else {
+    hienTrangThaiBang("tbodyDoiSoat", 5, `Không tải được đối soát: ${s.loi.doiSoat}`);
+    datText("tkDoiSoatHoan", "—");
+    datText("tkDoiSoatTong", "—");
+  }
   veTatCaBieuDo();
 }
 
@@ -160,6 +169,9 @@ function veTatCaBieuDo() {
     theoDoiKichThuoc($(id), () => ve());
   });
 }
+
+const O_SO_LIEU = ["tkTongGuiDi", "tkChoXepXe", "tkGuiTrenXe", "tkDaHuy", "tkTienHoan", "tkTongNhanDen", "tkDaGiao", "tkSapDen",
+  "tkChoLay", "tkChuaBao", "tkCanhBao7", "tkTonKho", "tkDoanhThu", "tkTienTraTruoc", "tkTienCod", "stat-thong-ke-count"];
 
 function renderSoLieu(tk) {
   datText("tkTongGuiDi", tk.tong_don_gui_di);

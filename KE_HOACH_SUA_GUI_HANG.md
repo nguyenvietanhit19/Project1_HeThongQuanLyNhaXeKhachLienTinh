@@ -898,4 +898,10 @@ Cùng nhánh `feature/Trinh-gui-hang-su-co-xe` (user chọn làm chung 1 PR). Th
 
 - Unit: `tests/unit/test_gui_hang_service.py … test_phu_xe_hang.py` **181 pass** (174 + 7).
 - DB demo: cộng mốc = `/thong-ke` cho giờ / ngày / tháng × (toàn hệ thống, VP Mỹ Đình); mỗi mốc ngày = `/thong-ke` ngày đó; số mốc 24 / 30 / 12 / 3 (tùy chọn 15/09–02/11 theo tháng). HTTP: NV Mỹ Đình xem Lào Cai 403, API cũ 404.
-- Giao diện tự động (`tat-ca`): **73/74** — J7–J12 đạt, chỉ lỗi I1 (PR #47, mục 9.3).
+- Giao diện tự động (`tat-ca`): **74/75** — J7–J13 đạt, chỉ lỗi I1 (PR #47, mục 9.3).
+
+### 10.4. Sửa sau review toàn nhánh
+
+- **Lỗi API → số kỳ cũ nằm dưới nhãn kỳ mới** (màn đối soát tiền có thể đọc nhầm tiền tháng trước là tháng này): lỗi tải thì ô số, khung tiền mặt, tổng đối soát hiện "—"; Tùy chọn > 1 năm chặn ngay ở trình duyệt, giữ kỳ đang xem. Ca J13.
+- **Truy vấn chuỗi quét cả lịch sử `don_hang` 6 lần mỗi lần bấm ◀ ▶**: mỗi nhánh lọc khoảng `[0h ngày đầu, 0h ngày sau ngày cuối)` giờ VN trên cột gốc (dùng được index), bỏ bước lọc sau. Bất biến trên DB và J9 vẫn khớp.
+- Ghi nhận, chưa sửa (nhỏ): ẩn mốc "tương lai" theo đồng hồ máy (máy đặt sai múi giờ thì lệch); J7 chưa ép phản hồi về sai thứ tự; ghi chú "tính tại thời điểm xuất/in" thực ra là lúc tải tab; lỗi Excel luôn báo "không tải được thư viện"; "Khác (n người)" luôn ở cuối; ô Năm trống khi lùi quá 4 năm; `type="month"` trên trình duyệt cũ; gõ tay ngày tương lai; `don_vi` chưa dùng `Literal`; cột chồng lên nhau ở màn hẹp khi kỳ dài.

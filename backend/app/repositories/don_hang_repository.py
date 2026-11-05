@@ -1210,6 +1210,13 @@ def thong_ke_chuoi_thoi_gian(diem_id: str | None, tu_ngay: date, den_ngay: date,
     bắt đầu giữa tháng vẫn có mốc tháng đó; sự kiện ngoài [tu_ngay, den_ngay] bị loại.
     """
     trunc, buoc, dinh_dang = _DON_VI_CHUOI_SQL[don_vi]
+
+    def trong_ky(cot: str) -> str:
+        # Khoảng [0h ngày đầu, 0h ngày sau ngày cuối) giờ VN so trên cột gốc — dùng được index, không quét cả lịch sử;
+        # tương đương (cot AT TIME ZONE VN)::date BETWEEN tu AND den.
+        return (f"d.{cot} >= %(tu)s::date::timestamp AT TIME ZONE '{MUI_GIO_VN}' "
+                f"AND d.{cot} < (%(den)s::date + 1)::timestamp AT TIME ZONE '{MUI_GIO_VN}'")
+
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -1222,29 +1229,29 @@ def thong_ke_chuoi_thoi_gian(diem_id: str | None, tu_ngay: date, den_ngay: date,
                                            %(buoc)s::interval) AS m
                     FROM p
                 ),
-                su_kien AS (
+                s AS (
                     SELECT d.ngay_tao AT TIME ZONE '{MUI_GIO_VN}' AS t, 'tiep_nhan' AS loai, 0::bigint AS tien
-                    FROM don_hang d, p WHERE p.vp IS NULL OR d.diem_gui_id = p.vp
+                    FROM don_hang d, p WHERE {trong_ky("ngay_tao")} AND (p.vp IS NULL OR d.diem_gui_id = p.vp)
                     UNION ALL
                     SELECT d.ngay_giao AT TIME ZONE '{MUI_GIO_VN}', 'da_giao', 0
-                    FROM don_hang d, p WHERE d.trang_thai = 'da_giao' AND (p.vp IS NULL OR d.diem_nhan_id = p.vp)
-                    UNION ALL
-                    SELECT d.thoi_gian_huy AT TIME ZONE '{MUI_GIO_VN}', 'huy', 0
-                    FROM don_hang d, p WHERE d.trang_thai = 'da_huy' AND (p.vp IS NULL OR d.diem_gui_id = p.vp)
-                    UNION ALL
-                    SELECT d.thoi_gian_thu AT TIME ZONE '{MUI_GIO_VN}', 'tra_truoc', d.gia_cuoc
-                    FROM don_hang d, p WHERE d.phuong_thuc_thanh_toan = 'nguoi_gui_tra_truoc' AND d.da_thu_tien
-                                         AND (p.vp IS NULL OR d.diem_gui_id = p.vp)
-                    UNION ALL
-                    SELECT d.thoi_gian_thu AT TIME ZONE '{MUI_GIO_VN}', 'cod', d.gia_cuoc
-                    FROM don_hang d, p WHERE d.phuong_thuc_thanh_toan = 'cod_nguoi_nhan_tra' AND d.da_thu_tien
+                    FROM don_hang d, p WHERE {trong_ky("ngay_giao")} AND d.trang_thai = 'da_giao'
                                          AND (p.vp IS NULL OR d.diem_nhan_id = p.vp)
                     UNION ALL
+                    SELECT d.thoi_gian_huy AT TIME ZONE '{MUI_GIO_VN}', 'huy', 0
+                    FROM don_hang d, p WHERE {trong_ky("thoi_gian_huy")} AND d.trang_thai = 'da_huy'
+                                         AND (p.vp IS NULL OR d.diem_gui_id = p.vp)
+                    UNION ALL
+                    SELECT d.thoi_gian_thu AT TIME ZONE '{MUI_GIO_VN}', 'tra_truoc', d.gia_cuoc
+                    FROM don_hang d, p WHERE {trong_ky("thoi_gian_thu")} AND d.phuong_thuc_thanh_toan = 'nguoi_gui_tra_truoc'
+                                         AND d.da_thu_tien AND (p.vp IS NULL OR d.diem_gui_id = p.vp)
+                    UNION ALL
+                    SELECT d.thoi_gian_thu AT TIME ZONE '{MUI_GIO_VN}', 'cod', d.gia_cuoc
+                    FROM don_hang d, p WHERE {trong_ky("thoi_gian_thu")} AND d.phuong_thuc_thanh_toan = 'cod_nguoi_nhan_tra'
+                                         AND d.da_thu_tien AND (p.vp IS NULL OR d.diem_nhan_id = p.vp)
+                    UNION ALL
                     SELECT d.thoi_gian_huy AT TIME ZONE '{MUI_GIO_VN}', 'hoan', d.so_tien_hoan
-                    FROM don_hang d, p WHERE d.so_tien_hoan IS NOT NULL AND (p.vp IS NULL OR d.diem_gui_id = p.vp)
-                ),
-                trong_ky AS (
-                    SELECT s.* FROM su_kien s, p WHERE s.t::date BETWEEN p.tu AND p.den
+                    FROM don_hang d, p WHERE {trong_ky("thoi_gian_huy")} AND d.so_tien_hoan IS NOT NULL
+                                         AND (p.vp IS NULL OR d.diem_gui_id = p.vp)
                 )
                 SELECT moc.m AS moc,
                        count(s.loai) FILTER (WHERE s.loai = 'tiep_nhan') AS tiep_nhan,
@@ -1253,7 +1260,7 @@ def thong_ke_chuoi_thoi_gian(diem_id: str | None, tu_ngay: date, den_ngay: date,
                        COALESCE(sum(s.tien) FILTER (WHERE s.loai = 'tra_truoc'), 0) AS tien_tra_truoc,
                        COALESCE(sum(s.tien) FILTER (WHERE s.loai = 'cod'), 0) AS tien_cod,
                        COALESCE(sum(s.tien) FILTER (WHERE s.loai = 'hoan'), 0) AS tien_hoan
-                FROM moc LEFT JOIN trong_ky s ON date_trunc(%(trunc)s, s.t) = moc.m
+                FROM moc LEFT JOIN s ON date_trunc(%(trunc)s, s.t) = moc.m
                 GROUP BY moc.m
                 ORDER BY moc.m
                 """,

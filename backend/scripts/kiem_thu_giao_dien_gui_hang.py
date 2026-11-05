@@ -1074,6 +1074,29 @@ def j11(page: Page):
     return "4 biểu đồ, ô ký đủ; PDF: J11_bao_cao.pdf"
 
 
+@ca("J13", "API thống kê lỗi → ô số xóa trắng (không giữ số kỳ cũ dưới nhãn kỳ mới); Tùy chọn > 1 năm bị chặn, giữ kỳ cũ")
+def j13(page: Page):
+    ve_thang_nay(page)
+    mau = re.compile(r".*/gui-hang/(thong-ke|doi-soat)\?.*")
+    page.route(mau, lambda r: r.fulfill(status=500, body='{"loi":"thu loi"}', content_type="application/json"))
+    try:
+        page.click("#tkLui"); cho_thong_ke(page)
+        o = [page.inner_text(s) for s in ("#tkTongGuiDi", "#tkDoanhThu", "#tkDoiSoatTong")]
+    finally:
+        page.unroute(mau)
+    assert o == ["—", "—", "—"], f"lỗi API mà ô số vẫn hiện {o} dưới '{page.inner_text('#tkNhanKy')}'"
+    chon_che_do(page, "tuy_chon")
+    page.wait_for_function("document.querySelector('#tkNhanKy').innerText.includes('–')")
+    nhan = page.inner_text("#tkNhanKy")
+    xoa_toast(page)
+    page.fill("#tkTuNgay", "2025-01-01"); page.fill("#tkDenNgay", "2026-11-05")
+    page.dispatch_event("#tkDenNgay", "change")
+    t = toast_cuoi(page, "tối đa 1 năm")
+    assert page.inner_text("#tkNhanKy") == nhan, "khoảng > 1 năm mà vẫn đổi kỳ"
+    ve_thang_nay(page)
+    return f"ô số {o}; {t[:60]}"
+
+
 @ca("J12", "Biểu đồ tiền mặt: doanh thu âm vẽ dưới vạch 0, trong khung")
 def j12(page: Page):
     y0, cy, h = page.evaluate("""() => {
@@ -1439,7 +1462,7 @@ print('TOKEN', tao_token(ql, 'quan_ly'), tao_token(tam, 'nhan_vien_gui_hang'))
         h4(lc, tk_px, tk_ql, str(don_de_vo["id"]), MA["lc_de_vo_tren_xe"])
         print("I, J, K, P", flush=True)
         i1(lc); j3(md); j4(md); j5(md); j6(ql, tk_ql)
-        j7(md); j8(md); j9(tk_md, tk_ql, ids); j10(md); j11(md); j12(md)
+        j7(md); j8(md); j9(tk_md, tk_ql, ids); j10(md); j11(md); j12(md); j13(md)
         k(md); k5(md); p_api(tk_ql, tk_lc, ids)
         i2(lc, lambda: token_dang_nhap("phuxe.guihang@demo.nhaxe.vn", "PhuXe@123"), str(don_de_vo["id"]), MA["lc_de_vo_tren_xe"])
     finally:

@@ -108,7 +108,7 @@ Script chỉ chạy trên DB local và tự dọn đơn thử. **Đạt khi cả
 
 ### 3.0. Chạy tự động (khuyên dùng)
 
-`backend/scripts/kiem_thu_giao_dien_gui_hang.py` tự bấm các ca của bước 3 + bước 4 trên **Microsoft Edge** (Playwright, chạy ẩn) — 13 ca [Khói] + 61 ca còn lại. Chạy trên máy, từ thư mục gốc dự án, khi Docker và Live Server (cổng 5501) đang chạy:
+`backend/scripts/kiem_thu_giao_dien_gui_hang.py` tự bấm các ca của bước 3 + bước 4 trên **Microsoft Edge** (Playwright, chạy ẩn) — 13 ca [Khói] + 62 ca còn lại. Chạy trên máy, từ thư mục gốc dự án, khi Docker và Live Server (cổng 5501) đang chạy:
 
 ```powershell
 # Cài 1 lần vào .venv của máy (không vào Docker, không vào CI)
@@ -125,7 +125,7 @@ Script chỉ chạy trên DB local và tự dọn đơn thử. **Đạt khi cả
 - Cuối cùng in bảng **ĐẠT / LỖI** từng ca, lỗi Console của trình duyệt, đường dẫn ảnh chụp ca lỗi (`*_LOI.png`). Mã thoát 0 = mọi ca đạt.
 - Không tự động: **H5** (dữ liệu demo không có đơn chờ chất phù hợp) và việc **nhìn bằng mắt** bố cục / màu sắc — vẫn nên lướt qua ảnh chụp và tự bấm vài ca trước demo.
 - Kết quả 05/11/2026 trên integration `24d99ba`: [Khói] 13/13; còn lại 54/55 — ca lỗi duy nhất **I1** là lỗi của PR #47 (không đánh dấu đã đọc thông báo được, xem `KE_HOACH_SUA_GUI_HANG.md` mục 9.3).
-- Kết quả 05/11/2026 sau đợt F (thống kê theo kỳ, `KE_HOACH_SUA_GUI_HANG.md` mục 10): 73/74 — J7–J12 đạt; vẫn chỉ lỗi **I1** (PR #47).
+- Kết quả 05/11/2026 sau đợt F (thống kê theo kỳ, `KE_HOACH_SUA_GUI_HANG.md` mục 10): 74/75 — J7–J13 đạt; vẫn chỉ lỗi **I1** (PR #47).
 
 ### 3.1. Test tay
 
@@ -253,6 +253,7 @@ Cách ghi: mỗi ca đánh **Đạt / Lỗi / Bỏ qua** vào phiếu (mục 5).
 | J10 | NV Mỹ Đình | Bấm **📊 Xuất Excel** (tháng này) | Tải `thong-ke-gui-hang_YYYY-MM.xlsx`, 3 sheet Tổng quan / Theo ngày / Đối soát nhân viên; dòng TỔNG khớp ô số trên tab; ô tiền là số có phân cách nghìn |
 | J11 | NV Mỹ Đình | Bấm **🖨️ In báo cáo** | Xem trước bản in A4 dọc: đầu trang văn phòng / kỳ / người in, bảng chỉ số, 4 biểu đồ có màu, bảng đối soát, ô ký "Người lập" / "Người nhận tiền"; không có sidebar |
 | J12 | NV Mỹ Đình | Biểu đồ tiền mặt có mốc doanh thu âm (ngày chỉ có hoàn) | Trục dọc có phần âm, điểm "Còn lại" nằm dưới vạch 0, không tràn khung |
+| J13 | NV Mỹ Đình | Tắt backend (hoặc mất mạng) rồi bấm ◀; Tùy chọn từ 01/01/2025 đến hôm nay | Ô số / tiền mặt / tổng đối soát hiện "—" (không còn số kỳ trước dưới nhãn kỳ mới); khoảng > 1 năm báo "tối đa 1 năm" và giữ nguyên kỳ đang xem |
 
 ### K. Giao diện và thiết bị
 
