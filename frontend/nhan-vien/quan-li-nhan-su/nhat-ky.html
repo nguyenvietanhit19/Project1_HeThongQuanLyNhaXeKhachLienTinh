@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Nhật ký thao tác — Quản lý nhân sự</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<!-- Dùng chung bộ khung "nv-*" với frontend/nhan-vien/quan-ly/ — xem ghi chú ở nav.js -->
+<link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+<style>
+  .nk-loc { margin-bottom: 18px; }
+  .nk-ghi-chu { max-width: 340px; white-space: normal; word-break: break-word; }
+  .nk-phan-trang { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+  .nk-phan-trang__nut { display: flex; align-items: center; gap: 10px; }
+  .nk-phan-trang button[disabled] { opacity: .45; cursor: not-allowed; }
+  .nk-thoi-gian, .nv-table .pill { white-space: nowrap; }
+</style>
+</head>
+<body class="nhan-vien-shell">
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
+
+    <div class="nv-main">
+      <header class="nv-topbar">
+        <h1>Nhật ký thao tác</h1>
+        <div class="nv-topbar__user">
+          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
+          <div class="nv-topbar__identity">
+            <span class="ho-ten" id="topbar-ho-ten"></span>
+            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
+          </div>
+          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
+        </div>
+      </header>
+
+      <main class="nv-content">
+        <div class="nv-page-intro">
+          <div class="nv-page-intro__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M8 6h12M8 12h12M8 18h12"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>
+            </svg>
+          </div>
+          <div class="nv-page-intro__body">
+            <p class="nv-page-intro__title">Nhật ký thao tác</p>
+            <p class="nv-page-intro__desc" id="mo-ta-pham-vi">Đang tải...</p>
+          </div>
+          <div class="nv-page-intro__stat">
+            <span class="nv-page-intro__stat-num" id="stat-so-luong">—</span>
+            <span class="nv-page-intro__stat-label">dòng</span>
+          </div>
+        </div>
+
+        <div class="cy-loc nk-loc">
+          <div class="cy-loc__truong">
+            <label class="nv-label" for="loc-tu-ngay">Từ ngày</label>
+            <input class="input-field" type="date" id="loc-tu-ngay" />
+          </div>
+          <div class="cy-loc__truong">
+            <label class="nv-label" for="loc-den-ngay">Đến ngày</label>
+            <input class="input-field" type="date" id="loc-den-ngay" />
+          </div>
+          <div class="cy-loc__truong">
+            <label class="nv-label" for="loc-hanh-dong">Hành động</label>
+            <select class="input-field" id="loc-hanh-dong"><option value="">Tất cả</option></select>
+          </div>
+          <div class="cy-loc__truong">
+            <label class="nv-label" for="loc-doi-tuong">Đối tượng</label>
+            <select class="input-field" id="loc-doi-tuong"><option value="">Tất cả</option></select>
+          </div>
+          <div class="cy-loc__truong" id="khoi-loc-nguoi" hidden>
+            <label class="nv-label" for="loc-nguoi">Người thực hiện</label>
+            <select class="input-field" id="loc-nguoi"><option value="">Tất cả</option></select>
+          </div>
+          <button class="nv-btn-secondary cy-loc__xoa" id="btn-xoa-loc" type="button">Xóa lọc</button>
+        </div>
+
+        <div id="loi-nhat-ky" class="text-error" hidden style="margin-bottom:12px;"></div>
+        <div id="bang-nhat-ky">Đang tải...</div>
+        <div class="nk-phan-trang" id="phan-trang" hidden>
+          <span class="nv-text-phu" id="phan-trang-thong-tin"></span>
+          <div class="nk-phan-trang__nut">
+            <button class="nv-btn-secondary" id="btn-truoc" type="button">❮ Trước</button>
+            <span class="nv-text-phu" id="phan-trang-so"></span>
+            <button class="nv-btn-secondary" id="btn-sau" type="button">Tiếp ❯</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/nhan-vien/quan-li-nhan-su/api-client.js"></script>
+  <script src="/nhan-vien/quan-li-nhan-su/auth-check.js"></script>
+  <script src="/nhan-vien/quan-li-nhan-su/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/data-table.js"></script>
+  <script>
+    const nguoiDung = yeuCauVaiTro("quan_ly_nhan_su", "quan_ly");
+    if (nguoiDung) {
+      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-li-nhan-su/nhat-ky.html");
+      renderTopbarUser();
+    }
+    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
+
+    const laQuanLy = localStorage.getItem("vai_tro") === "quan_ly";
+    const SO_DONG = 50;
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+    const NHAN_NGUON_VAI_TRO = { quan_ly: "Quản lý", quan_ly_nhan_su: "Quản lý nhân sự" };
+    const MAU_HANH_DONG = {
+      tao_tai_khoan: "pill--success", tao_ho_so_nhan_su: "pill--success",
+      khoa_tai_khoan: "pill--do", cho_nghi_viec: "pill--do",
+      mo_khoa_tai_khoan: "pill--khu-vuc", sua_ho_so_nhan_su: "pill--diem-dung",
+    };
+
+    const oTuNgay = document.getElementById("loc-tu-ngay");
+    const oDenNgay = document.getElementById("loc-den-ngay");
+    const oHanhDong = document.getElementById("loc-hanh-dong");
+    const oDoiTuong = document.getElementById("loc-doi-tuong");
+    const oNguoi = document.getElementById("loc-nguoi");
+    const bang = document.getElementById("bang-nhat-ky");
+    const loiEl = document.getElementById("loi-nhat-ky");
+    let trangHienTai = 1;
+    let soTrang = 1;
+
+    document.getElementById("mo-ta-pham-vi").textContent = laQuanLy
+      ? "Mọi thao tác của quản lý và quản lý nhân sự: tạo / khóa / mở khóa tài khoản, tạo / sửa hồ sơ, cho nghỉ việc... Chỉ xem, không sửa hay xóa được dòng nào."
+      : "Các thao tác do chính bạn thực hiện: tạo / khóa / mở khóa tài khoản, tạo / sửa hồ sơ, cho nghỉ việc. Chỉ xem, không sửa hay xóa được dòng nào.";
+    document.getElementById("khoi-loc-nguoi").hidden = !laQuanLy;
+
+    const dinhDangGio = (iso) =>
+      new Date(iso).toLocaleString("vi-VN", {
+        timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit",
+      });
+
+    function doDuLieuLoc(o, ds, nhanTatCa) {
+      o.innerHTML = `<option value="">${nhanTatCa}</option>` + ds.map((x) => `<option value="${esc(x.gia_tri ?? x.id)}">${esc(x.nhan ?? `${x.ma ? x.ma + " — " : ""}${x.ho_ten}`)}</option>`).join("");
+    }
+
+    async function taiTuyChonLoc() {
+      try {
+        const tc = await apiGet("/quan-ly-nhan-su/nhat-ky/tuy-chon-loc");
+        doDuLieuLoc(oHanhDong, tc.hanh_dong, "Tất cả");
+        doDuLieuLoc(oDoiTuong, tc.doi_tuong_loai, "Tất cả");
+        if (laQuanLy) doDuLieuLoc(oNguoi, tc.nguoi_thuc_hien, "Tất cả");
+      } catch (err) {
+        hienLoi(err.message);
+      }
+    }
+
+    function hienLoi(m) {
+      loiEl.textContent = m;
+      loiEl.hidden = false;
+    }
+
+    function layThamSo() {
+      const p = new URLSearchParams({ trang: trangHienTai, so_dong: SO_DONG });
+      if (oTuNgay.value) p.set("tu_ngay", oTuNgay.value);
+      if (oDenNgay.value) p.set("den_ngay", oDenNgay.value);
+      if (oHanhDong.value) p.set("hanh_dong", oHanhDong.value);
+      if (oDoiTuong.value) p.set("doi_tuong_loai", oDoiTuong.value);
+      if (laQuanLy && oNguoi.value) p.set("nguoi_id", oNguoi.value);
+      return p;
+    }
+
+    async function taiNhatKy() {
+      loiEl.hidden = true;
+      if (oTuNgay.value && oDenNgay.value && oTuNgay.value > oDenNgay.value) {
+        bang.innerHTML = "";
+        document.getElementById("phan-trang").hidden = true;
+        return hienLoi("Từ ngày không được sau đến ngày.");
+      }
+      bang.innerHTML = '<div class="nv-table__empty">Đang tải...</div>';
+      try {
+        const kq = await apiGet(`/quan-ly-nhan-su/nhat-ky?${layThamSo()}`);
+        soTrang = kq.so_trang;
+        document.getElementById("stat-so-luong").textContent = kq.tong;
+        renderBang(kq.items);
+        renderPhanTrang(kq);
+      } catch (err) {
+        bang.innerHTML = "";
+        document.getElementById("phan-trang").hidden = true;
+        hienLoi(err.message);
+      }
+    }
+
+    function renderBang(dong) {
+      if (!dong.length) {
+        bang.innerHTML = '<div class="nv-table__empty">Không có dòng nhật ký nào khớp bộ lọc.</div>';
+        return;
+      }
+      renderDataTable(bang, [
+        { key: "thoi_gian", label: "Thời gian", render: (r) => `<span class="nk-thoi-gian">${esc(dinhDangGio(r.thoi_gian))}</span>` },
+        {
+          key: "ten_nguoi",
+          label: "Người thực hiện",
+          render: (r) => `<strong>${esc(r.ten_nguoi)}</strong>${r.ma_nguoi ? ` <span style="font-family:monospace;">${esc(r.ma_nguoi)}</span>` : ""}<br><span class="nv-text-phu">${esc(NHAN_NGUON_VAI_TRO[r.vai_tro_nguoi] || r.vai_tro_nguoi)}</span>`,
+        },
+        { key: "nhan_hanh_dong", label: "Hành động", render: (r) => `<span class="pill ${MAU_HANH_DONG[r.hanh_dong] || "pill--xam"}">${esc(r.nhan_hanh_dong)}</span>` },
+        { key: "doi_tuong_hien_thi", label: "Đối tượng", render: (r) => esc(r.doi_tuong_hien_thi) },
+        { key: "ghi_chu", label: "Ghi chú", render: (r) => `<div class="nk-ghi-chu">${r.ghi_chu ? esc(r.ghi_chu) : "—"}</div>` },
+      ], dong);
+    }
+
+    function renderPhanTrang(kq) {
+      const khung = document.getElementById("phan-trang");
+      khung.hidden = kq.tong === 0;
+      const dau = (kq.trang - 1) * kq.so_dong + 1;
+      const cuoi = Math.min(kq.trang * kq.so_dong, kq.tong);
+      document.getElementById("phan-trang-thong-tin").textContent = kq.tong ? `Hiển thị ${dau}–${cuoi} / ${kq.tong} dòng` : "";
+      document.getElementById("phan-trang-so").textContent = `Trang ${kq.trang}/${Math.max(kq.so_trang, 1)}`;
+      document.getElementById("btn-truoc").disabled = kq.trang <= 1;
+      document.getElementById("btn-sau").disabled = kq.trang >= kq.so_trang;
+    }
+
+    function locLai() {
+      trangHienTai = 1;
+      taiNhatKy();
+    }
+
+    [oTuNgay, oDenNgay, oHanhDong, oDoiTuong, oNguoi].forEach((o) => o.addEventListener("change", locLai));
+    document.getElementById("btn-xoa-loc").addEventListener("click", () => {
+      [oTuNgay, oDenNgay, oHanhDong, oDoiTuong, oNguoi].forEach((o) => { o.value = ""; });
+      locLai();
+    });
+    document.getElementById("btn-truoc").addEventListener("click", () => { if (trangHienTai > 1) { trangHienTai--; taiNhatKy(); } });
+    document.getElementById("btn-sau").addEventListener("click", () => { if (trangHienTai < soTrang) { trangHienTai++; taiNhatKy(); } });
+
+    taiTuyChonLoc();
+    taiNhatKy();
+  </script>
+</body>
+</html>
