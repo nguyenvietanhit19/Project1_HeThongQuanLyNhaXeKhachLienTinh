@@ -279,6 +279,19 @@
 .qv-history-ticket-dialog__error { display: grid; gap: 7px; padding: 18px; border-radius: 12px; color: #842323; background: #fff1f0; }
 .qv-history-ticket-dialog__foot { display: flex; justify-content: flex-end; padding: 12px 20px; border-top: 1px solid #ece8f1; background: #fbf9fd; }
 
+.qv-booking-detail-dialog__summary {
+  margin: 0 0 18px;
+  padding: 12px 16px;
+  border: 1px solid #e7def2;
+  border-radius: 12px;
+  background: #f7f3fc;
+  color: #514268;
+}
+
+.qv-booking-detail-dialog__summary strong { color: #493377; }
+.qv-booking-detail-dialog .qv-ticket-stack { display: grid; gap: 20px; }
+.qv-booking-detail-dialog .qv-ticket-stack .qv-ticket { margin-top: 0; }
+
 @media (max-width: 760px) {
   .qv-history-ticket-dialog { width: calc(100vw - 16px); max-height: 94vh; }
   .qv-history-ticket-dialog__body { max-height: calc(94vh - 135px); padding: 12px; }
@@ -488,7 +501,59 @@
 .qv-chart-axis-label { fill: #746b86; font-size: 12px; font-weight: 600; }
 .qv-chart-bar { fill: #5c3f94; transition: fill 150ms ease; }
 .qv-chart-bar:hover { fill: #f3a51c; }
+.qv-chart-column { cursor: pointer; outline: none; }
+.qv-chart-column:hover .qv-chart-bar,
+.qv-chart-column:focus .qv-chart-bar { fill: #f3a51c; }
 .qv-chart-empty { display: grid; place-items: center; min-height: 280px; padding: 25px; text-align: center; color: #736b83; }
+.qv-day-sales-dialog { width: min(1120px, calc(100vw - 28px)); }
+.qv-day-sales-dialog .qv-history-ticket-dialog__body { display: grid; gap: 20px; }
+.qv-day-sales-summary { display: grid; gap: 14px; }
+.qv-day-sales-total { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 20px; border: 1px solid #e4dbee; border-radius: 15px; background: linear-gradient(115deg, #f5effb, #fff9eb); color: #584080; }
+.qv-day-sales-total span { font-weight: 700; }
+.qv-day-sales-total strong { color: #3f286f; font-size: 23px; }
+.qv-day-sales-breakdowns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.qv-day-sales-card { display: grid; min-width: 0; align-content: start; gap: 12px; padding: 16px; border: 1px solid #ece7f1; border-radius: 15px; background: #fff; }
+.qv-day-sales-card h3 { margin: 0 0 3px; color: #443071; font-size: 15px; }
+.qv-day-sales-card--payment { grid-template-rows: auto minmax(0, 1fr); }
+.qv-day-sales-payment-layout { display: grid; grid-template-columns: 160px minmax(0, 1fr); align-items: center; gap: 20px; min-width: 0; }
+.qv-day-sales-donut { width: 160px; height: 160px; display: grid; place-items: center; border-radius: 50%; }
+.qv-day-sales-donut > div { width: 114px; height: 114px; display: grid; align-content: center; justify-items: center; border-radius: 50%; background: #fff; box-shadow: 0 2px 12px rgba(45,30,75,.1); }
+.qv-day-sales-donut strong { color: #442c75; font-size: 27px; line-height: 1.1; }
+.qv-day-sales-donut small { margin-top: 4px; color: #706981; }
+.qv-day-sales-payment-legend { display: grid; align-content: center; min-width: 0; gap: 24px; }
+.qv-day-sales-payment-legend > div { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 2px 9px; align-items: start; }
+.qv-day-sales-payment-legend > div > span { width: 10px; height: 10px; margin-top: 4px; border-radius: 50%; background: #5d4295; }
+.qv-day-sales-payment-legend > div > span.is-cash { background: #f5a51d; }
+.qv-day-sales-payment-legend p { display: grid; min-width: 0; gap: 2px; margin: 0; }
+.qv-day-sales-payment-legend strong { color: #443071; font-size: 13px; }
+.qv-day-sales-payment-legend small { color: #777086; font-size: 12px; }
+.qv-day-sales-payment-legend b { grid-column: 2; color: #51377f; font-size: 14px; overflow-wrap: anywhere; }
+.qv-day-sales-bars { display: grid; gap: 15px; }
+.qv-day-sales-bar-row { display: grid; gap: 7px; }
+.qv-day-sales-bar-row > div:first-child { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 3px 12px; }
+.qv-day-sales-bar-row strong { color: #443071; }
+.qv-day-sales-bar-row span { color: #777086; font-size: 12px; }
+.qv-day-sales-bar-row b { grid-column: 1 / -1; color: #51377f; font-size: 14px; }
+.qv-day-sales-track { height: 10px; overflow: hidden; border-radius: 999px; background: #eee8f4; }
+.qv-day-sales-track > span { display: block; height: 100%; min-width: 0; border-radius: inherit; background: #5c3f94; transition: width 220ms ease; }
+.qv-day-sales-track > .is-cash,
+.qv-day-sales-track > .is-hotline { background: #f3a51c; }
+.qv-day-sales-track > .is-online { background: #1e9a80; }
+.qv-day-sales-list-title { margin: 0; color: #39275f; font-size: 17px; }
+.qv-day-sales-dialog .qv-table-wrap { max-height: 42vh; }
+@media (min-width: 761px) and (max-width: 980px) {
+  .qv-day-sales-payment-layout { grid-template-columns: 124px minmax(0, 1fr); gap: 12px; }
+  .qv-day-sales-donut { width: 124px; height: 124px; }
+  .qv-day-sales-donut > div { width: 88px; height: 88px; }
+  .qv-day-sales-donut strong { font-size: 22px; }
+}
+@media (max-width: 760px) {
+  .qv-day-sales-breakdowns { grid-template-columns: 1fr; }
+  .qv-day-sales-payment-layout { grid-template-columns: 1fr; justify-items: center; }
+  .qv-day-sales-payment-legend { width: 100%; }
+  .qv-day-sales-total { align-items: flex-start; flex-direction: column; }
+  .qv-day-sales-dialog .qv-table-wrap { max-height: 38vh; }
+}
 .qv-stats-breakdown { margin-bottom: 24px; align-items: stretch; }
 .qv-breakdown-card { min-width: 0; }
 .qv-payment-layout { display: grid; grid-template-columns: 170px minmax(0, 1fr); align-items: center; gap: 22px; }
@@ -2223,6 +2288,21 @@
   letter-spacing: normal;
   overflow-wrap: anywhere;
 }
+
+.qv-ticket__seller {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 9px;
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px dashed #cdc5dc;
+  font-size: 11px;
+}
+.qv-ticket__seller > span { color: #777d8b; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+.qv-ticket__seller > strong { color: #211e26; overflow-wrap: anywhere; }
+.qv-ticket__seller > b { padding: 2px 7px; border-radius: 6px; color: #50347f; background: #f0ebf8; white-space: nowrap; }
+.qv-ticket__seller > small { margin-left: auto; color: #687283; font-size: 11px; overflow-wrap: anywhere; }
 
 .qv-ticket__stub {
   display: flex;

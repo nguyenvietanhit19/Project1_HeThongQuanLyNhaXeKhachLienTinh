@@ -43,6 +43,15 @@ def xac_nhan_vnpay(body: XacNhanRequest):
     return thanh_toan_service.xac_nhan_qua_truy_van(body.ma_giao_dich)
 
 
+class XacNhanReturnKhachHangRequest(BaseModel):
+    tham_so: dict[str, str]
+
+
+@router.post("/thanh-toan/vnpay/xac-nhan-return-khach-hang")
+def xac_nhan_return_khach_hang(body: XacNhanReturnKhachHangRequest):
+    return thanh_toan_service.xac_nhan_return_khach_hang(body.tham_so)
+
+
 class XuLyGiaLapRequest(BaseModel):
     tham_so: dict[str, str]  # nguyên các tham số vnp_* trên đường dẫn thanh toán
     ket_qua: Literal["thanh_cong", "huy"]

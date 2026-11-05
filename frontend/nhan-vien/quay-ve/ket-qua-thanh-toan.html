@@ -9,36 +9,51 @@
     <link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
     <link rel="stylesheet" href="/nhan-vien/quay-ve/style.css" />
     <style>
-      .qv-payment-result { width: min(720px, 100%); margin: 48px auto; padding: clamp(24px, 5vw, 48px); text-align: center; }
-      .qv-payment-result__icon { width: 72px; height: 72px; display: grid; place-items: center; margin: 0 auto 18px; border-radius: 50%; background: #e8f7ef; color: #16834b; }
-      .qv-payment-result__icon svg { width: 36px; height: 36px; }
+      .qv-payment-page { min-height: 100vh; padding: 28px 18px 48px; background: radial-gradient(circle at 85% 5%, #fff0d1, transparent 28%), #f3f0f8; }
+      .qv-payment-page__brand { display: flex; align-items: center; gap: 9px; width: min(680px, 100%); margin: 0 auto 18px; color: #493377; font-size: 20px; font-weight: 800; text-decoration: none; }
+      .qv-payment-page__brand img { width: 38px; height: 38px; object-fit: contain; }
+      .qv-payment-result { width: min(680px, 100%); margin: auto; padding: clamp(20px, 3.5vw, 32px); border-radius: 20px; background: #fff; box-shadow: 0 20px 50px rgba(53, 35, 86, .12); text-align: center; }
+      .qv-payment-result__icon { width: 70px; height: 70px; display: grid; place-items: center; margin: 0 auto 14px; border-radius: 50%; background: #e4f7ed; color: #16834b; }
+      .qv-payment-result__icon svg { width: 35px; height: 35px; }
+      .qv-payment-result.pending .qv-payment-result__icon { background: #f1ebfa; color: #64459b; }
       .qv-payment-result.error .qv-payment-result__icon { background: #fff0f1; color: #c9364b; }
-      .qv-payment-result h1 { margin: 0 0 10px; color: var(--color-secondary-dark); font-size: clamp(23px, 4vw, 32px); }
-      .qv-payment-result p { color: var(--color-text-muted); line-height: 1.6; }
-      .qv-payment-result__code { display: inline-block; margin: 6px 0 20px; padding: 10px 16px; border-radius: 12px; background: #f3effa; color: #4c2f83; font-size: 19px; font-weight: 800; }
-      .qv-payment-result__actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+      .qv-payment-result h1 { margin: 0 0 8px; color: #362459; font-size: clamp(24px, 3.5vw, 32px); line-height: 1.25; }
+      .qv-payment-result__message { max-width: 560px; margin: 0 auto 14px; color: #687283; line-height: 1.5; }
+      .qv-payment-result__code { display: inline-flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0 auto 16px; color: #687283; }
+      .qv-payment-result__code strong { padding: 4px 10px; border-radius: 8px; background: #f3effa; color: #493377; font-size: 16px; letter-spacing: .04em; }
+      .qv-payment-result__summary { margin-top: 6px; padding: 5px 18px; border: 1px solid #e8e2f0; border-radius: 16px; background: #fff; text-align: left; }
+      .qv-payment-result__row { display: flex; justify-content: space-between; gap: 16px; padding: 9px 0; border-bottom: 1px dashed #e9e4ef; color: #687283; }
+      .qv-payment-result__row:last-child { border-bottom: 0; }
+      .qv-payment-result__row strong { color: #251d35; text-align: right; overflow-wrap: anywhere; }
+      .qv-payment-result__row--total strong { color: #493377; font-size: 18px; }
+      .qv-payment-result__seat { display: inline-block; margin-left: 5px; padding: 3px 8px; border-radius: 7px; background: #e8f7ef; color: #16834b; font-size: 12px; white-space: nowrap; }
+      .qv-payment-result__seat--due { background: #fff0d5; color: #a76400; }
+      .qv-payment-result__note { margin: 14px 0 0; color: #687283; line-height: 1.5; }
+      .qv-payment-result__actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+      .qv-payment-result__actions .qv-btn { min-width: 148px; text-align: center; text-decoration: none; }
+      .qv-payment-result__actions .qv-btn:hover, .qv-payment-result__actions .qv-btn:focus { text-decoration: none; }
+      .qv-payment-result [hidden] { display: none; }
+      @media (max-width: 580px) { .qv-payment-page { padding: 18px 12px 36px; } .qv-payment-result__summary { padding: 6px 13px; } .qv-payment-result__row { display: block; } .qv-payment-result__row strong { display: block; margin-top: 4px; text-align: left; } }
     </style>
   </head>
   <body class="nhan-vien-shell">
-    <div class="nv-layout">
-      <main class="nv-main">
-        <header class="nv-topbar"><h1>Kết quả thanh toán tại quầy</h1></header>
-        <section class="nv-content">
-          <article class="nv-card qv-payment-result" id="payment-result" aria-live="polite">
+    <main class="qv-payment-page">
+      <a class="qv-payment-page__brand" href="/nhan-vien/quay-ve/index.html"><img src="/shared/assets/logo-mark.png" alt="" />GoBus <span>· Quầy vé</span></a>
+          <article class="qv-payment-result pending" id="payment-result" aria-live="polite">
             <div class="qv-payment-result__icon" id="payment-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 9.5 17 19 7.5"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
             </div>
             <h1 id="payment-title">Đang xác minh giao dịch…</h1>
-            <p id="payment-message">Vui lòng đợi trong khi hệ thống kiểm tra kết quả VNPay.</p>
+            <p class="qv-payment-result__message" id="payment-message">Vui lòng đợi trong khi hệ thống kiểm tra kết quả VNPay.</p>
             <div id="booking-code" class="qv-payment-result__code" hidden></div>
+            <div id="payment-summary" class="qv-payment-result__summary" hidden></div>
+            <p id="payment-note" class="qv-payment-result__note" hidden></p>
             <div class="qv-payment-result__actions" id="payment-actions" hidden>
               <a class="qv-btn" id="lookup-link" href="/nhan-vien/quay-ve/tra-cuu-ve.html">Tra cứu lượt vé</a>
               <a class="qv-btn secondary" href="/nhan-vien/quay-ve/index.html">Về tổng quan</a>
             </div>
           </article>
-        </section>
-      </main>
-    </div>
+    </main>
     <script src="api-client.js"></script>
     <script>
       function quayVeDangXuat() {
@@ -54,13 +69,59 @@
       const card = document.querySelector("#payment-result");
       const icon = document.querySelector("#payment-icon");
       const code = document.querySelector("#booking-code");
+      const summary = document.querySelector("#payment-summary");
+      const note = document.querySelector("#payment-note");
       const actions = document.querySelector("#payment-actions");
+      const money = value => `${Number(value || 0).toLocaleString("vi-VN")} đ`;
+      const departure = value => {
+        const date = new Date(value);
+        return !value || Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("vi-VN", {
+          timeZone: "Asia/Ho_Chi_Minh", weekday: "long", day: "2-digit", month: "2-digit", year: "numeric",
+          hour: "2-digit", minute: "2-digit", hour12: false
+        }).format(date);
+      };
+      const row = (label, value, total = false) => `<div class="qv-payment-result__row${total ? " qv-payment-result__row--total" : ""}"><span>${label}</span><strong>${value}</strong></div>`;
+
+      function showBooking(tickets, bookingCode) {
+        const paid = tickets.filter(ticket => ticket.trang_thai === "da_thanh_toan");
+        const due = tickets.filter(ticket => ticket.trang_thai !== "da_thanh_toan");
+        const first = tickets[0];
+        const paidAmount = paid.reduce((sum, ticket) => sum + Number(ticket.gia || 0), 0);
+        const dueAmount = due.reduce((sum, ticket) => sum + Number(ticket.gia || 0), 0);
+        const deposit = tickets.some(ticket => ticket.la_ve_dat_coc);
+        card.classList.remove("pending");
+        icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 9.5 17 19 7.5"/></svg>';
+        title.textContent = deposit && due.length ? `Đặt cọc thành công · ${paid.length} vé` : `Thanh toán thành công · ${paid.length} vé`;
+        message.textContent = deposit && due.length
+          ? "VNPay đã xác nhận tiền cọc. Các vé còn lại chờ khách thanh toán tại quầy."
+          : "Giao dịch đã hoàn tất và các vé trong lượt đã được phát hành.";
+        code.innerHTML = `Mã đặt chỗ <strong>${escapeHtml(bookingCode)}</strong>`;
+        code.hidden = false;
+        summary.innerHTML = [
+          row("Chuyến", `${escapeHtml(first.ten_diem_don || "—")} → ${escapeHtml(first.ten_diem_tra || "—")}`),
+          row("Giờ đón", escapeHtml(departure(first.gio_don_du_kien))),
+          ...tickets.map(ticket => row(`Ghế ${escapeHtml(ticket.so_ghe)}`,
+            `${money(ticket.gia)} <span class="qv-payment-result__seat${ticket.trang_thai === "da_thanh_toan" ? "" : " qv-payment-result__seat--due"}">${ticket.trang_thai === "da_thanh_toan" ? "Đã thanh toán" : "Trả tại quầy"}</span>`)),
+          row("Đã thanh toán", money(paidAmount), true),
+          ...(dueAmount ? [row("Còn lại thanh toán tại quầy", money(dueAmount))] : []),
+        ].join("");
+        summary.hidden = false;
+        note.textContent = dueAmount
+          ? "Quay lại tab Bán vé để thu phần còn lại, hoặc tra cứu lượt vé khi khách đến quầy."
+          : "Có thể tra cứu và in toàn bộ vé trong lượt đặt chỗ này.";
+        note.hidden = false;
+        document.querySelector("#lookup-link").href = `/nhan-vien/quay-ve/tra-cuu-ve.html?ma_dat_cho=${encodeURIComponent(bookingCode)}`;
+        actions.hidden = false;
+      }
 
       function showError(heading, detail) {
+        card.classList.remove("pending");
         card.classList.add("error");
         icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m7 7 10 10M17 7 7 17"/></svg>';
         title.textContent = heading;
         message.textContent = detail;
+        summary.hidden = true;
+        note.hidden = true;
         actions.hidden = false;
       }
 
@@ -83,14 +144,13 @@
               // Chỉ báo cọc thành công khi tra cứu vé xác nhận trạng thái đã thanh toán.
             }
           }
-          title.textContent = "VNPay báo thanh toán thành công";
-          message.textContent = "Hệ thống đang xác nhận giao dịch và cập nhật trạng thái lượt đặt chỗ.";
+          title.textContent = "Đang cập nhật vé…";
+          message.textContent = "VNPay đã báo thành công. Hệ thống đang xác nhận trạng thái các vé trong lượt.";
           if (result.ma_dat_cho) {
-            code.textContent = `Mã đặt chỗ: ${result.ma_dat_cho}`;
+            code.innerHTML = `Mã đặt chỗ <strong>${escapeHtml(result.ma_dat_cho)}</strong>`;
             code.hidden = false;
             document.querySelector("#lookup-link").href = `/nhan-vien/quay-ve/tra-cuu-ve.html?ma_dat_cho=${encodeURIComponent(result.ma_dat_cho)}`;
           }
-          actions.hidden = false;
           if (result.ma_dat_cho && localStorage.getItem("token")) {
             try {
               for (let attempt = 0; attempt < 5; attempt++) {
@@ -100,13 +160,11 @@
                 }
                 const veDatCoc = ve.filter(item => item.la_ve_dat_coc);
                 if (veDatCoc.length && veDatCoc.every(item => item.trang_thai === "da_thanh_toan")) {
-                  title.textContent = `Đặt cọc thành công · ${veDatCoc.length} vé`;
-                  message.textContent = "VNPay đã xác nhận tiền cọc. Quay lại tab Bán vé để xem các vé đã thanh toán và thu tiền mặt cho phần còn lại.";
+                  showBooking(ve, result.ma_dat_cho);
                   return;
                 }
                 if (ve.length && ve.every(item => item.trang_thai === "da_thanh_toan")) {
-                  title.textContent = `Đã thanh toán và phát hành ${ve.length} vé`;
-                  message.textContent = "Một lần thanh toán đã hoàn tất cho toàn bộ lượt. Mở tra cứu để in các vé.";
+                  showBooking(ve, result.ma_dat_cho);
                   return;
                 }
                 if (attempt < 4) await new Promise(resolve => setTimeout(resolve, 1200));
@@ -115,7 +173,7 @@
               // Nhân viên có thể tra cứu lại sau khi đăng nhập.
             }
           }
-          message.textContent = "VNPay đã nhận thanh toán, hệ thống đang cập nhật vé. Vui lòng tra cứu trạng thái trước khi in.";
+          showError("Chưa xác nhận được vé", "VNPay đã báo thành công nhưng trạng thái vé chưa cập nhật. Vui lòng tra cứu trước khi in hoặc thu tiền lại.");
         } catch (error) {
           showError("Chưa đọc được kết quả", error.message || "Vui lòng quay lại tra cứu lượt vé.");
         }
