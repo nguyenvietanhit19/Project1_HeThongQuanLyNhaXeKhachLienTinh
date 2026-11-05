@@ -185,6 +185,12 @@ function veVeCung(v, c) {
             ${dongTT("Đã TT", tien(v.da_thanh_toan), v.da_thanh_toan ? "ve-cung__o--xanh" : "")}
             ${dongTT("Còn lại", tien(v.con_lai), v.con_lai ? "ve-cung__o--cam" : "")}
           </dl>
+          ${v.nhan_vien_ban ? `<div class="ve-cung__nhan-vien">
+            <span>Nhân viên bán vé</span>
+            <strong>${esc(v.nhan_vien_ban)}</strong>
+            ${v.ma_nhan_vien_ban ? `<b>${esc(v.ma_nhan_vien_ban)}</b>` : ""}
+            ${v.van_phong_nhan_vien_ban ? `<small>${esc(v.van_phong_nhan_vien_ban)}</small>` : ""}
+          </div>` : ""}
           <span class="ve-cung__dau-moc ve-cung__dau-moc--${tong}">${esc(nhanVe(v))}</span>
         </div>
         <div class="ve-cung__cuong">

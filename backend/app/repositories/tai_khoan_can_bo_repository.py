@@ -46,7 +46,7 @@ def tao_tai_khoan(
                 """
                 INSERT INTO nguoi_dung (email, mat_khau, ho_ten, so_dien_thoai, vai_tro, da_xac_nhan)
                 VALUES (%s, %s, %s, %s, %s, true)
-                RETURNING id, email, ho_ten, vai_tro
+                RETURNING id, email, ho_ten, vai_tro, ma_nhan_vien
                 """,
                 (email, mat_khau_hash, ho_ten, so_dien_thoai, vai_tro),
             )
@@ -86,7 +86,7 @@ def danh_sach_tai_khoan_can_bo(vai_tro_cho_phep: list[str], tu_khoa: str | None 
         with conn.cursor() as cur:
             cur.execute(
                 f"""
-                SELECT nd.id, nd.email, nd.ho_ten, nd.so_dien_thoai, nd.vai_tro, nd.dang_hoat_dong,
+                SELECT nd.id, nd.email, nd.ho_ten, nd.so_dien_thoai, nd.vai_tro, nd.ma_nhan_vien, nd.dang_hoat_dong,
                        (nd.mat_khau IS NOT NULL) AS da_dat_mat_khau,
                        h.van_phong_id, d.ten AS ten_van_phong, nd.ngay_tao
                 FROM nguoi_dung nd

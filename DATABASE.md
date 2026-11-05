@@ -25,6 +25,7 @@ Tài liệu này mô tả đầy đủ cấu trúc bảng của cơ sở dữ li
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | UUID PK | |
+| `ma_nhan_vien` | TEXT UNIQUE | `NV000001`...; tự cấp cho tài khoản cán bộ khi tạo, không cấp cho khách hàng và không đổi sau khi đã cấp. Migration `20261105_0900_ma_nhan_vien.sql` gán mã cho cán bộ hiện có. |
 | `email` | TEXT NOT NULL UNIQUE | Định danh đăng nhập — kế thừa nguyên cơ chế từ bản v1 (`GiaoThongAnToan_API/routes/auth.py`), `NGHIEP_VU.md` mục 2.1 |
 | `mat_khau` | TEXT NULLABLE | Hash bcrypt; **NULL** chỉ với tài khoản `quan_ly` gốc mới seed (tự đặt qua Quên mật khẩu); cán bộ khác được tạo kèm mật khẩu ban đầu mặc định (UC-36) |
 | `ho_ten` | TEXT NOT NULL | |
@@ -645,7 +646,7 @@ nguoi_dung(quan_ly_nhan_su) 1──N nhat_ky_quan_ly_nhan_su
 
 ## 10. Mã hiển thị tự sinh (`ma`)
 
-Áp dụng cho 6 mã: `khu_vuc.ma`, `diem_don_tra.ma`, `tuyen.ma`, `loai_xe.ma`, `chuyen_xe.ma` và `ve.ma_ve` — quy tắc nghiệp vụ ở `NGHIEP_VU.md` mục 3.6. Mã được **hàm Python dựng lúc `INSERT`** (migration `20261008_1100_ma_tu_sinh_bang_ham_python.sql` đã gỡ các trigger sinh mã trước đây):
+Áp dụng cho 6 mã: `khu_vuc.ma`, `diem_don_tra.ma`, `tuyen.ma`, `loai_xe.ma`, `chuyen_xe.ma` và `ve.ma_ve` — quy tắc nghiệp vụ ở `NGHIEP_VU.md` mục 3.6. Mã được **hàm Python dựng lúc `INSERT`** (migration `20261008_1100_ma_tu_sinh_bang_ham_python.sql` đã gỡ các trigger sinh mã trước đây). Riêng `nguoi_dung.ma_nhan_vien` của cán bộ được cấp qua sequence/trigger khi tạo tài khoản và gán bù cho dữ liệu cũ trong migration `20261105_0900_ma_nhan_vien.sql`:
 
 - `app/utils/ma_tu_sinh.py`: các hàm thuần `ma_khu_vuc`, `ma_tuyen`, `ma_loai_xe`, `ma_diem_don_tra`, `ma_chuyen`, `ma_ve` — unit test được (`tests/unit/test_ma_tu_sinh.py`). Số đệm 0 bằng định dạng Python nên **không cắt** khi số dài hơn độ rộng (`KV1000`, `VE1000000`).
 - `app/repositories/ma_repository.py`: lấy số thứ tự **trong giao dịch của lệnh INSERT** — sequence của Postgres cho khu vực/tuyến/loại xe/vé (không trùng, không tái dùng kể cả khi nhiều người thêm cùng lúc), `UPDATE khu_vuc SET so_diem_da_cap = so_diem_da_cap + 1 ... RETURNING` cho điểm đón/trả.

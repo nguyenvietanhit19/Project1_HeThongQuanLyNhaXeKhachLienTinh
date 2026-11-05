@@ -51,6 +51,7 @@ class TaoTaiKhoanCanBoResponse(BaseModel):
     id: UUID
     email: str
     ho_ten: str
+    ma_nhan_vien: str
     vai_tro: str
     van_phong_id: UUID | None
     mat_khau_ban_dau: str = Field(
@@ -64,6 +65,7 @@ class TaiKhoanCanBoResponse(BaseModel):
     id: UUID
     email: str
     ho_ten: str
+    ma_nhan_vien: str
     so_dien_thoai: str
     vai_tro: str
     dang_hoat_dong: bool

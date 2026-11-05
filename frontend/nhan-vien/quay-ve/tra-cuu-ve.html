@@ -35,7 +35,7 @@
                   <span class="qv-lookup-phone-form__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h3l1.3 4-2 1.7a15 15 0 0 0 6 6l1.7-2L21 14v3a3 3 0 0 1-3.2 3A17 17 0 0 1 4 6.2 3 3 0 0 1 7 3Z" /></svg>
                   </span>
-                  <input id="phone" type="tel" inputmode="numeric" autocomplete="tel" maxlength="10" placeholder="Nhập số điện thoại 10 chữ số" aria-describedby="lookup-phone-hint" />
+                  <input id="phone" type="tel" inputmode="numeric" autocomplete="tel" maxlength="10" placeholder="Nhập số điện thoại" aria-describedby="lookup-phone-hint" />
                   <button class="qv-btn qv-lookup-phone-form__submit" type="submit">Tìm vé theo SĐT <span aria-hidden="true">→</span></button>
                 </div>
                 <p id="lookup-phone-hint">Xem mọi vé của khách thuộc văn phòng này chỉ với một số điện thoại.</p>
@@ -218,6 +218,7 @@ function mauVe(t) {
             <div><dt>MÃ ĐẶT CHỖ</dt><dd>${escapeHtml(t.ma_dat_cho)}</dd></div>
           </dl>
           <div class="qv-ticket__passenger"><span>HÀNH KHÁCH <strong>${escapeHtml(t.ten_khach || "Khách vãng lai")}${t.sdt_khach ? ` · ${escapeHtml(t.sdt_khach)}` : ""}</strong></span><span>CHUYẾN <strong>${escapeHtml(t.ma_chuyen)}</strong></span></div>
+          ${t.nhan_vien_ban ? `<div class="qv-ticket__seller"><span>NHÂN VIÊN BÁN VÉ</span><strong>${escapeHtml(t.nhan_vien_ban)}</strong><b>${escapeHtml(t.ma_nhan_vien_ban || "—")}</b>${t.van_phong_nhan_vien_ban ? `<small>${escapeHtml(t.van_phong_nhan_vien_ban)}</small>` : ""}</div>` : ""}
         </div>
       </div>
       <aside class="qv-ticket__stub" aria-label="Cuống vé">
@@ -281,8 +282,8 @@ async function loadResults(params){
   currentTickets=tickets;
   $("#ticket-card").classList.remove("qv-hidden");
   $("#result-note").textContent=tickets.length?`${tickets.length} vé tại văn phòng này`:"Không tìm thấy vé thuộc văn phòng của bạn.";
-  $("#ticket-rows").innerHTML=tickets.map(t=>{const dangChoQr=t.trang_thai==="giu_cho"&&t.loai_hinh_thanh_toan==="thanh_toan_ngay";const chuaPhatHanh=t.trang_thai==="giu_cho"&&(dangChoQr||t.cho_dat_coc);const datCocLuot=tickets.some(x=>x.ma_dat_cho===t.ma_dat_cho&&x.cho_dat_coc);return `<tr data-ticket-id="${escapeHtml(t.id)}" data-ma-ve="${chuaPhatHanh?"":escapeHtml(t.ma_ve)}" data-ngay-khoi-hanh="${ngayKhoiHanhVN(t.gio_khoi_hanh)}">
-    <td><b>${chuaPhatHanh?"Chưa phát hành":escapeHtml(t.ma_ve)}</b><br><small>${escapeHtml(t.ma_dat_cho)}</small></td>
+  $("#ticket-rows").innerHTML=tickets.map(t=>{const dangChoQr=t.trang_thai==="giu_cho"&&t.loai_hinh_thanh_toan==="thanh_toan_ngay";const datCocLuot=tickets.some(x=>x.ma_dat_cho===t.ma_dat_cho&&x.cho_dat_coc);return `<tr data-ticket-id="${escapeHtml(t.id)}" data-ma-ve="${escapeHtml(t.ma_ve)}" data-ngay-khoi-hanh="${ngayKhoiHanhVN(t.gio_khoi_hanh)}">
+    <td><b>${escapeHtml(t.ma_ve)}</b><br><small>${escapeHtml(t.ma_dat_cho)}</small></td>
     <td>${escapeHtml(t.ten_khach)}<br><small>${escapeHtml(t.sdt_khach)}</small></td>
     <td>${escapeHtml(t.ma_chuyen)}<br><small>${dinhDangNgay(t.gio_khoi_hanh)}</small></td>
     <td>${escapeHtml(t.so_ghe)}<br><small>${escapeHtml(t.ten_diem_don)} → ${escapeHtml(t.ten_diem_tra)}</small></td>
@@ -301,7 +302,7 @@ async function loadResults(params){
   $("#lookup-pending-summary").classList.toggle("qv-hidden",!choThanhToan.length);
   $("#lookup-pending-summary").innerHTML=choThanhToan.length?`
     <strong>${choThanhToan.length} vé chờ thanh toán trong kết quả tra cứu</strong>
-    <ul>${choThanhToan.map(ticket=>`<li>${ticket.loai_hinh_thanh_toan==="thanh_toan_ngay"||ticket.cho_dat_coc?"":"<b>"+escapeHtml(ticket.ma_ve)+"</b> · "}Mã đặt chỗ ${escapeHtml(ticket.ma_dat_cho)} · Ghế ${escapeHtml(ticket.so_ghe)} · ${dinhDangTien(ticket.gia)}${ticket.la_ve_dat_coc?" · Vé đặt cọc":""}</li>`).join("")}</ul>`:"";
+    <ul>${choThanhToan.map(ticket=>`<li><b>${escapeHtml(ticket.ma_ve)}</b> · Mã đặt chỗ ${escapeHtml(ticket.ma_dat_cho)} · Ghế ${escapeHtml(ticket.so_ghe)} · ${dinhDangTien(ticket.gia)}${ticket.la_ve_dat_coc?" · Vé đặt cọc":""}</li>`).join("")}</ul>`:"";
   apDungBoLoc();
 const booking=[...new Set(tickets.map(t=>t.ma_dat_cho))];
 $("#booking-actions").innerHTML=booking.length===1

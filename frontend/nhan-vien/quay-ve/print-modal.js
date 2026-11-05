@@ -46,6 +46,7 @@ const qvTicketPrint = (() => {
             <div><dt>MÃ ĐẶT CHỖ</dt><dd>${escapeHtml(ticket.ma_dat_cho || "—")}</dd></div>
           </dl>
           <div class="qv-ticket__passenger"><span>HÀNH KHÁCH <strong>${escapeHtml(ticket.ten_khach || "Khách vãng lai")}${ticket.sdt_khach ? ` · ${escapeHtml(ticket.sdt_khach)}` : ""}</strong></span><span>CHUYẾN <strong>${escapeHtml(ticket.ma_chuyen || "—")}</strong></span></div>
+          ${ticket.nhan_vien_ban ? `<div class="qv-ticket__seller"><span>NHÂN VIÊN BÁN VÉ</span><strong>${escapeHtml(ticket.nhan_vien_ban)}</strong><b>${escapeHtml(ticket.ma_nhan_vien_ban || "—")}</b>${ticket.van_phong_nhan_vien_ban ? `<small>${escapeHtml(ticket.van_phong_nhan_vien_ban)}</small>` : ""}</div>` : ""}
         </div>
       </div>
       <aside class="qv-ticket__stub" aria-label="Cuống vé">

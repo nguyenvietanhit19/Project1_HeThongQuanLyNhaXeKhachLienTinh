@@ -344,6 +344,8 @@ def lich_su(nguoi_dung_id: str) -> list[dict]:
                 "co_the_huy": ve_huy_duoc(v, nhan, bay_gio), "co_the_thanh_toan": ve_thanh_toan_duoc(v, bay_gio),
                 "ten_diem_don": v["ten_diem_don"], "ten_diem_tra": v["ten_diem_tra"],
                 "gio_don_du_kien": v["gio_don_du_kien"], "gio_den_du_kien": v["gio_den_du_kien"],
+                "nhan_vien_ban": v["nhan_vien_ban"], "ma_nhan_vien_ban": v["ma_nhan_vien_ban"],
+                "van_phong_nhan_vien_ban": v["van_phong_nhan_vien_ban"],
             })
         ket_qua.append({
             "ma_dat_cho": ma,

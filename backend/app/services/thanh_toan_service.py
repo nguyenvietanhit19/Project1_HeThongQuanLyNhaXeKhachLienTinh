@@ -11,7 +11,7 @@ Mã phản hồi trả về cổng (RspCode): 00 xử lý xong · 01 không th�
 
 import datetime
 
-from app.config import VNPAY_CHE_DO
+from app.config import VNPAY_CHE_DO, VNPAY_TMN_CODE
 from app.repositories import ve_thanh_toan_repository as repo
 from app.services import thong_bao_khach_service as thong_bao
 from app.services import vnpay_service
@@ -215,3 +215,42 @@ def doc_ket_qua_tra_ve(tham_so: dict) -> dict:
         "ma_dat_cho": _ma_dat_cho_cua_giao_dich(tham_so.get("vnp_TxnRef", "")),
         "ma_phan_hoi": tham_so.get("vnp_ResponseCode"),
     }
+
+
+def xac_nhan_return_khach_hang(tham_so: dict) -> dict:
+    """Xử lý ReturnURL đã ký cho đơn khách hàng rồi xác nhận trạng thái vé trong DB.
+
+    Chỉ dùng giao dịch của cả lượt đặt (DC...), không nhận giao dịch bán vé tại quầy.
+    ReturnURL không thay thế IPN/querydr: cả hai đường đều đi qua cùng kiểm tra chữ ký,
+    mã đơn, số tiền và điều kiện còn giữ chỗ trong _ap_dung_ket_qua.
+    """
+    if not vnpay_service.chu_ky_hop_le(tham_so) or tham_so.get("vnp_TmnCode") != VNPAY_TMN_CODE:
+        return {"xac_nhan": False, "ly_do": "chu_ky_khong_hop_le"}
+    if tham_so.get("vnp_ResponseCode") != "00" or tham_so.get("vnp_TransactionStatus", "00") != "00":
+        return {"xac_nhan": False, "ly_do": "giao_dich_chua_thanh_cong"}
+
+    ma_giao_dich = str(tham_so.get("vnp_TxnRef", ""))
+    if not ma_giao_dich or vnpay_service.la_giao_dich_cua_ve(ma_giao_dich):
+        return {"xac_nhan": False, "ly_do": "giao_dich_khong_thuoc_don_khach_hang"}
+    ma_dat_cho = vnpay_service.ma_dat_cho_tu_ma_giao_dich(ma_giao_dich)
+    cac_ve = repo.lay_ve_cua_dat_cho(ma_dat_cho)
+    ve_online = [
+        v for v in cac_ve
+        if v.get("loai_hinh_thanh_toan") == "thanh_toan_ngay"
+        and v.get("ma_tham_chieu_vnpay") == ma_giao_dich
+    ]
+    # Chặn endpoint ReturnURL dùng để xác nhận các lượt bán của nhân viên.
+    if not ve_online or any(v.get("kenh_ban") in ("tai_quay", "hotline") for v in ve_online):
+        return {"xac_nhan": False, "ly_do": "khong_tim_thay_don_khach_hang"}
+
+    ket_qua = xu_ly_ipn(tham_so)
+    cac_ve_sau_xu_ly = repo.lay_ve_cua_dat_cho(ma_dat_cho)
+    da_thanh_toan = [
+        v for v in cac_ve_sau_xu_ly
+        if v.get("loai_hinh_thanh_toan") == "thanh_toan_ngay"
+        and v.get("ma_tham_chieu_vnpay") == ma_giao_dich
+        and v.get("trang_thai") == "da_thanh_toan"
+    ]
+    if ket_qua.get("RspCode") in ("00", "02") and len(da_thanh_toan) == len(ve_online):
+        return {"xac_nhan": True, "ma_dat_cho": ma_dat_cho}
+    return {"xac_nhan": False, "ly_do": "khong_ghi_nhan_duoc_thanh_toan"}

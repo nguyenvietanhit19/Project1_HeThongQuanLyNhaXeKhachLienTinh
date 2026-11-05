@@ -137,6 +137,8 @@
     <script src="auth-check.js"></script>
     <script src="/nhan-vien/quan-ly/thong-bao.js"></script>
     <script src="nav.js"></script>
+    <script src="/nhan-vien/gui-hang/vendor/JsBarcode.code128.min.js"></script>
+    <script src="ticket-detail-modal.js"></script>
     <script>
       let pendingPage = 1;
       let pendingRequest = 0;
@@ -174,7 +176,7 @@
           <td>${escapeHtml(ticket.so_ghe)}<br><small>${escapeHtml(ticket.ten_diem_don)} → ${escapeHtml(ticket.ten_diem_tra)}</small></td>
           <td>${ticket.phuong_thuc_thanh_toan === "tien_mat" ? "Tiền mặt" : ticket.phuong_thuc_thanh_toan === "chuyen_khoan" ? "Chuyển khoản" : "Khác"}<br><small>${ticket.gio_thanh_toan ? dinhDangNgay(ticket.gio_thanh_toan) : "—"}</small></td>
           <td><strong>${dinhDangTien(ticket.gia)}</strong></td>
-          <td><a class="qv-btn secondary qv-table-link" href="tra-cuu-ve.html?ma_dat_cho=${encodeURIComponent(ticket.ma_dat_cho)}">Xem lượt</a></td>
+          <td><button class="qv-btn secondary qv-table-link" type="button" data-view-booking="${escapeHtml(ticket.ma_dat_cho)}" data-first-ticket="${escapeHtml(ticket.id)}">Xem lượt</button></td>
         </tr>`).join("") || '<tr><td colspan="7" class="qv-empty">Chưa có vé đã bán trong ngày.</td></tr>';
       }
 
@@ -188,7 +190,7 @@
             <td>${escapeHtml(ticket.so_ghe)}<br><small>${escapeHtml(ticket.ten_diem_don)} → ${escapeHtml(ticket.ten_diem_tra)}</small></td>
             <td>${ticket.gio_huy ? dinhDangNgay(ticket.gio_huy) : "—"}</td>
             <td><span class="qv-badge">${quaGio ? "Tự hủy quá giờ" : "Đã hủy"}</span></td>
-            <td><a class="qv-btn secondary qv-table-link" href="tra-cuu-ve.html?ma_dat_cho=${encodeURIComponent(ticket.ma_dat_cho)}">Xem lượt</a></td>
+            <td><button class="qv-btn secondary qv-table-link" type="button" data-view-booking="${escapeHtml(ticket.ma_dat_cho)}" data-first-ticket="${escapeHtml(ticket.id)}">Xem lượt</button></td>
           </tr>`;
         }).join("") || '<tr><td colspan="7" class="qv-empty">Không có vé đã hủy trong ngày.</td></tr>';
       }
@@ -267,13 +269,13 @@
             const hetHan = ticket.han_giu_cho_den && new Date(ticket.han_giu_cho_den) <= new Date();
             const trangThai = quaGio ? "Chuyến đã qua giờ" : hetHan ? "Quá hạn giữ chỗ" : "Chờ thanh toán";
             return `<tr>
-              <td><strong>${ticket.loai_hinh_thanh_toan==="thanh_toan_ngay"?"Chưa phát hành":escapeHtml(ticket.ma_ve)}</strong><br><small>${escapeHtml(ticket.ma_dat_cho)}</small></td>
+              <td><strong>${escapeHtml(ticket.ma_ve)}</strong><br><small>${escapeHtml(ticket.ma_dat_cho)}</small></td>
               <td>${escapeHtml(ticket.ten_khach || "Khách vãng lai")}<br><small>${escapeHtml(ticket.sdt_khach || "—")}</small></td>
               <td>${escapeHtml(ticket.ma_chuyen)}<br><small>${dinhDangNgay(ticket.gio_khoi_hanh)}</small></td>
               <td>${escapeHtml(ticket.ten_diem_don)} → ${escapeHtml(ticket.ten_diem_tra)}<br><small>Ghế ${escapeHtml(ticket.so_ghe)}</small></td>
               <td><strong>${dinhDangTien(ticket.gia)}</strong></td>
               <td><span class="qv-badge orange">${trangThai}</span>${ticket.han_giu_cho_den ? `<br><small>Giữ đến ${dinhDangNgay(ticket.han_giu_cho_den)}</small>` : ""}</td>
-              <td><a class="qv-btn secondary qv-table-link" href="tra-cuu-ve.html?ma_dat_cho=${encodeURIComponent(ticket.ma_dat_cho)}">Xem lượt</a></td>
+              <td><button class="qv-btn secondary qv-table-link" type="button" data-view-booking="${escapeHtml(ticket.ma_dat_cho)}" data-first-ticket="${escapeHtml(ticket.id)}">Xem lượt</button></td>
             </tr>`;
           }).join("") || '<tr><td colspan="7" class="qv-empty">Không có vé chờ thanh toán trên trang này.</td></tr>';
         } catch (error) {
@@ -288,6 +290,10 @@
       if (quayVeKiemTraQuyen()) {
         renderQuayVeNav(location.pathname);
         qvPageHeader("Tổng quan", "Hoạt động bán vé tại văn phòng của bạn.");
+        document.querySelector(".nv-content").addEventListener("click", event => {
+          const button = event.target.closest("[data-view-booking]");
+          if (button) qvTicketDetail.open(button.dataset.viewBooking, button.dataset.firstTicket);
+        });
         document.querySelector(".qv-grid").addEventListener("click", event => {
           const button = event.target.closest("[data-overview]");
           if (button) showOverview(button.dataset.overview);
