@@ -324,3 +324,148 @@ def danh_sach_tai_khoan_phu_xe_chua_gan() -> list[dict]:
             return _thanh_list(cur, cur.fetchall())
     finally:
         release_connection(conn)
+
+
+# ---------------------------------------------------------
+# Cho nghỉ việc (UC-51) — chỉ THÊM hàm, không sửa hàm cũ ở trên
+# ---------------------------------------------------------
+# Chuyến coi là "chưa kết thúc" khi cho nghỉ: đang chạy hoặc gặp sự cố (sự cố vẫn có thể quay lại đang chạy).
+_TRANG_THAI_CHUYEN_CHUA_XONG = ("dang_chay", "gap_su_co")
+
+
+def bien_che_cua_nhan_su(nhan_su_id: str) -> list[dict]:
+    """Mọi dòng biên chế của 1 nhân sự (cố định + tạm thời, đang hoạt động hay tạm nghỉ), kèm biển số xe."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT xn.id, xn.xe_id, x.bien_so, xn.loai, xn.trang_thai
+                FROM xe_nhan_su xn JOIN xe x ON x.id = xn.xe_id
+                WHERE xn.nhan_su_van_hanh_id = %s
+                ORDER BY x.bien_so, xn.loai
+                """,
+                (nhan_su_id,),
+            )
+            return _thanh_list(cur, cur.fetchall())
+    finally:
+        release_connection(conn)
+
+
+def _xe_co_chuyen_chua_xong(cur, nhan_su_id: str) -> list[dict]:
+    # Xe thực tế của chuyến = xe_thuc_te_id nếu đã đổi xe, ngược lại xe_id — người trên xe nào thì chuyến đó mới "có" họ.
+    cur.execute(
+        """
+        SELECT DISTINCT x.id AS xe_id, x.bien_so
+        FROM xe_nhan_su xn
+        JOIN xe x ON x.id = xn.xe_id
+        JOIN chuyen_xe c ON COALESCE(c.xe_thuc_te_id, c.xe_id) = xn.xe_id
+        WHERE xn.nhan_su_van_hanh_id = %s
+          AND xn.trang_thai = 'dang_hoat_dong'
+          AND c.trang_thai = ANY(%s)
+        ORDER BY x.bien_so
+        """,
+        (nhan_su_id, list(_TRANG_THAI_CHUYEN_CHUA_XONG)),
+    )
+    return _thanh_list(cur, cur.fetchall())
+
+
+def xe_co_chuyen_chua_xong(nhan_su_id: str) -> list[dict]:
+    """Xe trong biên chế đang hoạt động của người này mà đang có chuyến dang_chay / gap_su_co."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            return _xe_co_chuyen_chua_xong(cur, nhan_su_id)
+    finally:
+        release_connection(conn)
+
+
+def xe_thieu_nguoi_neu_nghi(nhan_su_id: str) -> list[dict]:
+    """Xe sẽ THIẾU NGƯỜI nếu nhân sự này nghỉ — NGHIEP_VU.md UC-51, rẽ nhánh bước 2.
+
+    Chỉ xét biên chế CỐ ĐỊNH đang hoạt động của xe, KHÔNG tính người này; đủ người = 2 tài xế + ≥1 phụ xe
+    (hồ sơ `dang_lam`, phụ xe còn phải có tài khoản đang hoạt động). Chỉ báo chức danh của chính người nghỉ
+    (tài xế nghỉ -> xét thiếu tài xế; phụ xe nghỉ -> xét thiếu phụ xe), để không nhắc lại chỗ vốn đã thiếu từ trước.
+    Dòng biên chế tạm thời của người này không tạo cảnh báo."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT x.id AS xe_id, x.bien_so, n.chuc_danh,
+                       (SELECT count(*) FROM xe_nhan_su k JOIN nhan_su_van_hanh p ON p.id = k.nhan_su_van_hanh_id
+                         WHERE k.xe_id = x.id AND k.loai = 'co_dinh' AND k.trang_thai = 'dang_hoat_dong'
+                           AND p.trang_thai = 'dang_lam' AND p.chuc_danh = 'tai_xe'
+                           AND p.id <> n.id) AS so_tai_xe_con_lai,
+                       (SELECT count(*) FROM xe_nhan_su k JOIN nhan_su_van_hanh p ON p.id = k.nhan_su_van_hanh_id
+                         LEFT JOIN nguoi_dung u ON u.id = p.nguoi_dung_id
+                         WHERE k.xe_id = x.id AND k.loai = 'co_dinh' AND k.trang_thai = 'dang_hoat_dong'
+                           AND p.trang_thai = 'dang_lam' AND p.chuc_danh = 'phu_xe' AND u.dang_hoat_dong = true
+                           AND p.id <> n.id) AS so_phu_xe_con_lai
+                FROM xe_nhan_su xn
+                JOIN nhan_su_van_hanh n ON n.id = xn.nhan_su_van_hanh_id
+                JOIN xe x ON x.id = xn.xe_id
+                WHERE n.id = %s AND xn.loai = 'co_dinh' AND xn.trang_thai = 'dang_hoat_dong'
+                ORDER BY x.bien_so
+                """,
+                (nhan_su_id,),
+            )
+            ket_qua = []
+            for r in _thanh_list(cur, cur.fetchall()):
+                thieu_tai_xe = r["chuc_danh"] == "tai_xe" and r["so_tai_xe_con_lai"] < 2
+                thieu_phu_xe = r["chuc_danh"] == "phu_xe" and r["so_phu_xe_con_lai"] < 1
+                if thieu_tai_xe or thieu_phu_xe:
+                    ket_qua.append(
+                        {
+                            "xe_id": r["xe_id"],
+                            "bien_so": r["bien_so"],
+                            "thieu_tai_xe": thieu_tai_xe,
+                            "thieu_phu_xe": thieu_phu_xe,
+                            "so_tai_xe_con_lai": r["so_tai_xe_con_lai"],
+                            "so_phu_xe_con_lai": r["so_phu_xe_con_lai"],
+                        }
+                    )
+            return ket_qua
+    finally:
+        release_connection(conn)
+
+
+def cho_nghi_viec(nhan_su_id: str, ngay_nghi, ly_do: str) -> str:
+    """Cho nghỉ việc trong MỘT transaction: đóng hồ sơ + khóa tài khoản phụ xe (nếu có) + chuyển mọi dòng biên chế
+    sang `tam_nghi`. Khóa dòng hồ sơ (FOR UPDATE) rồi kiểm tra lại, không tin kết quả xem trước.
+
+    Trả về: 'ok' | 'khong_tim_thay' | 'da_nghi_viec' | 'xe_dang_chay' (không ghi gì nếu khác 'ok').
+    Không xóa dòng biên chế cố định — gỡ hẳn là việc của quan_ly (UC-35)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT trang_thai, nguoi_dung_id FROM nhan_su_van_hanh WHERE id = %s FOR UPDATE", (nhan_su_id,))
+            row = cur.fetchone()
+            if not row:
+                conn.rollback()
+                return "khong_tim_thay"
+            trang_thai, nguoi_dung_id = row
+            if trang_thai != "dang_lam":
+                conn.rollback()
+                return "da_nghi_viec"
+            if _xe_co_chuyen_chua_xong(cur, nhan_su_id):
+                conn.rollback()
+                return "xe_dang_chay"
+
+            cur.execute(
+                "UPDATE nhan_su_van_hanh SET trang_thai = 'da_nghi_viec', ngay_nghi_viec = %s, ly_do_nghi_viec = %s WHERE id = %s",
+                (ngay_nghi, ly_do, nhan_su_id),
+            )
+            if nguoi_dung_id:
+                cur.execute("UPDATE nguoi_dung SET dang_hoat_dong = false WHERE id = %s", (nguoi_dung_id,))
+            cur.execute(
+                "UPDATE xe_nhan_su SET trang_thai = 'tam_nghi' WHERE nhan_su_van_hanh_id = %s AND trang_thai = 'dang_hoat_dong'",
+                (nhan_su_id,),
+            )
+        conn.commit()
+        return "ok"
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        release_connection(conn)
