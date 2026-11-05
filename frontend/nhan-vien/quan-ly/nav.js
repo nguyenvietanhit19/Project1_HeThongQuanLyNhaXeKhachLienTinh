@@ -51,6 +51,18 @@ const MENU_QUAN_LY = [
     href: "/nhan-vien/quan-ly/chuyen.html",
     icon: '<path d="M3 12h18M3 12l4-5M3 12l4 5M21 12l-4-5M21 12l-4 5"/>',
   },
+  // Hai mục dưới do phần Quản lý nhân sự thêm (6/11/2026): quản lý quản lý tài khoản cấp cao (kế toán, quản lý, quản lý nhân sự)
+  // và xem nhật ký thao tác. Dùng lại 2 trang của thư mục quan-li-nhan-su (trang tự đổi sang khung của Quản lý khi vai trò là quan_ly).
+  {
+    label: "Tài khoản cán bộ",
+    href: "/nhan-vien/quan-li-nhan-su/tai-khoan.html",
+    icon: '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M19 8v6M16 11h6"/>',
+  },
+  {
+    label: "Nhật ký thao tác",
+    href: "/nhan-vien/quan-li-nhan-su/nhat-ky.html",
+    icon: '<path d="M8 6h12M8 12h12M8 18h12"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
+  },
 ];
 
 const NHAN_VAI_TRO_QUAN_LY = {

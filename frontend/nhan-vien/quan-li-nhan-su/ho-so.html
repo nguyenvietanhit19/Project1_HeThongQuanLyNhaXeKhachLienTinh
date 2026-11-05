@@ -224,7 +224,7 @@
   <script src="/nhan-vien/quan-li-nhan-su/nav.js"></script>
   <script src="/nhan-vien/quan-ly/data-table.js"></script>
   <script>
-    const nguoiDung = yeuCauVaiTro("quan_ly_nhan_su", "quan_ly");
+    const nguoiDung = yeuCauVaiTro("quan_ly_nhan_su"); // quan_ly không còn quản lý hồ sơ (6/11/2026)
     if (nguoiDung) {
       renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-li-nhan-su/ho-so.html");
       renderTopbarUser();

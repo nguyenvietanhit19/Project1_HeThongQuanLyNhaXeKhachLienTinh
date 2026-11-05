@@ -1,7 +1,7 @@
 """Quản lý hồ sơ nhân sự vận hành (tài xế/phụ xe) — UC-49, NGHIEP_VU.md mục
 8.9 điểm 5, mục 12.
 
-Actor: quan_ly_nhan_su hoặc quan_ly (route tự giới hạn qua yeu_cau_vai_tro).
+Actor: CHỈ quan_ly_nhan_su (route giới hạn qua yeu_cau_vai_tro; quan_ly không còn làm từ 6/11/2026).
 Khác bien_che_service.py (UC-35, biên chế — "người đó đi xe nào"): file này
 chỉ lo hồ sơ — "ai là nhân sự của công ty, giấy tờ còn hạn không"
 (NGHIEP_VU.md mục 8.9, "Ranh giới với quan_ly").
@@ -36,7 +36,7 @@ def _ghi_nhat_ky(actor_id: str, actor_vai_tro: str, hanh_dong: str, nhan_su_id: 
     # quan_ly_nhan_su -> nhat_ky_quan_ly_nhan_su; quan_ly -> nhat_ky_admin. Hai bảng tách riêng, không ghi chéo.
     if actor_vai_tro == "quan_ly_nhan_su":
         nhat_ky_repo.ghi(actor_id, hanh_dong, "nhan_su_van_hanh", nhan_su_id, ghi_chu)
-    elif actor_vai_tro == "quan_ly":
+    elif actor_vai_tro == "quan_ly":  # phòng thủ: route hiện chỉ cho quan_ly_nhan_su, nhánh này không còn đường tới
         nhat_ky_admin_repo.ghi(actor_id, hanh_dong, "nhan_su_van_hanh", nhan_su_id, ghi_chu)
 
 
