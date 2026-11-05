@@ -1,0 +1,320 @@
+/* Trang Tổng quan của điều độ viên — bổ sung cho style.css của khu Quản lý và gan-xe.css (.gx-loc). */
+
+/* Màu trạng thái gán xe: luôn đi kèm chữ + số (không dựa vào màu) */
+:root {
+  --tk-da-gan: #16A34A;
+  --tk-chua-gan: #F59E0B;
+  --tk-dang-hoan: #DC2626;
+}
+
+.tk-lien-ket {
+  width: auto;
+  padding: 9px 18px;
+  text-decoration: none;
+}
+
+/* ---- Thẻ số liệu ---- */
+.tk-the-luoi {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.tk-the {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border: 1.5px solid #ECECF0;
+  border-radius: 16px;
+  background: var(--color-bg-surface);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.tk-the:hover {
+  border-color: var(--color-secondary);
+  transform: translateY(-1px);
+}
+
+.tk-the__nhan {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.tk-the__so {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+}
+
+.tk-the__phu {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.tk-the--da_gan {
+  border-left: 5px solid var(--tk-da-gan);
+}
+
+.tk-the--chua_gan {
+  border-left: 5px solid var(--tk-chua-gan);
+}
+
+.tk-the--dang_hoan {
+  border-left: 5px solid var(--tk-dang-hoan);
+}
+
+.tk-su-co {
+  margin-bottom: 16px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: #FFF1F1;
+  color: #B91C1C;
+  font-size: 14px;
+}
+
+/* ---- Khối ---- */
+.tk-luoi-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.tk-khoi {
+  padding: 18px 20px;
+  border: 1.5px solid #ECECF0;
+  border-radius: 16px;
+  background: var(--color-bg-surface);
+  min-width: 0;
+}
+
+.tk-khoi:first-child {
+  grid-column: 1 / -1;
+}
+
+.tk-khoi h2 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+/* ---- Thanh chồng ---- */
+.tk-thanh {
+  display: flex;
+  gap: 2px;
+  height: 12px;
+  min-width: 80px;
+}
+
+.tk-thanh--rong {
+  background: #F0EFF4;
+  border-radius: 6px;
+}
+
+.tk-doan {
+  display: block;
+  min-width: 6px;
+}
+
+.tk-thanh .tk-doan:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.tk-thanh .tk-doan:last-child {
+  border-radius: 0 6px 6px 0;
+}
+
+.tk-thanh .tk-doan:only-child {
+  border-radius: 6px;
+}
+
+.tk-doan--da_gan {
+  background: var(--tk-da-gan);
+}
+
+.tk-doan--chua_gan {
+  background: var(--tk-chua-gan);
+}
+
+.tk-doan--dang_hoan {
+  background: var(--tk-dang-hoan);
+}
+
+.tk-chu-thich {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-bottom: 10px;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.tk-chu-thich span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tk-chu-thich i.tk-doan {
+  width: 10px;
+  height: 10px;
+  min-width: 10px;
+  border-radius: 3px;
+}
+
+/* ---- Bảng theo tuyến ---- */
+.tk-bang {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.tk-bang th {
+  padding: 6px 8px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid #ECECF0;
+}
+
+.tk-bang td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #F3F2F7;
+}
+
+.tk-bang tr:last-child td {
+  border-bottom: 0;
+}
+
+.tk-bang__thanh {
+  width: 34%;
+}
+
+/* Cột số: cùng một độ rộng, tiêu đề và số cùng canh phải để thẳng cột (th.tk-so thắng '.tk-bang th' canh trái) */
+.tk-bang .tk-so {
+  width: 88px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.tk-bang th.tk-so {
+  text-align: right;
+}
+
+.tk-so--chua_gan {
+  font-weight: 800;
+  color: #A16207;
+}
+
+.tk-so--dang_hoan {
+  font-weight: 800;
+  color: var(--tk-dang-hoan);
+}
+
+/* ---- Theo ngày ---- */
+.tk-ngay-ds {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tk-ngay {
+  display: grid;
+  grid-template-columns: 96px minmax(60px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+}
+
+.tk-ngay__nhan b {
+  display: inline-block;
+  min-width: 22px;
+}
+
+.tk-ngay__nhan em {
+  margin-left: 6px;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-secondary);
+}
+
+.tk-ngay__so {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* ---- Ô số nhỏ (đội xe, 7 ngày qua) ---- */
+.tk-o-luoi {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.tk-o {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #F8F7FB;
+}
+
+.tk-o strong {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.tk-o span {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tk-o small {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.tk-o--canh-bao {
+  background: #FFF4DC;
+}
+
+.tk-ghi-chu {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 900px) {
+  .tk-luoi-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .tk-bang__thanh {
+    width: 28%;
+  }
+}
+
+@media (max-width: 560px) {
+  .tk-bang th:nth-child(n + 4),
+  .tk-bang td:nth-child(n + 4) {
+    display: none;
+  }
+
+  .tk-ngay {
+    grid-template-columns: 80px minmax(40px, 1fr);
+  }
+
+  .tk-ngay__so {
+    grid-column: 1 / -1;
+  }
+}

@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/shared/design-tokens.css" />
 <link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
 <link rel="stylesheet" href="/nhan-vien/dieu-do/gan-xe.css" />
+<link rel="stylesheet" href="/nhan-vien/quan-ly/thong-bao.css" />
 <link rel="stylesheet" href="/nhan-vien/dieu-do/gan-xe-modal.css" />
 </head>
 <body class="nhan-vien-shell">
@@ -28,7 +29,7 @@
           </div>
           <div class="nv-page-intro__body">
             <p class="nv-page-intro__title">Gán xe theo chu trình</p>
-            <p class="nv-page-intro__desc">Mỗi chu trình gồm chuyến đi và chuyến về của cùng một ngày — gán xe một lần là cả hai chuyến nhận cùng xe. Chỉ hiện các chu trình của tuyến xuất phát từ văn phòng bạn phụ trách.</p>
+            <p class="nv-page-intro__desc">Mỗi chu trình gồm chuyến đi và chuyến về của cùng một ngày — gán xe một lần là cả hai chuyến nhận cùng xe. Chỉ hiện các chu trình của tuyến bạn được phân công phụ trách.</p>
           </div>
           <div class="nv-page-intro__stat">
             <span class="nv-page-intro__stat-num" id="stat-chua-gan">—</span>
@@ -37,6 +38,8 @@
         </div>
 
         <div class="gx-thong-bao" id="gx-thong-bao" hidden></div>
+
+        <section class="gx-cc" id="gx-can-chu-y" hidden></section>
 
         <div class="kv-thanh-cong gx-loc">
           <select class="input-field tb-select" id="loc-tuyen" aria-label="Lọc theo tuyến" hidden></select>
@@ -57,6 +60,8 @@
   <script src="/nhan-vien/quan-ly/auth-check.js"></script>
   <script src="/nhan-vien/quan-ly/nav.js"></script>
   <script src="/nhan-vien/quan-ly/tai-khoan.js"></script>
+  <script src="/nhan-vien/quan-ly/thong-bao.js"></script>
+  <script src="/nhan-vien/dieu-do/menu.js"></script>
   <script src="/nhan-vien/dieu-do/gan-xe-modal.js"></script>
   <script src="/nhan-vien/dieu-do/gan-xe.js"></script>
 </body>

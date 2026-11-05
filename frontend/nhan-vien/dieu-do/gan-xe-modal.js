@@ -54,6 +54,7 @@ const GanXeModal = (() => {
   let tuKhoa = "";
   let xemSoDo = false;
   let khiXong = () => {};
+  let cheDo = "gan"; // gan = gán/đổi xe gốc; thay = chọn xe chạy thay khi xe gốc hỏng (UC-20)
   const boNhoLoaiXe = new Map(); // loai_xe_id -> sơ đồ ghế (mỗi loại chỉ nạp một lần)
 
   function dungOverlay() {
@@ -73,6 +74,7 @@ const GanXeModal = (() => {
         <div class="nv-modal__body gxm__body" id="gxm-noi-dung"></div>
         <div class="gxm__chan">
           <span class="text-error" id="gxm-loi" hidden></span>
+          <input type="text" class="gxm__ly-do" id="gxm-ly-do" maxlength="200" placeholder="Lý do (kèm vào thông báo cho khách, có thể bỏ trống)" hidden />
           <span class="gxm__chan-gia"></span>
           <button type="button" class="nv-btn-secondary" id="gxm-huy">Hủy</button>
           <button type="button" class="btn-primary" id="gxm-xac-nhan" disabled>Gán xe</button>
@@ -110,7 +112,7 @@ const GanXeModal = (() => {
       <div class="gxm-chuyen">
         <div class="gxm-chuyen__tieu">
           <span class="gx-chieu ${c.chieu === "xuoi" ? "gx-chieu--di" : "gx-chieu--ve"}">${c.chieu === "xuoi" ? "Đi" : "Về"}</span>
-          <b>${khoangGio(c)}</b><span class="nv-text-phu">${ngayThang(c.gio_khoi_hanh)}</span>
+          <b>${khoangGio(c)}</b><span class="nv-text-phu">${ngayThang(c.gio_khoi_hanh)}</span>${htmlMa(esc(c.ma))}
         </div>
         <ol class="gxm-diem">
           ${c.diem.map((d, i) => {
@@ -144,12 +146,18 @@ const GanXeModal = (() => {
       </div>`;
   }
 
+  function xeGocTen() {
+    const c = ct.cac_chuyen.find((x) => x.bien_so_xe);
+    return c ? c.bien_so_xe : "của chu trình";
+  }
+
   function htmlTomTat() {
     const lx = loTrinh.loai_xe_cam_ket;
     return `
       <div class="gxm-tom-tat">
         <div><strong>${esc(loTrinh.tuyen.ten)}</strong> ${htmlMa(esc(loTrinh.tuyen.ma))}</div>
         <div class="gxm-tom-tat__loai">Loại xe cam kết với khách: <b>${esc(lx.ten)}</b> · ${lx.so_ghe} ghế${lx.so_tang > 1 ? ` · ${lx.so_tang} tầng` : ""}</div>
+        ${cheDo === "thay" ? `<div class="gxm-tom-tat__thay">Xe gốc <b>${esc(xeGocTen())}</b> được giữ nguyên trong lịch. Xe bạn chọn chỉ <b>chạy thay</b> các chuyến chưa khởi hành; khi xe gốc sửa xong có thể trả về xe gốc.</div>` : ""}
       </div>`;
   }
 
@@ -163,7 +171,7 @@ const GanXeModal = (() => {
     const nhan = x.ma_ly_do.map((m) => `<span class="gxm-nhan">${esc(NHAN_LY_DO[m] || m)}</span>`).join("");
     return `
       <button type="button" class="gxm-xe${hopLe(x) ? "" : " gxm-xe--khong"}${String(x.xe_id) === String(chon) ? " is-chon" : ""}" data-xe="${esc(x.xe_id)}">
-        <span class="gxm-xe__dong1"><span class="xe-bien-so gx-bien-so">${esc(x.bien_so)}</span>${x.dang_gan ? '<span class="pill pill--nho pill--gia-vinh-vien">Đang gán</span>' : ""}${hopLe(x) ? '<span class="gxm-ok">Gán được</span>' : nhan}</span>
+        <span class="gxm-xe__dong1"><span class="xe-bien-so gx-bien-so">${esc(x.bien_so)}</span>${x.dang_gan ? `<span class="pill pill--nho pill--gia-vinh-vien">${cheDo === "thay" ? "Đang chạy thay" : "Đang gán"}</span>` : ""}${hopLe(x) ? '<span class="gxm-ok">Gán được</span>' : nhan}</span>
         <span class="gxm-xe__dong2">${esc(x.loai_xe.ma)} · ${esc(x.loai_xe.ten)} · ${x.loai_xe.so_ghe} ghế</span>
         <span class="gxm-xe__dong2">Vị trí: <b>${esc(x.vi_tri.ten_diem)}</b>${x.vi_tri.nguon === "sau_chuyen" ? ` · sau chuyến ${esc(x.vi_tri.chuyen_ma)}` : " · điểm gốc"}</span>
       </button>`;
@@ -275,7 +283,8 @@ const GanXeModal = (() => {
     const x = xeDangChon();
     const nut = overlay.querySelector("#gxm-xac-nhan");
     nut.disabled = !(x && x.hop_le);
-    overlay.querySelector(".gxm__chan-gia").textContent = x ? (x.hop_le ? `Gán ${x.bien_so} cho cả chuyến đi và chuyến về` : `${x.bien_so} không gán được — xem lý do bên phải`) : "";
+    const viec = cheDo === "thay" ? `Cho ${x?.bien_so} chạy thay các chuyến chưa khởi hành` : `Gán ${x?.bien_so} cho cả chuyến đi và chuyến về`;
+    overlay.querySelector(".gxm__chan-gia").textContent = x ? (x.hop_le ? viec : `${x.bien_so} không gán được — xem lý do bên phải`) : "";
   }
 
   async function xacNhan() {
@@ -286,7 +295,10 @@ const GanXeModal = (() => {
     loiEl.hidden = true;
     nut.disabled = true;
     try {
-      const kq = await apiPut(`/dieu-do/chu-trinh/${encodeURIComponent(ct.chu_trinh_id)}/xe`, { xe_id: x.xe_id });
+      const duong = `/dieu-do/chu-trinh/${encodeURIComponent(ct.chu_trinh_id)}`;
+      const kq = cheDo === "thay"
+        ? await apiPut(`${duong}/xe-thay-the`, { xe_id: x.xe_id, ly_do: overlay.querySelector("#gxm-ly-do").value.trim() || null })
+        : await apiPut(`${duong}/xe`, { xe_id: x.xe_id });
       dong();
       await khiXong(kq);
     } catch (err) {
@@ -298,18 +310,24 @@ const GanXeModal = (() => {
 
   async function mo(chuTrinh, tuyChon = {}) {
     ct = chuTrinh;
+    cheDo = tuyChon.cheDo === "thay" ? "thay" : "gan";
     khiXong = tuyChon.khiXong || (() => {});
     loTrinh = null; dsXe = []; chon = null; loc = "phu_hop"; tuKhoa = ""; xemSoDo = false;
     const ov = dungOverlay();
     const goc = ov.querySelector("#gxm-noi-dung");
     ov.querySelector("#gxm-loi").hidden = true;
+    ov.querySelector("#gxm-tieu-de").textContent = cheDo === "thay" ? "Chọn xe chạy thay" : "Chọn xe cho chu trình";
+    const oLyDo = ov.querySelector("#gxm-ly-do");
+    oLyDo.hidden = cheDo !== "thay";
+    oLyDo.value = "";
+    ov.querySelector("#gxm-xac-nhan").textContent = cheDo === "thay" ? "Cho xe chạy thay" : "Gán xe";
     ov.querySelector("#gxm-xac-nhan").disabled = true;
     ov.querySelector(".gxm__chan-gia").textContent = "";
     goc.innerHTML = '<div class="kv-trong">Đang tải lộ trình và danh sách xe...</div>';
     ov.hidden = false;
     try {
       const id = encodeURIComponent(ct.chu_trinh_id);
-      [loTrinh, dsXe] = await Promise.all([apiGet(`/dieu-do/chu-trinh/${id}/lo-trinh`), apiGet(`/dieu-do/chu-trinh/${id}/xe`)]);
+      [loTrinh, dsXe] = await Promise.all([apiGet(`/dieu-do/chu-trinh/${id}/lo-trinh`), apiGet(`/dieu-do/chu-trinh/${id}/xe?che_do=${cheDo}`)]);
     } catch (err) {
       goc.innerHTML = `<div class="text-error">${esc(err.message)}</div>`;
       return;

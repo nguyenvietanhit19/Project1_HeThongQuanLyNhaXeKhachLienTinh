@@ -477,3 +477,28 @@ i.gxm-chip {
     margin-bottom: 6px;
   }
 }
+
+/* Chế độ "xe khác chạy thay" (UC-20) */
+.gxm-tom-tat__thay {
+  margin-top: 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #FFF4DC;
+  font-size: 13px;
+  color: #7A5200;
+}
+
+.gxm__ly-do {
+  flex: 1 1 260px;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: 1.5px solid #E3E1EC;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.gxm__ly-do[hidden] {
+  display: none;
+}
