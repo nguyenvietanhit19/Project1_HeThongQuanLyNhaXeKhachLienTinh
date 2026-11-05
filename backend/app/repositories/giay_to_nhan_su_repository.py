@@ -140,13 +140,28 @@ def cap_nhat(giay_to_id: str, so_giay_to: str | None, hang: str | None, ngay_cap
         release_connection(conn)
 
 
-def cap_nhat_anh(giay_to_id: str, anh_giay_to: str) -> None:
-    """Lưu public_id ảnh Cloudinary (không phải URL) vào giấy tờ."""
+def cap_nhat_anh(giay_to_id: str, anh_giay_to: str) -> str | None:
+    """Lưu public_id ảnh Cloudinary (không phải URL) vào giấy tờ và TRẢ VỀ public_id ảnh cũ (None nếu chưa có).
+
+    Đọc ảnh cũ + ghi ảnh mới trong MỘT câu lệnh có khóa dòng (`FOR UPDATE`) để hai người cùng đổi ảnh một giấy tờ xếp
+    hàng, người sau xóa đúng ảnh của người trước — không sót ảnh rác trên Cloudinary."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("UPDATE giay_to_nhan_su SET anh_giay_to = %s WHERE id = %s", (anh_giay_to, giay_to_id))
+            cur.execute(
+                """
+                WITH cu AS (SELECT id, anh_giay_to FROM giay_to_nhan_su WHERE id = %s FOR UPDATE)
+                UPDATE giay_to_nhan_su g SET anh_giay_to = %s FROM cu WHERE g.id = cu.id
+                RETURNING cu.anh_giay_to
+                """,
+                (giay_to_id, anh_giay_to),
+            )
+            row = cur.fetchone()
         conn.commit()
+        return row[0] if row else None
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         release_connection(conn)
 

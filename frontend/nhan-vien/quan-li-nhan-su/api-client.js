@@ -53,7 +53,8 @@ async function apiUploadAnh(duong_dan, file) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.loi || data.detail || "Không tải ảnh lên được, thử lại sau");
+    // detail của lỗi 422 (FastAPI) là một MẢNG, không đưa thẳng vào Error kẻo hiện "[object Object]"
+    throw new Error(data.loi || (typeof data.detail === "string" ? data.detail : "") || "Không tải ảnh lên được, thử lại sau");
   }
   return data;
 }
