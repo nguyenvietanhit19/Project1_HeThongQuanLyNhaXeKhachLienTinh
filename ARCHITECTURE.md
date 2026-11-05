@@ -58,6 +58,8 @@ project-root/
 │   │   │
 │   │   ├── schemas/                       # Pydantic models — định nghĩa hình dạng request/response
 │   │   │   ├── nguoi_dung_schema.py
+│   │   │   ├── nhan_su_schema.py              # hồ sơ nhân sự vận hành, giấy tờ (UC-49)
+│   │   │   ├── tai_khoan_can_bo_schema.py     # tạo/khóa/mở khóa tài khoản cán bộ (UC-36/37)
 │   │   │   ├── ve_schema.py
 │   │   │   ├── chuyen_xe_schema.py
 │   │   │   ├── don_hang_schema.py
@@ -65,7 +67,12 @@ project-root/
 │   │   │
 │   │   ├── repositories/                  # raw SQL, 1 file = 1 bảng/entity dữ liệu
 │   │   │   ├── nguoi_dung_repository.py       # tài khoản đăng nhập được: khách hàng + cán bộ (NGHIEP_VU mục 2)
-│   │   │   ├── nhan_vien_van_hanh_repository.py  # hồ sơ tài xế/phụ xe + xe_nhan_su (mục 3.2)
+│   │   │   ├── nhan_su_van_hanh_repository.py     # hồ sơ tài xế/phụ xe + xe_nhan_su (mục 3.2); hồ sơ nhân sự đầy đủ + mã tài xế (UC-49)
+│   │   │   ├── giay_to_nhan_su_repository.py      # giấy tờ bằng lái / giấy khám sức khỏe (UC-49) + dữ liệu cho job cảnh báo
+│   │   │   ├── tai_khoan_can_bo_repository.py     # tạo/khóa/mở khóa tài khoản cán bộ, tạo tài khoản + gán văn phòng cùng transaction (UC-36/37)
+│   │   │   ├── nhat_ky_quan_ly_nhan_su_repository.py  # nhật ký của quan_ly_nhan_su — chỉ INSERT (UC-52)
+│   │   │   ├── nhat_ky_admin_repository.py        # nhật ký của quan_ly — chỉ INSERT (UC-37, UC-52)
+│   │   │   ├── ma_repository.py                   # số thứ tự cho mã tự sinh (khu vực, tuyến, vé, mã nhân viên...)
 │   │   │   ├── khu_vuc_repository.py
 │   │   │   ├── diem_don_tra_repository.py
 │   │   │   ├── tuyen_repository.py            # tuyen (chạy cả 2 chiều) + tuyen_diem_don_tra
@@ -79,6 +86,7 @@ project-root/
 │   │   ├── services/                      # quy tắc nghiệp vụ + service hạ tầng
 │   │   │   ├── mat_khau_service.py            # đăng ký/đăng nhập/quên mật khẩu — kế thừa bản v1
 │   │   │   ├── tai_khoan_can_bo_service.py    # tạo/khóa/mở khóa tài khoản cán bộ (UC-36/37) — kiểm tra quyền actor vs vai trò mục tiêu theo quy tắc bậc (gốc > quan_ly thường = ke_toan > quan_ly_nhan_su > vận hành; chỉ khóa bậc thấp hơn), chặn khóa quan_ly gốc và tự khóa mình, lý do bắt buộc; nhật ký quan_ly -> nhat_ky_admin, quan_ly_nhan_su -> nhat_ky_quan_ly_nhan_su (mục 8.9 NGHIEP_VU.md)
+│   │   │   ├── ho_so_nhan_su_service.py       # hồ sơ nhân sự vận hành, giấy tờ, ảnh (UC-49)
 │   │   │   ├── email_service.py               # gửi mail OTP qua Brevo API (HTTPS) — hạ tầng
 │   │   │   ├── tim_kiem_chuyen_service.py     # tìm theo điểm đi/đến (mục 3.4 bước 1-2); chọn giá theo bộ giá áp dụng cho ngày khởi hành của từng chuyến
 │   │   │   ├── gia_ve_service.py              # giá vé theo bộ (UC-33): bộ đủ mọi chặng, có ngày bắt đầu + kết thúc, bộ mới nối liền bộ cuối, khóa bộ đã sinh chuyến (bộ cuối vẫn gia hạn được), cảnh báo giá bất thường, bảng giá của 1 chuyến, kiểm tra giá phủ từng ngày khi sinh chuyến
@@ -105,16 +113,19 @@ project-root/
 │   │   │   ├── dieu_do.py                     # điều độ viên: gán xe cho chuyến (UC-44), đổi xe, xử lý sự cố/nhân sự
 │   │   │   ├── ke_toan.py                     # kế toán: danh sách hoàn tiền chờ xử lý, đánh dấu đã chuyển khoản thủ công (mục 8.8 NGHIEP_VU.md) — toàn hệ thống
 │   │   │   ├── tai_khoan_can_bo.py            # tạo/khóa/mở khóa tài khoản cán bộ (UC-36/37) — dùng chung cho quan_ly và quan_ly_nhan_su (mục 8.9 NGHIEP_VU.md), Service phân quyền theo vai_tro + la_tai_khoan_goc của actor lẫn tài khoản mục tiêu (quy tắc bậc; khóa/mở khóa dùng POST .../khoa và .../mo-khoa)
+│   │   │   ├── nhan_su.py                     # hồ sơ nhân sự vận hành (UC-49) — /quan-ly-nhan-su/ho-so...
 │   │   │   ├── quan_ly.py                     # quản lý: danh mục, lịch chạy định kỳ (UC-18), sinh chuyến (UC-47), quản lý chuyến (UC-48), cấu hình, thống kê
 │   │   │   └── websocket.py                   # điểm kết nối real-time
 │   │   │
 │   │   ├── jobs/                          # tác vụ chạy định kỳ (không phải request-response)
+│   │   │   ├── canh_bao_giay_to.py            # nhắc giấy tờ nhân sự sắp/đã hết hạn (UC-49), mỗi ngày 1 lần
 │   │   │   └── quet_het_han.py                # quét ve quá hạn → het_han/khong_den; chuyen_xe chưa gán xe khi tới giờ chạy → dang_hoan (UC-44); don_hang cho_lay quá 7/14 ngày → cảnh báo/hàng tồn (UC-25, mục 5). Không có job sinh chuyến — quan_ly sinh thủ công (UC-47)
 │   │   │
 │   │   ├── middleware/
 │   │   │   └── auth_middleware.py         # xác thực JWT, phân quyền theo vai_tro (kể cả kiểm tra la_tai_khoan_goc khi thao tác lên tài khoản quan_ly/quan_ly_nhan_su, DATABASE.md mục 1.1)
 │   │   │
 │   │   └── utils/
+│   │       ├── ma_tu_sinh.py              # dựng mã hiển thị tự sinh (khu vực, tuyến, vé, mã nhân viên...)
 │   │       └── db_helpers.py              # helper dùng chung (map row → dict...)
 │   │
 │   ├── migrations/                        # file .sql đánh số thứ tự, version hóa schema

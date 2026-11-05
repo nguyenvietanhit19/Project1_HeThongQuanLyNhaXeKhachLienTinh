@@ -6,6 +6,7 @@ NGHIEP_VU.md mục 3.2) và các hàm quản lý biên chế CỐ ĐỊNH của 
 """
 
 from app.db import get_connection, release_connection
+from app.repositories import ma_repository
 
 
 def _thanh_dict(cur, row):
@@ -195,16 +196,21 @@ def xoa_bien_che(xe_nhan_su_id: str) -> None:
 def tim_ho_so_day_du(nhan_su_id: str) -> dict | None:
     """Toàn bộ cột hồ sơ, kể cả cột nhạy cảm (so_cccd, ngay_sinh) —
     Service/Schema ở tầng trên tự quyết định có trả ra API hay không
-    (DATABASE.md mục 9, "Phân quyền đọc hồ sơ nhân sự")."""
+    (DATABASE.md mục 9, "Phân quyền đọc hồ sơ nhân sự").
+
+    `ma` = mã nhân viên: tài xế lấy mã của hồ sơ (TX...), phụ xe không có mã riêng nên lấy mã của tài khoản
+    liên kết (PX...) — KE_HOACH_MA_NHAN_VIEN.md mục 3.2."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, ho_ten, so_dien_thoai, chuc_danh, nguoi_dung_id, so_cccd, ngay_sinh,
-                       anh_ho_so, ngay_vao_lam, trang_thai, ngay_nghi_viec, ly_do_nghi_viec
-                FROM nhan_su_van_hanh
-                WHERE id = %s
+                SELECT n.id, COALESCE(n.ma, nd.ma) AS ma, n.ho_ten, n.so_dien_thoai, n.chuc_danh, n.nguoi_dung_id,
+                       n.so_cccd, n.ngay_sinh, n.anh_ho_so, n.ngay_vao_lam, n.trang_thai, n.ngay_nghi_viec,
+                       n.ly_do_nghi_viec
+                FROM nhan_su_van_hanh n
+                LEFT JOIN nguoi_dung nd ON nd.id = n.nguoi_dung_id
+                WHERE n.id = %s
                 """,
                 (nhan_su_id,),
             )
@@ -221,9 +227,10 @@ def danh_sach_ho_so(chi_dang_lam: bool = False) -> list[dict]:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, ho_ten, so_dien_thoai, chuc_danh, nguoi_dung_id, trang_thai FROM nhan_su_van_hanh"
-                + (" WHERE trang_thai = 'dang_lam'" if chi_dang_lam else "")
-                + " ORDER BY chuc_danh, ho_ten"
+                "SELECT n.id, COALESCE(n.ma, nd.ma) AS ma, n.ho_ten, n.so_dien_thoai, n.chuc_danh, n.nguoi_dung_id,"
+                " n.trang_thai FROM nhan_su_van_hanh n LEFT JOIN nguoi_dung nd ON nd.id = n.nguoi_dung_id"
+                + (" WHERE n.trang_thai = 'dang_lam'" if chi_dang_lam else "")
+                + " ORDER BY n.chuc_danh, n.ho_ten"
             )
             return _thanh_list(cur, cur.fetchall())
     finally:
@@ -241,16 +248,19 @@ def tao_ho_so(
 ) -> str:
     # COALESCE(%s, current_date): không truyền ngay_vao_lam thì lấy ngày hôm nay.
     # RETURNING id: lấy luôn id vừa tạo, khỏi phải SELECT lại.
+    # Mã nhân viên: chỉ TÀI XẾ có mã riêng (TX0001...), cấp trong cùng transaction; phụ xe dùng mã của tài khoản
+    # (nguoi_dung.ma, cấp lúc tạo tài khoản ở UC-36) nên để ma = NULL.
     conn = get_connection()
     try:
         with conn.cursor() as cur:
+            ma = ma_repository.cap_ma_nhan_vien(cur, "tai_xe") if chuc_danh == "tai_xe" else None
             cur.execute(
                 """
-                INSERT INTO nhan_su_van_hanh (ho_ten, so_dien_thoai, chuc_danh, nguoi_dung_id, so_cccd, ngay_sinh, ngay_vao_lam)
-                VALUES (%s, %s, %s, %s, %s, %s, COALESCE(%s, current_date))
+                INSERT INTO nhan_su_van_hanh (ho_ten, so_dien_thoai, chuc_danh, nguoi_dung_id, so_cccd, ngay_sinh, ngay_vao_lam, ma)
+                VALUES (%s, %s, %s, %s, %s, %s, COALESCE(%s, current_date), %s)
                 RETURNING id
                 """,
-                (ho_ten, so_dien_thoai, chuc_danh, nguoi_dung_id, so_cccd, ngay_sinh, ngay_vao_lam),
+                (ho_ten, so_dien_thoai, chuc_danh, nguoi_dung_id, so_cccd, ngay_sinh, ngay_vao_lam, ma),
             )
             nhan_su_id = cur.fetchone()[0]
         conn.commit()
@@ -303,7 +313,7 @@ def danh_sach_tai_khoan_phu_xe_chua_gan() -> list[dict]:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT nd.id, nd.ho_ten, nd.email, nd.so_dien_thoai
+                SELECT nd.id, nd.ma, nd.ho_ten, nd.email, nd.so_dien_thoai
                 FROM nguoi_dung nd
                 WHERE nd.vai_tro = 'phu_xe'
                   AND nd.dang_hoat_dong = true

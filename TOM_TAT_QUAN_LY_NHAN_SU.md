@@ -1,6 +1,8 @@
-# Tóm tắt phiên làm việc — Quản lý nhân sự (UC-49, rồi UC-36)
+# Tóm tắt phiên làm việc — Quản lý nhân sự (UC-49, UC-36, UC-37, mã nhân viên)
 
 > **Cập nhật 23/10/2026 — UC-36 bỏ cơ chế mời bằng OTP.** Email cán bộ do công ty cấp nên không cần xác minh. Khi tạo, tài khoản có mật khẩu ban đầu mặc định `12345678` (lưu bản băm; response trả `mat_khau_ban_dau` để nhắc người tạo) và **không gửi email**; cán bộ đổi mật khẩu sau khi đăng nhập. OTP chỉ dùng khi quên mật khẩu. Mọi chỗ bên dưới nhắc "mời/OTP/`da_gui_email`/mail lỗi" cho UC-36 là **bản cũ**; bản đúng ở `NGHIEP_VU.md` UC-36 và `KE_HOACH_UC36_TAO_TAI_KHOAN_CAN_BO.md` mục 2.4. Giữ lại `da_xac_nhan = true` lúc tạo (`dang_nhap` chặn mọi tài khoản chưa xác nhận).
+
+> **Cập nhật 5/11/2026 — mục 16 là mới nhất** (mã nhân viên, rà soát toàn bộ, đồng bộ tài liệu). Nếu mâu thuẫn với mục 15 trở về trước thì theo mục 16. Mục 15 viết lúc UC-37 đang làm dở; UC-37 sau đó đã merge (#44).
 
 > File ghi lại quá trình làm việc, không phải tài liệu nghiệp vụ chính thức. Nghiệp vụ chính thức nằm ở `NGHIEP_VU.md`, `UML_DIAGRAMS.md`, `DATABASE.md`, `ARCHITECTURE.md`. Tổng hợp dễ đọc riêng cho phần quản lý nhân sự nằm ở [`NHAP_QUAN_LY_NHAN_SU.md`](NHAP_QUAN_LY_NHAN_SU.md).
 >
@@ -236,7 +238,7 @@ Tên dễ nhầm: **không phải hồ sơ nhân sự**, chỉ có 2 cột (`ngu
 - **Khách hàng:** không ai khóa/mở/gỡ hạn chế; hệ thống tự khóa theo mục 9 (bị khóa coi như mất tài khoản). UC-37 chỉ cho cán bộ.
 - **Quy tắc bậc:** gốc > (quan_ly thường = ke_toan) > quan_ly_nhan_su > 4 vai trò vận hành; chỉ khóa/mở khóa bậc thấp hơn; `ke_toan` chỉ gốc khóa được. Chặt hơn spec cũ ("quan_ly bất kỳ").
 - **Lý do:** bắt buộc, gõ chữ tự do (1–500 ký tự), cả khóa và mở khóa.
-- **Nhật ký:** `quan_ly` -> `nhat_ky_admin` (migration làm sau, bước 6b); `quan_ly_nhan_su` -> `nhat_ky_quan_ly_nhan_su`.
+- **Nhật ký:** `quan_ly` -> `nhat_ky_admin` (migration `20261023_1000` đã tạo, đã merge #44); `quan_ly_nhan_su` -> `nhat_ky_quan_ly_nhan_su`.
 - **Thông báo khi khóa phụ xe làm thiếu xe:** `quan_ly` + `dieu_do_vien` đang hoạt động, không gửi QLNS, bỏ người vừa khóa.
 - **Cảnh báo khi khóa điều độ viên làm tuyến hết người:** làm sau, khi nhóm điều độ viên có bảng `dieu_do_vien_tuyen`.
 
@@ -245,7 +247,7 @@ Tên dễ nhầm: **không phải hồ sơ nhân sự**, chỉ có 2 cột (`ngu
 - Nhóm gửi hàng có đồng ý để xóa chuỗi `gan_van_phong_can_bo` (ưu tiên họ tự xóa)? Nhóm điều độ viên cũng đã đề xuất bỏ `dieu_do_vien` khỏi hàm này.
 - Đổi văn phòng không chặn khi cán bộ còn đơn đang xử lý, không bắt buộc nhập lý do — nhóm có muốn khác không?
 
-- ~~(Đã chốt 23/10: dùng `nhat_ky_admin`, tạo migration cùng UC-37)~~ `nhat_ky_admin` mô tả trong `DATABASE.md` nhưng **chưa có migration**: hành động của `quan_ly` (tạo/khóa tài khoản, cho nghỉ việc) chưa có chỗ ghi, và "UC-52: quản lý thấy toàn bộ" thực chất chỉ thấy nhật ký của QLNS.
+- ~~`nhat_ky_admin` chưa có migration~~ — đã chốt 23/10 và đã làm (migration `20261023_1000`, #44).
 - ~~Khóa **khách hàng** (UC-37)~~ — đã chốt 23/10: không ai khóa/mở khách hàng.
 - Tên vai trò phụ xe: tài liệu ghi `nhan_vien_van_hanh`, DB và code dùng `phu_xe`.
 - Mã OTP chỉ sống 1 phút có hợp lý cho thư mời cán bộ không? (Đề xuất giữ vì dùng chung cơ chế Quên mật khẩu.)
@@ -345,3 +347,62 @@ API: `POST /quan-ly-nhan-su/tai-khoan/{id}/khoa` và `/mo-khoa`, body `{ "ly_do"
 | `backend/tests/unit/test_tai_khoan_can_bo_schema.py` | Mới, 11 test | ❌ chưa |
 | `KE_HOACH_UC37_KHOA_MO_KHOA_TAI_KHOAN.md` | Mới, kế hoạch 9 bước | ❌ chưa |
 | `NGHIEP_VU.md`, `UML_DIAGRAMS.md`, `DATABASE.md`, `ARCHITECTURE.md`, `NHAP_QUAN_LY_NHAN_SU.md`, `TOM_TAT_QUAN_LY_NHAN_SU.md`, `BAO_CAO_CONG_VIEC_QUAN_LY_NHAN_SU.md` | Đồng bộ theo quyết định UC-37 và "điều độ viên không gắn văn phòng" | ❌ chưa |
+
+---
+
+## 16. Phiên làm việc 5/11/2026: mã nhân viên, rà soát toàn bộ, đồng bộ tài liệu
+
+> Chi tiết thiết kế: `KE_HOACH_MA_NHAN_VIEN.md`. Công việc theo file/hàm: `BAO_CAO_CONG_VIEC_QUAN_LY_NHAN_SU.md` mục 2C. Việc ảnh hưởng người khác: `TAC_DONG_DEN_NGUOI_KHAC_QUAN_LY_NHAN_SU.md`.
+
+### 16.1. Diễn biến chính (tiếp số thứ tự mục 15.1)
+
+45. **UC-37 đã merge (#44)**. Pull `integration/gop-nhanh-thanh-vien` về (tới `24d99ba`, #47), tạo nhánh mới từ đó. Đổi tên nhánh dự định làm UC-51 thành `feature/Nghia-ma-nhan-vien` (chưa push) vì làm mã nhân viên trước.
+46. **Phát hiện hệ thống chưa có mã nhân viên** (chỉ có `id` UUID và họ tên, họ tên không duy nhất; các thứ khác như khu vực, tuyến, vé đều có mã). Đã bàn và chốt (mục 16.2).
+47. **Viết `KE_HOACH_MA_NHAN_VIEN.md`**: hiện trạng, thiết kế, danh sách phần cần sửa (code mình, file dùng chung, giao diện, tài liệu, việc báo người khác), thứ tự làm 8 bước.
+48. **Dựng lại Docker**, lấy mốc test của integration: 833 qua, **25 lỗi có sẵn** (trước đó 7; tăng sau các PR #43–#47).
+49. **Migration `20261105_0900_ma_nhan_vien.sql`**: cột `ma`, 8 sequence, điền mã cũ (gốc `QL0000`), UNIQUE một phần, `CHECK` định dạng, trigger `giu_ma_nhan_vien`. Chạy thử hai lần trong transaction rồi hủy (dữ liệu thật và 16 tài khoản giả đủ vai trò) trước khi áp dụng thật.
+50. **Hàm dựng và cấp mã**: `ma_tu_sinh.ma_nhan_vien`, `ma_repository.cap_ma_nhan_vien` (+8 sequence, chỉ thêm), 59 test.
+51. **UC-36** sinh mã khi tạo tài khoản (cùng transaction); trả `ma` ở kết quả và danh sách; tìm theo mã; nhật ký và thông báo khóa phụ xe ghi kèm mã. **UC-49**: tài xế cấp `TX`, phụ xe lấy mã tài khoản qua `COALESCE`. Kiểm tra bằng unit test và API thật (đã dọn, khôi phục sequence).
+52. **Frontend**: cột "Mã", tìm theo mã, hộp thoại kết quả tạo tài khoản, hộp thoại sửa hồ sơ, ô chọn phụ xe. Xem trên **Edge thật** (server tạm + chụp màn hình); lần đầu xem cả hộp thoại Khóa của UC-37.
+53. **Rà soát toàn bộ phần của mình**: xác nhận thật token cũ bị chặn ngay khi khóa (403) và nhánh `quan_ly` **thường** của UC-37 chạy đúng; phát hiện các điểm chưa hợp lý (mục 16.3).
+54. **Đồng bộ tài liệu**: `NGHIEP_VU.md`, `DATABASE.md` (mục 1.1, 1.4, 10.2), `UML_DIAGRAMS.md`, `ARCHITECTURE.md`, `NHAP_QUAN_LY_NHAN_SU.md` (thêm mục 13), `KE_HOACH_UC36`, `KE_HOACH_UC37`, `KE_HOACH_MA_NHAN_VIEN`, `TAC_DONG_...`, file này và `BAO_CAO_...`.
+
+### 16.2. Quyết định về mã nhân viên (chốt 5/11/2026)
+
+| # | Chốt |
+|---|---|
+| 1 | Có làm, làm **trước UC-51**; mã **tự động** |
+| 2 | Dạng `<tiền tố><4 chữ số>`: `TX PX QV GH DDV KT NS QL`; mỗi vai trò một sequence. **Không dùng CCCD** (đã cân nhắc rồi bỏ: lộ 8/12 số CCCD ra mọi màn hình, và cán bộ có tài khoản vốn không có CCCD) |
+| 3 | Tài khoản gốc là `QL0000`; quản lý khác từ `QL0001` |
+| 4 | Mã sinh lúc tạo (UC-36, UC-49), không đổi sau đó. Phụ xe dùng chung mã với tài khoản; chỉ tài xế có mã riêng ở hồ sơ |
+| 5 | Cột cho phép trống (khách hàng, hồ sơ phụ xe, script demo); **không** `CHECK` bắt buộc có mã; chỉ `CHECK` định dạng khi có mã |
+
+### 16.3. Chưa hợp lý, đã biết, chưa xử lý (rà soát 5/11)
+
+1. ✅ *Đã sửa 5/11 (`quan_ly` giờ ghi `nhat_ky_admin` ở UC-36 và UC-49).* **Nhật ký không nhất quán:** UC-37 ghi cho `quan_ly`, còn UC-36 và UC-49 chỉ ghi khi người thao tác là `quan_ly_nhan_su` — `quan_ly` tạo tài khoản / hồ sơ không để lại dấu vết, trong khi UC-52 ghi "`quan_ly` thấy toàn bộ".
+2. ✅ *Đã sửa 5/11.* **Backend cho tạo hồ sơ phụ xe bằng tài khoản đã khóa** (gọi thẳng API trả 201), dù ô chọn trên giao diện không liệt kê tài khoản đó: `_kiem_tra_tai_khoan_phu_xe` không kiểm tra `dang_hoat_dong`.
+3. ✅ *Đã sửa 5/11 (`ELSE ma IS NULL`).* **Migration mã có `ELSE false`** trong `CHECK`: thêm vai trò mới thì mọi `INSERT` của vai trò đó lỗi cho tới khi sửa `CHECK`.
+4. ✅ *Đã sửa 5/11.* **Mô tả `da_dat_mat_khau`** trong `tai_khoan_can_bo_schema.py` còn ghi "vừa được mời" (lỗi thời sau khi bỏ OTP).
+5. **Nhánh `quan_ly` gốc của UC-37** chưa chạy thật (cần đặt tạm mật khẩu `admin@nhaxekhach.com`); ca phụ xe thiếu xe chưa chạy thật, chỉ có unit test.
+6. **Chưa báo nhóm** việc nào trong `TAC_DONG_...`, dù migration `nhat_ky_admin` đã merge.
+7. Tên vai trò phụ xe: `NGHIEP_VU.md` ghi `nhan_vien_van_hanh`, DB/code là `phu_xe` (đã ghi chú nhưng chưa thống nhất).
+8. **File của người khác đang lệch với phần mình:** `DIEU_DO_VIEN_THEO_TUYEN_DE_XUAT.md` (còn nhờ "người làm UC-36/37/38" sửa việc đã xong), `CONTRIBUTING.md` (chưa có UC-49/51/52 và mã nhân viên), `database_dieuDoVien.md`. Không sửa vì không phải của mình.
+
+### 16.4. Trạng thái hiện tại (5/11/2026)
+
+| Hạng mục | Trạng thái |
+|---|---|
+| UC-49, UC-36, UC-37 | ✅ Đã merge (#36, #38, #44) |
+| Mã nhân viên | ✅ Backend + frontend xong, đã kiểm tra; **chưa commit** |
+| Đổi văn phòng | 📐 Có nghiệp vụ, chưa code; chờ nhóm chốt 2 quy tắc. Phát hiện thêm: `nhat_ky_quan_ly_nhan_su` có `CHECK` chỉ cho 6 hành động nên cần migration sửa khi làm |
+| UC-51, UC-52 | 📐 Có thiết kế, chưa code |
+| Nhánh | `feature/Nghia-ma-nhan-vien` (từ `24d99ba`, chưa push) |
+| Test tự động | Toàn bộ unit: 25 lỗi có sẵn (không do mình), không thêm lỗi mới |
+| Tài khoản test | `quanlynhansu@gmail.com` (mã `NS0001`) trong DB local |
+
+### 16.5. Việc cần làm tiếp
+
+1. Xử lý các điểm 1–4 ở mục 16.3 (đều là sửa nhỏ trong code của mình), cập nhật tài liệu tương ứng.
+2. Commit, push, tạo PR mã nhân viên vào `integration/gop-nhanh-thanh-vien`; gửi bản tóm tắt ở `TAC_DONG_...` mục 11 cho nhóm.
+3. Test tay ca `quan_ly` gốc (hỏi trước khi đổi mật khẩu admin).
+4. UC-51 (cho nghỉ việc), UC-52 (xem nhật ký); đổi văn phòng khi nhóm chốt quy tắc; xóa chuỗi `gan_van_phong_can_bo` sau cùng.

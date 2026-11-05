@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from app.schemas.tai_khoan_can_bo_schema import TaoTaiKhoanCanBoRequest
 from app.services import tai_khoan_can_bo_service as svc
+from app.utils import ma_tu_sinh
 from app.utils.loi import CamTruyCap, GiaTriLoi, KhongTimThay
 
 QLNS = "quan_ly_nhan_su"
@@ -29,13 +30,16 @@ def _yeu_cau(vai_tro="phu_xe", van_phong_id=None, **them):
 @pytest.fixture
 def gia_lap(monkeypatch):
     """Giả lập mọi repository/dịch vụ ngoài; trả về dict ghi lại các lần gọi."""
-    ghi = {"tao": [], "nhat_ky": []}
+    ghi = {"tao": [], "nhat_ky": [], "nhat_ky_admin": []}
 
     monkeypatch.setattr(svc.repo, "la_tai_khoan_goc", lambda i: ghi.get("la_goc", False))
 
     def tao(email, mat_khau_hash, ho_ten, sdt, vai_tro, van_phong_id):
         ghi["tao"].append((email, ho_ten, sdt, vai_tro, van_phong_id, mat_khau_hash))
-        return {"id": uuid4(), "email": email, "ho_ten": ho_ten, "vai_tro": vai_tro, "van_phong_id": van_phong_id}
+        return {
+            "id": uuid4(), "ma": ma_tu_sinh.ma_nhan_vien(vai_tro, 1), "email": email, "ho_ten": ho_ten,
+            "vai_tro": vai_tro, "van_phong_id": van_phong_id,
+        }
 
     monkeypatch.setattr(svc.repo, "tao_tai_khoan", tao)
     monkeypatch.setattr(svc.nguoi_dung_repo, "tim_theo_email", lambda e: ghi.get("email_ton_tai"))
@@ -43,6 +47,7 @@ def gia_lap(monkeypatch):
         svc.dia_diem_repo, "tim_diem_don_tra_theo_id", lambda i: ghi.get("diem", {"id": i, "loai": "van_phong"})
     )
     monkeypatch.setattr(svc.nhat_ky_repo, "ghi", lambda *a: ghi["nhat_ky"].append(a))
+    monkeypatch.setattr(svc.nhat_ky_admin_repo, "ghi", lambda *a: ghi["nhat_ky_admin"].append(a))
     return ghi
 
 
@@ -170,9 +175,10 @@ def test_qlns_tao_tai_khoan_co_ghi_nhat_ky(gia_lap):
     assert doi_tuong_id == str(kq["id"])
 
 
-def test_quan_ly_tao_tai_khoan_khong_ghi_nhat_ky(gia_lap):
+def test_quan_ly_tao_tai_khoan_ghi_nhat_ky_admin_khong_ghi_bang_qlns(gia_lap):
     svc.tao_tai_khoan(str(uuid4()), QL, _yeu_cau("phu_xe"))
     assert gia_lap["nhat_ky"] == []
+    assert len(gia_lap["nhat_ky_admin"]) == 1
 
 
 # ---------------------------------------------------------
@@ -246,9 +252,11 @@ def test_danh_sach_tu_khoa_trong_duoc_bo_qua(monkeypatch):
 # =========================================================
 # UC-37: khóa / mở khóa tài khoản cán bộ
 # =========================================================
-def _tk(vai_tro="phu_xe", hoat_dong=True, goc=False, ma=None):
+def _tk(vai_tro="phu_xe", hoat_dong=True, goc=False, ma=None, ma_nv="auto"):
+    if ma_nv == "auto":
+        ma_nv = ma_tu_sinh.ma_nhan_vien(vai_tro, 1) if vai_tro in ma_tu_sinh.TIEN_TO_NHAN_VIEN else None
     return {
-        "id": ma or str(uuid4()), "email": "x@gmail.com", "ho_ten": "Tran Van B",
+        "id": ma or str(uuid4()), "ma": ma_nv, "email": "x@gmail.com", "ho_ten": "Tran Van B",
         "vai_tro": vai_tro, "dang_hoat_dong": hoat_dong, "la_tai_khoan_goc": goc,
     }
 
@@ -399,11 +407,11 @@ def test_khoa_bi_chan_thi_khong_ghi_nhat_ky(khoa_gia_lap):
     assert khoa_gia_lap["nk_qlns"] == [] and khoa_gia_lap["nk_admin"] == []
 
 
-def test_tao_tai_khoan_cua_quan_ly_van_khong_ghi_nhat_ky_admin(gia_lap, monkeypatch):
+def test_tao_tai_khoan_cua_quan_ly_ghi_nhat_ky_admin(gia_lap, monkeypatch):
     ds = []
     monkeypatch.setattr(svc.nhat_ky_admin_repo, "ghi", lambda *a: ds.append(a))
     svc.tao_tai_khoan(str(uuid4()), QL, _yeu_cau("phu_xe"))
-    assert ds == []
+    assert len(ds) == 1 and ds[0][1] == "tao_tai_khoan"
 
 
 # ---- Phụ xe: cảnh báo thiếu xe ----
@@ -446,3 +454,64 @@ def test_mo_khoa_khong_tra_bien_che_khong_thong_bao(khoa_gia_lap):
     khoa_gia_lap["muc_tieu"] = _tk("phu_xe", hoat_dong=False)
     svc.mo_khoa_tai_khoan(str(uuid4()), QLNS, khoa_gia_lap["muc_tieu"]["id"], "ly do")
     assert khoa_gia_lap["so_lan_tra_bien_che"] == 0 and khoa_gia_lap["tb"] == []
+
+
+# =========================================================
+# Mã nhân viên (KE_HOACH_MA_NHAN_VIEN.md)
+# =========================================================
+@pytest.mark.parametrize(
+    "vai_tro, ma_mong_doi",
+    [("phu_xe", "PX0001"), ("nhan_vien_quay_ve", "QV0001"), ("nhan_vien_gui_hang", "GH0001"), ("dieu_do_vien", "DDV0001")],
+)
+def test_tao_tai_khoan_tra_ve_ma_theo_vai_tro(gia_lap, vai_tro, ma_mong_doi):
+    van_phong = str(uuid4()) if vai_tro in ("nhan_vien_quay_ve", "nhan_vien_gui_hang") else None
+    kq = svc.tao_tai_khoan(str(uuid4()), QLNS, _yeu_cau(vai_tro, van_phong))
+    assert kq["ma"] == ma_mong_doi
+
+
+def test_quan_ly_tao_ke_toan_co_ma_kt(gia_lap):
+    assert svc.tao_tai_khoan(str(uuid4()), QL, _yeu_cau("ke_toan"))["ma"] == "KT0001"
+
+
+def test_nhat_ky_ghi_kem_ma_cua_tai_khoan_moi(gia_lap):
+    kq = svc.tao_tai_khoan(str(uuid4()), QLNS, _yeu_cau("phu_xe"))
+    ghi_chu = gia_lap["nhat_ky"][0][4]
+    assert kq["ma"] in ghi_chu and "phu_xe" in ghi_chu
+
+
+def test_response_tao_tai_khoan_co_truong_ma(gia_lap):
+    from app.schemas.tai_khoan_can_bo_schema import TaoTaiKhoanCanBoResponse
+
+    kq = svc.tao_tai_khoan(str(uuid4()), QLNS, _yeu_cau("phu_xe"))
+    assert TaoTaiKhoanCanBoResponse(**kq).ma == "PX0001"
+
+
+def test_response_danh_sach_cho_phep_ma_trong_voi_tai_khoan_chua_co_ma():
+    from datetime import datetime, timezone
+
+    from app.schemas.tai_khoan_can_bo_schema import TaiKhoanCanBoResponse
+
+    dong = {
+        "id": uuid4(), "email": "a@t.vn", "ho_ten": "A", "so_dien_thoai": "0912345678", "vai_tro": "phu_xe",
+        "dang_hoat_dong": True, "da_dat_mat_khau": True, "van_phong_id": None, "ten_van_phong": None,
+        "ngay_tao": datetime.now(timezone.utc),
+    }
+    assert TaiKhoanCanBoResponse(**{**dong, "ma": None}).ma is None
+    assert TaiKhoanCanBoResponse(**{**dong, "ma": "PX0001"}).ma == "PX0001"
+
+
+def test_thong_bao_khoa_phu_xe_ghi_kem_ma(khoa_gia_lap):
+    khoa_gia_lap["xe_thieu"] = [{"xe_id": uuid4(), "bien_so": "51B-111"}]
+    khoa_gia_lap["nguoi_nhan"] = {"quan_ly": [str(uuid4())]}
+    _khoa(khoa_gia_lap, QLNS, "phu_xe")
+    assert "(PX0001)" in khoa_gia_lap["tb"][0][1]
+
+
+def test_thong_bao_khoa_phu_xe_chua_co_ma_van_gui_binh_thuong(khoa_gia_lap):
+    # tài khoản demo chèn trực tiếp vào DB nên chưa có mã
+    khoa_gia_lap["xe_thieu"] = [{"xe_id": uuid4(), "bien_so": "51B-111"}]
+    khoa_gia_lap["nguoi_nhan"] = {"quan_ly": [str(uuid4())]}
+    khoa_gia_lap["muc_tieu"] = _tk("phu_xe", ma_nv=None)
+    svc.khoa_tai_khoan(str(uuid4()), QLNS, khoa_gia_lap["muc_tieu"]["id"], "ly do")
+    noi_dung = khoa_gia_lap["tb"][0][1]
+    assert "()" not in noi_dung and "None" not in noi_dung and "51B-111" in noi_dung

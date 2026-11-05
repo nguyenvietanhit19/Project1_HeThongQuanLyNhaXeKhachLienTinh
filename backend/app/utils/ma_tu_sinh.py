@@ -48,3 +48,33 @@ def ma_chuyen(ma_tuyen_cua_chuyen: str, ma_loai_xe_cua_chuyen: str, gio_khoi_han
         raise ValueError("gio_khoi_hanh phải có múi giờ")
     gio_vn = gio_khoi_hanh.astimezone(MUI_GIO_VN)
     return f"{ma_tuyen_cua_chuyen}-{ma_loai_xe_cua_chuyen}-{gio_vn:%y%m%d-%H%M}-{'DI' if chieu == 'xuoi' else 'VE'}"
+
+
+# ---------------------------------------------------------
+# Mã nhân viên (KE_HOACH_MA_NHAN_VIEN.md): tiền tố theo vai trò + số thứ tự 4 chữ số
+# ---------------------------------------------------------
+# Khóa là `nguoi_dung.vai_tro` (cán bộ có tài khoản) hoặc "tai_xe" (hồ sơ tài xế, không có tài khoản). Phụ xe dùng mã của
+# tài khoản "phu_xe" nên không có mã riêng ở hồ sơ. Khách hàng không có mã (không có trong bảng này).
+TIEN_TO_NHAN_VIEN = {
+    "tai_xe": "TX",
+    "phu_xe": "PX",
+    "nhan_vien_quay_ve": "QV",
+    "nhan_vien_gui_hang": "GH",
+    "dieu_do_vien": "DDV",
+    "ke_toan": "KT",
+    "quan_ly_nhan_su": "NS",
+    "quan_ly": "QL",
+}
+
+# Mã dành riêng cho tài khoản quản lý gốc (đặt cố định trong migration); số thứ tự cấp tự động luôn bắt đầu từ 1.
+MA_QUAN_LY_GOC = "QL0000"
+
+
+def ma_nhan_vien(vai_tro: str, so_thu_tu: int) -> str:
+    """PX0001, DDV0012 — số đệm 0 đủ 4 chữ số, quá 9999 thì dài ra chứ không cắt (PX10000)."""
+    tien_to = TIEN_TO_NHAN_VIEN.get(vai_tro)
+    if tien_to is None:
+        raise ValueError(f"Vai trò '{vai_tro}' không có mã nhân viên")
+    if so_thu_tu < 1:
+        raise ValueError("Số thứ tự mã nhân viên bắt đầu từ 1 (số 0 dành cho tài khoản quản lý gốc)")
+    return tien_to + _so(so_thu_tu, 4)

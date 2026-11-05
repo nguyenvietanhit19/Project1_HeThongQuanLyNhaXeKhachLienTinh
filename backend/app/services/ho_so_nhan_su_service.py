@@ -6,9 +6,8 @@ Khác bien_che_service.py (UC-35, biên chế — "người đó đi xe nào"): 
 chỉ lo hồ sơ — "ai là nhân sự của công ty, giấy tờ còn hạn không"
 (NGHIEP_VU.md mục 8.9, "Ranh giới với quan_ly").
 
-Nhật ký (UC-52): chỉ ghi khi actor là quan_ly_nhan_su — đúng thiết kế
-nhat_ky_quan_ly_nhan_su "tách riêng khỏi nhat_ky_admin", không lẫn hành động
-của quan_ly (DATABASE.md mục 6.3).
+Nhật ký (UC-52): quan_ly_nhan_su ghi vào nhat_ky_quan_ly_nhan_su, quan_ly ghi
+vào nhat_ky_admin — hai bảng tách riêng, không ghi chéo (DATABASE.md mục 6.2, 6.3).
 
 Dùng repositories/nhan_su_van_hanh_repository.py (file của người khác trong
 nhóm, chủ bảng nhan_su_van_hanh) — chỉ gọi các hàm hồ sơ mới được THÊM vào
@@ -20,6 +19,7 @@ không sửa hàm nào cũ của họ.
 from app.repositories import giay_to_nhan_su_repository as giay_to_repo
 from app.repositories import nguoi_dung_repository as nguoi_dung_repo
 from app.repositories import nhan_su_van_hanh_repository as nhan_su_repo
+from app.repositories import nhat_ky_admin_repository as nhat_ky_admin_repo
 from app.repositories import nhat_ky_quan_ly_nhan_su_repository as nhat_ky_repo
 from app.services import luu_tru_anh_service
 from app.utils.loi import GiaTriLoi, KhongTimThay, LoiHeThong
@@ -29,11 +29,11 @@ from app.utils.loi import GiaTriLoi, KhongTimThay, LoiHeThong
 # Hàm phụ (tiền tố _ = chỉ dùng nội bộ trong file này)
 # ---------------------------------------------------------
 def _ghi_nhat_ky(actor_id: str, actor_vai_tro: str, hanh_dong: str, nhan_su_id: str, ghi_chu: str | None = None) -> None:
-    # Chỉ ghi nhật ký khi người thao tác là quan_ly_nhan_su.
-    # Nếu là quan_ly làm cùng việc thì bỏ qua (nhật ký này tách riêng, UC-52).
-    if actor_vai_tro != "quan_ly_nhan_su":
-        return
-    nhat_ky_repo.ghi(actor_id, hanh_dong, "nhan_su_van_hanh", nhan_su_id, ghi_chu)
+    # quan_ly_nhan_su -> nhat_ky_quan_ly_nhan_su; quan_ly -> nhat_ky_admin. Hai bảng tách riêng, không ghi chéo.
+    if actor_vai_tro == "quan_ly_nhan_su":
+        nhat_ky_repo.ghi(actor_id, hanh_dong, "nhan_su_van_hanh", nhan_su_id, ghi_chu)
+    elif actor_vai_tro == "quan_ly":
+        nhat_ky_admin_repo.ghi(actor_id, hanh_dong, "nhan_su_van_hanh", nhan_su_id, ghi_chu)
 
 
 def _gan_url_anh(ho_so: dict) -> dict:
@@ -75,14 +75,16 @@ def xem_chi_tiet(nhan_su_id: str) -> dict:
 
 def _kiem_tra_tai_khoan_phu_xe(nguoi_dung_id: str, nhan_su_id_dang_sua: str | None = None) -> None:
     """Kiểm tra tài khoản được chọn cho hồ sơ phụ xe có hợp lệ không:
-    (1) tài khoản tồn tại, (2) đúng vai trò phu_xe,
-    (3) chưa gắn với hồ sơ nhân sự khác (1 tài khoản <-> 1 hồ sơ).
-    nhan_su_id_dang_sua: khi sửa hồ sơ, bỏ qua chính hồ sơ đó lúc kiểm tra (3)."""
+    (1) tài khoản tồn tại, (2) đúng vai trò phu_xe, (3) đang hoạt động,
+    (4) chưa gắn với hồ sơ nhân sự khác (1 tài khoản <-> 1 hồ sơ).
+    nhan_su_id_dang_sua: khi sửa hồ sơ, bỏ qua chính hồ sơ đó lúc kiểm tra (4)."""
     tai_khoan = nguoi_dung_repo.tim_theo_id(nguoi_dung_id)
     if not tai_khoan:
         raise GiaTriLoi("Không tìm thấy tài khoản được chọn")
     if tai_khoan["vai_tro"] != "phu_xe":
         raise GiaTriLoi("Tài khoản được chọn không phải vai trò phụ xe")
+    if not tai_khoan["dang_hoat_dong"]:
+        raise GiaTriLoi("Tài khoản được chọn đang bị khóa")
 
     da_gan = nhan_su_repo.tim_theo_nguoi_dung_id(str(nguoi_dung_id))
     if da_gan and str(da_gan["id"]) != str(nhan_su_id_dang_sua):

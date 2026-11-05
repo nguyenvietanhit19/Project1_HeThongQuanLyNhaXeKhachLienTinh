@@ -58,8 +58,7 @@ def _ghi_nhat_ky(actor_id: str, actor_vai_tro: str, tai_khoan_id: str, ghi_chu: 
     # quan_ly_nhan_su -> nhat_ky_quan_ly_nhan_su; quan_ly -> nhat_ky_admin. Hai bảng tách riêng, không ghi chéo.
     if actor_vai_tro == "quan_ly_nhan_su":
         nhat_ky_repo.ghi(actor_id, hanh_dong, "nguoi_dung", tai_khoan_id, ghi_chu)
-    elif actor_vai_tro == "quan_ly" and hanh_dong != "tao_tai_khoan":
-        # UC-36 chưa ghi nhật ký cho quan_ly (giữ nguyên hành vi cũ); UC-37 trở đi mới ghi.
+    elif actor_vai_tro == "quan_ly":
         nhat_ky_admin_repo.ghi(actor_id, hanh_dong, "nguoi_dung", tai_khoan_id, ghi_chu)
 
 
@@ -106,7 +105,7 @@ def tao_tai_khoan(actor_id: str, actor_vai_tro: str, du_lieu) -> dict:
     )
 
     # Nhật ký chỉ ghi vai trò + văn phòng, KHÔNG ghi mật khẩu
-    ghi_chu = f"Tạo tài khoản {vai_tro_moi}" + (f", văn phòng {van_phong_id}" if van_phong_id else "")
+    ghi_chu = f"Tạo tài khoản {vai_tro_moi} {tai_khoan['ma']}" + (f", văn phòng {van_phong_id}" if van_phong_id else "")
     _ghi_nhat_ky(actor_id, actor_vai_tro, str(tai_khoan["id"]), ghi_chu)
 
     return {**tai_khoan, "mat_khau_ban_dau": mat_khau}
@@ -177,7 +176,7 @@ def _bao_xe_thieu_phu_xe(muc_tieu: dict, xe_thieu: list[dict]) -> None:
     Chỉ nhắc, không tự đổi biên chế."""
     bien_so = ", ".join(x["bien_so"] for x in xe_thieu)
     noi_dung = (
-        f"Phụ xe {muc_tieu['ho_ten']} vừa bị khóa tài khoản; xe không còn phụ xe cố định: {bien_so}. "
+        f"Phụ xe {muc_tieu['ho_ten']}{' (' + muc_tieu['ma'] + ')' if muc_tieu.get('ma') else ''} vừa bị khóa tài khoản; xe không còn phụ xe cố định: {bien_so}. "
         "Vui lòng bố trí phụ xe thay thế."
     )
     nguoi_nhan: set[str] = set()

@@ -6,7 +6,7 @@
 >
 > *File này trước đây tên `UC36_THAY_THE_GAN_VAN_PHONG_VA_DOI_VAN_PHONG.md`, nay mở rộng cho toàn bộ nhiệm vụ của mình.*
 >
-> Cập nhật lần cuối: 23/10/2026 (đến UC-36 đã merge #38 và UC-37 đang làm trên nhánh `feature/Nghia-uc37-khoa-mo-khoa-tai-khoan`).
+> Cập nhật lần cuối: 5/11/2026 (UC-36 và UC-37 đã merge #38, #44; mã nhân viên đã làm xong, chưa commit).
 
 Ký hiệu trạng thái: ⏳ chưa báo · 📣 đã báo, chờ trả lời · ✅ đã xong / đã xác nhận · ❓ cần nhóm quyết định.
 
@@ -23,8 +23,9 @@ Ký hiệu trạng thái: ⏳ chưa báo · 📣 đã báo, chờ trả lời ·
 | 5 | **Quy tắc bậc** của khóa / mở khóa (chặt hơn spec cũ "`quan_ly` bất kỳ khóa được mọi cán bộ") | Trưởng nhóm, ai dùng tài khoản `quan_ly` | Biết và đồng ý | UC-37 | ⏳ |
 | 6 | Khóa **phụ xe** gửi thông báo cho `quan_ly` + `dieu_do_vien` (dùng lại hàm chung) | Nhóm **điều độ viên**, nhóm **thông báo / biên chế phụ xe** | Cho điều độ viên chỗ xem thông báo; xem cách xử lý phụ xe đã khóa trong biên chế (mục 6) | UC-37 | ⏳ |
 | 7 | **Đổi văn phòng** (chưa code) | Phần gửi hàng, Trưởng nhóm | Chốt 2 quy tắc: còn đơn dở có chặn không; lý do có bắt buộc không | UC-36 (nhánh kèm) | ❓ |
-| 8 | Thêm file dùng chung / điểm nối | Người sở hữu các file đó | Biết khi sửa lại các file này (mục 8) | UC-49/36/37 | ✅ |
-| 9 | 7 test lỗi **có sẵn** ở integration (không do mình) | Người làm **vé lẻ / thanh toán** | Sửa test | — | ⏳ |
+| 8 | Thêm file dùng chung / điểm nối | Người sở hữu các file đó | Biết khi sửa lại các file này (mục 8) | UC-49/36/37, mã nhân viên | ✅ |
+| 9 | **25 test lỗi có sẵn** ở integration (không do mình; tính 5/11/2026, trước đó 7) | Người làm **vé lẻ / quầy vé / thanh toán VNPay** | Sửa test | — | ⏳ |
+| 10 | **Mã nhân viên**: migration thêm cột `ma` vào bảng dùng chung `nguoi_dung` và `nhan_su_van_hanh`; thêm hàm vào 2 file dùng chung | **Cả nhóm**; nhóm hiển thị tên nhân viên; chủ 3 script seed demo | Chạy `yoyo apply ./migrations` sau khi pull; tùy ý hiện `ma` cạnh tên; tài khoản demo do script tạo sẽ không có mã | Mã nhân viên | ⏳ (chưa commit) |
 
 ---
 
@@ -145,6 +146,7 @@ Tài liệu đã sửa: `NGHIEP_VU.md` (8.7 điểm 5–6, mục 9, UC-37), `UML
 **Mình làm gì:** khi khóa tài khoản `phu_xe` làm cho một xe không còn phụ xe **cố định** nào đang hoạt động, hệ thống:
 - Trả `canh_bao_xe_thieu_phu_xe` (danh sách biển số) cho người khóa.
 - Gửi thông báo cho `quan_ly` và `dieu_do_vien` đang hoạt động (không gửi `quan_ly_nhan_su`, bỏ người vừa khóa).
+- Nội dung thông báo ghi họ tên phụ xe kèm mã nhân viên (nếu tài khoản đã có mã).
 - **Không tự đổi biên chế**: chỉ nhắc.
 
 **Dùng lại code của nhóm, không sửa:** `thong_bao_khach_service.gui(...)` (ghi bảng `thong_bao` rồi đẩy WebSocket, không ném lỗi) và `nguoi_dung_repository.danh_sach_id_theo_vai_tro(vai_tro, chi_dang_hoat_dong=True)`.
@@ -194,29 +196,44 @@ Quy tắc của mình: không sửa code đã có của người khác; được
 
 | File | Mình làm gì | Nên biết |
 |---|---|---|
-| `backend/app/main.py` | Thêm đăng ký router `nhan_su` + job `canh_bao_giay_to` (UC-49), router `tai_khoan_can_bo` (UC-36). UC-49 có đổi dòng import (diff `6 +-`) | Điểm nối bắt buộc duy nhất. UC-37 **không** sửa |
+| `backend/app/main.py` | Thêm đăng ký router `nhan_su` + job `canh_bao_giay_to` (UC-49), router `tai_khoan_can_bo` (UC-36). UC-49 có đổi dòng import (diff `6 +-`) | Điểm nối bắt buộc duy nhất. UC-37 và mã nhân viên **không** sửa. Hiện có 3 dòng `from app.jobs import ...` chồng lặp tên (dòng 10–12, do các lần merge): vô hại, nên dọn |
 | `backend/app/config.py` | Thêm `NGUONG_CANH_BAO_GIAY_TO_NGAY = 30` | Chỉ thêm |
-| `backend/app/repositories/nhan_su_van_hanh_repository.py` | Thêm 6 hàm cuối file (UC-49) | Hàm cũ giữ nguyên |
+| `backend/app/repositories/nhan_su_van_hanh_repository.py` | Thêm 6 hàm cuối file (UC-49); 5/11/2026 sửa chính các hàm UC-49 đó để thêm cột `ma` và cấp mã tài xế | Hàm cũ của UC-35 (`tim_theo_id`, `danh_sach_dang_lam`...) giữ nguyên, **chưa** trả `ma` |
+| `backend/app/repositories/ma_repository.py`, `backend/app/utils/ma_tu_sinh.py` | Chỉ **thêm**: 8 sequence nhân viên, hàm `cap_ma_nhan_vien`, bảng `TIEN_TO_NHAN_VIEN`, hàm `ma_nhan_vien` (mã khu vực / tuyến / vé giữ nguyên) | File chung của các mã tự sinh |
 | `frontend/nhan-vien/dang-nhap.html` | Đổi **1 giá trị** đường dẫn để `quan_ly_nhan_su` đăng nhập xong vào `quan-li-nhan-su/` | Nếu ai sửa luồng chuyển trang sau đăng nhập, giữ lại nhánh này |
 | `/nhan-vien/quan-ly/style.css`, `data-table.js` | Chỉ **tham chiếu**, không sửa, không copy | Trang `quan-li-nhan-su/*` dùng chung hai file này: ai sửa class `nv-*` hoặc `renderDataTable` sẽ ảnh hưởng cả trang của mình |
 
-Mình không sửa file code nào khác của người khác. Các bảng dùng chung: `nguoi_dung` (UC-36 INSERT; UC-37 UPDATE `dang_hoat_dong`), `ho_so_can_bo_diem` (UC-36 INSERT), `nhan_su_van_hanh` / `giay_to_nhan_su` (UC-49); không đổi cấu trúc bảng nào của người khác.
+Mình không sửa file code nào khác của người khác (ngoài việc **thêm** vào hai file mã ở trên). Các bảng dùng chung: `nguoi_dung` (UC-36 INSERT; UC-37 UPDATE `dang_hoat_dong`; mã nhân viên **thêm cột `ma`**), `ho_so_can_bo_diem` (UC-36 INSERT), `nhan_su_van_hanh` / `giay_to_nhan_su` (UC-49; `nhan_su_van_hanh` thêm cột `ma`). Chỉ **thêm** cột, không sửa hay xóa cột nào đã có.
 
 ---
 
 ## 9. Lỗi có sẵn không do mình (việc #9)
 
-Cả bộ `tests/unit` trên integration có **7 test lỗi có sẵn**: `test_ve_le.py` (6 test) và `test_thong_bao_khach.py::test_ipn_ve_le_thanh_cong_bao_khach`. Mình đã xác minh bằng `git stash` rằng chúng lỗi cả khi không có code của mình. Thuộc phần vé lẻ / thanh toán, cần báo người làm.
+Cả bộ `tests/unit` trên integration (`24d99ba`, 5/11/2026) có **25 test lỗi có sẵn, 833 qua**: `test_vnpay.py` (8), `test_thong_bao_khach.py` (6), `test_ve_le.py` (6), `test_vnpay_truy_van.py` (4), `test_quay_ve_khach_hang_theo_sdt.py` (1); đa số báo `KeyError: 'kenh_ban'`. Con số tăng từ 7 (23/10) lên 25 sau các PR #43–#47. Lúc chạy, nhánh của mình không có thay đổi code nào nên không do mình. Thuộc phần vé lẻ / quầy vé / thanh toán VNPay, cần báo người làm.
 
 ---
 
-## 10. Tóm tắt gửi nhóm (có thể copy)
+## 10. Mã nhân viên (việc #10)
+
+**Mình làm gì:** mỗi cán bộ có tài khoản (trừ khách hàng) và mỗi tài xế có một **mã nhân viên tự sinh**: tiền tố theo vai trò + 4 chữ số (`PX0001`, `QV0001`, `DDV0001`, `TX0001`...; quản lý gốc là `QL0000`). Thiết kế đầy đủ ở `KE_HOACH_MA_NHAN_VIEN.md`; quy ước ở `DATABASE.md` mục 10.2.
+
+**Ảnh hưởng tới người khác:**
+1. **Cả nhóm phải chạy lại migration** (`yoyo apply ./migrations`): migration `20261105_0900_ma_nhan_vien.sql` thêm cột `ma` vào `nguoi_dung` và `nhan_su_van_hanh`, tạo 8 sequence, điền mã cho dữ liệu cũ và tạo trigger / `CHECK` / chỉ mục duy nhất. Là **bảng dùng chung**, nhưng chỉ **thêm** cột (cho phép trống) nên mọi `INSERT` cũ vẫn chạy (đã thử `INSERT` không có mã).
+2. **Ai sửa tay cột `ma` của người đã có mã sẽ bị bỏ qua im lặng** (trigger `giu_ma_nhan_vien`), để mã không đổi. Người chưa có mã thì điền bù được.
+3. **Thêm vai trò mới vào `nguoi_dung.vai_tro`** thì phải thêm tiền tố / sequence và sửa `CHECK nguoi_dung_ma_hop_le` (nhánh `ELSE false` hiện từ chối mọi `INSERT` của vai trò chưa khai báo).
+4. **3 script seed demo** (`seed_gui_hang_demo.py`, `seed_nhan_vien_quay_ve_demo.py`, `seed_phu_xe_demo.py`) chèn thẳng `nguoi_dung` nên tài khoản demo **mới** do chúng tạo sẽ không có mã (tài khoản đã có được migration điền mã). Chỉ ảnh hưởng DB local. Muốn có mã thì gọi `ma_repository.cap_ma_nhan_vien(cur, vai_tro)`.
+5. **Hiển thị:** mình chỉ cung cấp `ma` ở API của phần nhân sự. Các màn hình khác (đơn gửi hàng, vé quầy, phụ xe, điều độ viên, chọn nhân sự để gán biên chế UC-35) đang chỉ có họ tên (`nhan_vien_ban`, `ten_nhan_vien_huy`, `ten_nguoi_thuc_hien`...): nhóm đó tự quyết định có hiện thêm mã không.
+
+---
+
+## 11. Tóm tắt gửi nhóm (có thể copy)
 
 > Mình (Nghĩa, Quản lý nhân sự) báo các thay đổi ảnh hưởng đến mọi người, chi tiết ở `TAC_DONG_DEN_NGUOI_KHAC_QUAN_LY_NHAN_SU.md`:
-> 1. **Cả nhóm:** sau khi pull cần chạy `yoyo apply ./migrations` (bảng `nhat_ky_admin` mới, UC-37). Quên thì `quan_ly` khóa tài khoản sẽ lỗi 500.
+> 1. **Cả nhóm:** sau khi pull cần chạy `yoyo apply ./migrations`: bảng `nhat_ky_admin` mới (UC-37; quên thì `quan_ly` khóa tài khoản sẽ lỗi 500) và, khi PR mã nhân viên merge, migration `20261105_0900_ma_nhan_vien.sql` thêm cột `ma` vào `nguoi_dung` / `nhan_su_van_hanh`.
 > 2. **UC-36 đã đổi so với spec:** bỏ mời bằng OTP, tạo tài khoản kèm mật khẩu mặc định `12345678`, không gửi email. **UC-37:** khóa / mở khóa theo bậc (gốc > `quan_ly` thường = kế toán > QLNS > cán bộ vận hành), lý do bắt buộc, khách hàng không khóa được. Mọi người xác nhận giúp.
 > 3. **Phần gửi hàng:** UC-36 tự gán văn phòng cho quầy vé / gửi hàng lúc tạo tài khoản. Chuỗi `gan_van_phong_can_bo` (route `PUT /quan-ly/ho-so-can-bo-diem`, schema `GanVanPhongCanBoRequest`, `gui_hang_service.gan_van_phong_can_bo`, `nguoi_dung_repository.gan_van_phong`) sẽ không còn cần. Đề xuất **xóa sau khi đổi văn phòng chạy được**, ưu tiên bạn tự xóa; phía gửi hàng chỉ sửa 2 dòng tài liệu (`DATABASE.md` mục 1.3, `KE_HOACH_SUA_GUI_HANG.md` mục P1) và kiểm tra script E2E. Bảng `ho_so_can_bo_diem` giữ nguyên.
 > 4. **Nhóm điều độ viên:** điều độ viên không gắn văn phòng (tài liệu đã sửa). Còn lệch ở `seed_phu_xe_demo.py:158` và `danh_sach_dieu_do_vien_tai_diem`. File `DIEU_DO_VIEN_THEO_TUYEN_DE_XUAT.md` của bạn đã lỡ vào integration cùng commit UC-36. Khóa phụ xe gửi thông báo cho `quan_ly` + `dieu_do_vien`: điều độ viên cần có chỗ xem thông báo.
 > 5. **Biên chế / sinh chuyến:** khóa phụ xe không tự đổi `xe_nhan_su`; phụ xe đã khóa vẫn nằm trong biên chế. Nhờ kiểm tra việc gán phụ xe cho chuyến có loại tài khoản đã khóa không.
 > 6. **Cần chốt (đổi văn phòng):** (a) còn đơn đang xử lý thì có chặn không; (b) lý do đổi có bắt buộc không.
-> 7. **Vé lẻ / thanh toán:** 7 test lỗi có sẵn ở `test_ve_le.py` và `test_thong_bao_khach.py`, không do phần mình.
+> 7. **Vé lẻ / quầy vé / thanh toán:** 25 test lỗi có sẵn ở `test_vnpay.py`, `test_thong_bao_khach.py`, `test_ve_le.py`, `test_vnpay_truy_van.py`, `test_quay_ve_khach_hang_theo_sdt.py` (đa số `KeyError: 'kenh_ban'`), không do phần mình.
+> 8. **Mã nhân viên** (`PX0001`, `DDV0001`, `TX0001`...): cột mới `ma` ở `nguoi_dung` / `nhan_su_van_hanh`, hiện ở màn hình nhân sự. Script seed demo tạo tài khoản mới sẽ không có mã. Các nhóm khác tự quyết định có hiện mã cạnh tên nhân viên không. Chi tiết `TAC_DONG_DEN_NGUOI_KHAC_QUAN_LY_NHAN_SU.md` mục 10.

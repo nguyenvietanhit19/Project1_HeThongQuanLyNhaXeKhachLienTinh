@@ -1,6 +1,6 @@
 # Kế hoạch làm UC-36 — Tạo tài khoản cán bộ
 
-> **File này là kế hoạch, chưa có code.** Nhánh làm: `feature/Nghia-uc36-tao-tai-khoan-can-bo` (tạo từ `integration/gop-nhanh-thanh-vien`, ngày 21/10/2026).
+> **Trạng thái (cập nhật 5/11/2026): đã làm xong và đã merge (#38).** Backend + frontend của UC-36 hoàn tất; file này giữ lại làm hồ sơ kế hoạch nên nhiều mục bên dưới là kế hoạch ban đầu. **Chưa làm:** nhánh kèm theo "đổi văn phòng" (chờ nhóm chốt hai quy tắc, xem `TAC_DONG_DEN_NGUOI_KHAC_QUAN_LY_NHAN_SU.md` việc 7) và việc xóa chuỗi hàm cũ `gan_van_phong_can_bo`. Từ 5/11/2026 UC-36 còn tự cấp **mã nhân viên** (`KE_HOACH_MA_NHAN_VIEN.md`). Nhánh đã làm: `feature/Nghia-uc36-tao-tai-khoan-can-bo` (tạo từ `integration/gop-nhanh-thanh-vien`, ngày 21/10/2026).
 > Nguồn: `NGHIEP_VU.md` mục 2, 8.7 điểm 2, 8.9, UC-36; `ARCHITECTURE.md`; `DIEU_DO_VIEN_THEO_TUYEN_DE_XUAT.md` mục 6; thiết kế chi tiết ở `NHAP_QUAN_LY_NHAN_SU.md` mục 11.1.
 
 ---
@@ -142,15 +142,15 @@ Trùng email do hai người tạo cùng lúc: bắt lỗi vi phạm `UNIQUE` �
 
 ## 6. Việc phải làm trước khi code
 
-- [ ] **Chốt với nhóm**: UC-36/37 được giao cho **Người 1 (Trưởng nhóm)** trong `CONTRIBUTING.md` — xác nhận ai làm, tránh trùng. - nhiem vu cua quan li nhan su
-- [ ] **Chốt** hai giai đoạn cho chuỗi hàm cũ (mục 4) và có thêm chức năng "đổi văn phòng" trong đợt này không.
-- [ ] **Chốt** điều độ viên không gắn văn phòng (mục 2.2): đề xuất đó nhóm đã duyệt chưa. - da duyet
-- [ ] **Sửa tài liệu cho khớp** (nếu điều độ viên không còn văn phòng): `NGHIEP_VU.md` mục 2 (dòng `dieu_do_vien`) và UC-36 bước 1; `UML_DIAGRAMS.md` sơ đồ UC-36; `NHAP_QUAN_LY_NHAN_SU.md` mục 11.1. Hiện tài liệu vẫn ghi điều độ viên "gắn cố định 1 văn phòng".
-- [ ] Bật Docker, `docker-compose up -d --build` và `yoyo apply` để DB khớp code mới.
+- [x] **Chốt với nhóm**: UC-36/37 được giao cho **Người 1 (Trưởng nhóm)** trong `CONTRIBUTING.md` — xác nhận ai làm, tránh trùng. - nhiem vu cua quan li nhan su
+- [x] **Chốt** hai giai đoạn cho chuỗi hàm cũ (mục 4) và có thêm chức năng "đổi văn phòng" trong đợt này không. → **Đã chốt 22/10/2026:** bỏ "hai giai đoạn"; làm UC-36 và đổi văn phòng trước, xóa chuỗi cũ sau cùng khi nhóm đồng ý. Đổi văn phòng hiện **chưa code**.
+- [x] **Chốt** điều độ viên không gắn văn phòng (mục 2.2): đề xuất đó nhóm đã duyệt chưa. - da duyet
+- [x] **Sửa tài liệu cho khớp** (nếu điều độ viên không còn văn phòng): `NGHIEP_VU.md` mục 2 (dòng `dieu_do_vien`) và UC-36 bước 1; `UML_DIAGRAMS.md` sơ đồ UC-36; `NHAP_QUAN_LY_NHAN_SU.md` mục 11.1. Hiện tài liệu vẫn ghi điều độ viên "gắn cố định 1 văn phòng". → Đã sửa 23/10/2026.
+- [x] Bật Docker, `docker-compose up -d --build` và `yoyo apply` để DB khớp code mới.
 
 ---
 
-## 7. Thứ tự làm
+## 7. Thứ tự làm *(đã hoàn thành cả 4 bước, 23/10/2026)*
 
 1. Schema → repository → service (kèm unit test) → route → đăng ký `main.py`.
 2. Test tay qua Swagger / PowerShell (mục 8).
@@ -171,6 +171,7 @@ Trùng email do hai người tạo cùng lúc: bắt lỗi vi phạm `UNIQUE` �
 | Mật khẩu ban đầu | Mật khẩu ban đầu là `12345678`, DB chỉ nhận bản băm khớp; không vào nhật ký |
 | Nhật ký | Chỉ ghi khi người gọi là `quan_ly_nhan_su` |
 | Schema | Quầy vé/gửi hàng không có `van_phong_id` bị chặn ngay ở schema |
+| Mã nhân viên (5/11/2026) | Kết quả tạo tài khoản có `ma` đúng tiền tố theo vai trò (`PX0001`, `QV0001`, `GH0001`, `DDV0001`, `KT0001`); nhật ký ghi kèm mã; schema chấp nhận `ma` trống ở danh sách |
 
 **Test tay**: đăng nhập `quanlynhansu@gmail.com` → tạo một tài khoản quầy vé → kiểm tra có dòng ở `nguoi_dung` và `ho_so_can_bo_diem`, đăng nhập được bằng `mat_khau_ban_dau` trả về. Rồi thử tạo `ke_toan` bằng QLNS → phải bị chặn.
 
@@ -184,5 +185,5 @@ Trùng email do hai người tạo cùng lúc: bắt lỗi vi phạm `UNIQUE` �
 | Quy tắc điều độ viên đổi theo đề xuất chưa duyệt | Hằng số duy nhất (2.2) |
 | Người tạo biết mật khẩu ban đầu của cán bộ | Mật khẩu mặc định chung nên ai biết email công ty đều đăng nhập được cho đến khi cán bộ đổi → nhắc đổi ngay; cờ bắt buộc đổi lần đầu là việc sau (cần cột mới ở bảng `nguoi_dung`) |
 | Xóa chuỗi hàm cũ ảnh hưởng người test phần gửi hàng | Làm hai giai đoạn, báo người viết |
-| Khóa/mở khóa (UC-37) chưa có → tạo nhầm tài khoản không có cách khóa | Làm UC-37 ngay sau UC-36 |
-| `nhat_ky_admin` chưa có migration → `quan_ly` tạo tài khoản không có nơi ghi nhật ký | Đã nêu ở `NHAP_QUAN_LY_NHAN_SU.md` 11.1f; hỏi nhóm |
+| ~~Khóa/mở khóa (UC-37) chưa có → tạo nhầm tài khoản không có cách khóa~~ | Đã làm UC-37 ngay sau UC-36 (#44) |
+| ~~`nhat_ky_admin` chưa có migration~~ → `quan_ly` tạo tài khoản không có nơi ghi nhật ký | Migration đã tạo (23/10, cùng UC-37). **Còn lại:** UC-36 hiện chỉ ghi nhật ký khi người tạo là `quan_ly_nhan_su`; `quan_ly` tạo tài khoản **chưa được ghi** — chưa xử lý |
