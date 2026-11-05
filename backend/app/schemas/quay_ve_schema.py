@@ -36,6 +36,10 @@ class TaoLinkThanhToanRequest(BaseModel):
     frontend_origin: str
 
 
+class XacNhanKetQuaVnpayQuayRequest(BaseModel):
+    tham_so: dict[str, str]
+
+
 class VeQuayResponse(BaseModel):
     id: UUID
     ma_ve: str

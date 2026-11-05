@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, Request
 
 from app.middleware.auth_middleware import NguoiDungHienTai, yeu_cau_vai_tro
-from app.schemas.quay_ve_schema import BanVeRequest, HuyVeRequest, TaoLinkThanhToanRequest, ThanhToanQuayRequest
+from app.schemas.quay_ve_schema import BanVeRequest, HuyVeRequest, TaoLinkThanhToanRequest, ThanhToanQuayRequest, XacNhanKetQuaVnpayQuayRequest
 from app.services import quay_ve_service as service
 
 router = APIRouter(prefix="/quay-ve", tags=["quay-ve"])
@@ -99,6 +99,11 @@ def tao_link_thanh_toan_dat_cho(ma_dat_cho: str, body: TaoLinkThanhToanRequest,
     ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "127.0.0.1")).split(",")[0].strip()
     return {"duong_dan_thanh_toan": service.tao_link_thanh_toan_dat_cho(
         nguoi_dung, ma_dat_cho, body.frontend_origin, ip)}
+
+
+@router.post("/xac-nhan-vnpay-sandbox")
+def xac_nhan_vnpay_sandbox(body: XacNhanKetQuaVnpayQuayRequest, nguoi_dung: NhanVienQuayVe):
+    return service.xac_nhan_vnpay_sandbox(nguoi_dung, body.tham_so)
 
 
 @router.post("/dat-cho/{ma_dat_cho}/huy")

@@ -187,7 +187,8 @@ def tra_cuu(van_phong_id: str, ma_dat_cho: str | None = None, sdt: str | None = 
             cur.execute(
                 """SELECT v.id, v.ma_ve, v.ma_dat_cho, v.so_ghe, v.gia, v.trang_thai, v.gio_huy,
                           v.ngay_tao, v.gio_thanh_toan,
-                          v.phuong_thuc_thanh_toan, v.loai_hinh_thanh_toan, v.han_giu_cho_den, v.kenh_ban,
+                          v.phuong_thuc_thanh_toan, v.loai_hinh_thanh_toan, v.la_ve_dat_coc,
+                          v.han_giu_cho_den, v.kenh_ban,
                           v.ma_tham_chieu_vnpay, v.ma_giao_dich_cong_thanh_toan,
                           COALESCE(nd.ho_ten, v.ten_khach_vang_lai, '') AS ten_khach,
                           COALESCE(nd.so_dien_thoai, v.sdt_khach_vang_lai, '') AS sdt_khach,

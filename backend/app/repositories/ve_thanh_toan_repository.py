@@ -19,7 +19,7 @@ def bat_dau_thanh_toan_qr_quay(ma_dat_cho: str, van_phong_id: str, ma_giao_dich:
         with conn.cursor() as cur:
             cur.execute(
                 """SELECT v.trang_thai, v.gia, v.han_giu_cho_den, v.ma_tham_chieu_vnpay,
-                          v.kenh_ban, c.gio_khoi_hanh
+                          v.kenh_ban, v.loai_hinh_thanh_toan, v.la_ve_dat_coc, c.gio_khoi_hanh
                    FROM ve v JOIN chuyen_xe c ON c.id = v.chuyen_id
                    WHERE v.ma_dat_cho = %s AND v.diem_don_id = %s
                    ORDER BY v.id FOR UPDATE OF v""",
@@ -32,7 +32,14 @@ def bat_dau_thanh_toan_qr_quay(ma_dat_cho: str, van_phong_id: str, ma_giao_dich:
             if any(v["trang_thai"] != "giu_cho" or v["gio_khoi_hanh"] <= now or
                    (v["han_giu_cho_den"] is not None and v["han_giu_cho_den"] <= now) for v in ve):
                 raise GiaTriLoi("Lượt đặt đã thanh toán, hết hạn hoặc không còn mở bán")
-            tham_chieu = {v["ma_tham_chieu_vnpay"] for v in ve if v["ma_tham_chieu_vnpay"]}
+            la_dat_coc = any(v["la_ve_dat_coc"] for v in ve)
+            ve_thanh_toan = [
+                v for v in ve
+                if not la_dat_coc or v["loai_hinh_thanh_toan"] == "thanh_toan_ngay"
+            ]
+            if not ve_thanh_toan:
+                raise GiaTriLoi("Lượt này chưa có vé đặt cọc cần thanh toán")
+            tham_chieu = {v["ma_tham_chieu_vnpay"] for v in ve_thanh_toan if v["ma_tham_chieu_vnpay"]}
             if len(tham_chieu) > 1 or any(ref.startswith("VE") for ref in tham_chieu):
                 raise GiaTriLoi("Lượt đặt đã có giao dịch thanh toán riêng; vui lòng tra cứu lại")
             ref = next(iter(tham_chieu), ma_giao_dich)
@@ -43,14 +50,16 @@ def bat_dau_thanh_toan_qr_quay(ma_dat_cho: str, van_phong_id: str, ma_giao_dich:
                 """UPDATE ve SET loai_hinh_thanh_toan = 'thanh_toan_ngay',
                           han_giu_cho_den = %s, ma_tham_chieu_vnpay = %s,
                           gio_bat_dau_dem_han = COALESCE(gio_bat_dau_dem_han, now())
-                   WHERE ma_dat_cho = %s AND diem_don_id = %s AND trang_thai = 'giu_cho'""",
-                (han, ref, ma_dat_cho, van_phong_id),
+                   WHERE ma_dat_cho = %s AND diem_don_id = %s AND trang_thai = 'giu_cho'
+                     AND (%s = false OR la_ve_dat_coc = true)""",
+                (han, ref, ma_dat_cho, van_phong_id, la_dat_coc),
             )
-            if cur.rowcount != len(ve):
+            if cur.rowcount != len(ve_thanh_toan):
                 raise GiaTriLoi("Lượt đặt vừa thay đổi, vui lòng tải lại")
         conn.commit()
         return {"ma_giao_dich": ref, "han_thanh_toan": han,
-                "tong_tien": sum(int(v["gia"]) for v in ve), "so_ve": len(ve)}
+                "tong_tien": sum(int(v["gia"]) for v in ve_thanh_toan), "so_ve": len(ve_thanh_toan),
+                "la_dat_coc": la_dat_coc}
     except Exception:
         conn.rollback()
         raise

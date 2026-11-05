@@ -143,6 +143,7 @@ def tao_ve_quay(
     sdt_khach: str,
     kenh_ban: str,
     phuong_thuc: str,
+    ghe_dat_coc: list[str] | None = None,
 ) -> list[dict]:
     """Tạo vé qua quầy, dùng chung transaction khóa/kiểm tra ghế.
 
@@ -155,6 +156,12 @@ def tao_ve_quay(
         raise GiaTriLoi("Kênh bán không hợp lệ")
     if phuong_thuc not in ("tien_mat", "chuyen_khoan", "thanh_toan_tai_quay"):
         raise GiaTriLoi("Phương thức thanh toán không hợp lệ")
+    ghe_dat_coc = ghe_dat_coc or []
+    if ghe_dat_coc and (
+        kenh_ban != "hotline" or phuong_thuc != "thanh_toan_tai_quay"
+        or not set(ghe_dat_coc) <= set(danh_sach_ghe)
+    ):
+        raise GiaTriLoi("Danh sách ghế đặt cọc không hợp lệ")
 
     conn = get_connection()
     try:
@@ -212,24 +219,29 @@ def tao_ve_quay(
 
             ve_tao = []
             da_thanh_toan = phuong_thuc == "tien_mat" and kenh_ban == "tai_quay"
-            loai_hinh = "thanh_toan_ngay" if phuong_thuc == "chuyen_khoan" else "thanh_toan_tai_quay"
+            co_han_thanh_toan = phuong_thuc == "chuyen_khoan" or bool(ghe_dat_coc)
             for so_ghe in danh_sach_ghe:
+                la_ve_dat_coc = so_ghe in ghe_dat_coc
+                loai_hinh = "thanh_toan_ngay" if phuong_thuc == "chuyen_khoan" or la_ve_dat_coc else "thanh_toan_tai_quay"
                 cur.execute(
                     """INSERT INTO ve (
                            ma_ve, chuyen_id, so_ghe, diem_don_id, diem_tra_id, khach_hang_id, gia, ma_dat_cho,
-                           loai_hinh_thanh_toan, trang_thai, han_giu_cho_den,
+                           loai_hinh_thanh_toan, la_ve_dat_coc, trang_thai, han_giu_cho_den, gio_bat_dau_dem_han,
                            ten_khach_vang_lai, sdt_khach_vang_lai, nhan_vien_ban_id,
                            nhan_vien_thu_id, kenh_ban, phuong_thuc_thanh_toan, gio_thanh_toan
                        ) VALUES (
-                           %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                           %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                            CASE WHEN %s THEN LEAST(now() + make_interval(mins => %s), %s) ELSE NULL END,
+                           CASE WHEN %s THEN now() ELSE NULL END,
                            %s, %s, %s, %s, %s, %s, CASE WHEN %s THEN now() ELSE NULL END
-                       ) RETURNING id, ma_ve, ma_dat_cho, so_ghe, gia, trang_thai, han_giu_cho_den, ten_khach_vang_lai""",
+                       ) RETURNING id, ma_ve, ma_dat_cho, so_ghe, gia, trang_thai, han_giu_cho_den,
+                                 ten_khach_vang_lai, la_ve_dat_coc, loai_hinh_thanh_toan""",
                     (
                         ma_tu_sinh.ma_ve(ma_repository.so_tiep_theo(cur, "ve")), chuyen_id, so_ghe,
                         diem_don_id, diem_tra_id, khach_hang_id, gia_theo_ghe[so_ghe], ma_dat_cho, loai_hinh,
-                        "da_thanh_toan" if da_thanh_toan else "giu_cho", phuong_thuc == "chuyen_khoan",
-                        HAN_THANH_TOAN_NGAY_PHUT, chuyen[1], ten_khach, sdt_khach,
+                        la_ve_dat_coc, "da_thanh_toan" if da_thanh_toan else "giu_cho",
+                        co_han_thanh_toan, HAN_THANH_TOAN_NGAY_PHUT, chuyen[1], co_han_thanh_toan,
+                        ten_khach, sdt_khach,
                         nhan_vien_id, nhan_vien_id if da_thanh_toan else None, kenh_ban,
                         "tien_mat" if da_thanh_toan else None, da_thanh_toan,
                     ),
@@ -256,6 +268,11 @@ def thanh_toan_ve_quay(ma_dat_cho: str, van_phong_id: str, nhan_vien_id: str, ph
                    WHERE v.diem_don_id = d.id AND d.id = %s AND v.ma_dat_cho = %s
                      AND v.trang_thai = 'giu_cho' AND v.loai_hinh_thanh_toan = 'thanh_toan_tai_quay'
                      AND (v.han_giu_cho_den IS NULL OR v.han_giu_cho_den > now())
+                     AND NOT EXISTS (
+                         SELECT 1 FROM ve coc
+                         WHERE coc.ma_dat_cho = v.ma_dat_cho AND coc.la_ve_dat_coc = true
+                           AND coc.trang_thai <> 'da_thanh_toan'
+                     )
                      AND EXISTS (SELECT 1 FROM chuyen_xe c
                                  WHERE c.id = v.chuyen_id AND c.gio_khoi_hanh > now())
                      AND d.loai = 'van_phong'""",

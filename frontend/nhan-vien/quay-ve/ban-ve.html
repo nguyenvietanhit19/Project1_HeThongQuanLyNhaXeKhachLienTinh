@@ -218,9 +218,83 @@
     <script src="print-modal.js"></script>
     <script>
 let qvOffice=null, qvTrip=null, qvDetail=null, qvSeatSelection=new Set(), qvAccountId=null, qvOriginArea=null, qvDestinationArea=null;
+let qvCurrentSale=null, qvSaleRefreshPromise=null;
 const $=s=>document.querySelector(s);
 function localDate(){return qvDateCode(new Date());}
 function showError(el,msg){el.textContent=msg;el.classList.toggle("qv-hidden",!msg);}
+async function qvRefreshCurrentSale(){
+  if(!qvCurrentSale)return false;
+  if(qvSaleRefreshPromise)return qvSaleRefreshPromise;
+  const sale=qvCurrentSale;
+  qvSaleRefreshPromise=(async()=>{
+    try{
+      const all=await apiGet(`/quay-ve/tra-cuu?${queryString({ma_dat_cho:sale.maDatCho})}`);
+      if(qvCurrentSale!==sale)return false;
+      const tickets=all.filter(item=>item.ma_dat_cho===sale.maDatCho);
+      if(!tickets.length)throw new Error("Không tìm thấy lượt đặt chỗ tại văn phòng này.");
+      sale.tickets=tickets;
+      showError($("#sale-refresh-error"),"");
+      const coc=tickets.filter(item=>item.la_ve_dat_coc);
+      const cocDaTra=coc.length>0&&coc.every(item=>item.trang_thai==="da_thanh_toan");
+      const cocDangCho=coc.some(item=>item.trang_thai==="giu_cho");
+      const choTienMat=tickets.filter(item=>item.trang_thai==="giu_cho"&&item.loai_hinh_thanh_toan==="thanh_toan_tai_quay");
+      const dangGiu=tickets.filter(item=>item.trang_thai==="giu_cho");
+      const daTra=tickets.filter(item=>item.trang_thai==="da_thanh_toan");
+      const daTraHet=daTra.length===tickets.length;
+      const tongTien=tickets.reduce((sum,item)=>sum+Number(item.gia),0);
+      const tienDaTra=daTra.reduce((sum,item)=>sum+Number(item.gia),0);
+      const tienChoTra=dangGiu.reduce((sum,item)=>sum+Number(item.gia),0);
+      $("#sale-result-title").textContent=`${daTraHet?"Đã hoàn tất lượt vé":coc.length&&!cocDaTra?cocDangCho?"Đang chờ đặt cọc":"Đặt cọc chưa hoàn tất":cocDaTra&&choTienMat.length?"Đã cọc, chờ thu tiền tại quầy":dangGiu.some(item=>item.loai_hinh_thanh_toan==="thanh_toan_ngay")?"Đang chờ thanh toán VNPay":dangGiu.length?"Chờ thu tiền tại quầy":"Lượt vé không còn giữ chỗ"} ${sale.maDatCho}`;
+      $("#sale-result-payment").textContent=`Tổng tiền ${dinhDangTien(tongTien)} · Đã thanh toán ${dinhDangTien(tienDaTra)} · Chờ thanh toán ${dinhDangTien(tienChoTra)}`;
+      const depositNote=$("#sale-deposit-note");
+      depositNote.classList.toggle("qv-hidden",!coc.length);
+      depositNote.classList.toggle("is-paid",cocDaTra);
+      if(coc.length){
+        const tienCoc=coc.reduce((sum,item)=>sum+Number(item.gia),0);
+        depositNote.textContent=cocDaTra
+          ? `Đã thanh toán cọc ${coc.length} vé · ${dinhDangTien(tienCoc)}. ${choTienMat.length?`${choTienMat.length} vé còn lại chờ thu tiền mặt tại quầy.`:"Toàn bộ vé đã thanh toán."}`
+          : cocDangCho
+            ? `Cần đặt cọc ${coc.length} vé · ${dinhDangTien(tienCoc)} qua VNPay trong thời hạn giữ chỗ.`
+            : "Lượt đặt cọc đã hết hạn hoặc bị hủy. Vui lòng kiểm tra tại tra cứu.";
+      }
+      const deadline=$("#sale-hold-deadline");
+      const veChoVnpay=dangGiu.find(item=>item.loai_hinh_thanh_toan==="thanh_toan_ngay");
+      deadline.classList.toggle("qv-hidden",!veChoVnpay);
+      if(veChoVnpay)deadline.textContent=`Giữ chỗ đến ${dinhDangNgay(veChoVnpay.han_giu_cho_den)}`;
+      const qrButton=$("#pay-booking-qr");
+      if(qrButton)qrButton.hidden=!tickets.some(item=>item.co_the_tao_qr);
+      const cashButton=$("#collect-sale-cash");
+      cashButton.hidden=!choTienMat.length||!choTienMat.every(item=>item.co_the_thanh_toan);
+      cashButton.textContent=`Thu tiền mặt ${dinhDangTien(choTienMat.reduce((sum,item)=>sum+Number(item.gia),0))}`;
+      const printAll=$("#print-all-sold-tickets");
+      if(printAll)printAll.hidden=daTra.length<2;
+      const summary=$("#sale-pending-summary");
+      summary.classList.toggle("qv-hidden",!dangGiu.length);
+      if(dangGiu.length){
+        const label=coc.length&&!cocDaTra?cocDangCho?"Chờ xác nhận cọc VNPay":"Đặt cọc chưa thành công":choTienMat.length?"Chờ thu tiền mặt tại quầy":"Chờ thanh toán VNPay";
+        summary.innerHTML=`<strong>${dangGiu.length} vé đang giữ chỗ · ${label}</strong><ul>${dangGiu.map(item=>`<li>Ghế ${escapeHtml(item.so_ghe)} · ${dinhDangTien(item.gia)} · ${item.la_ve_dat_coc?"Cọc VNPay":choTienMat.includes(item)?"Thu tiền mặt":"Thanh toán VNPay"}</li>`).join("")}</ul>`;
+      }
+      const rows=new Map([...$("#sale-result").querySelectorAll("tr[data-ticket-id]")].map(row=>[row.dataset.ticketId,row]));
+      for(const item of tickets){
+        const row=rows.get(String(item.id));
+        if(!row)continue;
+        const cells=row.querySelectorAll("td");
+        cells[0].textContent=item.trang_thai==="giu_cho"&&(item.loai_hinh_thanh_toan==="thanh_toan_ngay"||cocDangCho)?"Chưa phát hành":item.ma_ve;
+        const status=item.trang_thai==="da_thanh_toan"?"Đã thanh toán":item.trang_thai==="giu_cho"?item.la_ve_dat_coc?"Chờ cọc VNPay":coc.length&&!cocDaTra?cocDangCho?"Chờ xác nhận cọc":"Đặt cọc chưa thành công":item.loai_hinh_thanh_toan==="thanh_toan_ngay"?"Chờ VNPay":"Chờ thu tiền mặt":item.trang_thai==="het_han"?"Hết hạn":item.trang_thai==="da_huy"?"Đã hủy":item.trang_thai;
+        cells[3].innerHTML=`<span class="qv-badge ${item.trang_thai==="da_thanh_toan"?"green":item.trang_thai==="giu_cho"?"orange":"red"}">${escapeHtml(status)}</span>`;
+        cells[4].innerHTML=item.co_the_in?`<button class="qv-btn secondary print-ticket" type="button" data-id="${escapeHtml(item.id)}">In vé</button>`:item.trang_thai==="giu_cho"?item.la_ve_dat_coc?"Cọc VNPay":coc.length&&!cocDaTra?"Chờ xử lý cọc":item.loai_hinh_thanh_toan==="thanh_toan_tai_quay"?"Thu tiền mặt":"Thanh toán VNPay":"—";
+        cells[4].querySelector(".print-ticket")?.addEventListener("click",()=>qvTicketPrint.openTicket(item.id));
+      }
+      return true;
+    }catch(error){
+      if(qvCurrentSale===sale)showError($("#sale-refresh-error"),`Chưa cập nhật được trạng thái vé: ${error.message}`);
+      return false;
+    }
+  })();
+  try{return await qvSaleRefreshPromise;}finally{qvSaleRefreshPromise=null;}
+}
+window.addEventListener("focus",()=>{if(qvCurrentSale)qvRefreshCurrentSale();});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&qvCurrentSale)qvRefreshCurrentSale();});
 function updateTotal(){let total=0;for(const seat of qvSeatSelection){const g=qvDetail?.so_do_ghe?.find(x=>x.ma_ghe===seat);total+=Number(g?.gia||0);}$("#seat-summary").textContent=qvSeatSelection.size?`Đã chọn ${qvSeatSelection.size} ghế: ${[...qvSeatSelection].join(", ")}`:"Chưa chọn ghế";$("#seat-total").textContent=dinhDangTien(total);$("#next-to-dropoff").disabled=!qvSeatSelection.size;$("#next-to-customer").disabled=!qvSeatSelection.size;$("#submit-sale").disabled=!qvSeatSelection.size;}
 let qvSeatMapRequest = 0;
 let qvTripStopsRequest = 0;
@@ -816,13 +890,16 @@ $("#submit-sale").addEventListener("click",async()=>{
     };
     const tienMatDaThu=payload.kenh_ban==="tai_quay"&&payload.phuong_thuc==="tien_mat";
     const thanhToanQr=payload.phuong_thuc==="chuyen_khoan";
+    const hotlineTraSau=payload.kenh_ban==="hotline"&&payload.phuong_thuc==="thanh_toan_tai_quay";
     const tongTien=[...qvSeatSelection].reduce((sum,seat)=>sum+Number(qvDetail.so_do_ghe.find(g=>g.ma_ghe===seat)?.gia||0),0);
     const xacNhan=await qvConfirm(
       tienMatDaThu
         ? `Bạn đã nhận đủ ${dinhDangTien(tongTien)} từ khách cho ${payload.danh_sach_ghe.length} vé? Xác nhận sẽ tạo vé ở trạng thái đã thanh toán.`
         : thanhToanQr
           ? `Giữ ${payload.danh_sach_ghe.length} ghế trong 5 phút và tạo một mã QR thanh toán ${dinhDangTien(tongTien)} cho cả lượt? Vé chỉ được phát hành sau khi VNPay xác nhận thành công.`
-          : `Tạo ${payload.danh_sach_ghe.length} vé chờ thanh toán cho khách ${payload.ten_khach}? Vé sẽ tự hủy nếu chưa thanh toán khi chuyến đã chạy.`,
+          : hotlineTraSau
+            ? `Tạo ${payload.danh_sach_ghe.length} vé cho khách ${payload.ten_khach}? Đơn hotline đạt ngưỡng số vé hoặc giá trị sẽ cần thanh toán đặt cọc qua VNPay; các vé còn lại chỉ được giữ sau khi cọc thành công.`
+            : `Tạo ${payload.danh_sach_ghe.length} vé chờ thanh toán cho khách ${payload.ten_khach}? Vé sẽ tự hủy nếu chưa thanh toán khi chuyến đã chạy.`,
       tienMatDaThu?"Xác nhận đã thanh toán":thanhToanQr?"Xác nhận giữ chỗ":"Xác nhận tạo vé",
       tienMatDaThu?"Tạo vé":thanhToanQr?"Giữ chỗ":"Tạo vé"
     );
@@ -832,46 +909,67 @@ $("#submit-sale").addEventListener("click",async()=>{
     qvCloseSeatDialog();
     const tatCaDaThanhToan=result.ve.every(ve=>ve.trang_thai==="da_thanh_toan");
     const veChoThanhToan=result.ve.filter(ve=>ve.trang_thai==="giu_cho");
-    const rows=result.ve.map(ve=>`<tr>
-      <td>${thanhToanQr?"Chưa phát hành":escapeHtml(ve.ma_ve)}</td>
+    const datCoc=Boolean(result.can_dat_coc);
+    const thanhToanChoDatCho=thanhToanQr||datCoc;
+    const rows=result.ve.map(ve=>`<tr data-ticket-id="${escapeHtml(ve.id)}">
+      <td>${thanhToanChoDatCho&&ve.trang_thai==="giu_cho"?"Chưa phát hành":escapeHtml(ve.ma_ve)}</td>
       <td>${escapeHtml(ve.so_ghe)}</td>
       <td>${dinhDangTien(ve.gia)}</td>
       <td>${ve.trang_thai==="giu_cho"?'<span class="qv-badge orange">Chờ thanh toán</span>':escapeHtml(ve.trang_thai)}</td>
       <td>${ve.trang_thai==="da_thanh_toan"
         ? `<button class="qv-btn secondary print-ticket" type="button" data-id="${escapeHtml(ve.id)}">In vé</button>`
-        : thanhToanQr?"Thanh toán chung cả lượt":"Tra cứu lượt đặt"}</td>
+        : ve.la_ve_dat_coc?"Cọc VNPay":thanhToanQr?"Thanh toán chung cả lượt":"Trả tại quầy"}</td>
     </tr>`).join("");
     $("#sale-result").innerHTML=`
       <div class="qv-toolbar">
         <div>
-          <h2>${thanhToanQr?"Đang giữ chỗ cho lượt":"Đã tạo lượt vé"} ${escapeHtml(result.ma_dat_cho)}</h2>
+          <h2 id="sale-result-title">${thanhToanChoDatCho?datCoc?"Đang chờ đặt cọc cho lượt":"Đang giữ chỗ cho lượt":"Đã tạo lượt vé"} ${escapeHtml(result.ma_dat_cho)}</h2>
           <p class="qv-muted">Khách: ${escapeHtml(result.ten_khach||payload.ten_khach)}</p>
-          <p class="qv-muted">Tổng tiền ${dinhDangTien(result.tong_tien)} · ${escapeHtml(result.trang_thai)}</p>
-          ${thanhToanQr?`<p class="qv-muted">Giữ chỗ đến ${dinhDangNgay(result.ve[0].han_giu_cho_den)}</p>`:""}
+          <p class="qv-muted" id="sale-result-payment">Tổng tiền ${dinhDangTien(result.tong_tien)} · ${escapeHtml(result.trang_thai)}</p>
+          <p class="qv-pending-deposit ${datCoc?"":"qv-hidden"}" id="sale-deposit-note">${datCoc?`Cần cọc ${result.so_ve_dat_coc} vé · ${dinhDangTien(result.tien_dat_coc)}. Các vé còn lại được giữ đến khi chuyến khởi hành sau khi cọc thành công.`:""}</p>
+          <p class="qv-muted ${thanhToanChoDatCho?"":"qv-hidden"}" id="sale-hold-deadline">${thanhToanChoDatCho?`Giữ chỗ đến ${dinhDangNgay(result.ve[0].han_giu_cho_den)}`:""}</p>
         </div>
         <div class="qv-actions-inline">
-          ${thanhToanQr?'<button class="qv-btn" id="pay-booking-qr" type="button">Mở QR thanh toán cả lượt</button>':""}
-          ${tatCaDaThanhToan && result.ve.length>1
-            ? '<button class="qv-btn" id="print-all-sold-tickets" type="button">In tất cả vé</button>'
-            : !tatCaDaThanhToan
-              ? '<button class="qv-btn secondary" id="view-sold-booking" type="button">Tra cứu / thanh toán</button>'
-              : ""}
+          ${thanhToanChoDatCho?`<button class="qv-btn" id="pay-booking-qr" type="button">${datCoc?"Mở QR đặt cọc":"Mở QR thanh toán cả lượt"}</button>`:""}
+          <button class="qv-btn" id="collect-sale-cash" type="button" hidden>Thu tiền mặt</button>
+          <button class="qv-btn secondary" id="refresh-sale" type="button">Cập nhật trạng thái</button>
+          <button class="qv-btn" id="print-all-sold-tickets" type="button" ${tatCaDaThanhToan&&result.ve.length>1?"":"hidden"}>In tất cả vé đã thanh toán</button>
+          ${!tatCaDaThanhToan?'<button class="qv-btn secondary" id="view-sold-booking" type="button">Tra cứu / thanh toán</button>':""}
           <button class="qv-btn secondary" id="new-sale" type="button">Bán lượt mới</button>
         </div>
       </div>
-      ${veChoThanhToan.length?`<div class="qv-pending-summary">
-        <strong>${veChoThanhToan.length} ghế chờ thanh toán trong lượt này${thanhToanQr?" · Hết hạn sau 5 phút":""}</strong>
-        <ul>${veChoThanhToan.map(ve=>`<li>${thanhToanQr?"":"<b>"+escapeHtml(ve.ma_ve)+"</b> · "}Ghế ${escapeHtml(ve.so_ghe)} · ${dinhDangTien(ve.gia)}</li>`).join("")}</ul>
-      </div>`:""}
+      <p class="qv-sale-refresh-error qv-hidden" id="sale-refresh-error" role="status"></p>
+      <div class="qv-pending-summary ${veChoThanhToan.length?"":"qv-hidden"}" id="sale-pending-summary">
+        <strong>${datCoc?`${result.so_ve_dat_coc} vé cần đặt cọc · ${dinhDangTien(result.tien_dat_coc)}`:`${veChoThanhToan.length} ghế chờ thanh toán trong lượt này`}${thanhToanChoDatCho?" · Hết hạn sau 5 phút":""}</strong>
+        <ul>${veChoThanhToan.map(ve=>`<li>${thanhToanChoDatCho?"":"<b>"+escapeHtml(ve.ma_ve)+"</b> · "}Ghế ${escapeHtml(ve.so_ghe)} · ${dinhDangTien(ve.gia)}${ve.la_ve_dat_coc?" · Vé cọc":" · Trả tại quầy"}</li>`).join("")}</ul>
+      </div>
       <div class="qv-table-wrap"><table class="qv-table">
         <thead><tr><th>Mã vé</th><th>Ghế</th><th>Giá</th><th>Trạng thái</th><th>Tác vụ</th></tr></thead>
         <tbody>${rows}</tbody>
       </table></div>`;
     $("#sale-result").classList.remove("qv-hidden");
     $("#sale-result").scrollIntoView({behavior:"smooth"});
+    qvCurrentSale={maDatCho:result.ma_dat_cho,tickets:null};
     const urlTraCuu=`/nhan-vien/quay-ve/tra-cuu-ve.html?ma_dat_cho=${encodeURIComponent(result.ma_dat_cho)}`;
     $("#print-all-sold-tickets")?.addEventListener("click",()=>qvTicketPrint.openBooking(result.ma_dat_cho));
     $("#view-sold-booking")?.addEventListener("click",()=>window.open(urlTraCuu,"_blank","noopener"));
+    $("#refresh-sale").addEventListener("click",()=>qvRefreshCurrentSale());
+    $("#collect-sale-cash").addEventListener("click",async()=>{
+      const sale=qvCurrentSale;
+      if(!sale||!await qvRefreshCurrentSale())return;
+      const veChuaTra=sale.tickets.filter(ve=>ve.trang_thai==="giu_cho"&&ve.loai_hinh_thanh_toan==="thanh_toan_tai_quay");
+      if(!veChuaTra.length||!veChuaTra.every(ve=>ve.co_the_thanh_toan))return;
+      const tienConLai=veChuaTra.reduce((sum,ve)=>sum+Number(ve.gia),0);
+      if(!await qvConfirm(`Bạn đã nhận đủ ${dinhDangTien(tienConLai)} tiền mặt cho ${veChuaTra.length} vé còn lại?`,"Xác nhận thu tiền mặt","Ghi nhận thanh toán"))return;
+      const button=$("#collect-sale-cash");
+      button.disabled=true;
+      try{
+        await apiPost(`/quay-ve/dat-cho/${encodeURIComponent(sale.maDatCho)}/thanh-toan`,{phuong_thuc:"tien_mat"});
+        await qvRefreshCurrentSale();
+        await qvAlert("Đã ghi nhận thanh toán tiền mặt cho các vé còn lại.","Thanh toán thành công","success");
+      }catch(error){await qvAlert(error.message,"Không thể thu tiền mặt","danger");}
+      finally{button.disabled=false;}
+    });
     $("#pay-booking-qr")?.addEventListener("click",async()=>{
       const button=$("#pay-booking-qr");
       button.disabled=true;
@@ -882,13 +980,16 @@ $("#submit-sale").addEventListener("click",async()=>{
     });
     $("#new-sale").addEventListener("click",()=>location.reload());
     $("#sale-result").querySelectorAll(".print-ticket").forEach(button=>button.onclick=()=>qvTicketPrint.openTicket(button.dataset.id));
+    await qvRefreshCurrentSale();
     await qvAlert(
       tatCaDaThanhToan
         ? `Đã tạo ${result.ve.length} vé và ghi nhận khách đã thanh toán ${dinhDangTien(result.tong_tien)}. Mã đặt chỗ: ${result.ma_dat_cho}.`
         : thanhToanQr
           ? `Đã giữ ${result.ve.length} ghế. Mã đặt chỗ: ${result.ma_dat_cho}. Mở QR để khách thanh toán một lần cho cả lượt trong 5 phút; vé sẽ tự phát hành khi giao dịch thành công.`
-          : `Đã tạo ${result.ve.length} vé chờ thanh toán. Mã đặt chỗ: ${result.ma_dat_cho}. Vé sẽ tự hủy nếu quá giờ khởi hành mà chưa thanh toán.`,
-      tatCaDaThanhToan?"Bán vé thành công":thanhToanQr?"Đã giữ chỗ chờ QR":"Đã tạo vé chờ thanh toán",
+          : datCoc
+            ? `Đã giữ ${result.ve.length} ghế cho lượt ${result.ma_dat_cho}. Khách cần thanh toán đặt cọc ${result.so_ve_dat_coc} vé, tương ứng ${dinhDangTien(result.tien_dat_coc)}, trong 5 phút. Sau khi VNPay xác nhận, các vé còn lại được giữ để khách thanh toán tại quầy.`
+            : `Đã tạo ${result.ve.length} vé chờ thanh toán. Mã đặt chỗ: ${result.ma_dat_cho}. Vé sẽ tự hủy nếu quá giờ khởi hành mà chưa thanh toán.`,
+      tatCaDaThanhToan?"Bán vé thành công":datCoc?"Đang chờ thanh toán đặt cọc":thanhToanQr?"Đã giữ chỗ chờ QR":"Đã tạo vé chờ thanh toán",
       tatCaDaThanhToan?"success":"warning"
     );
   }catch(e){showError(error,e.message);$("#submit-sale").disabled=false;}

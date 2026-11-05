@@ -1838,6 +1838,30 @@
   padding-left: 20px;
 }
 
+.qv-pending-deposit {
+  margin: 8px 0 0;
+  color: #a34119;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.5;
+}
+
+.qv-pending-deposit.is-paid { color: #16834b; }
+
+#sale-result [hidden] { display: none !important; }
+
+.qv-sale-refresh-error {
+  margin: 0 0 12px;
+  color: #aa2c39;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+#sale-result .qv-badge.red {
+  color: #9f2a32;
+  background: #fdebed;
+}
+
 .qv-table tbody tr[hidden] {
   display: none;
 }
