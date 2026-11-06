@@ -6,6 +6,8 @@ Không chứa quy tắc nghiệp vụ — việc đó thuộc services/xe_servic
 import json
 
 from app.db import get_connection, release_connection
+from app.repositories import bien_che_sql
+from app.utils import bien_che
 from app.repositories import ma_repository
 from app.utils import ma_tu_sinh
 
@@ -133,7 +135,8 @@ _SELECT_XE = """
            (SELECT count(*) FROM xe_nhan_su xn JOIN nhan_su_van_hanh n ON n.id = xn.nhan_su_van_hanh_id
              WHERE xn.xe_id = x.id AND xn.loai = 'co_dinh' AND n.chuc_danh = 'tai_xe') AS so_tai_xe_co_dinh,
            (SELECT count(*) FROM xe_nhan_su xn JOIN nhan_su_van_hanh n ON n.id = xn.nhan_su_van_hanh_id
-             WHERE xn.xe_id = x.id AND xn.loai = 'co_dinh' AND n.chuc_danh = 'phu_xe') AS so_phu_xe_co_dinh
+             WHERE xn.xe_id = x.id AND xn.loai = 'co_dinh' AND n.chuc_danh = 'phu_xe') AS so_phu_xe_co_dinh,
+           """ + bien_che_sql.cot_hieu_luc("x") + """
     FROM xe x
     JOIN loai_xe lx ON lx.id = x.loai_xe_id
     JOIN diem_don_tra d ON d.id = x.diem_goc_id
@@ -250,5 +253,22 @@ def dem_chuyen_dang_chay_thay(xe_id: str) -> int:
                 (xe_id,),
             )
             return cur.fetchone()[0]
+    finally:
+        release_connection(conn)
+
+
+def danh_sach_xe_thieu_nhan_su() -> list[dict]:
+    """Xe đang hoạt động, CỐ ĐỊNH tuyến (xe dự phòng không tính) mà chưa đủ nhân sự hiệu lực — để nhắc quản lý (jobs/nhac_quan_ly)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT q.id, q.bien_so, q.so_tai_xe_hieu_luc, q.so_phu_xe_hieu_luc FROM (" + _SELECT_XE + """) q
+                WHERE q.trang_thai = 'hoat_dong' AND q.tuyen_id IS NOT NULL
+                  AND (q.so_tai_xe_hieu_luc < %s OR q.so_phu_xe_hieu_luc < %s)
+                ORDER BY q.bien_so""",
+                (bien_che.SO_TAI_XE_YEU_CAU, bien_che.SO_PHU_XE_TOI_THIEU),
+            )
+            return _thanh_list(cur, cur.fetchall())
     finally:
         release_connection(conn)

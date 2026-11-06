@@ -74,7 +74,8 @@ def test_bo_gia_con_dai_khong_nhac():
 @pytest.fixture
 def moi_truong(monkeypatch):
     """Giả lập: 2 quản lý, danh sách cặp lịch do test đặt, khoảng giá do test đặt, ghi lại các thông báo đã gửi."""
-    trang_thai = {"cac_cap": [], "khoang_gia": {}, "da_co": set(), "da_gui": [], "nguoi_nhan": ["ql-1", "ql-2"]}
+    trang_thai = {"cac_cap": [], "khoang_gia": {}, "da_co": set(), "da_gui": [], "nguoi_nhan": ["ql-1", "ql-2"], "xe_thieu": []}
+    monkeypatch.setattr(job.xe_repo, "danh_sach_xe_thieu_nhan_su", lambda: trang_thai["xe_thieu"])
     monkeypatch.setattr(job.nguoi_dung_repo, "danh_sach_id_theo_vai_tro", lambda vai_tro, chi_dang_hoat_dong=False: trang_thai["nguoi_nhan"])
     monkeypatch.setattr(job.lich_chay_repository, "cac_cap_dang_ap_dung_kem_ngay_chuyen_cuoi", lambda: trang_thai["cac_cap"])
     monkeypatch.setattr(job.gia_ve_service, "khoang_ngay_co_gia", lambda tuyen_id: trang_thai["khoang_gia"].get(tuyen_id))
@@ -144,3 +145,40 @@ def test_chay_loi_o_mot_muc_khong_chan_cac_muc_con_lai(moi_truong, monkeypatch):
 
     monkeypatch.setattr(job.thong_bao_repo, "da_co_thong_bao_giong", hong_o_tuyen_dau)
     assert job.chay(HOM_NAY) == (1, 0)  # cặp thứ nhất lỗi (ghi log), cặp thứ hai vẫn được nhắc
+
+
+# ---------------------------------------------------------------- nhắc xe thiếu nhân sự
+def test_noi_dung_nhac_xe_thieu_nhan_su():
+    assert job.noi_dung_nhac_xe_thieu_nhan_su([]) is None
+    nd = job.noi_dung_nhac_xe_thieu_nhan_su([{"bien_so": "29B-1"}, {"bien_so": "29B-2"}])
+    assert "2 xe" in nd and "29B-1, 29B-2" in nd and "chưa gán được chuyến" in nd
+    nhieu = job.noi_dung_nhac_xe_thieu_nhan_su([{"bien_so": f"29B-{i}"} for i in range(8)])
+    assert "29B-4" in nhieu and "29B-5" not in nhieu and "và 3 xe khác" in nhieu  # chỉ liệt kê 5 xe đầu
+
+
+def test_chay_nhac_xe_thieu_nhan_su_gui_cho_moi_quan_ly_kem_duong_dan_trang_xe(moi_truong):
+    moi_truong["xe_thieu"] = [{"bien_so": "29B-1"}]
+    assert job.chay(HOM_NAY) == (0, 0)  # không tính vào hai số trả về cũ
+    assert [(n, d) for n, _, d in moi_truong["da_gui"]] == [("ql-1", "/nhan-vien/quan-ly/xe.html"), ("ql-2", "/nhan-vien/quan-ly/xe.html")]
+    assert all("29B-1" in nd for _, nd, _ in moi_truong["da_gui"])
+
+
+def test_chay_nhac_xe_thieu_nhan_su_khong_lap_lai_cung_tinh_trang(moi_truong):
+    moi_truong["xe_thieu"] = [{"bien_so": "29B-1"}]
+    noi_dung = job.noi_dung_nhac_xe_thieu_nhan_su(moi_truong["xe_thieu"])
+    moi_truong["da_co"] = {("ql-1", noi_dung), ("ql-2", noi_dung)}
+    job.chay(HOM_NAY)
+    assert moi_truong["da_gui"] == []
+
+
+def test_chay_khong_xe_nao_thieu_thi_khong_nhac(moi_truong):
+    job.chay(HOM_NAY)
+    assert moi_truong["da_gui"] == []
+
+
+def test_chay_loi_khi_lay_xe_thieu_khong_lam_hong_job(moi_truong, monkeypatch):
+    def hong():
+        raise RuntimeError("db loi")
+
+    monkeypatch.setattr(job.xe_repo, "danh_sach_xe_thieu_nhan_su", hong)
+    assert job.chay(HOM_NAY) == (0, 0)

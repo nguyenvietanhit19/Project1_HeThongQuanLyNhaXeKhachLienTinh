@@ -6,7 +6,11 @@ from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from datetime import date
+
+from pydantic import BaseModel, Field, computed_field
+
+from app.utils import bien_che as quy_tac_bien_che
 
 
 class GheXe(BaseModel):
@@ -62,6 +66,25 @@ class XeResponse(BaseModel):
     ten_tuyen: str | None = None
     so_tai_xe_co_dinh: int
     so_phu_xe_co_dinh: int
+    so_tai_xe_hieu_luc: int = Field(..., description="Tài xế ĐANG HOẠT ĐỘNG (cố định hoặc tạm thời, hồ sơ còn đang làm) — NGHIEP_VU.md mục 3.2")
+    so_phu_xe_hieu_luc: int
+
+    @computed_field
+    @property
+    def du_nhan_su(self) -> bool:
+        """Đủ 2 tài xế + ít nhất 1 phụ xe đang hoạt động — chưa đủ thì KHÔNG gán được chuyến (UC-44)."""
+        return quy_tac_bien_che.du_nhan_su(self.so_tai_xe_hieu_luc, self.so_phu_xe_hieu_luc)
+
+    @computed_field
+    @property
+    def thieu_nhan_su(self) -> str:
+        return quy_tac_bien_che.mo_ta_thieu(self.so_tai_xe_hieu_luc, self.so_phu_xe_hieu_luc)
+
+    @computed_field
+    @property
+    def can_canh_bao_nhan_su(self) -> bool:
+        """Hiện cảnh báo trên trang Xe: xe đang hoạt động, cố định tuyến, chưa đủ nhân sự (xe dự phòng không cảnh báo)."""
+        return quy_tac_bien_che.can_canh_bao_thieu_nhan_su(self.trang_thai, self.tuyen_id, self.so_tai_xe_hieu_luc, self.so_phu_xe_hieu_luc)
 
 
 # ---------------------------------------------------------
@@ -70,20 +93,67 @@ class XeResponse(BaseModel):
 class BienCheItem(BaseModel):
     id: UUID = Field(..., description="id dòng xe_nhan_su")
     nhan_su_van_hanh_id: UUID
+    ma: str | None = None
     ho_ten: str
     so_dien_thoai: str
     chuc_danh: str
     loai: str
     trang_thai: str
+    trang_thai_nhan_su: str | None = None  # dang_lam | da_nghi_viec — người đã nghỉ việc không được tính vào nhân sự của xe
 
 
 class NhanSuKhaDung(BaseModel):
     id: UUID
+    ma: str | None = None  # mã nhân viên: tài xế TX…, phụ xe PX… (của tài khoản)
     ho_ten: str
     so_dien_thoai: str
     chuc_danh: str
     co_tai_khoan: bool
+    email: str | None = None  # chỉ phụ xe
+    ngay_vao_lam: date | None = None
+    xe_id_co_dinh: UUID | None = None
     bien_so_xe_co_dinh: str | None = None
+    giay_to_tinh_trang: Literal["het_han", "sap_het_han"] | None = None  # giấy tờ có vấn đề (hết hạn / sắp hết hạn), None = ổn hoặc chưa có
+
+
+class GiayToChiTiet(BaseModel):
+    loai: Literal["bang_lai", "giay_kham_suc_khoe"]
+    so_giay_to: str | None = None
+    hang: str | None = None
+    ngay_cap: date | None = None
+    ngay_het_han: date
+    tinh_trang: Literal["con_han", "sap_het_han", "het_han"]
+    anh_url: str | None = Field(default=None, description="URL ảnh giấy tờ có chữ ký (Cloudinary), None nếu chưa có ảnh hoặc không sinh được URL")
+
+
+class BienCheHienTai(BaseModel):
+    xe_id: UUID
+    bien_so: str
+    loai: str
+    trang_thai: str
+
+
+class NhanSuChiTietBienChe(BaseModel):
+    """TOÀN BỘ hồ sơ nhân sự (chỉ xem) cho quản lý khi cân nhắc đưa vào biên chế: thông tin cá nhân, ảnh, giấy tờ, tài khoản, biên chế hiện tại.
+    Sửa hồ sơ vẫn là việc của quan_ly_nhan_su (UC-49)."""
+
+    id: UUID
+    ma: str | None = None
+    ho_ten: str
+    so_dien_thoai: str
+    chuc_danh: str
+    trang_thai: str
+    so_cccd: str | None = None
+    ngay_sinh: date | None = None
+    anh_url: str | None = Field(default=None, description="URL ảnh chân dung có chữ ký, None nếu chưa có ảnh")
+    ngay_vao_lam: date | None = None
+    ngay_nghi_viec: date | None = None
+    ly_do_nghi_viec: str | None = None
+    co_tai_khoan: bool
+    email: str | None = None
+    tai_khoan_hoat_dong: bool | None = None
+    giay_to: list[GiayToChiTiet]
+    bien_che: list[BienCheHienTai]
 
 
 class ThemBienCheRequest(BaseModel):

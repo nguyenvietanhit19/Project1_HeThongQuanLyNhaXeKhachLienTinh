@@ -6,6 +6,7 @@ Mỗi chuyến trả về kèm: thời gian chạy cả tuyến (`tong_phut` = m
 """
 
 from app.db import get_connection, release_connection
+from app.repositories import bien_che_sql
 
 _SELECT_CHUYEN = """
     SELECT c.id, c.ma, c.chu_trinh_id, c.tuyen_id, t.ma AS ma_tuyen, t.ten AS ten_tuyen, c.chieu, c.gio_khoi_hanh,
@@ -37,7 +38,8 @@ _SELECT_CHUYEN = """
 """
 
 _SELECT_XE = """
-    SELECT x.id, x.bien_so, x.loai_xe_id, x.trang_thai, x.tuyen_id, x.diem_goc_id, d.ten AS ten_diem_goc
+    SELECT x.id, x.bien_so, x.loai_xe_id, x.trang_thai, x.tuyen_id, x.diem_goc_id, d.ten AS ten_diem_goc,
+           """ + bien_che_sql.cot_hieu_luc("x") + """
     FROM xe x
     JOIN diem_don_tra d ON d.id = x.diem_goc_id
 """
@@ -113,7 +115,8 @@ _SELECT_XE_DE_CHON = """
            CASE WHEN jsonb_typeof(lx.so_do_ghe) = 'array' THEN jsonb_array_length(lx.so_do_ghe) ELSE 0 END AS so_ghe,
            COALESCE((SELECT max((g->>'tang')::int)
                      FROM jsonb_array_elements(CASE WHEN jsonb_typeof(lx.so_do_ghe) = 'array' THEN lx.so_do_ghe ELSE '[]'::jsonb END) g), 1) AS so_tang,
-           t.ma AS ma_tuyen_co_dinh, t.ten AS ten_tuyen_co_dinh
+           t.ma AS ma_tuyen_co_dinh, t.ten AS ten_tuyen_co_dinh,
+           """ + bien_che_sql.cot_hieu_luc("x") + """
     FROM xe x
     JOIN diem_don_tra d ON d.id = x.diem_goc_id
     JOIN loai_xe lx ON lx.id = x.loai_xe_id
