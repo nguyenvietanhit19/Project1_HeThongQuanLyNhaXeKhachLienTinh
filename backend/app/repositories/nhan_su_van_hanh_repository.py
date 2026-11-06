@@ -294,13 +294,28 @@ def cap_nhat_ho_so(nhan_su_id: str, ho_ten: str, so_dien_thoai: str, so_cccd: st
         release_connection(conn)
 
 
-def cap_nhat_anh_ho_so(nhan_su_id: str, anh_ho_so: str) -> None:
-    """Lưu public_id ảnh Cloudinary (không phải URL) vào hồ sơ."""
+def cap_nhat_anh_ho_so(nhan_su_id: str, anh_ho_so: str) -> str | None:
+    """Lưu public_id ảnh Cloudinary (không phải URL) vào hồ sơ và TRẢ VỀ public_id ảnh cũ (None nếu chưa có / không có hồ sơ).
+
+    Đọc ảnh cũ và ghi ảnh mới trong MỘT câu lệnh có khóa dòng (`FOR UPDATE`): hai người cùng đổi ảnh một hồ sơ sẽ xếp
+    hàng, người sau nhận lại ảnh của người trước làm "ảnh cũ" để xóa — không để sót ảnh rác trên Cloudinary."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("UPDATE nhan_su_van_hanh SET anh_ho_so = %s WHERE id = %s", (anh_ho_so, nhan_su_id))
+            cur.execute(
+                """
+                WITH cu AS (SELECT id, anh_ho_so FROM nhan_su_van_hanh WHERE id = %s FOR UPDATE)
+                UPDATE nhan_su_van_hanh n SET anh_ho_so = %s FROM cu WHERE n.id = cu.id
+                RETURNING cu.anh_ho_so
+                """,
+                (nhan_su_id, anh_ho_so),
+            )
+            row = cur.fetchone()
         conn.commit()
+        return row[0] if row else None
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         release_connection(conn)
 

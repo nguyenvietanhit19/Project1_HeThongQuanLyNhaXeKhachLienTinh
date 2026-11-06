@@ -17,12 +17,14 @@ from app.schemas.nhan_su_schema import (
     ChoNghiViecResponse,
     HoSoNhanSuResponse,
     HoSoTomTatResponse,
+    LoaiGiayTo,
     SuaHoSoRequest,
     TaiKhoanPhuXeResponse,
     TaoHoSoRequest,
     XemTruocNghiViecResponse,
 )
 from app.services import ho_so_nhan_su_service as service
+from app.utils.kiem_tra_anh import KICH_THUOC_TOI_DA_BYTE
 
 router = APIRouter(prefix="/quan-ly-nhan-su", tags=["quan-ly-nhan-su"])
 
@@ -65,7 +67,8 @@ def sua_ho_so(nhan_su_id: UUID, du_lieu: SuaHoSoRequest, nguoi_dung: QuyenQuanLy
 # async vì UploadFile.read() là hàm bất đồng bộ; service bên dưới vẫn là hàm thường.
 @router.post("/ho-so/{nhan_su_id}/anh", response_model=AnhResponse)
 async def tai_anh_ho_so_len(nhan_su_id: UUID, nguoi_dung: QuyenQuanLyNhanSu, file: UploadFile = File(...)):
-    du_lieu = await file.read()
+    # Chỉ đọc tối đa 5MB + 1 byte: file lớn hơn vẫn bị service báo "quá lớn" mà không nạp cả file khổng lồ vào bộ nhớ.
+    du_lieu = await file.read(KICH_THUOC_TOI_DA_BYTE + 1)
     url = service.cap_nhat_anh_ho_so(nguoi_dung.id, nguoi_dung.vai_tro, str(nhan_su_id), du_lieu)
     return {"url": url}
 
@@ -73,8 +76,8 @@ async def tai_anh_ho_so_len(nhan_su_id: UUID, nguoi_dung: QuyenQuanLyNhanSu, fil
 # POST /quan-ly-nhan-su/ho-so/{id}/giay-to/{loai}/anh — upload ảnh giấy tờ
 # {loai} = bang_lai hoặc giay_kham_suc_khoe
 @router.post("/ho-so/{nhan_su_id}/giay-to/{loai}/anh", response_model=AnhResponse)
-async def tai_anh_giay_to_len(nhan_su_id: UUID, loai: str, nguoi_dung: QuyenQuanLyNhanSu, file: UploadFile = File(...)):
-    du_lieu = await file.read()
+async def tai_anh_giay_to_len(nhan_su_id: UUID, loai: LoaiGiayTo, nguoi_dung: QuyenQuanLyNhanSu, file: UploadFile = File(...)):
+    du_lieu = await file.read(KICH_THUOC_TOI_DA_BYTE + 1)
     url = service.cap_nhat_anh_giay_to(nguoi_dung.id, nguoi_dung.vai_tro, str(nhan_su_id), loai, du_lieu)
     return {"url": url}
 

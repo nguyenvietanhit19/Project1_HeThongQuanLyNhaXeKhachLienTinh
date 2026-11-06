@@ -21,20 +21,23 @@ cảm như CCCD/giấy tờ. Vì vậy:
     để lấy URL có chữ ký — không cache/lưu lại URL này.
 """
 
+import re
 import uuid
 
 import cloudinary
 import cloudinary.uploader
 import cloudinary.utils
 
-from app.config import CLOUDINARY_URL
+from app.config import APP_ENV, CLOUDINARY_URL
 
 cloudinary.config(cloudinary_url=CLOUDINARY_URL)
 
-# Thư mục trên Cloudinary — tách riêng ảnh chân dung và ảnh giấy tờ cho dễ quản lý,
-# không liên quan tới cấu trúc bảng trong DB.
-THU_MUC_ANH_HO_SO = "nha_xe/nhan_su/ho_so"
-THU_MUC_ANH_GIAY_TO = "nha_xe/nhan_su/giay_to"
+# Thư mục trên Cloudinary — tách riêng ảnh chân dung và ảnh giấy tờ cho dễ quản lý, và tách THEO MÔI TRƯỜNG
+# (nha_xe/<APP_ENV>/...) để ảnh thử khi phát triển không lẫn với ảnh thật của bản triển khai. Không liên quan tới
+# cấu trúc bảng trong DB. APP_ENV chỉ giữ chữ thường, số, "_" và "-" để thành tên thư mục hợp lệ.
+MOI_TRUONG = re.sub(r"[^a-z0-9_-]", "-", APP_ENV.lower()) or "development"
+THU_MUC_ANH_HO_SO = f"nha_xe/{MOI_TRUONG}/nhan_su/ho_so"
+THU_MUC_ANH_GIAY_TO = f"nha_xe/{MOI_TRUONG}/nhan_su/giay_to"
 
 
 def tai_anh_len(du_lieu_anh: bytes, thu_muc: str) -> str | None:
@@ -93,7 +96,9 @@ def xoa_anh(public_id: str) -> bool:
     lỗi nghiêm trọng hay bỏ qua (ảnh rác không ảnh hưởng vận hành ngay).
     """
     try:
-        ket_qua = cloudinary.uploader.destroy(public_id, type="authenticated", resource_type="image")
+        # invalidate=True: xóa luôn bản lưu tạm của mạng phân phối (CDN), nếu không link cũ có thể vẫn xem được một lúc
+        # dù ảnh đã bị xóa — không chấp nhận được với ảnh CCCD / bằng lái (phát hiện khi thử với Cloudinary thật 6/11/2026).
+        ket_qua = cloudinary.uploader.destroy(public_id, type="authenticated", resource_type="image", invalidate=True)
         return ket_qua.get("result") == "ok"
     except Exception as loi:
         print(f"Lỗi xóa ảnh trên Cloudinary: {loi}")

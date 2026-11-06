@@ -80,8 +80,9 @@
           <div id="khoi-anh-ho-so" hidden style="display:flex; align-items:center; gap:14px; margin-bottom:14px;">
             <img id="anh-ho-so-xem-truoc" alt="Ảnh hồ sơ" style="width:64px; height:64px; border-radius:50%; object-fit:cover; background:#EEE; border:1px solid #E5E5E8;" />
             <div>
-              <input type="file" id="anh_ho_so_file" accept="image/*" style="font-size:13px;" />
+              <input type="file" id="anh_ho_so_file" accept="image/jpeg,image/png,image/webp" style="font-size:13px;" />
               <button type="button" class="nv-btn-secondary" id="btn-tai-anh" style="margin-left:6px;">Tải ảnh lên</button>
+              <div class="nv-text-phu" style="margin-top:4px; font-size:12px;">Ảnh JPEG, PNG hoặc WebP, tối đa 5MB.</div>
               <div id="anh-trang-thai" class="nv-text-phu" style="margin-top:4px;"></div>
             </div>
           </div>
@@ -365,25 +366,49 @@
 
     // Khối dưới mỗi giấy tờ: nhãn hạn + xem ảnh + chọn/tải ảnh. Chỉ hiện khi đang sửa hồ sơ
     // và giấy tờ đã lưu (endpoint upload ảnh giấy tờ yêu cầu giấy tờ tồn tại trước).
+    // Kiểm tra ảnh ngay ở trình duyệt cho khỏi tốn một lượt gọi API vô ích; backend vẫn kiểm tra lại theo nội dung thật
+    // (kiem_tra_anh.py): tối đa 5MB, chỉ JPEG / PNG / WebP.
+    const ANH_TOI_DA_BYTE = 5 * 1024 * 1024;
+    const ANH_DINH_DANG = ["image/jpeg", "image/png", "image/webp"];
+    function loiFileAnh(file) {
+      if (!file.size) return "File ảnh rỗng.";
+      if (!ANH_DINH_DANG.includes(file.type)) return "Chỉ nhận ảnh JPEG, PNG hoặc WebP.";
+      if (file.size > ANH_TOI_DA_BYTE) {
+        const mb = (file.size / 1048576).toFixed(1);
+        return mb === "5.0" ? "Ảnh quá lớn, tối đa 5MB." : `Ảnh quá lớn (${mb}MB), tối đa 5MB.`;
+      }
+      return null;
+    }
+    function baoLoiAnh(el, thongBao) {
+      el.textContent = thongBao;
+      el.style.color = "#d93025";
+    }
+
     function renderKhoiAnhGiayTo(prefix, nhanSuId, gt) {
       const el = document.getElementById(`anh-${prefix}`);
-      if (!gt || !nhanSuId) { el.style.display = "none"; el.innerHTML = ""; return; }
+      // design-tokens.css có `[hidden] { display: none !important }` nên phải bỏ thuộc tính hidden, đặt display:flex không đủ
+      // (trước đây khối tải ảnh giấy tờ không bao giờ hiện ra vì thiếu dòng này).
+      if (!gt || !nhanSuId) { el.hidden = true; el.innerHTML = ""; return; }
+      el.hidden = false;
       el.style.cssText = "display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:-4px 0 12px;";
       el.innerHTML = `
         ${nhanHanGiayTo(gt.ngay_het_han)}
         ${gt.anh_url ? `<a href="${esc(gt.anh_url)}" target="_blank" rel="noopener">Xem ảnh giấy tờ</a>` : '<span class="nv-text-phu">Chưa có ảnh</span>'}
-        <input type="file" accept="image/*" style="font-size:13px;" />
+        <input type="file" accept="image/jpeg,image/png,image/webp" style="font-size:13px;" />
         <button type="button" class="nv-btn-secondary">Tải ảnh lên</button>
-        <span class="nv-text-phu"></span>`;
+        <span class="nv-text-phu">JPEG, PNG hoặc WebP, tối đa 5MB</span>`;
       const [oFile, nut, oTrangThai] = [el.querySelector("input"), el.querySelector("button"), el.querySelector("span:last-child")];
       nut.addEventListener("click", async () => {
-        if (!oFile.files[0]) { oTrangThai.textContent = "Chọn 1 ảnh trước."; return; }
+        if (!oFile.files[0]) { baoLoiAnh(oTrangThai, "Chọn 1 ảnh trước."); return; }
+        const loiFile = loiFileAnh(oFile.files[0]);
+        if (loiFile) { baoLoiAnh(oTrangThai, loiFile); return; }
+        oTrangThai.style.color = "";
         oTrangThai.textContent = "Đang tải lên...";
         try {
           const kq = await apiUploadAnh(`/quan-ly-nhan-su/ho-so/${nhanSuId}/giay-to/${LOAI_GIAY_TO[prefix]}/anh`, oFile.files[0]);
           renderKhoiAnhGiayTo(prefix, nhanSuId, { ...gt, anh_url: kq.url });
         } catch (err) {
-          oTrangThai.textContent = err.message;
+          baoLoiAnh(oTrangThai, err.message);
         }
       });
     }
@@ -447,15 +472,19 @@
     document.getElementById("btn-tai-anh").addEventListener("click", async () => {
       const id = document.getElementById("nhan_su_id").value;
       const file = document.getElementById("anh_ho_so_file").files[0];
-      if (!id || !file) return;
       const trangThaiEl = document.getElementById("anh-trang-thai");
+      if (!id) return;
+      if (!file) return baoLoiAnh(trangThaiEl, "Chọn 1 ảnh trước.");
+      const loiFile = loiFileAnh(file);
+      if (loiFile) return baoLoiAnh(trangThaiEl, loiFile);
+      trangThaiEl.style.color = "";
       trangThaiEl.textContent = "Đang tải lên...";
       try {
         const ketQua = await apiUploadAnh(`/quan-ly-nhan-su/ho-so/${id}/anh`, file);
         document.getElementById("anh-ho-so-xem-truoc").src = ketQua.url;
         trangThaiEl.textContent = "Đã cập nhật ảnh.";
       } catch (err) {
-        trangThaiEl.textContent = err.message;
+        baoLoiAnh(trangThaiEl, err.message);
       }
     });
 
