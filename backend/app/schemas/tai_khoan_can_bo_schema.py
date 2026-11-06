@@ -28,18 +28,29 @@ class TaoTaiKhoanCanBoRequest(BaseModel):
     """Body của POST tạo tài khoản cán bộ."""
 
     email: EmailStr
-    ho_ten: str = Field(min_length=1)
-    so_dien_thoai: str = Field(min_length=1)
+    ho_ten: str | None = Field(default=None, description="Bắt buộc với mọi vai trò TRỪ phu_xe (phụ xe lấy từ hồ sơ)")
+    so_dien_thoai: str | None = Field(default=None, description="Bắt buộc với mọi vai trò TRỪ phu_xe (phụ xe lấy từ hồ sơ)")
     vai_tro: VaiTroCanBo
     van_phong_id: UUID | None = Field(
         default=None, description="Bắt buộc với nhan_vien_quay_ve / nhan_vien_gui_hang; các vai trò khác phải để trống"
     )
+    nhan_su_id: UUID | None = Field(
+        default=None, description="Chỉ và bắt buộc với phu_xe: hồ sơ phụ xe (đã tạo trước ở UC-49) mà tài khoản này gắn vào"
+    )
 
     @model_validator(mode="after")
     def kiem_tra_van_phong(self):
-        # ho_ten chỉ toàn khoảng trắng thì Field(min_length=1) không bắt được
-        if not self.ho_ten.strip():
-            raise ValueError("Họ tên không được để trống")
+        if self.vai_tro == "phu_xe":
+            # Hồ sơ tạo trước, tài khoản tạo sau: họ tên + số điện thoại lấy từ hồ sơ nên client không gửi (nếu gửi cũng bị bỏ qua)
+            if not self.nhan_su_id:
+                raise ValueError("Tài khoản phụ xe phải chọn hồ sơ phụ xe đã tạo trước")
+        else:
+            if self.nhan_su_id:
+                raise ValueError("Chỉ tài khoản phụ xe mới gắn với hồ sơ nhân sự")
+            if not self.ho_ten or not self.ho_ten.strip():  # chỉ toàn khoảng trắng cũng bị bắt
+                raise ValueError("Họ tên không được để trống")
+            if not self.so_dien_thoai or not self.so_dien_thoai.strip():
+                raise ValueError("Vui lòng nhập số điện thoại")
         if self.vai_tro in VAI_TRO_CAN_VAN_PHONG and not self.van_phong_id:
             raise ValueError("Vai trò này bắt buộc chọn văn phòng phụ trách")
         if self.vai_tro not in VAI_TRO_CAN_VAN_PHONG and self.van_phong_id:

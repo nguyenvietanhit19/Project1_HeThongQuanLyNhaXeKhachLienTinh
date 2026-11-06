@@ -304,6 +304,15 @@ def cap_nhat_ho_so(nhan_su_id: str, ho_ten: str, so_dien_thoai: str, so_cccd: st
                 """,
                 (ho_ten, so_dien_thoai, so_cccd, ngay_sinh, ngay_vao_lam, nhan_su_id),
             )
+            # Phụ xe đã có tài khoản: họ tên + số điện thoại chỉ được sửa ở đây (phụ xe không tự sửa được) nên đồng bộ sang tài khoản
+            # trong CÙNG transaction — hoặc cả hai cùng đổi, hoặc không đổi gì.
+            cur.execute(
+                """
+                UPDATE nguoi_dung SET ho_ten = %s, so_dien_thoai = %s
+                WHERE id = (SELECT nguoi_dung_id FROM nhan_su_van_hanh WHERE id = %s)
+                """,
+                (ho_ten, so_dien_thoai, nhan_su_id),
+            )
         conn.commit()
     except psycopg2.errors.UniqueViolation as loi:
         conn.rollback()
@@ -341,20 +350,17 @@ def cap_nhat_anh_ho_so(nhan_su_id: str, anh_ho_so: str) -> str | None:
         release_connection(conn)
 
 
-def danh_sach_tai_khoan_phu_xe_chua_gan() -> list[dict]:
-    """Tài khoản vai trò phu_xe đang hoạt động mà CHƯA gắn với hồ sơ nào —
-    để frontend cho chọn thay vì phải dán UUID khi tạo hồ sơ phụ xe."""
+def danh_sach_ho_so_phu_xe_chua_co_tai_khoan() -> list[dict]:
+    """Hồ sơ phụ xe ĐANG LÀM mà chưa gắn tài khoản — để form tạo tài khoản phụ xe (UC-36) cho chọn."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT nd.id, nd.ma, nd.ho_ten, nd.email, nd.so_dien_thoai
-                FROM nguoi_dung nd
-                WHERE nd.vai_tro = 'phu_xe'
-                  AND nd.dang_hoat_dong = true
-                  AND NOT EXISTS (SELECT 1 FROM nhan_su_van_hanh n WHERE n.nguoi_dung_id = nd.id)
-                ORDER BY nd.ho_ten
+                SELECT id, ho_ten, so_dien_thoai
+                FROM nhan_su_van_hanh
+                WHERE chuc_danh = 'phu_xe' AND trang_thai = 'dang_lam' AND nguoi_dung_id IS NULL
+                ORDER BY ho_ten
                 """
             )
             return _thanh_list(cur, cur.fetchall())

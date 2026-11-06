@@ -15,7 +15,7 @@ from app.middleware.auth_middleware import tao_token
 from app.repositories import nguoi_dung_repository as repo
 from app.utils.so_dien_thoai import chuan_hoa_so_dien_thoai
 from app.services.email_service import gui_mail
-from app.utils.loi import GiaTriLoi, KhongDuQuyen, LoiHeThong
+from app.utils.loi import CamTruyCap, GiaTriLoi, KhongDuQuyen, LoiHeThong
 
 _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -127,8 +127,13 @@ def sua_ho_ten(nguoi_dung_id: str, ho_ten: str) -> None:
     repo.cap_nhat_ho_ten(nguoi_dung_id, ho_ten)
 
 
-def sua_ho_so(nguoi_dung_id: str, ho_ten: str | None = None, so_dien_thoai: str | None = None) -> None:
-    """Sửa họ tên và/hoặc số điện thoại của chính mình — kiểm tra hết trước khi ghi để không sửa dở dang."""
+def sua_ho_so(nguoi_dung_id: str, ho_ten: str | None = None, so_dien_thoai: str | None = None, vai_tro: str | None = None) -> None:
+    """Sửa họ tên và/hoặc số điện thoại của chính mình — kiểm tra hết trước khi ghi để không sửa dở dang.
+
+    Phụ xe KHÔNG được tự sửa: hai thông tin này nằm cả ở hồ sơ nhân sự, chỉ Quản lý nhân sự sửa (ở hồ sơ, tự đồng bộ sang tài khoản)
+    để hai bên không lệch nhau."""
+    if vai_tro == "phu_xe":
+        raise CamTruyCap("Họ tên và số điện thoại do Quản lý nhân sự cập nhật. Vui lòng liên hệ quản lý nhân sự để thay đổi.")
     ho_ten_moi = ho_ten.strip() if ho_ten is not None else None
     if ho_ten_moi is not None and not ho_ten_moi:
         raise GiaTriLoi("Họ và tên không được để trống")

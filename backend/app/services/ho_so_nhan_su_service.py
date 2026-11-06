@@ -28,6 +28,7 @@ from app.services import luu_tru_anh_service
 from app.services import thong_bao_khach_service as thong_bao
 from app.utils.kiem_tra_anh import kiem_tra_file_anh
 from app.utils.loi import GiaTriLoi, KhongTimThay, LoiHeThong
+from app.utils.so_dien_thoai import chuan_hoa_so_dien_thoai
 
 
 # ---------------------------------------------------------
@@ -78,24 +79,6 @@ def xem_chi_tiet(nhan_su_id: str) -> dict:
     return ho_so
 
 
-def _kiem_tra_tai_khoan_phu_xe(nguoi_dung_id: str, nhan_su_id_dang_sua: str | None = None) -> None:
-    """Kiểm tra tài khoản được chọn cho hồ sơ phụ xe có hợp lệ không:
-    (1) tài khoản tồn tại, (2) đúng vai trò phu_xe, (3) đang hoạt động,
-    (4) chưa gắn với hồ sơ nhân sự khác (1 tài khoản <-> 1 hồ sơ).
-    nhan_su_id_dang_sua: khi sửa hồ sơ, bỏ qua chính hồ sơ đó lúc kiểm tra (4)."""
-    tai_khoan = nguoi_dung_repo.tim_theo_id(nguoi_dung_id)
-    if not tai_khoan:
-        raise GiaTriLoi("Không tìm thấy tài khoản được chọn")
-    if tai_khoan["vai_tro"] != "phu_xe":
-        raise GiaTriLoi("Tài khoản được chọn không phải vai trò phụ xe")
-    if not tai_khoan["dang_hoat_dong"]:
-        raise GiaTriLoi("Tài khoản được chọn đang bị khóa")
-
-    da_gan = nhan_su_repo.tim_theo_nguoi_dung_id(str(nguoi_dung_id))
-    if da_gan and str(da_gan["id"]) != str(nhan_su_id_dang_sua):
-        raise GiaTriLoi("Tài khoản này đã gắn với 1 hồ sơ khác")
-
-
 def _kiem_tra_trung(so_cccd: str | None, so_dien_thoai: str | None, nhan_su_id_dang_sua: str | None = None, ho_so_cu: dict | None = None) -> None:
     """Báo rõ trùng CCCD hay trùng số điện thoại và trùng với ai, thay vì để database ném lỗi (người dùng chỉ thấy "lỗi hệ thống").
     Khi sửa (ho_so_cu có giá trị): chỉ kiểm tra trường nào bị ĐỔI, để dữ liệu cũ đã trùng sẵn không chặn việc sửa trường khác."""
@@ -130,23 +113,22 @@ def _luu_giay_to(nhan_su_id: str, danh_sach_giay_to) -> None:
 def tao_ho_so(actor_id: str, actor_vai_tro: str, du_lieu) -> dict:
     """Tạo hồ sơ mới. Các bước: kiểm tra quy tắc nghiệp vụ -> tạo hồ sơ ->
     lưu giấy tờ -> ghi nhật ký -> trả hồ sơ đầy đủ."""
-    # Phụ xe: bắt buộc gắn với 1 tài khoản phu_xe hợp lệ
-    # (việc "phụ xe phải có nguoi_dung_id, tài xế không được có" đã chặn sớm ở schema).
-    if du_lieu.chuc_danh == "phu_xe":
-        _kiem_tra_tai_khoan_phu_xe(str(du_lieu.nguoi_dung_id))
+    # Hồ sơ tạo TRƯỚC, không gắn tài khoản. Phụ xe cần đăng nhập thì tài khoản được tạo SAU ở UC-36 và lấy họ tên / số điện thoại
+    # từ hồ sơ này (tai_khoan_can_bo_service.tao_tai_khoan).
+    so_dien_thoai = chuan_hoa_so_dien_thoai(du_lieu.so_dien_thoai)
 
     # Tài xế: bắt buộc có thông tin bằng lái ngay lúc tạo hồ sơ.
     if du_lieu.chuc_danh == "tai_xe" and not any(gt.loai == "bang_lai" for gt in du_lieu.giay_to):
         raise GiaTriLoi("Tài xế bắt buộc có thông tin bằng lái")
 
     # Báo trùng CCCD / số điện thoại TRƯỚC khi ghi — cũng để không "đốt" mã tài xế (số mã cấp trước khi INSERT, lỗi thì không trả lại)
-    _kiem_tra_trung(du_lieu.so_cccd, du_lieu.so_dien_thoai)
+    _kiem_tra_trung(du_lieu.so_cccd, so_dien_thoai)
 
     nhan_su_id = nhan_su_repo.tao_ho_so(
         du_lieu.ho_ten,
-        du_lieu.so_dien_thoai,
+        so_dien_thoai,
         du_lieu.chuc_danh,
-        str(du_lieu.nguoi_dung_id) if du_lieu.nguoi_dung_id else None,
+        None,
         du_lieu.so_cccd,
         du_lieu.ngay_sinh,
         du_lieu.ngay_vao_lam,
@@ -163,11 +145,12 @@ def sua_ho_so(actor_id: str, actor_vai_tro: str, nhan_su_id: str, du_lieu) -> di
     if not ho_so:
         raise KhongTimThay("Không tìm thấy hồ sơ nhân sự")
 
-    _kiem_tra_trung(du_lieu.so_cccd, du_lieu.so_dien_thoai, nhan_su_id, ho_so)
+    so_dien_thoai_moi = chuan_hoa_so_dien_thoai(du_lieu.so_dien_thoai) if du_lieu.so_dien_thoai is not None else None
+    _kiem_tra_trung(du_lieu.so_cccd, so_dien_thoai_moi, nhan_su_id, ho_so)
     nhan_su_repo.cap_nhat_ho_so(
         nhan_su_id,
-        du_lieu.ho_ten if du_lieu.ho_ten is not None else ho_so["ho_ten"],
-        du_lieu.so_dien_thoai if du_lieu.so_dien_thoai is not None else ho_so["so_dien_thoai"],
+        du_lieu.ho_ten.strip() if du_lieu.ho_ten is not None else ho_so["ho_ten"],
+        so_dien_thoai_moi if so_dien_thoai_moi is not None else ho_so["so_dien_thoai"],
         du_lieu.so_cccd if du_lieu.so_cccd is not None else ho_so["so_cccd"],
         du_lieu.ngay_sinh if du_lieu.ngay_sinh is not None else ho_so["ngay_sinh"],
         du_lieu.ngay_vao_lam if du_lieu.ngay_vao_lam is not None else ho_so["ngay_vao_lam"],
@@ -229,9 +212,9 @@ def cap_nhat_anh_giay_to(actor_id: str, actor_vai_tro: str, nhan_su_id: str, loa
 # ---------------------------------------------------------
 # Dữ liệu phụ cho form
 # ---------------------------------------------------------
-def danh_sach_tai_khoan_phu_xe_chua_gan() -> list[dict]:
-    """Các tài khoản phu_xe chưa có hồ sơ — đổ vào ô chọn tài khoản khi tạo hồ sơ phụ xe."""
-    return nhan_su_repo.danh_sach_tai_khoan_phu_xe_chua_gan()
+def danh_sach_ho_so_phu_xe_chua_co_tai_khoan() -> list[dict]:
+    """Hồ sơ phụ xe đang làm chưa có tài khoản — đổ vào ô chọn khi tạo tài khoản phụ xe (UC-36)."""
+    return nhan_su_repo.danh_sach_ho_so_phu_xe_chua_co_tai_khoan()
 
 
 # ---------------------------------------------------------

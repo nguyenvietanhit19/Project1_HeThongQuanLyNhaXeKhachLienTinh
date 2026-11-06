@@ -9,7 +9,7 @@ from uuid import uuid4
 import pytest
 
 from app.repositories import nhan_su_van_hanh_repository as repo
-from app.schemas.nhan_su_schema import HoSoNhanSuResponse, HoSoTomTatResponse, TaiKhoanPhuXeResponse
+from app.schemas.nhan_su_schema import HoSoNhanSuResponse, HoSoPhuXeChuaCoTaiKhoanResponse, HoSoTomTatResponse
 from app.services import ho_so_nhan_su_service as svc
 
 
@@ -145,9 +145,9 @@ def test_danh_sach_chi_dang_lam_van_loc_dung_va_khong_loi_alias(monkeypatch):
     assert "WHERE n.trang_thai = 'dang_lam'" in sql and "ORDER BY n.chuc_danh, n.ho_ten" in sql
 
 
-def test_o_chon_tai_khoan_phu_xe_tra_ma(monkeypatch):
-    sql = _sql_da_chay(monkeypatch, repo.danh_sach_tai_khoan_phu_xe_chua_gan)
-    assert sql.startswith("SELECT nd.id, nd.ma,")
+def test_o_chon_ho_so_phu_xe_chua_co_tai_khoan(monkeypatch):
+    sql = _sql_da_chay(monkeypatch, repo.danh_sach_ho_so_phu_xe_chua_co_tai_khoan)
+    assert "chuc_danh = 'phu_xe'" in sql and "trang_thai = 'dang_lam'" in sql and "nguoi_dung_id IS NULL" in sql
 
 
 # ---------------------------------------------------------
@@ -171,26 +171,17 @@ def test_schema_cho_phep_ho_so_chua_co_ma():
     assert chi_tiet.ma is None
 
 
-def test_schema_chi_tiet_va_tai_khoan_phu_xe_nhan_ma():
+def test_schema_chi_tiet_nhan_ma_va_o_chon_ho_so_phu_xe():
     chi_tiet = HoSoNhanSuResponse(
         id=uuid4(), ma="PX0007", ho_ten="A", so_dien_thoai="0912345678", chuc_danh="phu_xe", nguoi_dung_id=uuid4(), so_cccd=None,
         ngay_sinh=None, ngay_vao_lam=date.today(), trang_thai="dang_lam", ngay_nghi_viec=None, ly_do_nghi_viec=None,
     )
     assert chi_tiet.ma == "PX0007"
-    assert TaiKhoanPhuXeResponse(id=uuid4(), ma="PX0007", ho_ten="A", email="a@t.vn").ma == "PX0007"
-    assert TaiKhoanPhuXeResponse(id=uuid4(), ho_ten="A", email="a@t.vn").ma is None
+    o_chon = HoSoPhuXeChuaCoTaiKhoanResponse(id=uuid4(), ho_ten="A", so_dien_thoai="0912345678")
+    assert o_chon.ho_ten == "A" and o_chon.so_dien_thoai == "0912345678"
 
 
-# ---- Phụ xe: tài khoản đã khóa; nhật ký của quan_ly ----
-def test_tai_khoan_phu_xe_da_khoa_bi_tu_choi(monkeypatch):
-    from app.services import ho_so_nhan_su_service as svc
-    from app.utils.loi import GiaTriLoi
-
-    monkeypatch.setattr(svc.nguoi_dung_repo, "tim_theo_id", lambda _id: {"vai_tro": "phu_xe", "dang_hoat_dong": False})
-    with pytest.raises(GiaTriLoi, match="khóa"):
-        svc._kiem_tra_tai_khoan_phu_xe("x")
-
-
+# ---- Nhật ký của quan_ly ----
 def test_nhat_ky_ho_so_theo_vai_tro_khong_ghi_cheo(monkeypatch):
     from app.services import ho_so_nhan_su_service as svc
 

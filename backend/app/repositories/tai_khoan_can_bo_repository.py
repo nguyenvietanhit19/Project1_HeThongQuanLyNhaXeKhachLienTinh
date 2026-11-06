@@ -35,13 +35,15 @@ def la_tai_khoan_goc(nguoi_dung_id: str) -> bool:
 
 
 def tao_tai_khoan(
-    email: str, mat_khau_hash: str, ho_ten: str, so_dien_thoai: str, vai_tro: str, van_phong_id: str | None
+    email: str, mat_khau_hash: str, ho_ten: str, so_dien_thoai: str, vai_tro: str, van_phong_id: str | None,
+    nhan_su_id: str | None = None,
 ) -> dict:
     """Tạo tài khoản cán bộ: có sẵn mật khẩu (đã băm) và ĐÃ xác nhận
     (da_xac_nhan = true) — email do công ty cấp nên không cần xác minh qua OTP,
     và dang_nhap chặn mọi tài khoản có da_xac_nhan = false.
 
     Mã nhân viên (PX0001, QV0001...) được cấp TRONG cùng transaction: lấy số từ sequence của vai trò rồi điền vào `ma`.
+    nhan_su_id (chỉ phụ xe): hồ sơ nhân sự tài khoản này gắn vào.
     Nếu INSERT hỏng sau đó (VD trùng email) thì số đã lấy bị bỏ, mã kế tiếp sẽ nhảy cách một số — đúng như các mã khác."""
     conn = get_connection()
     try:
@@ -63,6 +65,15 @@ def tao_tai_khoan(
                     (tai_khoan["id"], van_phong_id),
                 )
                 tai_khoan["van_phong_id"] = van_phong_id
+            if nhan_su_id:
+                # Phụ xe: gắn tài khoản vào hồ sơ có sẵn trong CÙNG transaction. Điều kiện `nguoi_dung_id IS NULL` chặn 2 người
+                # cùng tạo tài khoản cho một hồ sơ: người sau không cập nhật được dòng nào -> hủy hết, không để lại tài khoản mồ côi.
+                cur.execute(
+                    "UPDATE nhan_su_van_hanh SET nguoi_dung_id = %s WHERE id = %s AND nguoi_dung_id IS NULL",
+                    (tai_khoan["id"], nhan_su_id),
+                )
+                if cur.rowcount != 1:
+                    raise GiaTriLoi("Hồ sơ này đã có tài khoản")
         conn.commit()
         return tai_khoan
     except errors.UniqueViolation:
