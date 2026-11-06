@@ -10,6 +10,7 @@
      giao diện quản trị) thay vì nhân bản ~4200 dòng CSS — xem ghi chú ở
      đầu nav.js về lý do 2 domain này không dùng chung JS dù chung CSS. -->
 <link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+<style>@media (min-width: 1100px) { #luoi-thong-ke { grid-template-columns: repeat(5, minmax(0, 1fr)); } }</style>
 </head>
 <body class="nhan-vien-shell">
   <div class="nv-layout">
@@ -18,14 +19,6 @@
     <div class="nv-main">
       <header class="nv-topbar">
         <h1>Tổng quan</h1>
-        <div class="nv-topbar__user">
-          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
-          <div class="nv-topbar__identity">
-            <span class="ho-ten" id="topbar-ho-ten"></span>
-            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
-          </div>
-          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
-        </div>
       </header>
 
       <main class="nv-content">
@@ -45,10 +38,12 @@
              thống kê có sẵn, không click-lọc được như bên đó) — tiết kiệm
              CSS cho 1 trang "tạm thời", xem ghi chú đầu file. -->
         <div class="gv-thong-ke" id="luoi-thong-ke">
-          <div class="gv-stat gv-stat--du"><span class="gv-stat__so" id="tk-dang-lam">—</span><span class="gv-stat__nhan">Nhân sự đang làm</span></div>
+          <div class="gv-stat gv-stat--du"><span class="gv-stat__so" id="tk-dang-lam">—</span><span class="gv-stat__nhan" title="Tài khoản nhân viên vận hành (phụ xe, quầy vé, gửi hàng, điều độ) chưa bị khóa / cho nghỉ việc">Nhân viên đang hoạt động</span></div>
           <div class="gv-stat"><span class="gv-stat__so" id="tk-tai-xe">—</span><span class="gv-stat__nhan">Tài xế</span></div>
           <div class="gv-stat gv-stat--chua-du"><span class="gv-stat__so" id="tk-phu-xe">—</span><span class="gv-stat__nhan">Phụ xe</span></div>
           <div class="gv-stat gv-stat--chua-co"><span class="gv-stat__so" id="tk-nghi-viec">—</span><span class="gv-stat__nhan">Đã nghỉ việc</span></div>
+          <!-- Tài khoản phụ xe đã tạo nhưng chưa có hồ sơ (tài xế không có tài khoản nên không đếm ở đây) -->
+          <a class="gv-stat gv-stat--het-han" id="tk-chua-ho-so-the" href="/nhan-vien/quan-li-nhan-su/ho-so.html" style="text-decoration:none;" title="Mở danh sách hồ sơ để tạo hồ sơ cho các tài khoản này"><span class="gv-stat__so" id="tk-chua-ho-so">—</span><span class="gv-stat__nhan">Phụ xe chưa có hồ sơ</span></a>
         </div>
 
         <div class="card" style="margin-top:20px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
@@ -66,23 +61,35 @@
 
   <script src="/nhan-vien/quan-li-nhan-su/api-client.js"></script>
   <script src="/nhan-vien/quan-li-nhan-su/auth-check.js"></script>
+  <script src="/nhan-vien/quan-ly/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/tai-khoan.js"></script>
   <script src="/nhan-vien/quan-li-nhan-su/nav.js"></script>
   <script>
     const nguoiDung = yeuCauVaiTro("quan_ly_nhan_su");
     if (nguoiDung) {
-      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-li-nhan-su/trang-chu.html");
-      renderTopbarUser();
+      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-li-nhan-su/trang-chu.html", MENU_QUAN_LY_NHAN_SU, "Quản lý nhân sự");
     }
-    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
 
     (async () => {
       try {
         const ds = await apiGet("/quan-ly-nhan-su/ho-so");
         const dangLam = ds.filter((h) => h.trang_thai === "dang_lam");
-        document.getElementById("tk-dang-lam").textContent = dangLam.length;
         document.getElementById("tk-tai-xe").textContent = dangLam.filter((h) => h.chuc_danh === "tai_xe").length;
         document.getElementById("tk-phu-xe").textContent = dangLam.filter((h) => h.chuc_danh === "phu_xe").length;
         document.getElementById("tk-nghi-viec").textContent = ds.length - dangLam.length;
+
+        // Thẻ đầu: đếm TÀI KHOẢN nhân viên vận hành còn hoạt động (chưa bị khóa / cho nghỉ việc), không đếm hồ sơ — tài xế không có tài khoản nên không nằm trong số này
+        try {
+          const dsTaiKhoan = await apiGet("/quan-ly-nhan-su/tai-khoan");
+          document.getElementById("tk-dang-lam").textContent = dsTaiKhoan.filter((t) => t.dang_hoat_dong).length;
+        } catch (e) { /* giữ "—" */ }
+
+        // Lỗi ở đây không làm mất 4 số trên — chỉ thẻ này giữ dấu "—"
+        try {
+          const chuaCoHoSo = await apiGet("/quan-ly-nhan-su/tai-khoan-phu-xe-chua-gan");
+          document.getElementById("tk-chua-ho-so").textContent = chuaCoHoSo.length;
+          if (chuaCoHoSo.length === 0) document.getElementById("tk-chua-ho-so-the").className = "gv-stat gv-stat--on-dinh";
+        } catch (e) { /* giữ "—" */ }
       } catch (err) {
         const el = document.getElementById("loi-trang");
         el.textContent = err.message;

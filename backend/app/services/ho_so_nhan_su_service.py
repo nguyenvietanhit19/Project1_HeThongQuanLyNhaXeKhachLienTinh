@@ -96,6 +96,22 @@ def _kiem_tra_tai_khoan_phu_xe(nguoi_dung_id: str, nhan_su_id_dang_sua: str | No
         raise GiaTriLoi("Tài khoản này đã gắn với 1 hồ sơ khác")
 
 
+def _kiem_tra_trung(so_cccd: str | None, so_dien_thoai: str | None, nhan_su_id_dang_sua: str | None = None, ho_so_cu: dict | None = None) -> None:
+    """Báo rõ trùng CCCD hay trùng số điện thoại và trùng với ai, thay vì để database ném lỗi (người dùng chỉ thấy "lỗi hệ thống").
+    Khi sửa (ho_so_cu có giá trị): chỉ kiểm tra trường nào bị ĐỔI, để dữ liệu cũ đã trùng sẵn không chặn việc sửa trường khác."""
+    for cot, nhan, gia_tri in (("so_cccd", "Số CCCD", so_cccd), ("so_dien_thoai", "Số điện thoại", so_dien_thoai)):
+        gia_tri = gia_tri.strip() if gia_tri else None
+        if not gia_tri:
+            continue
+        if ho_so_cu is not None and gia_tri == (ho_so_cu.get(cot) or "").strip():
+            continue
+        trung = nhan_su_repo.tim_ho_so_trung(cot, gia_tri, nhan_su_id_dang_sua)
+        if trung:
+            ten = f'{trung["ho_ten"]}' + (f' ({trung["ma"]})' if trung.get("ma") else "")
+            da_nghi = " — hồ sơ đã nghỉ việc" if trung["trang_thai"] == "da_nghi_viec" else ""
+            raise GiaTriLoi(f"{nhan} {gia_tri} đã có trong hồ sơ của {ten}{da_nghi}")
+
+
 def _luu_giay_to(nhan_su_id: str, danh_sach_giay_to) -> None:
     """Lưu từng giấy tờ gửi lên. Mỗi nhân sự chỉ có 1 dòng cho mỗi loại giấy tờ:
     - đã có loại đó -> cập nhật (gia hạn; repo tự xóa cờ cảnh báo để job nhắc lại từ đầu)
@@ -123,6 +139,9 @@ def tao_ho_so(actor_id: str, actor_vai_tro: str, du_lieu) -> dict:
     if du_lieu.chuc_danh == "tai_xe" and not any(gt.loai == "bang_lai" for gt in du_lieu.giay_to):
         raise GiaTriLoi("Tài xế bắt buộc có thông tin bằng lái")
 
+    # Báo trùng CCCD / số điện thoại TRƯỚC khi ghi — cũng để không "đốt" mã tài xế (số mã cấp trước khi INSERT, lỗi thì không trả lại)
+    _kiem_tra_trung(du_lieu.so_cccd, du_lieu.so_dien_thoai)
+
     nhan_su_id = nhan_su_repo.tao_ho_so(
         du_lieu.ho_ten,
         du_lieu.so_dien_thoai,
@@ -144,6 +163,7 @@ def sua_ho_so(actor_id: str, actor_vai_tro: str, nhan_su_id: str, du_lieu) -> di
     if not ho_so:
         raise KhongTimThay("Không tìm thấy hồ sơ nhân sự")
 
+    _kiem_tra_trung(du_lieu.so_cccd, du_lieu.so_dien_thoai, nhan_su_id, ho_so)
     nhan_su_repo.cap_nhat_ho_so(
         nhan_su_id,
         du_lieu.ho_ten if du_lieu.ho_ten is not None else ho_so["ho_ten"],
