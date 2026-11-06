@@ -85,6 +85,8 @@ Thực tế vận hành: mỗi xe có **biên chế cố định** — đúng **
 - **Tài xế chỉ là hồ sơ nhân sự trong `xe_nhan_su`, không có tài khoản đăng nhập hệ thống** (mục 8.3) — việc **2 tài xế thay phiên nhau lái** hoàn toàn do họ **tự thu xếp nội bộ**, hệ thống không theo dõi ai lái chuyến nào, không tính giờ nghỉ tối thiểu theo từng tài xế. Ngược lại, **phụ xe bắt buộc có tài khoản** vì là người duy nhất thao tác trên hệ thống trong đội vận hành (mục 8.2 — bao gồm cả các xác nhận trạng thái chuyến trước đây gán cho tài xế, xem mục 8.3).
 - **Hồ sơ nhân sự vận hành (`nhan_su_van_hanh`) và biên chế (`xe_nhan_su`) do 2 vai trò khác nhau quản lý** (mục 8.9): hồ sơ (thông tin, giấy tờ, trạng thái làm việc) do `quan_ly_nhan_su` hoặc `quan_ly`; biên chế cố định do `quan_ly` (UC-35). **Chỉ hồ sơ đang làm việc (`dang_lam`) mới được đưa vào biên chế xe.** Giấy tờ (bằng lái, giấy khám sức khỏe) hết hạn **không chặn** việc biên chế hay gán xe — hệ thống chỉ nhắc người quản lý nhân sự xử lý (UC-49), quyết định cuối cùng là của con người.
 - Khi điều độ viên tạo `chuyen_xe` (mục 8.6), **chỉ cần chọn xe** — không chọn/gán bất kỳ nhân sự nào (kể cả phụ xe): ai là phụ xe của chuyến đó luôn được suy ra live như trên.
+- **Xe chưa đủ nhân sự thì KHÔNG gán được chuyến** (UC-44, UC-20): "đủ" = có **2 tài xế và ít nhất 1 phụ xe đang hoạt động** — tức dòng `xe_nhan_su.trang_thai = dang_hoat_dong` (cố định hoặc tạm thời) mà hồ sơ còn `dang_lam`; người tạm nghỉ hoặc đã nghỉ việc không tính, người tạm thời thay chỗ người tạm nghỉ thì được tính. Quy tắc áp dụng cho **mọi xe, kể cả xe dự phòng** (chuyến nào cũng cần người đi xe). Hệ thống chặn lúc gán/đổi xe chạy thay và nêu rõ xe thiếu gì ("thiếu 1 tài xế..."); xe đã gán chuyến mà sau đó thiếu người (VD nghỉ việc) hiện ở mục "Cần chú ý" của điều độ viên.
+- **Cảnh báo thiếu nhân sự cho quản lý**: trang Xe có dải cảnh báo + chip "Thiếu nhân sự" liệt kê các xe **đang hoạt động, cố định tuyến** mà chưa đủ nhân sự; hằng ngày quản lý còn nhận thông báo nhắc qua chuông (mỗi tình trạng nhắc một lần). **Xe dự phòng không bị cảnh báo** (nhân sự của xe dự phòng được bố trí theo từng lúc), xe đang bảo trì/ngừng sử dụng cũng không cần.
 - **Ràng buộc không trùng lịch** đơn giản hơn hẳn nhờ nhân sự đi theo xe:
   - Xe không được gán 2 chuyến có khung giờ chồng nhau (giờ khởi hành + thời gian di chuyển dự kiến + thời gian nghỉ quay đầu tối thiểu, VD 60 phút) — như cũ.
   - **Phụ xe tự động không trùng lịch** — vì luôn đi theo đúng xe của mình, xe rảnh thì phụ xe rảnh, không cần kiểm tra riêng nữa.
@@ -1205,11 +1207,12 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
 - **Actor**: Quản lý.
 - **Tiền điều kiện**: Xe đã tồn tại (UC-34), nhân sự (tài xế/phụ xe) đã có hồ sơ/tài khoản.
 - **Luồng chính** (mục 3.2, mục 8.7 điểm 1):
-  1. Chọn 1 xe.
-  2. Gán/gỡ tài xế + phụ xe cố định (`xe_nhan_su`, `loai = co_dinh`).
-  3. Lưu.
+  1. Chọn 1 xe — hộp Biên chế hiện biên chế hiện tại (2 tài xế + ít nhất 1 phụ xe, chỗ còn trống nêu rõ) và xe đang đủ hay thiếu nhân sự.
+  2. Chọn người để thêm từ danh sách nhân sự đang làm: lọc theo tài xế / phụ xe và theo "chưa có xe" / "đang ở xe khác", tìm theo **mã, tên, số điện thoại, email, biển số xe đang ở**; bấm vào một người để mở **hộp hồ sơ riêng** (có dấu × để đóng, không che danh sách) xem **toàn bộ hồ sơ nhân sự** trước khi thêm: họ tên, mã, số điện thoại, CCCD, ngày sinh, ngày vào làm, ảnh, tài khoản của phụ xe, từng giấy tờ (số, hạng, ngày cấp, ngày hết hạn, còn hạn / sắp / đã hết hạn, ảnh), đang ở xe nào. **Chỉ xem** — chỉnh sửa hồ sơ vẫn do `quan_ly_nhan_su` làm (mục 8.9).
+  3. Gán/gỡ tài xế + phụ xe cố định (`xe_nhan_su`, `loai = co_dinh`); hộp cập nhật ngay trạng thái đủ/thiếu và tự chuyển sang chức danh còn thiếu.
 - **Luồng rẽ nhánh**:
-  - Tại bước chọn nhân sự đưa vào biên chế: hồ sơ đang `da_nghi_viec` → chặn, chỉ hồ sơ `dang_lam` mới được biên chế (mục 3.2).
+  - Tại bước chọn nhân sự đưa vào biên chế: hồ sơ đang `da_nghi_viec` → chặn, chỉ hồ sơ `dang_lam` mới được biên chế (mục 3.2). Người đang thuộc biên chế cố định của xe khác → chặn (gỡ khỏi xe đó trước); phụ xe chưa có tài khoản → chặn; xe đã đủ 2 tài xế cố định → chặn.
+  - Xe chưa đủ nhân sự: trang Xe cảnh báo (trừ xe dự phòng) và xe không gán được chuyến cho tới khi đủ (mục 3.2).
 - **Hậu điều kiện**: Biên chế cố định cập nhật — "chuyến của tôi" của phụ xe (UC-12/13/15/17) tự động phản ánh ngay, không cần sửa từng chuyến.
 
 ### UC-36. Tạo tài khoản cán bộ

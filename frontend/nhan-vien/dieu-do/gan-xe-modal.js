@@ -8,6 +8,7 @@ const GanXeModal = (() => {
   const CAO_GHE = 45;
   const NHAN_LY_DO = {
     khong_hoat_dong: "Đang bảo trì",
+    thieu_nhan_su: "Thiếu nhân sự",
     khac_loai: "Khác loại xe",
     tuyen_co_dinh: "Xe tuyến khác",
     trung_lich: "Trùng lịch",
@@ -225,6 +226,7 @@ const GanXeModal = (() => {
         </div>
         <dl class="gxm-kv">
           <dt>Loại xe</dt><dd>${esc(lx.ma)} · ${esc(lx.ten)} · ${lx.so_ghe} ghế${lx.so_tang > 1 ? ` · ${lx.so_tang} tầng` : ""}${x.dung_loai ? "" : ' <span class="gxm-nhan">khác loại cam kết</span>'}</dd>
+          ${x.nhan_su ? `<dt>Nhân sự</dt><dd class="${x.nhan_su.du ? "" : "gxm-khong"}">${x.nhan_su.tai_xe}/2 tài xế · ${x.nhan_su.phu_xe} phụ xe${x.nhan_su.du ? "" : " — chưa đủ, chưa gán chuyến được"}</dd>` : ""}
           <dt>Trạng thái</dt><dd>${x.trang_thai_xe === "hoat_dong" ? "Hoạt động" : "Đang bảo trì"}${x.tuyen_co_dinh ? ` · chỉ chạy tuyến ${esc(x.tuyen_co_dinh.ma)}` : " · xe dự phòng (không cố định tuyến)"}</dd>
           <dt>Vị trí lúc khởi hành</dt><dd><b>${esc(viTri.ten_diem)}</b> ${viTri.nguon === "sau_chuyen" ? `— sau chuyến ${esc(viTri.chuyen_ma)}, tới lúc ${gioPhut(viTri.tu_luc)} ${ngayThang(viTri.tu_luc)}` : "— điểm gốc của xe"}</dd>
           ${x.chuyen_ke_tiep ? `<dt>Chuyến kế tiếp</dt><dd>${esc(x.chuyen_ke_tiep.ma)} · ${gioPhut(x.chuyen_ke_tiep.gio_khoi_hanh)} ${ngayThang(x.chuyen_ke_tiep.gio_khoi_hanh)} · ${esc(x.chuyen_ke_tiep.ten_diem_di)} → ${esc(x.chuyen_ke_tiep.ten_diem_den)}</dd>` : ""}

@@ -187,6 +187,7 @@ const HANH_DONG_THEO_VIEC = {
   dang_hoan: ["gan", "Gán xe"],
   chua_gan_sap_toi: ["gan", "Gán xe"],
   xe_hong: ["thay", "Chọn xe thay"],
+  xe_thieu_nhan_su: ["thay", "Chọn xe thay"],
   canh_bao_vi_tri: ["thay", "Xem và đổi xe"],
   xe_goc_san_sang: ["tra", "Trả về xe gốc"],
 };

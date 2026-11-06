@@ -43,6 +43,7 @@ from app.schemas.xe_schema import (
     BienCheItem,
     LoaiXeRequest,
     LoaiXeResponse,
+    NhanSuChiTietBienChe,
     NhanSuKhaDung,
     ThemBienCheRequest,
     XeRequest,
@@ -265,6 +266,11 @@ def xoa_xe(xe_id: UUID):
 @router.get("/nhan-su-dang-lam", response_model=list[NhanSuKhaDung])
 def danh_sach_nhan_su_dang_lam():
     return bien_che_service.danh_sach_nhan_su_dang_lam()
+
+
+@router.get("/nhan-su/{nhan_su_id}/chi-tiet-bien-che", response_model=NhanSuChiTietBienChe)
+def chi_tiet_nhan_su_bien_che(nhan_su_id: UUID):
+    return bien_che_service.chi_tiet_nhan_su(str(nhan_su_id))
 
 
 @router.get("/xe/{xe_id}/bien-che", response_model=list[BienCheItem])

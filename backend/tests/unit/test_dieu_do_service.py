@@ -43,7 +43,7 @@ def chu_trinh_mau():
 def xe(**ghi_de):
     du_lieu = {"id": "xe-1", "bien_so": "29B-1", "loai_xe_id": "loai-1", "trang_thai": "hoat_dong", "tuyen_id": None,
                "diem_goc_id": A, "ten_diem_goc": TEN[A], "ma_loai_xe": "LX001", "ten_loai_xe": "Giường nằm", "so_ghe": 34, "so_tang": 2,
-               "ma_tuyen_co_dinh": None, "ten_tuyen_co_dinh": None}
+               "ma_tuyen_co_dinh": None, "ten_tuyen_co_dinh": None, "so_tai_xe_hieu_luc": 2, "so_phu_xe_hieu_luc": 1}
     du_lieu.update(ghi_de)
     return du_lieu
 
@@ -54,6 +54,12 @@ def lich(trong_khoang=(), truoc=None, sau=None):
 
 TUYEN_1 = {"id": "tuyen-1", "ma": "T001", "ten": "Hà Nội – Sapa"}
 TUYEN_KHAC = {"id": "tuyen-khac", "ma": "T009", "ten": "Hà Nội – Vinh"}
+
+
+@pytest.fixture(autouse=True)
+def nhan_su_du(monkeypatch):
+    """Mặc định mọi xe ĐỦ nhân sự (2 tài xế + 1 phụ xe) để các test cũ không bị quy tắc "thiếu nhân sự" làm nhiễu; test riêng ghi đè."""
+    monkeypatch.setattr(dd.nhan_su_repo, "dem_hieu_luc_theo_xe", lambda xe_ids: {str(i): (2, 1) for i in xe_ids})
 
 
 @pytest.fixture(autouse=True)
@@ -668,3 +674,79 @@ def test_thong_ke_tong_quan_khong_co_chu_trinh_nao_tra_so_0(monkeypatch):
     _gia_lap_thong_ke(monkeypatch, [])
     kq = dd.thong_ke_tong_quan(quan_ly(), 3)
     assert kq["tong"]["so_chu_trinh"] == 0 and kq["theo_ngay"] == [] and kq["tong"]["viec_khan"] == 0
+
+
+# ---------------------------------------------------------------- xe thiếu nhân sự không gán được chuyến
+def test_xe_thieu_tai_xe_khong_gan_duoc_va_noi_ro_thieu_gi():
+    ly_do = dd.danh_gia_xe_chi_tiet(chu_trinh_mau(), xe(so_tai_xe_hieu_luc=1), lich())
+    assert [l["ma"] for l in ly_do] == ["thieu_nhan_su"]
+    assert "thiếu 1 tài xế" in ly_do[0]["noi_dung"] and "quản lý bổ sung biên chế" in ly_do[0]["noi_dung"]
+
+
+def test_xe_thieu_phu_xe_hoac_thieu_ca_hai_deu_bi_chan():
+    assert [l["ma"] for l in dd.danh_gia_xe_chi_tiet(chu_trinh_mau(), xe(so_phu_xe_hieu_luc=0), lich())] == ["thieu_nhan_su"]
+    ly_do = dd.danh_gia_xe_chi_tiet(chu_trinh_mau(), xe(so_tai_xe_hieu_luc=0, so_phu_xe_hieu_luc=0), lich())
+    assert "thiếu 2 tài xế và 1 phụ xe" in ly_do[0]["noi_dung"]
+
+
+def test_xe_du_phong_thieu_nhan_su_cung_khong_gan_duoc_chuyen():
+    # xe dự phòng (tuyen_id rỗng) chỉ được MIỄN CẢNH BÁO trên trang Xe; muốn chạy chuyến vẫn phải có đủ người
+    assert [l["ma"] for l in dd.danh_gia_xe_chi_tiet(chu_trinh_mau(), xe(tuyen_id=None, so_tai_xe_hieu_luc=0), lich())] == ["thieu_nhan_su"]
+
+
+def test_xe_nhieu_hon_2_tai_xe_hieu_luc_van_duoc():
+    assert dd.danh_gia_xe(chu_trinh_mau(), xe(so_tai_xe_hieu_luc=3, so_phu_xe_hieu_luc=2), lich()) == []
+
+
+def test_gan_xe_thieu_nhan_su_bi_chan_khong_ghi(monkeypatch):
+    da_goi = _gia_lap_gan(monkeypatch, xe_dang_gan=xe(so_phu_xe_hieu_luc=0))
+    with pytest.raises(GiaTriLoi, match=r"Không gán được xe 29B-1: .*chưa đủ nhân sự.*thiếu 1 phụ xe"):
+        dd.gan_xe(ddv(), "ct-1", "xe-1")
+    assert "gan" not in da_goi
+
+
+def test_thay_xe_thieu_nhan_su_bi_chan(monkeypatch):
+    da_goi = _gia_lap_thay(monkeypatch, xe_thay=xe(id="xe-1", so_tai_xe_hieu_luc=1))
+    with pytest.raises(GiaTriLoi, match=r"Không cho xe 29B-1 chạy thay được: .*chưa đủ nhân sự"):
+        dd.thay_xe(ddv(), "ct-1", "xe-1")
+    assert "thay" not in da_goi and da_goi["bao"] == []
+
+
+def test_danh_sach_xe_chon_hien_nhan_su_va_ma_ly_do_thieu_nhan_su(monkeypatch):
+    _gia_lap_chu_trinh(monkeypatch)
+    monkeypatch.setattr(dd.repo, "danh_sach_xe_de_chon", lambda: [xe(id="xe-a", bien_so="29B-1"), xe(id="xe-b", bien_so="29B-2", so_tai_xe_hieu_luc=1, so_phu_xe_hieu_luc=0)])
+    monkeypatch.setattr(dd.repo, "lich_cac_xe", lambda ids, *a: {i: lich() for i in ids})
+    kq = {x["bien_so"]: x for x in dd.danh_sach_xe_cho_chu_trinh(ddv(), "ct-1")}
+    assert kq["29B-1"]["hop_le"] and kq["29B-1"]["nhan_su"] == {"tai_xe": 2, "phu_xe": 1, "du": True}
+    assert not kq["29B-2"]["hop_le"] and kq["29B-2"]["ma_ly_do"] == ["thieu_nhan_su"]
+    assert kq["29B-2"]["nhan_su"] == {"tai_xe": 1, "phu_xe": 0, "du": False}
+
+
+# ---------------------------------------------------------------- Cần chú ý: xe đang chạy chuyến mà thiếu nhân sự
+def test_can_chu_y_xe_da_gan_thieu_nhan_su_canh_bao():
+    chuyen_list = [chuyen("di", "xuoi", gio(10, 8), xe_id="xe-1")]
+    ds = dd.can_chu_y_chu_trinh(chuyen_list, BAY_GIO, {"xe-1": (1, 1)})
+    assert [(v["ma"], v["muc_do"]) for v in ds] == [("xe_thieu_nhan_su", "canh_bao")]
+    assert "29B-1" in ds[0]["noi_dung"] and "thiếu 1 tài xế" in ds[0]["noi_dung"] and ds[0]["ma_chuyen"] == "MA-di"
+
+
+def test_can_chu_y_xe_du_nhan_su_hoac_khong_co_du_lieu_nhan_su_khong_nhac():
+    chuyen_list = [chuyen("di", "xuoi", gio(10, 8), xe_id="xe-1")]
+    assert dd.can_chu_y_chu_trinh(chuyen_list, BAY_GIO, {"xe-1": (2, 1)}) == []
+    assert dd.can_chu_y_chu_trinh(chuyen_list, BAY_GIO) == []  # không truyền thông tin nhân sự: bỏ qua
+
+
+def test_can_chu_y_xe_chay_thay_xet_nhan_su_cua_xe_thay_khong_phai_xe_goc():
+    chuyen_list = [chuyen("di", "xuoi", gio(10, 8), xe_id="xe-9", trang_thai_xe="bao_tri", xe_thuc_te_id="xe-2", bien_so_xe_thuc_te="29B-2", trang_thai_xe_thuc_te="hoat_dong")]
+    # xe gốc xe-9 thiếu người nhưng xe thay xe-2 đủ → không nhắc; ngược lại xe thay thiếu → nhắc đúng biển số xe thay
+    assert dd.can_chu_y_chu_trinh(chuyen_list, BAY_GIO, {"xe-9": (0, 0), "xe-2": (2, 1)}) == []
+    ds = dd.can_chu_y_chu_trinh(chuyen_list, BAY_GIO, {"xe-9": (2, 1), "xe-2": (2, 0)})
+    assert [v["ma"] for v in ds] == ["xe_thieu_nhan_su"] and "29B-2" in ds[0]["noi_dung"] and "thiếu 1 phụ xe" in ds[0]["noi_dung"]
+
+
+def test_danh_sach_chu_trinh_nhac_xe_thieu_nhan_su(monkeypatch):
+    monkeypatch.setattr(dd, "_bay_gio", lambda: BAY_GIO)
+    monkeypatch.setattr(dd.repo, "danh_sach_chuyen_trong_cua_so", lambda tu, den, tuyen_ids: [chuyen("di", "xuoi", gio(11, 8), xe_id="xe-1"), chuyen("ve", "nguoc", gio(11, 15), xe_id="xe-1")])
+    monkeypatch.setattr(dd.nhan_su_repo, "dem_hieu_luc_theo_xe", lambda xe_ids: {"xe-1": (2, 0)})
+    kq = dd.danh_sach_chu_trinh(ddv())
+    assert [v["ma"] for v in kq[0]["can_chu_y"]] == ["xe_thieu_nhan_su"]

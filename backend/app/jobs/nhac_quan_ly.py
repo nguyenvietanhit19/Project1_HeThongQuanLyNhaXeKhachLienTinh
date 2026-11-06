@@ -15,6 +15,7 @@ from app.config import NGUONG_NHAC_BO_GIA_NGAY, NGUONG_NHAC_SINH_CHUYEN_NGAY
 from app.repositories import lich_chay_repository
 from app.repositories import nguoi_dung_repository as nguoi_dung_repo
 from app.repositories import thong_bao_repository as thong_bao_repo
+from app.repositories import xe_repository as xe_repo
 from app.services import gia_ve_service
 from app.services import thong_bao_khach_service as thong_bao
 
@@ -23,6 +24,7 @@ MUI_GIO_VN = ZoneInfo("Asia/Ho_Chi_Minh")
 
 DUONG_DAN_LICH_CHAY = "/nhan-vien/quan-ly/lich-chay.html"
 DUONG_DAN_GIA_VE = "/nhan-vien/quan-ly/gia-ve.html"
+DUONG_DAN_XE = "/nhan-vien/quan-ly/xe.html"
 
 
 def _ngay(ngay: datetime.date) -> str:
@@ -57,6 +59,15 @@ def noi_dung_nhac_bo_gia(
     if (ngay_cuoi - hom_nay).days <= nguong_ngay:
         return f"Bộ giá vé tuyến {ten_tuyen} sẽ kết thúc ngày {_ngay(ngay_cuoi)} — hãy tạo bộ giá nối tiếp."
     return None
+
+
+def noi_dung_nhac_xe_thieu_nhan_su(ds_xe: list[dict]) -> str | None:
+    """Nhắc bổ sung biên chế cho các xe CỐ ĐỊNH tuyến đang hoạt động mà chưa đủ 2 tài xế + 1 phụ xe (chưa gán chuyến được); None nếu không có xe nào.
+    Nội dung chỉ phụ thuộc tập biển số nên khi tình trạng không đổi sẽ bị bỏ qua nhờ `da_co_thong_bao_giong`, đổi (thêm/bớt xe thiếu) thì nhắc lại."""
+    if not ds_xe:
+        return None
+    ten = ", ".join(x["bien_so"] for x in ds_xe[:5]) + (f" và {len(ds_xe) - 5} xe khác" if len(ds_xe) > 5 else "")
+    return f"{len(ds_xe)} xe chạy tuyến cố định chưa đủ nhân sự nên chưa gán được chuyến: {ten}. Hãy bổ sung biên chế (2 tài xế + ít nhất 1 phụ xe)."
 
 
 def _gui_cho_cac_quan_ly(nguoi_nhan: list[str], noi_dung: str, duong_dan: str) -> bool:
@@ -99,5 +110,12 @@ def chay(hom_nay: datetime.date | None = None) -> tuple[int, int]:
                 so_nhac_gia += 1
         except Exception:  # noqa: BLE001
             logger.exception("Không nhắc được bộ giá cho tuyến %s", tuyen_id)
+
+    try:  # nhắc xe thiếu nhân sự — không tính vào hai số trả về (giữ nguyên chữ ký cũ)
+        noi_dung = noi_dung_nhac_xe_thieu_nhan_su(xe_repo.danh_sach_xe_thieu_nhan_su())
+        if noi_dung:
+            _gui_cho_cac_quan_ly(nguoi_nhan, noi_dung, DUONG_DAN_XE)
+    except Exception:  # noqa: BLE001
+        logger.exception("Không nhắc được xe thiếu nhân sự")
 
     return so_nhac_chuyen, so_nhac_gia

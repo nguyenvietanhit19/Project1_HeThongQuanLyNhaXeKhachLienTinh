@@ -86,16 +86,19 @@ def tim_theo_id(nhan_su_id: str) -> dict | None:
 
 
 def danh_sach_dang_lam() -> list[dict]:
-    """Nhân sự còn đang làm, kèm biển số xe mà họ đang thuộc biên chế cố định (nếu có)."""
+    """Nhân sự còn đang làm, kèm mã, email (phụ xe), ngày vào làm, xe mà họ đang thuộc biên chế cố định (nếu có) và hạn giấy tờ sớm nhất
+    (service tự phân loại hết hạn / sắp hết hạn)."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT n.id, n.ho_ten, n.so_dien_thoai, n.chuc_danh,
-                       (n.nguoi_dung_id IS NOT NULL) AS co_tai_khoan,
-                       x.bien_so AS bien_so_xe_co_dinh
+                SELECT n.id, COALESCE(n.ma, nd.ma) AS ma, n.ho_ten, n.so_dien_thoai, n.chuc_danh,
+                       (n.nguoi_dung_id IS NOT NULL) AS co_tai_khoan, nd.email, n.ngay_vao_lam,
+                       x.id AS xe_id_co_dinh, x.bien_so AS bien_so_xe_co_dinh,
+                       (SELECT min(g.ngay_het_han) FROM giay_to_nhan_su g WHERE g.nhan_su_van_hanh_id = n.id) AS ngay_het_han_giay_to_som
                 FROM nhan_su_van_hanh n
+                LEFT JOIN nguoi_dung nd ON nd.id = n.nguoi_dung_id
                 LEFT JOIN xe_nhan_su xn ON xn.nhan_su_van_hanh_id = n.id AND xn.loai = 'co_dinh'
                 LEFT JOIN xe x ON x.id = xn.xe_id
                 WHERE n.trang_thai = 'dang_lam'
@@ -113,10 +116,11 @@ def danh_sach_bien_che_theo_xe(xe_id: str) -> list[dict]:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT xn.id, xn.nhan_su_van_hanh_id, n.ho_ten, n.so_dien_thoai, n.chuc_danh,
-                       xn.loai, xn.trang_thai
+                SELECT xn.id, xn.nhan_su_van_hanh_id, COALESCE(n.ma, nd.ma) AS ma, n.ho_ten, n.so_dien_thoai, n.chuc_danh,
+                       xn.loai, xn.trang_thai, n.trang_thai AS trang_thai_nhan_su
                 FROM xe_nhan_su xn
                 JOIN nhan_su_van_hanh n ON n.id = xn.nhan_su_van_hanh_id
+                LEFT JOIN nguoi_dung nd ON nd.id = n.nguoi_dung_id
                 WHERE xn.xe_id = %s
                 ORDER BY n.chuc_danh, xn.loai, n.ho_ten
                 """,
@@ -503,6 +507,41 @@ def cho_nghi_viec(nhan_su_id: str, ngay_nghi, ly_do: str) -> str:
     except Exception:
         conn.rollback()
         raise
+    finally:
+        release_connection(conn)
+
+
+def dem_hieu_luc_theo_xe(xe_ids: list[str]) -> dict[str, tuple[int, int]]:
+    """{xe_id: (số tài xế, số phụ xe) đang hoạt động} cho các xe cho trước — xe không có người nào thì không có trong kết quả (coi như (0, 0)).
+    Cùng quy tắc "hiệu lực" với app/repositories/bien_che_sql.py."""
+    if not xe_ids:
+        return {}
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT xn.xe_id,
+                       count(*) FILTER (WHERE n.chuc_danh = 'tai_xe'),
+                       count(*) FILTER (WHERE n.chuc_danh = 'phu_xe')
+                FROM xe_nhan_su xn JOIN nhan_su_van_hanh n ON n.id = xn.nhan_su_van_hanh_id
+                WHERE xn.xe_id = ANY(%s::uuid[]) AND xn.trang_thai = 'dang_hoat_dong' AND n.trang_thai = 'dang_lam'
+                GROUP BY xn.xe_id
+                """,
+                (list(xe_ids),),
+            )
+            return {str(xe_id): (int(tai_xe), int(phu_xe)) for xe_id, tai_xe, phu_xe in cur.fetchall()}
+    finally:
+        release_connection(conn)
+
+
+def email_tai_khoan(nguoi_dung_id: str) -> dict | None:
+    """Email và trạng thái hoạt động của tài khoản (phụ xe) — cho hộp chi tiết biên chế."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT email, dang_hoat_dong FROM nguoi_dung WHERE id = %s", (nguoi_dung_id,))
+            return _thanh_dict(cur, cur.fetchone())
     finally:
         release_connection(conn)
 

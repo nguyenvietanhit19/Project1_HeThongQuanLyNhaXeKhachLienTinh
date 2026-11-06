@@ -14,11 +14,13 @@ from app.middleware.auth_middleware import NguoiDungHienTai
 from app.repositories import dia_diem_repository as dia_diem_repo
 from app.repositories import dieu_do_repository as repo
 from app.repositories import nguoi_dung_repository as nguoi_dung_repo
+from app.repositories import nhan_su_van_hanh_repository as nhan_su_repo
 from app.repositories import phan_cong_dieu_do_repository as phan_cong_repo
 from app.repositories import ve_repository as ve_repo
 from app.repositories import xe_repository as xe_repo
 from app.services import thong_bao_khach_service as thong_bao
 from app.services.lich_chay_service import KHOANG_NGHI_TOI_THIEU_PHUT
+from app.utils import bien_che
 from app.utils.loi import CamTruyCap, GiaTriLoi, KhongTimThay
 
 logger = logging.getLogger(__name__)
@@ -76,9 +78,10 @@ def duong_dan_chu_trinh(chu_trinh_id) -> str:
     return f"{DUONG_DAN_GAN_XE}?chu_trinh={chu_trinh_id}" if chu_trinh_id else DUONG_DAN_GAN_XE
 
 
-def can_chu_y_chu_trinh(chuyen: list[dict], bay_gio: datetime.datetime) -> list[dict]:
+def can_chu_y_chu_trinh(chuyen: list[dict], bay_gio: datetime.datetime, nhan_su_xe: dict[str, tuple[int, int]] | None = None) -> list[dict]:
     """Những việc điều độ viên cần xử lý ở 1 chu trình (`chuyen` đã sắp theo giờ), mỗi việc {ma, muc_do, noi_dung, ma_chuyen, gio_khoi_hanh}
     (chuyến liên quan và giờ khởi hành của nó — giao diện tự tính "còn bao lâu"), nặng nhất trước.
+    `nhan_su_xe`: {xe_id: (số tài xế, số phụ xe) đang hoạt động}; có thì thêm việc "xe thiếu nhân sự" cho xe đang chạy chuyến (xe thay nếu có).
     Chỉ xét chuyến còn `chua_khoi_hanh`. Mức độ: khan (làm ngay) > canh_bao > thong_tin. Hàm thuần, không đụng DB."""
     ket_qua: list[dict] = []
     da_co: set[str] = set()
@@ -108,13 +111,19 @@ def can_chu_y_chu_trinh(chuyen: list[dict], bay_gio: datetime.datetime) -> list[
                 them("xe_goc_san_sang", "thong_tin", f"Xe gốc {c['bien_so_xe']} đã hoạt động lại — có thể trả chu trình về xe gốc")
         elif c["trang_thai_xe"] != "hoat_dong":
             them("xe_hong", "khan", f"Xe {c['bien_so_xe']} đang không hoạt động (bảo trì) — cần thay xe cho chu trình")
+        if nhan_su_xe is not None:
+            xe_chay = str(c["xe_thuc_te_id"] or c["xe_id"])
+            tai_xe, phu_xe = nhan_su_xe.get(xe_chay, (0, 0))
+            if not bien_che.du_nhan_su(tai_xe, phu_xe):
+                bien_so = c["bien_so_xe_thuc_te"] if c["xe_thuc_te_id"] else c["bien_so_xe"]
+                them("xe_thieu_nhan_su", "canh_bao", f"Xe {bien_so} đang {bien_che.mo_ta_thieu(tai_xe, phu_xe)} — báo quản lý bổ sung biên chế hoặc đổi xe")
         if c["co_canh_bao_xung_dot_vi_tri"]:
             them("canh_bao_vi_tri", "canh_bao", f"Chuyến trước của xe gặp sự cố, xe có thể không kịp tới điểm xuất phát của chuyến {c['ma']} — kiểm tra lại")
     thu_tu = {"khan": 0, "canh_bao": 1, "thong_tin": 2}
     return sorted(ket_qua, key=lambda v: thu_tu[v["muc_do"]])
 
 
-def _dung_chu_trinh(chuyen: list[dict], bay_gio: datetime.datetime | None = None) -> dict:
+def _dung_chu_trinh(chuyen: list[dict], bay_gio: datetime.datetime | None = None, nhan_su_xe: dict[str, tuple[int, int]] | None = None) -> dict:
     """Gom các chuyến của 1 chu trình (đã sắp theo giờ) thành dòng hiển thị."""
     dau = chuyen[0]
     so_co_xe = sum(1 for c in chuyen if c["xe_id"])
@@ -126,7 +135,7 @@ def _dung_chu_trinh(chuyen: list[dict], bay_gio: datetime.datetime | None = None
         "loai_xe_id": dau["loai_xe_id"],
         "ten_loai_xe": dau["ten_loai_xe"],
         "trang_thai_gan": "da_gan" if so_co_xe == len(chuyen) else ("mot_phan" if so_co_xe else "chua_gan"),
-        "can_chu_y": can_chu_y_chu_trinh(chuyen, bay_gio or _bay_gio()),
+        "can_chu_y": can_chu_y_chu_trinh(chuyen, bay_gio or _bay_gio(), nhan_su_xe),
         "cac_chuyen": chuyen,
     }
 
@@ -140,7 +149,9 @@ def danh_sach_chu_trinh(nguoi_dung: NguoiDungHienTai, so_ngay: int = CUA_SO_MAC_
     theo_chu_trinh: dict = {}
     for c in repo.danh_sach_chuyen_trong_cua_so(bay_gio, bay_gio + datetime.timedelta(days=so_ngay), tuyen_ids):
         theo_chu_trinh.setdefault(str(c["chu_trinh_id"]), []).append(c)
-    return [_dung_chu_trinh(cac_chuyen, bay_gio) for cac_chuyen in theo_chu_trinh.values()]
+    xe_ids = {str(c["xe_thuc_te_id"] or c["xe_id"]) for ds in theo_chu_trinh.values() for c in ds if c["xe_thuc_te_id"] or c["xe_id"]}
+    nhan_su_xe = nhan_su_repo.dem_hieu_luc_theo_xe(sorted(xe_ids))
+    return [_dung_chu_trinh(cac_chuyen, bay_gio, nhan_su_xe) for cac_chuyen in theo_chu_trinh.values()]
 
 
 def _khung_chu_trinh(chuyen_xet: list[dict]) -> tuple:
@@ -154,7 +165,8 @@ def _khung_chu_trinh(chuyen_xet: list[dict]) -> tuple:
 
 def danh_gia_xe_chi_tiet(chuyen_xet: list[dict], xe: dict, lich: dict) -> list[dict]:
     """Mọi lý do xe này KHÔNG gán được cho chu trình, mỗi lý do kèm mã (`ma`) để giao diện gom nhóm/tô màu:
-    khong_hoat_dong, khac_loai, tuyen_co_dinh, trung_lich, sai_vi_tri, hong_chuyen_ke_tiep. Rỗng = gán được.
+    khong_hoat_dong, thieu_nhan_su, khac_loai, tuyen_co_dinh, trung_lich, sai_vi_tri, hong_chuyen_ke_tiep. Rỗng = gán được.
+    Xe chưa đủ nhân sự (2 tài xế + ≥1 phụ xe đang hoạt động, app/utils/bien_che.py) KHÔNG gán được chuyến — kể cả xe dự phòng.
     `chuyen_xet`: các chuyến cần gán, theo giờ; `lich`: kết quả repo._lich_xe của xe. Hàm thuần, không đụng DB."""
     ket_qua: list[dict] = []
 
@@ -164,6 +176,11 @@ def danh_gia_xe_chi_tiet(chuyen_xet: list[dict], xe: dict, lich: dict) -> list[d
     dau, cuoi = chuyen_xet[0], chuyen_xet[-1]
     if xe["trang_thai"] != "hoat_dong":
         them("khong_hoat_dong", "Xe không ở trạng thái hoạt động")
+    if not bien_che.du_nhan_su(xe["so_tai_xe_hieu_luc"], xe["so_phu_xe_hieu_luc"]):
+        them(
+            "thieu_nhan_su",
+            f"Xe chưa đủ nhân sự ({bien_che.mo_ta_thieu(xe['so_tai_xe_hieu_luc'], xe['so_phu_xe_hieu_luc'])}) — nhờ quản lý bổ sung biên chế",
+        )
     if str(xe["loai_xe_id"]) != str(dau["loai_xe_id"]):
         them("khac_loai", f"Khác loại xe (chuyến cam kết {dau['ten_loai_xe']})")
     if xe["tuyen_id"] and str(xe["tuyen_id"]) != str(dau["tuyen_id"]):
@@ -277,6 +294,7 @@ def danh_sach_xe_cho_chu_trinh(nguoi_dung: NguoiDungHienTai, chu_trinh_id: str, 
             "ma_ly_do": [l["ma"] for l in ly_do],
             "dang_gan": str(xe["id"]) in xe_hien_tai,
             "trang_thai_xe": xe["trang_thai"],
+            "nhan_su": {"tai_xe": xe["so_tai_xe_hieu_luc"], "phu_xe": xe["so_phu_xe_hieu_luc"], "du": bien_che.du_nhan_su(xe["so_tai_xe_hieu_luc"], xe["so_phu_xe_hieu_luc"])},
             "loai_xe": _tom_tat_loai_xe(xe["loai_xe_id"], xe["ma_loai_xe"], xe["ten_loai_xe"], xe["so_ghe"], xe["so_tang"]),
             "dung_loai": str(xe["loai_xe_id"]) == str(dau["loai_xe_id"]),
             "tuyen_co_dinh": {"ma": xe["ma_tuyen_co_dinh"], "ten": xe["ten_tuyen_co_dinh"]} if xe["tuyen_id"] else None,

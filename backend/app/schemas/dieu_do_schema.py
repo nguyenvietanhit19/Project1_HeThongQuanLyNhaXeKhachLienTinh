@@ -26,7 +26,7 @@ class ChuyenTrongChuTrinh(BaseModel):
 class CanChuY(BaseModel):
     """Một việc điều độ viên cần xử lý ở chu trình."""
 
-    ma: Literal["dang_hoan", "chua_gan_sap_toi", "xe_hong", "xe_goc_san_sang", "canh_bao_vi_tri"]
+    ma: Literal["dang_hoan", "chua_gan_sap_toi", "xe_hong", "xe_thieu_nhan_su", "xe_goc_san_sang", "canh_bao_vi_tri"]
     muc_do: Literal["khan", "canh_bao", "thong_tin"]
     noi_dung: str
     ma_chuyen: str | None = None  # chuyến liên quan
@@ -111,14 +111,23 @@ class TuyenCoDinhCuaXe(BaseModel):
     ten: str
 
 
+class NhanSuXe(BaseModel):
+    """Nhân sự đang hoạt động của xe: cần 2 tài xế + ≥1 phụ xe mới gán chuyến được."""
+
+    tai_xe: int
+    phu_xe: int
+    du: bool
+
+
 class XeChoChuTrinhResponse(BaseModel):
     xe_id: UUID
     bien_so: str
     hop_le: bool
     ly_do: list[str]  # mọi lý do không gán được (rỗng khi hop_le)
-    ma_ly_do: list[str]  # song song ly_do: khong_hoat_dong | khac_loai | tuyen_co_dinh | trung_lich | sai_vi_tri | hong_chuyen_ke_tiep
+    ma_ly_do: list[str]  # song song ly_do: khong_hoat_dong | thieu_nhan_su | khac_loai | tuyen_co_dinh | trung_lich | sai_vi_tri | hong_chuyen_ke_tiep
     dang_gan: bool  # xe đang được gán cho chu trình này
     trang_thai_xe: str  # hoat_dong | bao_tri
+    nhan_su: NhanSuXe
     loai_xe: LoaiXeTomTat
     dung_loai: bool  # đúng loại xe cam kết của chu trình
     tuyen_co_dinh: TuyenCoDinhCuaXe | None = None
