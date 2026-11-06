@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/shared/design-tokens.css" />
 <link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
 <link rel="stylesheet" href="/nhan-vien/quan-ly/thong-bao.css" />
+<link rel="stylesheet" href="/nhan-vien/quan-ly/bien-che-modal.css" />
 </head>
 <body class="nhan-vien-shell">
   <div class="nv-layout">
@@ -45,6 +46,7 @@
           <div class="dd-chips" id="xe-chips"></div>
           <button class="btn-primary nv-btn-them" id="btn-them" type="button">+ Thêm xe</button>
         </div>
+        <div class="xe-canh-bao" id="xe-canh-bao-nhan-su" hidden></div>
         <div id="bang-xe">Đang tải...</div>
       </main>
     </div>
@@ -104,45 +106,12 @@
     </div>
   </div>
 
-  <!-- Modal biên chế cố định -->
-  <div class="nv-modal-overlay" id="modal-bien-che" hidden>
-    <div class="nv-modal" style="max-width:560px;">
-      <div class="nv-modal__header">
-        <div class="nv-modal__header-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5a3 3 0 0 1 0 6M18 14c1.8.6 3 2.3 3 4"/>
-          </svg>
-        </div>
-        <h2 id="bc-tieu-de">Biên chế xe</h2>
-      </div>
-      <div class="nv-modal__body">
-        <div class="xe-bc-nhom">
-          <div class="xe-bc-nhom__tieu-de">Tài xế cố định <span class="pill pill--nho xe-bc-nhom__dem" id="bc-dem-tai-xe"></span></div>
-          <div id="bc-ds-tai-xe"></div>
-        </div>
-        <div class="xe-bc-nhom">
-          <div class="xe-bc-nhom__tieu-de">Phụ xe cố định <span class="pill pill--nho xe-bc-nhom__dem" id="bc-dem-phu-xe"></span></div>
-          <div id="bc-ds-phu-xe"></div>
-        </div>
-
-        <div class="xe-bc-them">
-          <select class="input-field" id="bc-chon-nhan-su"></select>
-          <button type="button" class="btn-primary" id="bc-btn-them">Thêm</button>
-        </div>
-
-        <div id="bc-loi" class="text-error" hidden></div>
-        <div class="nv-modal__actions">
-          <button type="button" class="nv-btn-secondary" id="bc-btn-dong">Đóng</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <script src="/nhan-vien/quan-ly/api-client.js"></script>
   <script src="/nhan-vien/quan-ly/auth-check.js"></script>
   <script src="/nhan-vien/quan-ly/nav.js"></script>
   <script src="/nhan-vien/quan-ly/tai-khoan.js"></script>
   <script src="/nhan-vien/quan-ly/thong-bao.js"></script>
+  <script src="/nhan-vien/quan-ly/bien-che-modal.js"></script>
   <script>
     const nguoiDung = yeuCauVaiTro("quan_ly", "quan_ly_nhan_su");
     if (nguoiDung) {
@@ -160,7 +129,7 @@
 
     const boDau = (s) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
 
-    let boLocTrangThai = TrangThaiTrang.doc().trangThai || "tat_ca"; // tat_ca | hoat_dong | bao_tri | ngung_su_dung
+    let boLocTrangThai = TrangThaiTrang.doc().trangThai || "tat_ca"; // tat_ca | hoat_dong | bao_tri | ngung_su_dung | thieu_nhan_su
     let dsXe = [];
     let dsLoaiXe = [];
     let dsVanPhong = [];
@@ -169,17 +138,39 @@
     const bangXe = document.getElementById("bang-xe");
 
     // ---------- Danh sách xe ----------
-    // Biên chế: 2 chấm cho 2 tài xế (đặc = đã có), thêm chấm cho phụ xe
+    // Biên chế: chấm đặc = đã có người ĐANG HOẠT ĐỘNG (người tạm nghỉ / đã nghỉ việc không tính). Chưa đủ thì xe chưa gán được chuyến;
+    // xe dự phòng chưa đủ người thì chỉ ghi chú (không cảnh báo đỏ vì nhân sự của xe dự phòng được bố trí theo từng lúc).
     function htmlBienChe(xe) {
-      const du = xe.so_tai_xe_co_dinh >= SO_TAI_XE_YEU_CAU && xe.so_phu_xe_co_dinh >= 1;
-      const chamTaiXe = Array.from({ length: SO_TAI_XE_YEU_CAU }, (_, i) => `<i class="${i < xe.so_tai_xe_co_dinh ? "on" : ""}"></i>`).join("");
-      const chamPhuXe = xe.so_phu_xe_co_dinh ? Array.from({ length: xe.so_phu_xe_co_dinh }, () => '<i class="on"></i>').join("") : "<i></i>";
+      const du = xe.du_nhan_su;
+      const duPhong = !xe.tuyen_id;
+      const chamTaiXe = Array.from({ length: SO_TAI_XE_YEU_CAU }, (_, i) => `<i class="${i < xe.so_tai_xe_hieu_luc ? "on" : ""}"></i>`).join("");
+      const chamPhuXe = xe.so_phu_xe_hieu_luc ? Array.from({ length: xe.so_phu_xe_hieu_luc }, () => '<i class="on"></i>').join("") : "<i></i>";
+      const lop = du ? "xe-bc--du" : duPhong ? "xe-bc--du-phong" : "xe-bc--thieu";
+      const ketQua = du ? "Đủ nhân sự" : duPhong ? "Chưa đủ · xe dự phòng" : "Chưa đủ — chưa gán chuyến được";
       return `
-        <div class="xe-bc ${du ? "xe-bc--du" : "xe-bc--thieu"}" title="Biên chế cố định cần đúng 2 tài xế và ít nhất 1 phụ xe">
+        <div class="xe-bc ${lop}" title="${du ? "" : esc("Xe " + xe.thieu_nhan_su + ". ")}Cần 2 tài xế và ít nhất 1 phụ xe đang hoạt động mới gán được chuyến">
           <span class="xe-bc__nhom"><span class="xe-bc__nhan">Tài xế</span><span class="xe-bc__cham">${chamTaiXe}</span></span>
           <span class="xe-bc__nhom"><span class="xe-bc__nhan">Phụ xe</span><span class="xe-bc__cham">${chamPhuXe}</span></span>
-          <span class="xe-bc__kq">${du ? "Đủ biên chế" : "Chưa đủ"}</span>
+          <span class="xe-bc__kq">${ketQua}</span>
         </div>`;
+    }
+
+    // Dải cảnh báo đầu danh sách: xe cố định tuyến, đang hoạt động mà chưa đủ nhân sự (xe dự phòng không tính)
+    function renderCanhBaoNhanSu() {
+      const o = document.getElementById("xe-canh-bao-nhan-su");
+      const thieu = dsXe.filter((x) => x.can_canh_bao_nhan_su);
+      o.hidden = !thieu.length;
+      if (!thieu.length) {
+        o.innerHTML = "";
+        return;
+      }
+      o.innerHTML = `
+        <span class="xe-canh-bao__noi-dung"><strong>${thieu.length} xe chạy tuyến cố định chưa đủ nhân sự</strong> — các xe này chưa gán được chuyến cho tới khi bổ sung biên chế (2 tài xế + ít nhất 1 phụ xe). Xe dự phòng không tính.</span>
+        <button type="button" class="nv-btn-secondary xe-canh-bao__nut" id="xe-canh-bao-xem">Xem các xe này</button>`;
+      document.getElementById("xe-canh-bao-xem").addEventListener("click", () => {
+        boLocTrangThai = "thieu_nhan_su";
+        renderDanhSach();
+      });
     }
 
     async function taiDanhSach() {
@@ -195,10 +186,11 @@
     function renderChips() {
       const dem = { tat_ca: dsXe.length, hoat_dong: 0, bao_tri: 0, ngung_su_dung: 0 };
       dsXe.forEach((x) => dem[x.trang_thai]++);
-      const cacChip = [["tat_ca", "Tất cả"], ["hoat_dong", "Hoạt động"], ["bao_tri", "Bảo trì"], ["ngung_su_dung", "Ngừng"]];
+      dem.thieu_nhan_su = dsXe.filter((x) => x.can_canh_bao_nhan_su).length;
+      const cacChip = [["tat_ca", "Tất cả"], ["hoat_dong", "Hoạt động"], ["bao_tri", "Bảo trì"], ["ngung_su_dung", "Ngừng"], ["thieu_nhan_su", "Thiếu nhân sự"]];
       const o = document.getElementById("xe-chips");
       o.innerHTML = cacChip
-        .map(([gt, nhan]) => `<button type="button" class="dd-chip${boLocTrangThai === gt ? " is-active" : ""}" data-tt="${gt}">${nhan} <span>${dem[gt]}</span></button>`)
+        .map(([gt, nhan]) => `<button type="button" class="dd-chip${boLocTrangThai === gt ? " is-active" : ""}${gt === "thieu_nhan_su" && dem[gt] ? " dd-chip--canh-bao" : ""}" data-tt="${gt}">${nhan} <span>${dem[gt]}</span></button>`)
         .join("");
       o.querySelectorAll("[data-tt]").forEach((b) =>
         b.addEventListener("click", () => {
@@ -210,13 +202,16 @@
 
     function renderDanhSach() {
       renderChips();
+      renderCanhBaoNhanSu();
       const tk = boDau(document.getElementById("xe-tim").value.trim());
       const locLoai = document.getElementById("xe-loc-loai").value;
       const locTuyen = document.getElementById("xe-loc-tuyen").value; // "" | "__du_phong" | tuyen_id
       TrangThaiTrang.luu({ tim: document.getElementById("xe-tim").value, loai: locLoai, tuyen: locTuyen, trangThai: boLocTrangThai });
 
       const loc = dsXe.filter((x) => {
-        if (boLocTrangThai !== "tat_ca" && x.trang_thai !== boLocTrangThai) return false;
+        if (boLocTrangThai === "thieu_nhan_su") {
+          if (!x.can_canh_bao_nhan_su) return false;
+        } else if (boLocTrangThai !== "tat_ca" && x.trang_thai !== boLocTrangThai) return false;
         if (locLoai && x.loai_xe_id !== locLoai) return false;
         if (locTuyen === "__du_phong" ? x.tuyen_id : locTuyen && x.tuyen_id !== locTuyen) return false;
         if (!tk) return true;
@@ -237,7 +232,7 @@
         .map((x) => {
           const tt = NHAN_TRANG_THAI[x.trang_thai];
           return `
-            <article class="xe-the xe-the--${x.trang_thai}">
+            <article class="xe-the xe-the--${x.trang_thai}${x.can_canh_bao_nhan_su ? " xe-the--thieu-nhan-su" : ""}">
               <div class="xe-the__dau">
                 <span class="xe-bien-so">${esc(x.bien_so)}</span>
                 <span class="pill pill--nho ${tt.lop}">${tt.nhan}</span>
@@ -380,110 +375,10 @@
       }
     });
 
-    // ---------- Modal biên chế cố định (UC-35) ----------
-    const modalBienChe = document.getElementById("modal-bien-che");
-    const bcLoi = document.getElementById("bc-loi");
-    const bcChonNhanSu = document.getElementById("bc-chon-nhan-su");
-    let xeDangXemBienChe = null;
-
-    function dongBienChe(d) {
-      const tamThoi = d.loai === "tam_thoi";
-      return `
-        <div class="xe-bc-dong">
-          <span class="xe-bc-dong__ten">${esc(d.ho_ten)}</span>
-          <span class="xe-bc-dong__sdt">${esc(d.so_dien_thoai)}</span>
-          ${tamThoi ? `<span class="pill pill--nho pill--gia-thoi-han">Tạm thời${d.trang_thai === "tam_nghi" ? " · tạm nghỉ" : ""}</span>` : d.trang_thai === "tam_nghi" ? '<span class="pill pill--nho pill--xam">Tạm nghỉ</span>' : ""}
-          ${tamThoi ? "" : `<button type="button" class="xe-bc-dong__go" data-go="${d.id}" title="Gỡ khỏi biên chế cố định">×</button>`}
-        </div>`;
+    // ---------- Biên chế (UC-35): hộp riêng ở bien-che-modal.js ----------
+    function moModalBienChe(xe) {
+      BienCheModal.mo(xe, { khiDong: taiDanhSach }); // đóng hộp thì nạp lại danh sách để cập nhật số người và cảnh báo
     }
-
-    function renderBienChe(dsBienChe, dsNhanSu) {
-      const taiXe = dsBienChe.filter((d) => d.chuc_danh === "tai_xe");
-      const phuXe = dsBienChe.filter((d) => d.chuc_danh === "phu_xe");
-      const soTaiXeCoDinh = taiXe.filter((d) => d.loai === "co_dinh").length;
-      const soPhuXeCoDinh = phuXe.filter((d) => d.loai === "co_dinh").length;
-
-      const capNhatDem = (id, ok, chu) => {
-        const el = document.getElementById(id);
-        el.textContent = chu;
-        el.className = `pill pill--nho xe-bc-nhom__dem ${ok ? "pill--gia-vinh-vien" : "pill--do"}`;
-      };
-      capNhatDem("bc-dem-tai-xe", soTaiXeCoDinh === SO_TAI_XE_YEU_CAU, `${soTaiXeCoDinh}/${SO_TAI_XE_YEU_CAU}`);
-      capNhatDem("bc-dem-phu-xe", soPhuXeCoDinh >= 1, `${soPhuXeCoDinh} (cần ≥ 1)`);
-
-      document.getElementById("bc-ds-tai-xe").innerHTML = taiXe.length ? taiXe.map(dongBienChe).join("") : '<div class="xe-bc-trong">Chưa có tài xế nào</div>';
-      document.getElementById("bc-ds-phu-xe").innerHTML = phuXe.length ? phuXe.map(dongBienChe).join("") : '<div class="xe-bc-trong">Chưa có phụ xe nào</div>';
-
-      document.querySelectorAll("#modal-bien-che [data-go]").forEach((btn) => {
-        btn.addEventListener("click", () => goBienChe(btn.dataset.go));
-      });
-
-      // Ô chọn nhân sự: người đã thuộc xe khác / phụ xe chưa có tài khoản bị khóa kèm lý do
-      const dongOption = (n) => {
-        let lyDo = "";
-        if (n.bien_so_xe_co_dinh) lyDo = ` — đang ở xe ${n.bien_so_xe_co_dinh}`;
-        else if (n.chuc_danh === "phu_xe" && !n.co_tai_khoan) lyDo = " — chưa có tài khoản";
-        return `<option value="${n.id}" ${lyDo ? "disabled" : ""}>${esc(n.ho_ten)} · ${esc(n.so_dien_thoai)}${lyDo}</option>`;
-      };
-      const nhom = (nhan, ds) => (ds.length ? `<optgroup label="${nhan}">${ds.map(dongOption).join("")}</optgroup>` : "");
-      bcChonNhanSu.innerHTML =
-        '<option value="">— Chọn nhân sự để thêm —</option>' +
-        nhom("Tài xế", dsNhanSu.filter((n) => n.chuc_danh === "tai_xe")) +
-        nhom("Phụ xe", dsNhanSu.filter((n) => n.chuc_danh === "phu_xe"));
-    }
-
-    async function taiBienChe() {
-      const [dsBienChe, dsNhanSu] = await Promise.all([
-        apiGet(`/quan-ly/xe/${xeDangXemBienChe.id}/bien-che`),
-        apiGet("/quan-ly/nhan-su-dang-lam"),
-      ]);
-      renderBienChe(dsBienChe, dsNhanSu);
-    }
-
-    async function moModalBienChe(xe) {
-      xeDangXemBienChe = xe;
-      document.getElementById("bc-tieu-de").textContent = `Biên chế xe ${xe.bien_so}`;
-      bcLoi.hidden = true;
-      modalBienChe.hidden = false;
-      try {
-        await taiBienChe();
-      } catch (err) {
-        bcLoi.textContent = err.message;
-        bcLoi.hidden = false;
-      }
-    }
-
-    async function goBienChe(xeNhanSuId) {
-      bcLoi.hidden = true;
-      try {
-        await apiDelete(`/quan-ly/bien-che/${xeNhanSuId}`);
-        await taiBienChe();
-      } catch (err) {
-        bcLoi.textContent = err.message;
-        bcLoi.hidden = false;
-      }
-    }
-
-    document.getElementById("bc-btn-them").addEventListener("click", async () => {
-      bcLoi.hidden = true;
-      if (!bcChonNhanSu.value) {
-        bcLoi.textContent = "Hãy chọn 1 nhân sự để thêm";
-        bcLoi.hidden = false;
-        return;
-      }
-      try {
-        await apiPost(`/quan-ly/xe/${xeDangXemBienChe.id}/bien-che`, { nhan_su_van_hanh_id: bcChonNhanSu.value });
-        await taiBienChe();
-      } catch (err) {
-        bcLoi.textContent = err.message;
-        bcLoi.hidden = false;
-      }
-    });
-
-    document.getElementById("bc-btn-dong").addEventListener("click", () => {
-      modalBienChe.hidden = true;
-      taiDanhSach(); // cập nhật cột "Biên chế cố định" ở bảng
-    });
   </script>
 </body>
 </html>
