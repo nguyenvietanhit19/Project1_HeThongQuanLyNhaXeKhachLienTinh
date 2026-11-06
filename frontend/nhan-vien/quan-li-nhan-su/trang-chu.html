@@ -30,7 +30,7 @@
           </div>
           <div class="nv-page-intro__body">
             <p class="nv-page-intro__title">Quản lý nhân sự</p>
-            <p class="nv-page-intro__desc">Quản lý hồ sơ và giấy tờ của tài xế, phụ xe — họ tên, CCCD, bằng lái, giấy khám sức khỏe. Không quản lý tuyến, giá, xe hay biên chế (các việc đó thuộc Quản lý).</p>
+            <p class="nv-page-intro__desc">Quản lý hồ sơ và giấy tờ của tài xế, phụ xe — họ tên, CCCD, bằng lái, giấy khám sức khỏe; cấp tài khoản cho phụ xe sau khi có hồ sơ. Không quản lý tuyến, giá, xe hay biên chế (các việc đó thuộc Quản lý).</p>
           </div>
         </div>
 
@@ -42,8 +42,8 @@
           <div class="gv-stat"><span class="gv-stat__so" id="tk-tai-xe">—</span><span class="gv-stat__nhan">Tài xế</span></div>
           <div class="gv-stat gv-stat--chua-du"><span class="gv-stat__so" id="tk-phu-xe">—</span><span class="gv-stat__nhan">Phụ xe</span></div>
           <div class="gv-stat gv-stat--chua-co"><span class="gv-stat__so" id="tk-nghi-viec">—</span><span class="gv-stat__nhan">Đã nghỉ việc</span></div>
-          <!-- Tài khoản phụ xe đã tạo nhưng chưa có hồ sơ (tài xế không có tài khoản nên không đếm ở đây) -->
-          <a class="gv-stat gv-stat--het-han" id="tk-chua-ho-so-the" href="/nhan-vien/quan-li-nhan-su/ho-so.html" style="text-decoration:none;" title="Mở danh sách hồ sơ để tạo hồ sơ cho các tài khoản này"><span class="gv-stat__so" id="tk-chua-ho-so">—</span><span class="gv-stat__nhan">Phụ xe chưa có hồ sơ</span></a>
+          <!-- Hồ sơ phụ xe đang làm nhưng chưa có tài khoản (hồ sơ tạo trước, tài khoản tạo sau; tài xế không có tài khoản nên không đếm ở đây) -->
+          <a class="gv-stat gv-stat--het-han" id="tk-chua-tai-khoan-the" href="/nhan-vien/quan-li-nhan-su/tai-khoan.html" style="text-decoration:none;" title="Mở trang Tài khoản cán bộ để tạo tài khoản cho các phụ xe này"><span class="gv-stat__so" id="tk-chua-tai-khoan">—</span><span class="gv-stat__nhan">Phụ xe chưa có tài khoản</span></a>
         </div>
 
         <div class="card" style="margin-top:20px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
@@ -86,9 +86,9 @@
 
         // Lỗi ở đây không làm mất 4 số trên — chỉ thẻ này giữ dấu "—"
         try {
-          const chuaCoHoSo = await apiGet("/quan-ly-nhan-su/tai-khoan-phu-xe-chua-gan");
-          document.getElementById("tk-chua-ho-so").textContent = chuaCoHoSo.length;
-          if (chuaCoHoSo.length === 0) document.getElementById("tk-chua-ho-so-the").className = "gv-stat gv-stat--on-dinh";
+          const chuaCoTaiKhoan = await apiGet("/quan-ly-nhan-su/ho-so-phu-xe-chua-co-tai-khoan");
+          document.getElementById("tk-chua-tai-khoan").textContent = chuaCoTaiKhoan.length;
+          if (chuaCoTaiKhoan.length === 0) document.getElementById("tk-chua-tai-khoan-the").className = "gv-stat gv-stat--on-dinh";
         } catch (e) { /* giữ "—" */ }
       } catch (err) {
         const el = document.getElementById("loi-trang");

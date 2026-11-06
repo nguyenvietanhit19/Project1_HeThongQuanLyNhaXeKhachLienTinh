@@ -18,6 +18,7 @@ from passlib.context import CryptContext
 
 from app.repositories import dia_diem_repository as dia_diem_repo
 from app.repositories import nguoi_dung_repository as nguoi_dung_repo
+from app.repositories import nhan_su_van_hanh_repository as nhan_su_repo
 from app.repositories import nhat_ky_admin_repository as nhat_ky_admin_repo
 from app.repositories import nhat_ky_quan_ly_nhan_su_repository as nhat_ky_repo
 from app.repositories import tai_khoan_can_bo_repository as repo
@@ -86,6 +87,20 @@ def _kiem_tra_van_phong(vai_tro_moi: str, van_phong_id: str | None) -> None:
         raise GiaTriLoi("Điểm phụ trách phải là văn phòng hợp lệ")
 
 
+def _tim_ho_so_phu_xe_de_gan(nhan_su_id: str) -> dict:
+    """Hồ sơ mà tài khoản phụ xe sắp gắn vào phải: tồn tại, là phụ xe, còn đang làm, chưa có tài khoản."""
+    ho_so = nhan_su_repo.tim_ho_so_day_du(nhan_su_id)
+    if not ho_so:
+        raise KhongTimThay("Không tìm thấy hồ sơ phụ xe được chọn")
+    if ho_so["chuc_danh"] != "phu_xe":
+        raise GiaTriLoi("Hồ sơ được chọn không phải phụ xe")
+    if ho_so["trang_thai"] != "dang_lam":
+        raise GiaTriLoi("Hồ sơ này đã nghỉ việc, không thể tạo tài khoản")
+    if ho_so["nguoi_dung_id"]:
+        raise GiaTriLoi("Hồ sơ này đã có tài khoản")
+    return ho_so
+
+
 # ---------------------------------------------------------
 # UC-36: tạo tài khoản cán bộ
 # ---------------------------------------------------------
@@ -97,7 +112,14 @@ def tao_tai_khoan(actor_id: str, actor_vai_tro: str, du_lieu) -> dict:
     van_phong_id = str(du_lieu.van_phong_id) if du_lieu.van_phong_id else None
 
     _kiem_tra_quyen_tao(actor_id, actor_vai_tro, vai_tro_moi)
-    so_dien_thoai = chuan_hoa_so_dien_thoai(du_lieu.so_dien_thoai)
+    nhan_su_id = None
+    if vai_tro_moi == "phu_xe":
+        # Hồ sơ tạo trước, tài khoản tạo sau: họ tên + số điện thoại LẤY TỪ HỒ SƠ (bỏ qua giá trị client gửi) để hai bên không lệch.
+        ho_so = _tim_ho_so_phu_xe_de_gan(str(du_lieu.nhan_su_id))
+        nhan_su_id = str(ho_so["id"])
+        ho_ten, so_dien_thoai = ho_so["ho_ten"].strip(), chuan_hoa_so_dien_thoai(ho_so["so_dien_thoai"])
+    else:
+        ho_ten, so_dien_thoai = du_lieu.ho_ten.strip(), chuan_hoa_so_dien_thoai(du_lieu.so_dien_thoai)
     email = str(du_lieu.email).strip().lower()
     if nguoi_dung_repo.tim_theo_email(email):
         raise GiaTriLoi("Email đã tồn tại")
@@ -105,7 +127,7 @@ def tao_tai_khoan(actor_id: str, actor_vai_tro: str, du_lieu) -> dict:
 
     mat_khau = MAT_KHAU_MAC_DINH
     tai_khoan = repo.tao_tai_khoan(
-        email, _pwd_context.hash(mat_khau), du_lieu.ho_ten.strip(), so_dien_thoai, vai_tro_moi, van_phong_id
+        email, _pwd_context.hash(mat_khau), ho_ten, so_dien_thoai, vai_tro_moi, van_phong_id, nhan_su_id
     )
 
     # Nhật ký chỉ ghi vai trò + văn phòng, KHÔNG ghi mật khẩu

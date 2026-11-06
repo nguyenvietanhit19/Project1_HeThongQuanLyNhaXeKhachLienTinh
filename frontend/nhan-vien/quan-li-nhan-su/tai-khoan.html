@@ -66,19 +66,26 @@
           <label class="nv-label" for="email">Email (do công ty cấp)</label>
           <input class="input-field" type="email" id="email" autocomplete="off" required />
 
-          <div class="nv-form-row">
+          <label class="nv-label" for="vai_tro">Vai trò</label>
+          <select class="input-field" id="vai_tro" required></select>
+
+          <!-- Vai trò thường: nhập họ tên + số điện thoại. Phụ xe: chọn hồ sơ đã tạo trước, họ tên + số điện thoại lấy từ hồ sơ -->
+          <div class="nv-form-row" id="khoi-ho-ten-sdt">
             <div>
               <label class="nv-label" for="ho_ten">Họ tên</label>
-              <input class="input-field" type="text" id="ho_ten" required />
+              <input class="input-field" type="text" id="ho_ten" />
             </div>
             <div>
               <label class="nv-label" for="so_dien_thoai">Số điện thoại</label>
-              <input class="input-field" type="text" id="so_dien_thoai" required />
+              <input class="input-field" type="text" id="so_dien_thoai" />
             </div>
           </div>
 
-          <label class="nv-label" for="vai_tro">Vai trò</label>
-          <select class="input-field" id="vai_tro" required></select>
+          <div id="khoi-ho-so-phu-xe" hidden>
+            <label class="nv-label" for="nhan_su_id">Hồ sơ phụ xe</label>
+            <select class="input-field" id="nhan_su_id"></select>
+            <p class="nv-text-phu" id="ghi-chu-ho-so-phu-xe" style="margin-top:4px;"></p>
+          </div>
 
           <div id="khoi-van-phong" hidden>
             <label class="nv-label" for="van_phong_id">Văn phòng phụ trách</label>
@@ -300,6 +307,9 @@
     const oVaiTro = document.getElementById("vai_tro");
     const oVanPhong = document.getElementById("van_phong_id");
     const khoiVanPhong = document.getElementById("khoi-van-phong");
+    const khoiHoTenSdt = document.getElementById("khoi-ho-ten-sdt");
+    const khoiHoSoPhuXe = document.getElementById("khoi-ho-so-phu-xe");
+    const oHoSoPhuXe = document.getElementById("nhan_su_id");
     let dsVanPhong = null; // null = chưa tải
 
     function hienLoi(thongBao) {
@@ -337,10 +347,32 @@
       }
     }
 
+    // Phụ xe: hồ sơ tạo TRƯỚC, tài khoản tạo SAU — chọn hồ sơ phụ xe đang làm chưa có tài khoản (họ tên, số điện thoại lấy từ hồ sơ)
+    async function taiHoSoPhuXe() {
+      oHoSoPhuXe.innerHTML = '<option value="">Đang tải...</option>';
+      const ghiChu = document.getElementById("ghi-chu-ho-so-phu-xe");
+      try {
+        const ds = await apiGet("/quan-ly-nhan-su/ho-so-phu-xe-chua-co-tai-khoan");
+        oHoSoPhuXe.innerHTML =
+          `<option value="">${ds.length ? "— Chọn hồ sơ phụ xe —" : "Chưa có hồ sơ phụ xe nào chờ tài khoản"}</option>` +
+          ds.map((h) => `<option value="${esc(h.id)}">${esc(h.ho_ten)} — ${esc(h.so_dien_thoai)}</option>`).join("");
+        ghiChu.innerHTML = ds.length
+          ? "Họ tên và số điện thoại của tài khoản lấy từ hồ sơ; muốn đổi thì sửa ở hồ sơ nhân sự (phụ xe không tự sửa được)."
+          : 'Hãy tạo hồ sơ phụ xe trước ở <a href="/nhan-vien/quan-li-nhan-su/ho-so.html">Hồ sơ nhân sự</a>, rồi quay lại tạo tài khoản.';
+      } catch (err) {
+        oHoSoPhuXe.innerHTML = `<option value="">${esc(err.message)}</option>`;
+        ghiChu.textContent = "";
+      }
+    }
+
     function capNhatTheoVaiTro() {
       const canVanPhong = vaiTroDuocTao.vai_tro_can_van_phong.includes(oVaiTro.value);
       khoiVanPhong.hidden = !canVanPhong;
       if (canVanPhong) taiVanPhong();
+      const laPhuXe = oVaiTro.value === "phu_xe";
+      khoiHoTenSdt.hidden = laPhuXe;
+      khoiHoSoPhuXe.hidden = !laPhuXe;
+      if (laPhuXe) taiHoSoPhuXe();
     }
     oVaiTro.addEventListener("change", capNhatTheoVaiTro);
 
@@ -370,10 +402,16 @@
       const vanPhongId = oVanPhong.value;
 
       if (!REGEX_EMAIL.test(email)) return hienLoi("Email không hợp lệ.");
-      if (!hoTen) return hienLoi("Vui lòng nhập họ tên.");
-      const sdt = kiemTraSoDienThoai(document.getElementById("so_dien_thoai").value);
-      if (!sdt.hopLe) return hienLoi(sdt.loi);
       if (!vaiTro) return hienLoi("Vui lòng chọn vai trò.");
+      const laPhuXe = vaiTro === "phu_xe";
+      let sdt = null;
+      if (laPhuXe) {
+        if (!oHoSoPhuXe.value) return hienLoi("Vui lòng chọn hồ sơ phụ xe (tạo hồ sơ trước ở trang Hồ sơ nhân sự).");
+      } else {
+        if (!hoTen) return hienLoi("Vui lòng nhập họ tên.");
+        sdt = kiemTraSoDienThoai(document.getElementById("so_dien_thoai").value);
+        if (!sdt.hopLe) return hienLoi(sdt.loi);
+      }
       if (canVanPhong && !vanPhongId) return hienLoi("Vai trò này bắt buộc chọn văn phòng phụ trách.");
 
       const btnSubmit = form.querySelector("button[type=submit]");
@@ -381,8 +419,8 @@
       try {
         const kq = await apiPost("/quan-ly-nhan-su/tai-khoan", {
           email,
-          ho_ten: hoTen,
-          so_dien_thoai: sdt.soChuan,
+          // Phụ xe: họ tên + số điện thoại do backend lấy từ hồ sơ
+          ...(laPhuXe ? { nhan_su_id: oHoSoPhuXe.value } : { ho_ten: hoTen, so_dien_thoai: sdt.soChuan }),
           vai_tro: vaiTro,
           van_phong_id: canVanPhong ? vanPhongId : null,
         });

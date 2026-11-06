@@ -275,6 +275,19 @@ Cả bộ `tests/unit` trên integration (`24d99ba`, 5/11/2026) có **25 test l�
 
 ---
 
+## 10E. Hồ sơ tạo trước, tài khoản phụ xe tạo sau (việc #14, đã code)
+
+**Mình làm gì:** trước đây tạo hồ sơ phụ xe phải chọn sẵn một tài khoản, nên họ tên / số điện thoại bị nhập hai lần (ở tài khoản và ở hồ sơ) và dễ lệch. Nay đảo thứ tự: tạo **hồ sơ** trước (như tài xế), rồi tạo **tài khoản** phụ xe bằng cách chọn hồ sơ đó; họ tên + số điện thoại của tài khoản lấy từ hồ sơ. Hai trường này chỉ sửa ở hồ sơ (tự đồng bộ sang tài khoản, cùng một transaction); phụ xe không còn tự sửa được ở "Tài khoản của tôi".
+
+**Ảnh hưởng tới người khác:**
+1. **Nhóm phụ xe:** `PUT /auth/toi` (API dùng chung) nay trả **403** nếu người gọi là `phu_xe` và có gửi họ tên / số điện thoại; vai trò khác (khách hàng, quản lý...) không đổi. `frontend/nhan-vien/phu-xe/phu-xe-cai-dat.js` bỏ nút sửa hai ô này, chỉ hiện + ghi chú "do Quản lý nhân sự cập nhật". Đổi chữ ở file này thì nhớ giữ lại.
+2. **Hồ sơ phụ xe có thể chưa có tài khoản** (cột `nguoi_dung_id` đã cho phép NULL từ trước, không migration). Chỗ nào giả định "phụ xe luôn có tài khoản" cần kiểm tra; `bien_che_service` đã chặn gán phụ xe chưa có tài khoản vào biên chế.
+3. **API đổi:** `POST /quan-ly-nhan-su/ho-so` không nhận `nguoi_dung_id` nữa; `POST /quan-ly-nhan-su/tai-khoan` với `vai_tro = phu_xe` nhận `nhan_su_id` (bắt buộc) và bỏ qua họ tên / số điện thoại; `GET /quan-ly-nhan-su/tai-khoan-phu-xe-chua-gan` đã thay bằng `GET /quan-ly-nhan-su/ho-so-phu-xe-chua-co-tai-khoan`.
+4. **Số điện thoại hồ sơ nay được chuẩn hóa** (dạng `0xxxxxxxxx`) khi tạo / sửa, và **không được trùng** giữa các hồ sơ (kiểm tra ở code, chưa có ràng buộc UNIQUE trong database).
+5. **Dữ liệu cũ:** phụ xe đã có cả hồ sơ và tài khoản giữ nguyên; nên đối chiếu một lần xem họ tên / số điện thoại hai bên có lệch không.
+
+---
+
 ## 11. Tóm tắt gửi nhóm (có thể copy)
 
 > Mình (Nghĩa, Quản lý nhân sự) báo các thay đổi ảnh hưởng đến mọi người, chi tiết ở `TAC_DONG_DEN_NGUOI_KHAC_QUAN_LY_NHAN_SU.md`:

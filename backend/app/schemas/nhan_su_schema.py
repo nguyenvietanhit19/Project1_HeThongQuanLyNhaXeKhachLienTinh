@@ -43,23 +43,11 @@ class TaoHoSoRequest(BaseModel):
     ho_ten: str = Field(min_length=1)
     so_dien_thoai: str = Field(min_length=1)
     chuc_danh: Literal["tai_xe", "phu_xe"]
-    nguoi_dung_id: UUID | None = Field(
-        default=None, description="Bắt buộc nếu chuc_danh = phu_xe (tài khoản phu_xe đã tạo qua UC-36); phải để trống nếu tai_xe"
-    )
+    # Không còn nguoi_dung_id: hồ sơ tạo TRƯỚC, tài khoản phụ xe (nếu cần) tạo SAU ở UC-36 và tự lấy họ tên / số điện thoại từ hồ sơ.
     so_cccd: str | None = None
     ngay_sinh: date | None = None
     ngay_vao_lam: date | None = Field(default=None, description="Để trống thì lấy ngày hiện tại")
     giay_to: list[GiayToInput] = Field(default_factory=list)
-
-    # Chạy sau khi các field đã hợp lệ: kiểm tra quy tắc liên quan nhiều field.
-    # Phụ xe <-> bắt buộc có tài khoản; tài xế <-> không được có tài khoản.
-    @model_validator(mode="after")
-    def kiem_tra_chuc_danh_va_tai_khoan(self):
-        if self.chuc_danh == "phu_xe" and not self.nguoi_dung_id:
-            raise ValueError("Hồ sơ phụ xe bắt buộc chọn tài khoản phu_xe đã tạo")
-        if self.chuc_danh == "tai_xe" and self.nguoi_dung_id:
-            raise ValueError("Tài xế không có tài khoản đăng nhập, không được chọn tài khoản")
-        return self
 
 
 class SuaHoSoRequest(BaseModel):
@@ -123,14 +111,12 @@ class AnhResponse(BaseModel):
     url: str
 
 
-class TaiKhoanPhuXeResponse(BaseModel):
-    """1 tài khoản phu_xe chưa gắn hồ sơ (phục vụ ô chọn khi tạo hồ sơ phụ xe)."""
+class HoSoPhuXeChuaCoTaiKhoanResponse(BaseModel):
+    """1 hồ sơ phụ xe đang làm mà chưa có tài khoản (phục vụ ô chọn khi tạo tài khoản phụ xe, UC-36)."""
 
     id: UUID
-    ma: str | None = None
     ho_ten: str
-    email: str
-    so_dien_thoai: str | None = None
+    so_dien_thoai: str
 
 
 # ---------------------------------------------------------

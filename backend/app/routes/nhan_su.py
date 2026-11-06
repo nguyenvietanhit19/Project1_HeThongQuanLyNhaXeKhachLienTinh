@@ -19,7 +19,7 @@ from app.schemas.nhan_su_schema import (
     HoSoTomTatResponse,
     LoaiGiayTo,
     SuaHoSoRequest,
-    TaiKhoanPhuXeResponse,
+    HoSoPhuXeChuaCoTaiKhoanResponse,
     TaoHoSoRequest,
     XemTruocNghiViecResponse,
 )
@@ -39,10 +39,10 @@ def danh_sach_ho_so(nguoi_dung: QuyenQuanLyNhanSu, chi_dang_lam: bool = False):
     return service.danh_sach_ho_so(chi_dang_lam)
 
 
-# GET /quan-ly-nhan-su/tai-khoan-phu-xe-chua-gan — tài khoản phu_xe chưa có hồ sơ (cho ô chọn)
-@router.get("/tai-khoan-phu-xe-chua-gan", response_model=list[TaiKhoanPhuXeResponse])
-def tai_khoan_phu_xe_chua_gan(nguoi_dung: QuyenQuanLyNhanSu):
-    return service.danh_sach_tai_khoan_phu_xe_chua_gan()
+# GET /quan-ly-nhan-su/ho-so-phu-xe-chua-co-tai-khoan — hồ sơ phụ xe đang làm chưa có tài khoản (cho ô chọn khi tạo tài khoản phụ xe)
+@router.get("/ho-so-phu-xe-chua-co-tai-khoan", response_model=list[HoSoPhuXeChuaCoTaiKhoanResponse])
+def ho_so_phu_xe_chua_co_tai_khoan(nguoi_dung: QuyenQuanLyNhanSu):
+    return service.danh_sach_ho_so_phu_xe_chua_co_tai_khoan()
 
 
 # GET /quan-ly-nhan-su/ho-so/{id} — xem chi tiết 1 hồ sơ kèm giấy tờ

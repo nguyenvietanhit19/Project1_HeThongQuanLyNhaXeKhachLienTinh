@@ -202,9 +202,10 @@
       ${dauHop('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/>', "Tài khoản của tôi")}
       <div class="hs-avatar" aria-hidden="true">${esc(chuDau(hoSo.ho_ten))}</div>
       ${baoOk ? `<div class="hs-bao-ok" role="status">${esc(baoOk)}</div>` : ""}
+      <p class="cd-ghi-chu">Họ tên và số điện thoại do Quản lý nhân sự cập nhật. Cần thay đổi, vui lòng liên hệ quản lý nhân sự.</p>
       <ul class="hs-ds">
-        ${hangSua("ho_ten")}
-        ${hangSua("so_dien_thoai")}
+        ${hangCoDinh("Họ và tên", hoSo.ho_ten, "Do Quản lý nhân sự cập nhật")}
+        ${hangCoDinh("Số điện thoại", hoSo.so_dien_thoai, "Do Quản lý nhân sự cập nhật")}
         ${hangCoDinh("Email", hoSo.email, "Email không thể thay đổi")}
         ${hangCoDinh("Vai trò", VAI_TRO[hoSo.vai_tro] || hoSo.vai_tro)}
         ${hangCoDinh("Ngày tham gia", hoSo.ngay_tao ? window.phuXe.ngay(hoSo.ngay_tao) : "")}

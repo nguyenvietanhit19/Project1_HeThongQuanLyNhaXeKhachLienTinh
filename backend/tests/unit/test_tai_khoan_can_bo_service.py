@@ -24,6 +24,8 @@ def _yeu_cau(vai_tro="phu_xe", van_phong_id=None, **them):
         "van_phong_id": van_phong_id,
     }
     du_lieu.update(them)
+    if vai_tro == "phu_xe" and "nhan_su_id" not in du_lieu:
+        du_lieu["nhan_su_id"] = str(uuid4())  # phụ xe: hồ sơ tạo trước, tài khoản gắn vào hồ sơ đó
     return TaoTaiKhoanCanBoRequest(**du_lieu)
 
 
@@ -34,14 +36,21 @@ def gia_lap(monkeypatch):
 
     monkeypatch.setattr(svc.repo, "la_tai_khoan_goc", lambda i: ghi.get("la_goc", False))
 
-    def tao(email, mat_khau_hash, ho_ten, sdt, vai_tro, van_phong_id):
+    def tao(email, mat_khau_hash, ho_ten, sdt, vai_tro, van_phong_id, nhan_su_id=None):
         ghi["tao"].append((email, ho_ten, sdt, vai_tro, van_phong_id, mat_khau_hash))
+        ghi["nhan_su_id"] = nhan_su_id
         return {
             "id": uuid4(), "ma": ma_tu_sinh.ma_nhan_vien(vai_tro, 1), "email": email, "ho_ten": ho_ten,
             "vai_tro": vai_tro, "van_phong_id": van_phong_id,
         }
 
     monkeypatch.setattr(svc.repo, "tao_tai_khoan", tao)
+    # Hồ sơ phụ xe mà tài khoản gắn vào (họ tên + số điện thoại của tài khoản LẤY TỪ ĐÂY, không từ request)
+    monkeypatch.setattr(
+        svc.nhan_su_repo, "tim_ho_so_day_du",
+        lambda i: ghi.get("ho_so", {"id": i, "chuc_danh": "phu_xe", "trang_thai": "dang_lam", "nguoi_dung_id": None,
+                                    "ho_ten": "Nguyen Van A", "so_dien_thoai": "0912345678"}),
+    )
     monkeypatch.setattr(svc.nguoi_dung_repo, "tim_theo_email", lambda e: ghi.get("email_ton_tai"))
     monkeypatch.setattr(
         svc.dia_diem_repo, "tim_diem_don_tra_theo_id", lambda i: ghi.get("diem", {"id": i, "loai": "van_phong"})
@@ -124,7 +133,7 @@ def test_email_duoc_chuan_hoa_chu_thuong_va_sdt_chuan_hoa(gia_lap):
 
 def test_sdt_sai_khong_tao_tai_khoan(gia_lap):
     with pytest.raises(GiaTriLoi, match="không hợp lệ"):
-        svc.tao_tai_khoan(str(uuid4()), QLNS, _yeu_cau("phu_xe", so_dien_thoai="12345"))
+        svc.tao_tai_khoan(str(uuid4()), QLNS, _yeu_cau("nhan_vien_quay_ve", str(uuid4()), so_dien_thoai="12345"))
     assert gia_lap["tao"] == []
 
 
@@ -207,7 +216,7 @@ def test_schema_vai_tro_khong_gan_van_phong_ma_co_van_phong_bi_chan():
 
 def test_schema_ho_ten_toan_khoang_trang_bi_chan():
     with pytest.raises(ValidationError, match="Họ tên"):
-        _yeu_cau("phu_xe", ho_ten="   ")
+        _yeu_cau("dieu_do_vien", ho_ten="   ")
 
 
 def test_schema_email_sai_dinh_dang_bi_chan():
@@ -566,3 +575,48 @@ def test_thong_bao_khoa_phu_xe_chua_co_ma_van_gui_binh_thuong(khoa_gia_lap):
     svc.khoa_tai_khoan(str(uuid4()), QLNS, khoa_gia_lap["muc_tieu"]["id"], "ly do")
     noi_dung = khoa_gia_lap["tb"][0][1]
     assert "()" not in noi_dung and "None" not in noi_dung and "51B-111" in noi_dung
+
+
+# ---------------------------------------------------------
+# Phụ xe: hồ sơ tạo TRƯỚC, tài khoản tạo SAU và lấy họ tên / số điện thoại từ hồ sơ (không lệch nhau)
+# ---------------------------------------------------------
+def test_phu_xe_bat_buoc_chon_ho_so():
+    with pytest.raises(ValidationError, match="hồ sơ phụ xe"):
+        TaoTaiKhoanCanBoRequest(email="a@gmail.com", vai_tro="phu_xe")
+
+
+def test_vai_tro_khac_khong_duoc_gan_ho_so():
+    with pytest.raises(ValidationError, match="Chỉ tài khoản phụ xe"):
+        _yeu_cau("dieu_do_vien", nhan_su_id=str(uuid4()))
+
+
+def test_phu_xe_khong_can_gui_ho_ten_va_so_dien_thoai():
+    TaoTaiKhoanCanBoRequest(email="a@gmail.com", vai_tro="phu_xe", nhan_su_id=str(uuid4()))  # không raise
+
+
+def test_phu_xe_ho_ten_va_sdt_lay_tu_ho_so_bo_qua_gia_tri_client(gia_lap):
+    gia_lap["ho_so"] = {"id": "hs1", "chuc_danh": "phu_xe", "trang_thai": "dang_lam", "nguoi_dung_id": None,
+                        "ho_ten": "  Lê Văn Phụ ", "so_dien_thoai": "091 234 5678"}
+    svc.tao_tai_khoan(str(uuid4()), QLNS, _yeu_cau("phu_xe", ho_ten="Tên Client Gửi", so_dien_thoai="0999999999"))
+    email, ho_ten, sdt, vai_tro, _, _ = gia_lap["tao"][0]
+    assert (ho_ten, sdt) == ("Lê Văn Phụ", "0912345678")  # của hồ sơ (đã chuẩn hóa), không phải của client
+    assert gia_lap["nhan_su_id"] == "hs1"  # repo được dặn gắn tài khoản vào đúng hồ sơ
+
+
+@pytest.mark.parametrize("ho_so, loi", [
+    (None, "Không tìm thấy hồ sơ"),
+    ({"id": "x", "chuc_danh": "tai_xe", "trang_thai": "dang_lam", "nguoi_dung_id": None, "ho_ten": "A", "so_dien_thoai": "0912345678"}, "không phải phụ xe"),
+    ({"id": "x", "chuc_danh": "phu_xe", "trang_thai": "da_nghi_viec", "nguoi_dung_id": None, "ho_ten": "A", "so_dien_thoai": "0912345678"}, "đã nghỉ việc"),
+    ({"id": "x", "chuc_danh": "phu_xe", "trang_thai": "dang_lam", "nguoi_dung_id": uuid4(), "ho_ten": "A", "so_dien_thoai": "0912345678"}, "đã có tài khoản"),
+])
+def test_ho_so_khong_hop_le_khong_tao_tai_khoan(gia_lap, monkeypatch, ho_so, loi):
+    monkeypatch.setattr(svc.nhan_su_repo, "tim_ho_so_day_du", lambda i: ho_so)
+    with pytest.raises((GiaTriLoi, KhongTimThay), match=loi):
+        svc.tao_tai_khoan(str(uuid4()), QLNS, _yeu_cau("phu_xe"))
+    assert gia_lap["tao"] == []
+
+
+def test_vai_tro_khac_khong_dung_ho_so(gia_lap):
+    svc.tao_tai_khoan(str(uuid4()), QLNS, _yeu_cau("dieu_do_vien"))
+    assert gia_lap["tao"][0][1:3] == ("Nguyen Van A", "0912345678")
+    assert gia_lap["nhan_su_id"] is None

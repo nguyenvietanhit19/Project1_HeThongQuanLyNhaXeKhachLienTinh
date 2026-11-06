@@ -831,12 +831,12 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
 - **Tiền điều kiện**: Với hồ sơ phụ xe: tài khoản `phu_xe` đã được tạo (UC-36). Tài xế không cần tài khoản (mục 3.2).
 - **Luồng chính** (mục 8.9 điểm 5, mục 3.2):
   1. Chọn "Thêm hồ sơ", hoặc chọn 1 hồ sơ có sẵn để sửa.
-  2. Nhập họ tên, số điện thoại, chức danh (`tai_xe`/`phu_xe`), số CCCD, ngày sinh, ngày vào làm; nếu là phụ xe thì chọn tài khoản `phu_xe` tương ứng.
+  2. Nhập họ tên, số điện thoại, chức danh (`tai_xe`/`phu_xe`), số CCCD, ngày sinh, ngày vào làm; hồ sơ **tạo trước**, không gắn tài khoản — phụ xe cần đăng nhập thì tài khoản được tạo **sau** ở UC-36, chọn hồ sơ này (họ tên, số điện thoại của tài khoản lấy từ hồ sơ).
   3. Nhập/cập nhật giấy tờ: bằng lái và giấy khám sức khỏe — mỗi giấy tờ gồm số, hạng (chỉ bằng lái), ngày cấp, ngày hết hạn.
-  4. Hệ thống kiểm tra, lưu hồ sơ, **tự cấp mã nhân viên** nếu là tài xế (`TX0001`...; phụ xe dùng mã của tài khoản đã chọn, mục 2) và ghi nhật ký thao tác (UC-52).
+  4. Hệ thống kiểm tra, lưu hồ sơ, **tự cấp mã nhân viên** nếu là tài xế (`TX0001`...; phụ xe dùng mã của tài khoản, nên hồ sơ phụ xe chưa có tài khoản thì chưa có mã, mục 2) và ghi nhật ký thao tác (UC-52).
 - **Luồng rẽ nhánh**:
-  - Tại bước 2: chức danh `phu_xe` nhưng tài khoản được chọn không phải vai trò `phu_xe`, hoặc đã gắn với hồ sơ khác → chặn, báo lỗi → chọn lại.
-  - Tại bước 2: chức danh `tai_xe` mà có chọn tài khoản → chặn (tài xế không có tài khoản, mục 3.2).
+  - Tại bước 2: trùng số CCCD hoặc số điện thoại với hồ sơ khác (kể cả hồ sơ đã nghỉ việc) → chặn, báo rõ trùng với ai.
+  - Phụ xe đã có tài khoản: họ tên và số điện thoại **chỉ sửa ở hồ sơ**, tự đồng bộ sang tài khoản; phụ xe không tự sửa được hai thông tin này ở "Tài khoản của tôi".
   - Tại bước 3: hồ sơ `tai_xe` chưa có bằng lái → chặn, báo "tài xế bắt buộc có thông tin bằng lái".
   - Tại bước 3: ngày hết hạn đã qua → **vẫn cho lưu** (cập nhật hồ sơ cũ), hệ thống hiển thị cờ "đã hết hạn" — UC-49 sẽ nhắc ngay ở lần quét kế tiếp.
   - Tại bước 3: gia hạn giấy tờ (nhập ngày hết hạn mới) → hệ thống xóa cờ đã cảnh báo, chu kỳ nhắc bắt đầu lại từ đầu.
