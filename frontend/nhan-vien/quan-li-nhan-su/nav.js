@@ -6,9 +6,10 @@
  * trong ho-so.html), UC-36 (tạo tài khoản cán bộ) + UC-37 (khóa/mở khóa) cùng trang
  * tai-khoan.html, và UC-52 (xem nhật ký thao tác, nhat-ky.html).
  *
- * Riêng của domain Quản lý nhân sự — không dùng chung với
- * frontend/nhan-vien/quan-ly/nav.js (dù cùng kiểu actor "quản lý", 2 domain
- * có tập UC khác nhau nên menu khác nhau).
+ * Khung sidebar (thu gọn/mở rộng, khối tài khoản + "Tài khoản của tôi" + "Đăng xuất" ở cuối sidebar)
+ * dùng chung với Quản lý: nạp frontend/nhan-vien/quan-ly/nav.js và tai-khoan.js TRƯỚC file này, rồi gọi
+ *   renderSidebar(el, href, MENU_QUAN_LY_NHAN_SU, "Quản lý nhân sự");
+ * File này chỉ chứa phần riêng của domain: danh sách mục menu.
  */
 
 const MENU_QUAN_LY_NHAN_SU = [
@@ -33,53 +34,3 @@ const MENU_QUAN_LY_NHAN_SU = [
     icon: '<path d="M8 6h12M8 12h12M8 18h12"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
   },
 ];
-
-const NHAN_VAI_TRO_QUAN_LY_NHAN_SU = {
-  quan_ly: "Quản lý",
-  quan_ly_nhan_su: "Quản lý nhân sự",
-};
-
-/*
- * Đổ họ tên/vai trò/avatar (chữ cái đầu tên) vào topbar — dùng chung ID
- * cố định trên mọi trang: #topbar-ho-ten, #topbar-vai-tro, #topbar-avatar.
- * Gọi sau khi yeuCauVaiTro() đã xác nhận đăng nhập.
- */
-function renderTopbarUser() {
-  const hoTen = localStorage.getItem("ho_ten") || "";
-  const vaiTro = localStorage.getItem("vai_tro") || "";
-
-  const elHoTen = document.getElementById("topbar-ho-ten");
-  if (elHoTen) elHoTen.textContent = hoTen;
-
-  const elVaiTro = document.getElementById("topbar-vai-tro");
-  if (elVaiTro) elVaiTro.textContent = NHAN_VAI_TRO_QUAN_LY_NHAN_SU[vaiTro] || vaiTro;
-
-  const elAvatar = document.getElementById("topbar-avatar");
-  if (elAvatar) elAvatar.textContent = hoTen.trim().charAt(0).toUpperCase() || "?";
-}
-
-function renderSidebar(containerEl, hrefDangMo) {
-  const links = MENU_QUAN_LY_NHAN_SU.map(
-    (muc) => `
-      <a class="nv-sidebar__link${muc.href === hrefDangMo ? " active" : ""}" href="${muc.href}">
-        <svg class="nv-sidebar__link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${muc.icon}</svg>
-        <span>${muc.label}</span>
-      </a>
-    `
-  ).join("");
-
-  containerEl.innerHTML = `
-    <div class="nv-sidebar__brand">
-      <span class="nv-sidebar__brand-mark">
-        <img src="/shared/assets/logo-mark.png" alt="Logo" />
-      </span>
-      <span class="nv-sidebar__brand-text">
-        <strong>GoBus</strong>
-        <em>Kết nối mọi hành trình</em>
-      </span>
-    </div>
-    <div class="nv-sidebar__section-title">Quản lý nhân sự</div>
-    <nav class="nv-sidebar__nav">${links}</nav>
-    <div class="nv-sidebar__deco" aria-hidden="true"></div>
-  `;
-}

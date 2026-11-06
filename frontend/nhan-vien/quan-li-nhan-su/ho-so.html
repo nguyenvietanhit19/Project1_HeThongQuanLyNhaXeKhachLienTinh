@@ -17,14 +17,6 @@
     <div class="nv-main">
       <header class="nv-topbar">
         <h1>Hồ sơ nhân sự</h1>
-        <div class="nv-topbar__user">
-          <div class="nv-topbar__avatar" id="topbar-avatar"></div>
-          <div class="nv-topbar__identity">
-            <span class="ho-ten" id="topbar-ho-ten"></span>
-            <span class="nv-topbar__role" id="topbar-vai-tro"></span>
-          </div>
-          <button class="nv-btn-secondary" id="btn-dang-xuat" type="button">Đăng xuất</button>
-        </div>
       </header>
 
       <main class="nv-content">
@@ -222,15 +214,15 @@
 
   <script src="/nhan-vien/quan-li-nhan-su/api-client.js"></script>
   <script src="/nhan-vien/quan-li-nhan-su/auth-check.js"></script>
+  <script src="/nhan-vien/quan-ly/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/tai-khoan.js"></script>
   <script src="/nhan-vien/quan-li-nhan-su/nav.js"></script>
   <script src="/nhan-vien/quan-ly/data-table.js"></script>
   <script>
     const nguoiDung = yeuCauVaiTro("quan_ly_nhan_su"); // quan_ly không còn quản lý hồ sơ (6/11/2026)
     if (nguoiDung) {
-      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-li-nhan-su/ho-so.html");
-      renderTopbarUser();
+      renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/quan-li-nhan-su/ho-so.html", MENU_QUAN_LY_NHAN_SU, "Quản lý nhân sự");
     }
-    document.getElementById("btn-dang-xuat").addEventListener("click", dangXuat);
 
     const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     const boDau = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
