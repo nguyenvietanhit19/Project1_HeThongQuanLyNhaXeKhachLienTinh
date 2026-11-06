@@ -5,8 +5,23 @@ NGHIEP_VU.md mục 3.2) và các hàm quản lý biên chế CỐ ĐỊNH của 
 (UC-35). Biên chế tạm thời thuộc điều độ viên (mục 8.6), chưa cài đặt ở đây.
 """
 
+import psycopg2.errors
+
 from app.db import get_connection, release_connection
 from app.repositories import ma_repository
+from app.utils.loi import GiaTriLoi
+
+# Tên ràng buộc UNIQUE của bảng này -> câu báo lỗi cho người dùng. Lưới an toàn khi 2 người lưu cùng lúc lọt qua
+# bước kiểm tra trùng ở service (kiểm tra trước rồi mới ghi vẫn có khe hở); không có nó người dùng chỉ thấy "lỗi hệ thống".
+_LOI_TRUNG = {
+    "nhan_su_van_hanh_so_cccd_duy_nhat": "Số CCCD này đã có trong một hồ sơ khác",
+    "nhan_su_van_hanh_nguoi_dung_id_key": "Tài khoản này đã gắn với 1 hồ sơ khác",
+}
+
+
+def _doi_loi_trung(loi: psycopg2.errors.UniqueViolation) -> GiaTriLoi:
+    ten = getattr(loi.diag, "constraint_name", None)
+    return GiaTriLoi(_LOI_TRUNG.get(ten, "Dữ liệu bị trùng với một hồ sơ khác"))
 
 
 def _thanh_dict(cur, row):
@@ -265,6 +280,9 @@ def tao_ho_so(
             nhan_su_id = cur.fetchone()[0]
         conn.commit()
         return nhan_su_id
+    except psycopg2.errors.UniqueViolation as loi:
+        conn.rollback()
+        raise _doi_loi_trung(loi) from loi
     except Exception:
         conn.rollback()
         raise
@@ -287,6 +305,9 @@ def cap_nhat_ho_so(nhan_su_id: str, ho_ten: str, so_dien_thoai: str, so_cccd: st
                 (ho_ten, so_dien_thoai, so_cccd, ngay_sinh, ngay_vao_lam, nhan_su_id),
             )
         conn.commit()
+    except psycopg2.errors.UniqueViolation as loi:
+        conn.rollback()
+        raise _doi_loi_trung(loi) from loi
     except Exception:
         conn.rollback()
         raise
@@ -482,5 +503,27 @@ def cho_nghi_viec(nhan_su_id: str, ngay_nghi, ly_do: str) -> str:
     except Exception:
         conn.rollback()
         raise
+    finally:
+        release_connection(conn)
+
+
+def tim_ho_so_trung(cot: str, gia_tri: str, bo_qua_id: str | None = None) -> dict | None:
+    """Hồ sơ KHÁC đang dùng cùng `so_cccd` hoặc `so_dien_thoai` (kể cả hồ sơ đã nghỉ việc, vì số CCCD vẫn bị chiếm).
+    bo_qua_id: khi sửa, bỏ qua chính hồ sơ đang sửa. Trả id, mã, họ tên, trạng thái để báo rõ trùng với ai."""
+    if cot not in ("so_cccd", "so_dien_thoai"):  # tên cột đi thẳng vào câu SQL nên chỉ cho 2 giá trị cố định
+        raise ValueError("Cột không hợp lệ")
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT n.id, n.ma, n.ho_ten, n.chuc_danh, n.trang_thai
+                FROM nhan_su_van_hanh n
+                WHERE n.{cot} = %s AND (%s::uuid IS NULL OR n.id <> %s::uuid)
+                LIMIT 1
+                """,
+                (gia_tri, bo_qua_id, bo_qua_id),
+            )
+            return _thanh_dict(cur, cur.fetchone())
     finally:
         release_connection(conn)

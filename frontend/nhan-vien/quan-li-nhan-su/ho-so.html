@@ -170,6 +170,32 @@
     </div>
   </div>
 
+  <!-- Hộp thoại xem nhanh thông tin (chỉ đọc): ảnh đại diện + thông tin cơ bản. Không hiện CCCD (cần thì vào Sửa) -->
+  <div class="nv-modal-overlay" id="modal-xem" hidden>
+    <div class="nv-modal" style="max-width:440px;" role="dialog" aria-modal="true" aria-labelledby="xem-ten">
+      <div class="nv-modal__header">
+        <div class="nv-modal__header-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c0-4 3.4-6.5 7.5-6.5s7.5 2.5 7.5 6.5"/>
+          </svg>
+        </div>
+        <h2 id="xem-tieu-de">Thông tin nhân sự</h2>
+      </div>
+      <div class="nv-modal__body">
+        <div style="display:flex; flex-direction:column; align-items:center; gap:6px; margin-bottom:14px; text-align:center;">
+          <img id="xem-anh" alt="Ảnh đại diện" hidden style="width:104px; height:104px; border-radius:50%; object-fit:cover; background:#EEE; border:2px solid #E5E5E8;" />
+          <div id="xem-chu-cai" style="width:104px; height:104px; border-radius:50%; background:var(--color-primary, #4B2E83); color:#fff; font-size:40px; font-weight:800; display:flex; align-items:center; justify-content:center;"></div>
+          <strong id="xem-ten" style="font-size:18px;"></strong>
+          <span id="xem-ma-chuc-danh" class="nv-text-phu"></span>
+        </div>
+        <dl id="xem-thong-tin" style="margin:0; display:grid; grid-template-columns:auto 1fr; gap:10px 16px;"></dl>
+        <div class="nv-modal__actions">
+          <button type="button" class="nv-btn-secondary" id="xem-dong">Đóng</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Hộp thoại cho nghỉ việc (UC-51): mở là tự xem trước hậu quả; chỉ xác nhận được khi xe không có chuyến đang chạy / gặp sự cố -->
   <div class="nv-modal-overlay" id="modal-nghi" hidden>
     <div class="nv-modal" style="max-width:560px;">
@@ -297,7 +323,10 @@
           editLabel: "Sửa",
           tenXoa: (r) => r.ho_ten,
           // Nút chỉ có chữ với hồ sơ đang làm (nút rỗng bị CSS ẩn)
-          extraActions: [{ label: (r) => (r.trang_thai === "dang_lam" ? "Cho nghỉ việc" : ""), onClick: moModalNghi }],
+          extraActions: [
+            { label: "Xem", onClick: moModalXem },
+            { label: (r) => (r.trang_thai === "dang_lam" ? "Cho nghỉ việc" : ""), onClick: moModalNghi },
+          ],
         }
       );
     }
@@ -305,6 +334,37 @@
     oTim.addEventListener("input", renderDanhSach);
     oChiDangLam.addEventListener("change", taiDanhSach);
     taiDanhSach();
+
+    // ---------- Xem nhanh thông tin (chỉ đọc) ----------
+    const modalXem = document.getElementById("modal-xem");
+    const dinhDangNgayXem = (iso) => (iso ? iso.split("-").reverse().join("/") : "—"); // 2026-11-06 -> 06/11/2026
+    async function moModalXem(row) {
+      try {
+        const hoSo = await apiGet(`/quan-ly-nhan-su/ho-so/${row.id}`);
+        const anh = document.getElementById("xem-anh");
+        const chuCai = document.getElementById("xem-chu-cai");
+        anh.hidden = !hoSo.anh_url;
+        if (hoSo.anh_url) anh.src = hoSo.anh_url;
+        chuCai.hidden = !!hoSo.anh_url; // chưa có ảnh thì hiện chữ cái đầu của tên
+        chuCai.textContent = (hoSo.ho_ten.trim().split(/\s+/).slice(-1)[0] || "?").charAt(0).toUpperCase();
+        document.getElementById("xem-ten").textContent = hoSo.ho_ten;
+        document.getElementById("xem-ma-chuc-danh").textContent =
+          [hoSo.ma, NHAN_CHUC_DANH[hoSo.chuc_danh].nhan, hoSo.trang_thai === "da_nghi_viec" ? "Đã nghỉ việc" : "Đang làm"].filter(Boolean).join(" · ");
+        const bangLai = hoSo.giay_to.find((g) => g.loai === "bang_lai");
+        const dong = [["Số điện thoại", hoSo.so_dien_thoai], ["Ngày sinh", dinhDangNgayXem(hoSo.ngay_sinh)], ["Ngày vào làm", dinhDangNgayXem(hoSo.ngay_vao_lam)]];
+        if (hoSo.trang_thai === "da_nghi_viec") dong.push(["Ngày nghỉ việc", dinhDangNgayXem(hoSo.ngay_nghi_viec)]);
+        dong.push(["Hạng bằng lái", bangLai && bangLai.hang ? bangLai.hang : "—"]);
+        document.getElementById("xem-thong-tin").innerHTML = dong
+          .map(([nhan, giaTri]) => `<dt class="nv-text-phu" style="margin:0;">${nhan}</dt><dd style="margin:0; font-weight:600;">${esc(giaTri)}</dd>`)
+          .join("");
+        modalXem.hidden = false;
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+    document.getElementById("xem-dong").addEventListener("click", () => { modalXem.hidden = true; });
+    modalXem.addEventListener("click", (e) => { if (e.target === modalXem) modalXem.hidden = true; });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") modalXem.hidden = true; });
 
     // ---------- Modal thêm/sửa ----------
     const modalOverlay = document.getElementById("modal-overlay");
