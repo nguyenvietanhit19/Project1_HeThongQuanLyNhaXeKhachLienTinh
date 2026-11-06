@@ -26,6 +26,7 @@ from app.repositories import nhat_ky_admin_repository as nhat_ky_admin_repo
 from app.repositories import nhat_ky_quan_ly_nhan_su_repository as nhat_ky_repo
 from app.services import luu_tru_anh_service
 from app.services import thong_bao_khach_service as thong_bao
+from app.utils.kiem_tra_anh import kiem_tra_file_anh
 from app.utils.loi import GiaTriLoi, KhongTimThay, LoiHeThong
 
 
@@ -159,33 +160,48 @@ def sua_ho_so(actor_id: str, actor_vai_tro: str, nhan_su_id: str, du_lieu) -> di
 # ---------------------------------------------------------
 # Upload ảnh (Cloudinary)
 # ---------------------------------------------------------
+def _xoa_anh_cu(public_id_cu: str | None, public_id_moi: str) -> None:
+    """Xóa ảnh cũ trên Cloudinary SAU KHI ảnh mới đã tải lên và đã lưu vào DB (KE_HOACH_CLOUDINARY.md, quyết định 2),
+    để đổi ảnh không để lại ảnh CCCD / bằng lái cũ trên Cloudinary. Bỏ qua nếu chưa có ảnh cũ hoặc trùng ảnh mới. Xóa lỗi
+    chỉ ghi log, KHÔNG làm hỏng việc đổi ảnh (ảnh rác không ảnh hưởng vận hành). Cho nghỉ việc KHÔNG gọi hàm này."""
+    if not public_id_cu or public_id_cu == public_id_moi:
+        return
+    if not luu_tru_anh_service.xoa_anh(public_id_cu):
+        print(f"Không xóa được ảnh cũ trên Cloudinary: {public_id_cu}")
+
+
 def cap_nhat_anh_ho_so(actor_id: str, actor_vai_tro: str, nhan_su_id: str, du_lieu_anh: bytes) -> str:
-    """Upload ảnh chân dung lên Cloudinary, lưu public_id vào hồ sơ, trả về
-    URL có chữ ký để frontend hiển thị ngay. Upload lỗi -> báo LoiHeThong."""
+    """Upload ảnh chân dung lên Cloudinary, lưu public_id vào hồ sơ, xóa ảnh cũ (nếu có), trả về
+    URL có chữ ký để frontend hiển thị ngay. Upload lỗi -> báo LoiHeThong (ảnh cũ giữ nguyên)."""
     if not nhan_su_repo.tim_ho_so_day_du(nhan_su_id):
         raise KhongTimThay("Không tìm thấy hồ sơ nhân sự")
+    kiem_tra_file_anh(du_lieu_anh)  # ≤ 5MB, JPEG / PNG / WebP theo nội dung thật; sai thì 400, chưa chạm tới Cloudinary
 
     public_id = luu_tru_anh_service.tai_anh_len(du_lieu_anh, luu_tru_anh_service.THU_MUC_ANH_HO_SO)
     if not public_id:
         raise LoiHeThong("Không thể tải ảnh lên, thử lại sau")
 
-    nhan_su_repo.cap_nhat_anh_ho_so(nhan_su_id, public_id)
+    anh_cu = nhan_su_repo.cap_nhat_anh_ho_so(nhan_su_id, public_id)  # đọc ảnh cũ + ghi ảnh mới nguyên tử (khóa dòng)
+    _xoa_anh_cu(anh_cu, public_id)
     _ghi_nhat_ky(actor_id, actor_vai_tro, "sua_ho_so_nhan_su", nhan_su_id, ghi_chu="Cập nhật ảnh hồ sơ")
     return luu_tru_anh_service.lay_url_xem(public_id)
 
 
 def cap_nhat_anh_giay_to(actor_id: str, actor_vai_tro: str, nhan_su_id: str, loai: str, du_lieu_anh: bytes) -> str:
-    """Upload ảnh chụp giấy tờ (bang_lai / giay_kham_suc_khoe). Phải nhập
-    thông tin giấy tờ trước (tạo/sửa hồ sơ), sau đó mới gắn ảnh vào được."""
+    """Upload ảnh chụp giấy tờ (bang_lai / giay_kham_suc_khoe), xóa ảnh cũ của giấy tờ đó (nếu có). Phải nhập
+    thông tin giấy tờ trước (tạo/sửa hồ sơ), sau đó mới gắn ảnh vào được. Gia hạn giấy tờ (đổi ngày hết hạn) KHÔNG
+    xóa ảnh — ảnh chỉ bị thay khi có ảnh mới."""
     giay_to = giay_to_repo.tim_theo_nhan_su_va_loai(nhan_su_id, loai)
     if not giay_to:
         raise KhongTimThay("Chưa có giấy tờ loại này cho nhân sự, nhập thông tin giấy tờ trước")
+    kiem_tra_file_anh(du_lieu_anh)  # ≤ 5MB, JPEG / PNG / WebP theo nội dung thật; sai thì 400, chưa chạm tới Cloudinary
 
     public_id = luu_tru_anh_service.tai_anh_len(du_lieu_anh, luu_tru_anh_service.THU_MUC_ANH_GIAY_TO)
     if not public_id:
         raise LoiHeThong("Không thể tải ảnh lên, thử lại sau")
 
-    giay_to_repo.cap_nhat_anh(giay_to["id"], public_id)
+    anh_cu = giay_to_repo.cap_nhat_anh(giay_to["id"], public_id)  # đọc ảnh cũ + ghi ảnh mới nguyên tử (khóa dòng)
+    _xoa_anh_cu(anh_cu, public_id)
     _ghi_nhat_ky(actor_id, actor_vai_tro, "sua_ho_so_nhan_su", nhan_su_id, ghi_chu=f"Cập nhật ảnh giấy tờ {loai}")
     return luu_tru_anh_service.lay_url_xem(public_id)
 

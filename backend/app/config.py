@@ -22,6 +22,9 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 # quán với mọi biến môi trường khác trong file này (đọc qua config.py,
 # không gọi os.getenv rải rác trong services/) — xem luu_tru_anh_service.py.
 CLOUDINARY_URL = os.getenv("CLOUDINARY_URL")
+# Môi trường chạy (development / production...). Dùng làm tên thư mục ảnh trên Cloudinary để ảnh thử khi phát triển
+# không lẫn với ảnh thật của bản triển khai (KE_HOACH_CLOUDINARY.md).
+APP_ENV = os.getenv("APP_ENV") or "development"
 # Brevo API (HTTPS) — gửi mã OTP, thay cho SMTP thô sau khi phát hiện
 # Render free tier + Gmail chặn/timeout kết nối SMTP trực tiếp từ IP cloud
 # (xem lịch sử commit email_service.py).
