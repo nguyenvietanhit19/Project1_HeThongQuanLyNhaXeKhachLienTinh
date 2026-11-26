@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/shared/assets/favicon.png" />
+<title>Thống kê — Quản lý</title>
+<link rel="stylesheet" href="/shared/design-tokens.css" />
+<link rel="stylesheet" href="/nhan-vien/quan-ly/style.css" />
+<link rel="stylesheet" href="/nhan-vien/quan-ly/thong-bao.css" />
+<link rel="stylesheet" href="/nhan-vien/quan-ly/thong-ke.css" />
+</head>
+<body class="nhan-vien-shell">
+  <div class="nv-layout">
+    <aside class="nv-sidebar" id="nv-sidebar"></aside>
+
+    <div class="nv-main">
+      <header class="nv-topbar">
+        <h1>Thống kê</h1>
+      </header>
+
+      <main class="nv-content tkq">
+        <div class="tkq-loc">
+          <div class="tkq-phan-nhom" id="tkq-kieu" role="group" aria-label="Loại kỳ"></div>
+
+          <div class="tkq-dieu-huong" id="tkq-dieu-huong">
+            <button type="button" class="tkq-mui" id="tkq-truoc" aria-label="Kỳ trước" title="Kỳ trước">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+            </button>
+            <span class="tkq-nhan-ky" id="tkq-nhan-ky"></span>
+            <button type="button" class="tkq-mui" id="tkq-sau" aria-label="Kỳ sau" title="Kỳ sau">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+            <button type="button" class="tkq-nut-phu" id="tkq-hom-nay">Hiện tại</button>
+          </div>
+
+          <div class="tkq-tuy-chon" id="tkq-tuy-chon" hidden>
+            <input type="date" class="tkq-o" id="tkq-tu" aria-label="Từ ngày" />
+            <span>–</span>
+            <input type="date" class="tkq-o" id="tkq-den" aria-label="Đến ngày" />
+          </div>
+
+          <select class="tkq-o tkq-chon-tuyen" id="tkq-tuyen" aria-label="Tuyến">
+            <option value="">Tất cả tuyến</option>
+          </select>
+
+          <button type="button" class="tkq-nut-xuat" id="tkq-xuat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+            Xuất Excel
+          </button>
+        </div>
+
+        <nav class="tkq-tabs" id="tkq-tabs" role="tablist" aria-label="Nhóm thống kê"></nav>
+
+        <div id="tkq-noi-dung" class="tkq-noi-dung"></div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/nhan-vien/quan-ly/api-client.js"></script>
+  <script src="/nhan-vien/quan-ly/auth-check.js"></script>
+  <script src="/nhan-vien/quan-ly/nav.js"></script>
+  <script src="/nhan-vien/quan-ly/tai-khoan.js"></script>
+  <script src="/nhan-vien/quan-ly/thong-bao.js"></script>
+  <script src="/nhan-vien/quan-ly/thong-ke-bieu-do.js"></script>
+  <script src="/nhan-vien/quan-ly/thong-ke.js"></script>
+</body>
+</html>

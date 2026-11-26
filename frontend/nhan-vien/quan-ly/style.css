@@ -13,6 +13,35 @@ body.nhan-vien-shell {
   color: var(--color-text-primary);
 }
 
+/* Các trang của Quản lý (nav.js gắn class khi vẽ menu Quản lý): nền trắng */
+body.nhan-vien-shell.nv-nen-trang,
+body.nv-nen-trang .nv-topbar {
+  background: #FFFFFF;
+}
+
+/* Trên nền trắng, các thẻ/khung trắng vốn chỉ dựa vào bóng đổ sẽ chìm vào nền → thêm 1 đường viền mảnh bám theo góc bo.
+   Dùng outline (không chiếm chỗ, không đè viền màu border-top/border-left sẵn có của từng thẻ) + bóng đổ gọn hơn. */
+body.nv-nen-trang :is(.nv-card, .gv-khung, .lc-khung, .kv-nhom, .kv-trong, .xe-the, .lx-the, .tu-the, .cyn-ngay) {
+  outline: 1px solid #E2E0EA;
+  box-shadow: 0 2px 6px rgba(40, 30, 70, 0.07), 0 12px 32px rgba(40, 30, 70, 0.12);
+}
+
+body.nv-nen-trang :is(.xe-the, .lx-the):hover,
+body.nv-nen-trang .tu-the.dang-mo {
+  outline-color: #CFCBDC;
+  box-shadow: 0 4px 10px rgba(40, 30, 70, 0.09), 0 20px 44px rgba(40, 30, 70, 0.18);
+}
+
+/* Nút/ô nền xám tím (màu nền cũ) giữ nguyên tông nhưng có viền để không nhòe trên nền trắng */
+body.nv-nen-trang .nv-btn-secondary {
+  background: #F1EFF6;
+  box-shadow: inset 0 0 0 1px #E2E0EA;
+}
+
+body.nv-nen-trang .nv-btn-secondary:hover {
+  background: #E6E3EF;
+}
+
 .nv-layout {
   display: flex;
   min-height: 100vh;
@@ -135,6 +164,61 @@ body.nhan-vien-shell {
 
 .nv-sidebar__link.active .nv-sidebar__link-icon {
   opacity: 1;
+}
+
+/* ----- Nhóm menu (tab cha mở/đóng được) ----- */
+.nv-sidebar__nhom-nut {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nv-sidebar__nhom-nut span {
+  flex: 1;
+}
+
+.nv-sidebar__mui {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  opacity: 0.6;
+  transition: transform 0.2s ease;
+}
+
+.nv-sidebar__nhom.is-mo .nv-sidebar__mui {
+  transform: rotate(90deg);
+}
+
+/* Nhóm chứa trang đang mở: tên nhóm sáng + đậm để biết mình đang ở khu nào */
+.nv-sidebar__nhom.co-trang-mo > .nv-sidebar__nhom-nut {
+  color: #fff;
+  font-weight: 700;
+}
+
+.nv-sidebar__nhom-con {
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 6px 23px;
+  padding-left: 10px;
+  border-left: 1.5px solid rgba(255, 255, 255, 0.16);
+}
+
+.nv-sidebar__nhom.is-mo .nv-sidebar__nhom-con {
+  display: flex;
+}
+
+.nv-sidebar__link--con {
+  padding: 9px 12px;
+  font-size: 13.5px;
+}
+
+.nv-sidebar__link--con .nv-sidebar__link-icon {
+  width: 17px;
+  height: 17px;
 }
 
 /* ===== Main / topbar / content ===== */
@@ -2525,6 +2609,17 @@ body.nhan-vien-shell {
 
   .nv-sidebar__link {
     white-space: nowrap;
+  }
+
+  /* Thanh ngang: bỏ tab cha, các mục con xếp thẳng hàng như mục thường */
+  .nv-sidebar__nhom,
+  .nv-sidebar__nhom .nv-sidebar__nhom-con,
+  .nv-sidebar__nhom.is-mo .nv-sidebar__nhom-con {
+    display: contents;
+  }
+
+  .nv-sidebar__nhom-nut {
+    display: none;
   }
 
   .nv-topbar,

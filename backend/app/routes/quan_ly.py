@@ -55,6 +55,7 @@ from app.services import dia_diem_service as service
 from app.services import gia_ve_service
 from app.services import gui_hang_service
 from app.services import lich_chay_service
+from app.services import thong_ke_quan_ly_service
 from app.services import xe_service
 
 router = APIRouter(prefix="/quan-ly", tags=["quan-ly"], dependencies=[Depends(yeu_cau_vai_tro("quan_ly"))])
@@ -370,3 +371,19 @@ def sua_gio_chuyen(chuyen_id: UUID, du_lieu: SuaGioChuyenRequest):
 def xoa_chuyen(chuyen_id: UUID):
     chuyen_service.xoa_chuyen(str(chuyen_id))
     return {"thong_bao": "Xóa chuyến thành công"}
+
+
+# ---------------------------------------------------------
+# Thống kê toàn hệ thống (UC-39) — 1 lần gọi / tab
+# ---------------------------------------------------------
+@router.get("/thong-ke/{tab}")
+def thong_ke(
+    tab: Literal["tong-quan", "doanh-thu", "chuyen", "ve", "gui-hang", "hoan-tien", "xe-nhan-su"],
+    tu_ngay: date,
+    den_ngay: date,
+    so_sanh_tu: date | None = None,
+    so_sanh_den: date | None = None,
+    tuyen_id: UUID | None = None,
+):
+    """`tu_ngay`/`den_ngay` gồm cả hai đầu (giờ Việt Nam). Kỳ so sánh mặc định = đoạn cùng độ dài ngay trước kỳ xem."""
+    return thong_ke_quan_ly_service.thong_ke(tab, tu_ngay, den_ngay, so_sanh_tu, so_sanh_den, str(tuyen_id) if tuyen_id else None)
