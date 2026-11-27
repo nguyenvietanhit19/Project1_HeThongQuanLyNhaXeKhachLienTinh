@@ -28,6 +28,17 @@ def khoa_thanh_toan_tai_quay(nguoi_dung_id: str) -> None:
         release_connection(conn)
 
 
+def mo_khoa_thanh_toan_tai_quay(nguoi_dung_id: str) -> None:
+    """Gỡ hạn chế vừa bật do tích nhầm "không đến" (hoàn tác trước khi xe tới điểm kế tiếp)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE ho_so_khach_hang SET khoa_thanh_toan_tai_quay = false WHERE nguoi_dung_id = %s", (nguoi_dung_id,))
+        conn.commit()
+    finally:
+        release_connection(conn)
+
+
 def lay_theo_id(nguoi_dung_id: str) -> dict:
     """Hạn chế đặt vé của khách (mục 9). Khách chưa từng vi phạm thì chưa có dòng nào → mọi cờ là false."""
     conn = get_connection()

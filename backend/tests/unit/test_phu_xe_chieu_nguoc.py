@@ -35,11 +35,6 @@ def _khong_cham_db_khi_dem_bao_cao(monkeypatch):
     monkeypatch.setattr(hang.don_hang_repo, "dem_bao_cao_theo_loai", lambda ids: {})
 
 
-@pytest.fixture(autouse=True)
-def _khong_cham_db_khi_danh_dau_khong_den(monkeypatch):
-    monkeypatch.setattr(svc.ve_repo, "tim_ve_chua_len_tai_diem", lambda cid, did: [])
-
-
 def _da_toi(monkeypatch, *ids):
     monkeypatch.setattr(svc.chuyen_xe_repo, "lay_diem_da_xac_nhan", lambda cid: [{"diem_don_tra_id": i, "gio_thuc_te": None} for i in ids])
 

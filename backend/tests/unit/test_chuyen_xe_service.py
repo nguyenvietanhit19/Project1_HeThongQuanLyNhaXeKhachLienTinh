@@ -16,12 +16,6 @@ def _khong_cham_db_khi_bao_dieu_do_vien(monkeypatch):
     monkeypatch.setattr(svc.nguoi_dung_repo, "danh_sach_id_theo_vai_tro", lambda vai_tro, chi_dang_hoat_dong=False: [])
 
 
-@pytest.fixture(autouse=True)
-def _khong_cham_db_khi_danh_dau_khong_den(monkeypatch):
-    """Tới điểm kế tiếp thì đánh dấu khách chưa lên ở điểm vừa rời — mặc định không ai (test riêng ở cuối file)."""
-    monkeypatch.setattr(svc.ve_repo, "tim_ve_chua_len_tai_diem", lambda cid, did: [])
-
-
 def _nhan_su_phu_xe(**overrides):
     data = {"id": "nhan-su-1", "ho_ten": "Phu Xe A", "chuc_danh": "phu_xe"}
     data.update(overrides)
@@ -401,18 +395,18 @@ def test_xac_nhan_toi_diem_phai_bat_dau_di_chuyen_truoc(monkeypatch):
         svc.xac_nhan_toi_diem("chuyen-1", "d2", "nguoi-dung-1")
 
 
-def test_xac_nhan_toi_diem_danh_dau_khong_den_khach_chua_len_o_diem_vua_roi(monkeypatch):
+def test_xac_nhan_toi_diem_khong_con_danh_dau_khong_den(monkeypatch):
+    """"Không đến" chỉ ghi lúc phụ xe tích xác nhận rời điểm (di_chuyen_service) — tới điểm kế tiếp không đụng tới vé."""
     monkeypatch.setattr(svc, "lay_chuyen_cua_phu_xe", lambda cid, nid: _chuyen(trang_thai="dang_chay"))
     monkeypatch.setattr(svc.dia_diem_repo, "danh_sach_diem_theo_tuyen", lambda tid: [_diem("d1", 1), _diem("d2", 2), _diem("d3", 3)])
     monkeypatch.setattr(svc.chuyen_xe_repo, "lay_diem_da_xac_nhan", lambda cid: [])
     monkeypatch.setattr(svc.chuyen_xe_repo, "them_lich_su_diem_dung", lambda cid, did: True)
     monkeypatch.setattr(svc.ve_repo, "tim_khach_cho_don_sau_diem", lambda cid, thu_tu: [])
-    hoi = []
-    monkeypatch.setattr(svc.ve_repo, "tim_ve_chua_len_tai_diem", lambda cid, did: hoi.append(did) or [{"id": "v1", "ve_id": "v1", "khach_hang_id": "k1"}])
-    danh_dau = []
-    monkeypatch.setattr(svc.quet_no_show, "danh_dau_khong_den", lambda ve: danh_dau.append((ve["id"], ve["khach_hang_id"])))
+    da_dung = []
+    monkeypatch.setattr(svc.ve_repo, "danh_dau_khong_den", lambda vid: da_dung.append(vid))
+    monkeypatch.setattr(svc.ve_repo, "tim_ve_chua_len_tai_diem", lambda cid, did: da_dung.append(did) or [])
     svc.xac_nhan_toi_diem("chuyen-1", "d2", "nguoi-dung-1")
-    assert hoi == ["d1"] and danh_dau == [("v1", "k1")]
+    assert da_dung == []
 
 
 def test_diem_hien_tai_bao_loi_khi_xe_dang_di_chuyen():

@@ -307,20 +307,20 @@ def thong_ke(van_phong_id: str, tu_ngay, den_ngay, ma_ve: str | None = None) -> 
     try:
         with conn.cursor() as cur:
             cur.execute(
-                """SELECT COUNT(*) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den'))::int AS so_ve_da_ban,
-                          COALESCE(SUM(v.gia) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den')), 0)::bigint AS doanh_thu,
+                """SELECT COUNT(*) FILTER (WHERE (v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe') OR (v.trang_thai = 'khong_den' AND v.gio_thanh_toan IS NOT NULL)))::int AS so_ve_da_ban,
+                          COALESCE(SUM(v.gia) FILTER (WHERE (v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe') OR (v.trang_thai = 'khong_den' AND v.gio_thanh_toan IS NOT NULL))), 0)::bigint AS doanh_thu,
                           COUNT(*) FILTER (WHERE v.trang_thai = 'giu_cho')::int AS so_ve_cho_thanh_toan,
                           COUNT(*) FILTER (WHERE v.trang_thai = 'da_huy')::int AS so_ve_da_huy,
-                          COUNT(*) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den') AND v.phuong_thuc_thanh_toan = 'tien_mat')::int AS so_ve_tien_mat,
-                          COUNT(*) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den') AND v.phuong_thuc_thanh_toan = 'chuyen_khoan')::int AS so_ve_chuyen_khoan,
-                          COALESCE(SUM(v.gia) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den') AND v.phuong_thuc_thanh_toan = 'tien_mat'), 0)::bigint AS doanh_thu_tien_mat,
-                          COALESCE(SUM(v.gia) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den') AND v.phuong_thuc_thanh_toan = 'chuyen_khoan'), 0)::bigint AS doanh_thu_chuyen_khoan,
-                          COUNT(*) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den') AND v.kenh_ban = 'tai_quay')::int AS so_ve_tai_quay,
-                          COUNT(*) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den') AND v.kenh_ban = 'hotline')::int AS so_ve_hotline,
-                          COUNT(*) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den') AND v.kenh_ban IS NULL)::int AS so_ve_truc_tuyen,
-                          COALESCE(SUM(v.gia) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den') AND v.kenh_ban = 'tai_quay'), 0)::bigint AS doanh_thu_tai_quay,
-                          COALESCE(SUM(v.gia) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den') AND v.kenh_ban = 'hotline'), 0)::bigint AS doanh_thu_hotline,
-                          COALESCE(SUM(v.gia) FILTER (WHERE v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den') AND v.kenh_ban IS NULL), 0)::bigint AS doanh_thu_truc_tuyen
+                          COUNT(*) FILTER (WHERE (v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe') OR (v.trang_thai = 'khong_den' AND v.gio_thanh_toan IS NOT NULL)) AND v.phuong_thuc_thanh_toan = 'tien_mat')::int AS so_ve_tien_mat,
+                          COUNT(*) FILTER (WHERE (v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe') OR (v.trang_thai = 'khong_den' AND v.gio_thanh_toan IS NOT NULL)) AND v.phuong_thuc_thanh_toan = 'chuyen_khoan')::int AS so_ve_chuyen_khoan,
+                          COALESCE(SUM(v.gia) FILTER (WHERE (v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe') OR (v.trang_thai = 'khong_den' AND v.gio_thanh_toan IS NOT NULL)) AND v.phuong_thuc_thanh_toan = 'tien_mat'), 0)::bigint AS doanh_thu_tien_mat,
+                          COALESCE(SUM(v.gia) FILTER (WHERE (v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe') OR (v.trang_thai = 'khong_den' AND v.gio_thanh_toan IS NOT NULL)) AND v.phuong_thuc_thanh_toan = 'chuyen_khoan'), 0)::bigint AS doanh_thu_chuyen_khoan,
+                          COUNT(*) FILTER (WHERE (v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe') OR (v.trang_thai = 'khong_den' AND v.gio_thanh_toan IS NOT NULL)) AND v.kenh_ban = 'tai_quay')::int AS so_ve_tai_quay,
+                          COUNT(*) FILTER (WHERE (v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe') OR (v.trang_thai = 'khong_den' AND v.gio_thanh_toan IS NOT NULL)) AND v.kenh_ban = 'hotline')::int AS so_ve_hotline,
+                          COUNT(*) FILTER (WHERE (v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe') OR (v.trang_thai = 'khong_den' AND v.gio_thanh_toan IS NOT NULL)) AND v.kenh_ban IS NULL)::int AS so_ve_truc_tuyen,
+                          COALESCE(SUM(v.gia) FILTER (WHERE (v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe') OR (v.trang_thai = 'khong_den' AND v.gio_thanh_toan IS NOT NULL)) AND v.kenh_ban = 'tai_quay'), 0)::bigint AS doanh_thu_tai_quay,
+                          COALESCE(SUM(v.gia) FILTER (WHERE (v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe') OR (v.trang_thai = 'khong_den' AND v.gio_thanh_toan IS NOT NULL)) AND v.kenh_ban = 'hotline'), 0)::bigint AS doanh_thu_hotline,
+                          COALESCE(SUM(v.gia) FILTER (WHERE (v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe') OR (v.trang_thai = 'khong_den' AND v.gio_thanh_toan IS NOT NULL)) AND v.kenh_ban IS NULL), 0)::bigint AS doanh_thu_truc_tuyen
                    FROM ve v
                    WHERE v.diem_don_id = %s
                      AND v.ngay_tao >= (%s::date::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
@@ -338,7 +338,7 @@ def lich_su_ban_ve(van_phong_id: str, tu_ngay, den_ngay, trang: int, kich_thuoc_
     try:
         with conn.cursor() as cur:
             dieu_kien = """v.diem_don_id = %s
-                AND v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den')
+                AND (v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe') OR (v.trang_thai = 'khong_den' AND v.gio_thanh_toan IS NOT NULL))
                 AND v.ngay_tao >= (%s::date::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
                 AND v.ngay_tao < ((%s::date + 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
                 AND (%s::text IS NULL OR v.ma_ve ILIKE %s::text)"""
@@ -453,7 +453,7 @@ def bieu_do_doanh_thu(van_phong_id: str, tu_ngay, den_ngay, ma_ve: str | None, n
                            COUNT(*)::int AS so_ve, COALESCE(SUM(v.gia), 0)::bigint AS doanh_thu
                     FROM ve v
                     WHERE v.diem_don_id = %s
-                      AND v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den')
+                      AND (v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe') OR (v.trang_thai = 'khong_den' AND v.gio_thanh_toan IS NOT NULL))
                       AND v.ngay_tao >= (%s::date::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
                       AND v.ngay_tao < ((%s::date + 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
                       AND (%s::text IS NULL OR v.ma_ve ILIKE %s::text)
@@ -492,7 +492,7 @@ def ve_va_chuyen(ve_id: str, van_phong_id: str) -> dict | None:
         with conn.cursor() as cur:
             cur.execute(
                 """SELECT v.id, v.ma_ve, v.ma_dat_cho, v.so_ghe, v.gia, v.trang_thai,
-                          v.phuong_thuc_thanh_toan, v.han_giu_cho_den,
+                          v.phuong_thuc_thanh_toan, v.han_giu_cho_den, v.gio_thanh_toan,
                           v.ma_tham_chieu_vnpay, v.ma_giao_dich_cong_thanh_toan,
                           COALESCE(nd.ho_ten, v.ten_khach_vang_lai, '') AS ten_khach,
                           COALESCE(nd.so_dien_thoai, v.sdt_khach_vang_lai, '') AS sdt_khach,

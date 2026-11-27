@@ -2,7 +2,7 @@
 
 Chạy định kỳ: vé đã chắc chắn đi mà giờ đón (tại đúng điểm đón của vé) còn chưa tới `NHAC_TRUOC_GIO_DON_PHUT` phút thì gửi
 đúng 1 thông báo cho mỗi lượt đặt (gộp các ghế cùng lượt) rồi đánh dấu vé đã nhắc, để không nhắc lại. Không phải use case riêng —
-là cơ chế nền của luồng đặt vé (UC-05), cùng nhóm với quet_ve_het_han và quet_no_show.
+là cơ chế nền của luồng đặt vé (UC-05), cùng nhóm với quet_ve_het_han.
 """
 
 import datetime

@@ -75,7 +75,8 @@ def chi_tiet_chuyen(chuyen_id: str, nguoi_dung: _phu_xe):
 @router.post("/chuyen/{chuyen_id}/bat-dau-di-chuyen")
 def bat_dau_di_chuyen(chuyen_id: str, du_lieu: BatDauDiChuyenRequest, nguoi_dung: _phu_xe):
     kq = di_chuyen_service.bat_dau_di_chuyen(chuyen_id, du_lieu.bo_qua_canh_bao, nguoi_dung.id)
-    return {"thong_bao": f"Xe bắt đầu di chuyển tới {kq['diem_ke_tiep']}", **kq}
+    ghi_chu = f" — {kq['so_khach_khong_den']} khách được ghi \"Không đến\"" if kq["so_khach_khong_den"] else ""
+    return {"thong_bao": f"Xe bắt đầu di chuyển tới {kq['diem_ke_tiep']}{ghi_chu}", **kq}
 
 
 @router.post("/chuyen/{chuyen_id}/toi-diem", response_model=XacNhanToiDiemResponse)
@@ -106,6 +107,12 @@ def xac_nhan_xuong_xe(chuyen_id: str, ve_id: str, nguoi_dung: _phu_xe):
 def hoan_tac_len_xe(chuyen_id: str, ve_id: str, nguoi_dung: _phu_xe):
     ve_service.hoan_tac_len_xe(chuyen_id, ve_id, nguoi_dung.id)
     return {"thong_bao": "Đã hoàn tác, khách quay về trạng thái chờ lên xe"}
+
+
+@router.post("/chuyen/{chuyen_id}/ve/{ve_id}/hoan-tac-khong-den")
+def hoan_tac_khong_den(chuyen_id: str, ve_id: str, nguoi_dung: _phu_xe):
+    di_chuyen_service.hoan_tac_khong_den(chuyen_id, ve_id, nguoi_dung.id)
+    return {"thong_bao": "Đã hoàn tác, khách được ghi nhận đã lên xe"}
 
 
 @router.post("/chuyen/{chuyen_id}/ve/{ve_id}/hoan-tac-xuong-xe")

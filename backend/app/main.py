@@ -7,11 +7,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import CORS_ORIGINS
-from app.jobs import canh_bao_giay_to, nhac_quan_ly, quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han
+from app.jobs import canh_bao_giay_to, nhac_quan_ly, quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_ve_het_han
 from app.jobs import quet_chuyen_chua_co_xe
-from app.jobs import canh_bao_giay_to, nhac_khach_quay_ve, nhac_quan_ly, quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han
-from app.jobs import quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han, quet_ve_qua_gio_chay
-from app.jobs import canh_bao_giay_to, quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_no_show, quet_ve_het_han
+from app.jobs import canh_bao_giay_to, nhac_khach_quay_ve, nhac_quan_ly, quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_ve_het_han
+from app.jobs import quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_ve_het_han
+from app.jobs import canh_bao_giay_to, quet_giao_dich_vnpay, quet_hang_ton, quet_nhac_sap_di, quet_ve_het_han
 from app.routes.auth import router as auth_router
 from app.routes.chuyen import router as chuyen_router
 from app.routes.dieu_do import router as dieu_do_router
@@ -34,12 +34,10 @@ scheduler = BackgroundScheduler()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # UC-14 (⏱, mục 8.2 điểm 6/mục 9) — chu kỳ 1 phút đủ chính xác cho mốc
-    # X phút (mặc định 5), theo đúng ARCHITECTURE.md mục 5.
-    scheduler.add_job(quet_no_show.chay, "interval", minutes=1, id="quet_no_show")
+    # KHÔNG có job đánh dấu "không đến" hay hủy vé giữ chỗ theo giờ: khách chỉ bị tính không đến khi phụ xe rời điểm đón và tích xác
+    # nhận từng người (services/khong_den_service.py, NGHIEP_VU.md mục 8.2 điểm 6).
     # Vé giữ chỗ có hạn quá hạn → het_han (mục 6) — chu kỳ 1 phút
     scheduler.add_job(quet_ve_het_han.chay, "interval", minutes=1, id="quet_ve_het_han")
-    scheduler.add_job(quet_ve_qua_gio_chay.chay, "interval", minutes=1, id="quet_ve_qua_gio_chay")
     # UC-44 ⏱ — nhắc điều độ viên chuyến ≤48h chưa gán xe; tới giờ mà chưa có xe thì tự chuyển "đang hoãn" (jobs/quet_chuyen_chua_co_xe.py)
     scheduler.add_job(quet_chuyen_chua_co_xe.chay, "interval", minutes=5, id="quet_chuyen_chua_co_xe")
     # Hỏi VNPay kết quả các lượt đang chờ thanh toán (chỉ làm gì ở chế độ sandbox) — chu kỳ 1 phút, chỉ hỏi giao dịch đã đủ cũ

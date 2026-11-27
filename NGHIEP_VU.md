@@ -143,7 +143,7 @@ Toàn bộ vé cùng 1 lần đặt (nhiều ghế) nhóm theo **`ma_dat_cho`** 
 
 **Bắt buộc đặt cọc khi chọn "thanh toán tại quầy" cho lô nhiều vé giá trị cao** (chống lạm dụng giữ nhiều ghế dài hạn mà không cam kết gì):
 
-- **1 vé**: không bao giờ yêu cầu đặt cọc, dù giá bao nhiêu — giữ nguyên tới giờ khởi hành (mục 6), không tới lên xe đúng giờ thì tính `khong_den` (mục 9), không có `het_han` cho trường hợp này.
+- **1 vé**: không bao giờ yêu cầu đặt cọc, dù giá bao nhiêu — giữ nguyên tới giờ khởi hành (mục 6), khách không có mặt khi xe rời điểm đón (phụ xe xác nhận) thì tính `khong_den` (mục 9), không có `het_han` cho trường hợp này.
 - **≥ 2 vé và tổng giá trị cả lô ≤ 600.000đ** (ngưỡng `quan_ly` cấu hình): không yêu cầu đặt cọc, toàn bộ vé đều được "tại quầy" bình thường.
 - **≥ 2 vé và tổng giá trị cả lô > 600.000đ**: bắt buộc thanh toán ngay **`floor(so_ve × 50%)`** vé trong lô (tỷ lệ 50% `quan_ly` cấu hình, làm tròn **xuống** theo số lượng vé, không phải theo tiền) — VD đặt 5 vé → phải trả ngay 2 vé, đặt 6 vé → phải trả ngay 3 vé. Số vé "cọc" này theo đúng hạn "thanh toán ngay" (5 phút, mục 6); nếu không hoàn tất trong hạn đó → **toàn bộ lô** (kể cả các vé định để "tại quầy") chuyển `het_han`, không chỉ riêng phần cọc.
 - Vé đã trả trước theo diện "cọc" tuân theo đúng chính sách hoàn tiền của vé `da_thanh_toan` (mục 7 — không hoàn nếu khách đổi ý sau đó, vì thực chất là thanh toán đủ trước cho đúng số vé đó, không phải khoản cọc riêng có thể hoàn).
@@ -217,12 +217,12 @@ giu_cho (bản ghi tạo ngay khi bấm "Cập nhật điểm đón trả" — m
   │     └─ [Cổng báo hủy/thất bại, hoặc hết 5 phút không có tín hiệu gì] → het_han (tự động giải phóng ghế, không mất gì vì chưa trả tiền)
   └─ [Chọn "Thanh toán tại quầy khi nhận vé"] → **coi như đặt vé thành công ngay, không có hạn/mốc chốt nào** — giữ nguyên tới giờ khởi hành tại điểm đón (mục 6)
         ├─ [Ra quầy trả tiền + lấy vé cứng, bất kỳ lúc nào trước khi lên xe] → da_thanh_toan
-        └─ [Đến giờ lên xe tại điểm đón mà vẫn chưa ra quầy trả tiền] → khong_den trực tiếp (mục 9 — không qua `het_han`, vì không còn mốc chốt nào để "hết hạn")
+        └─ [Xe rời điểm đón (phụ xe xác nhận khách không đến) mà vẫn chưa ra quầy trả tiền] → khong_den trực tiếp (mục 9 — không qua `het_han`, vì không còn mốc chốt nào để "hết hạn")
 
 da_thanh_toan   ← từ đây KHÔNG còn đường quay lại het_han/hủy do khách yêu cầu, TRỪ đúng 3 ngoại lệ (mục 7)
   ├─ [Phụ xe xác nhận khách xuất trình vé cứng lúc lên xe — mục 8.2] → da_len_xe
   │     └─ [Phụ xe xác nhận khách đã xuống đúng điểm trả — mục 8.2] → da_xuong_xe (kết thúc vòng đời vé)
-  ├─ [Đến giờ lên xe tại điểm đón mà khách chưa lên xe] → khong_den (không hoàn tiền)
+  ├─ [Xe rời điểm đón, phụ xe xác nhận khách không đến] → khong_den (không hoàn tiền)
   ├─ [Chuyến gặp sự cố khách quan giữa đường, điều độ viên xác nhận không thể hoàn thành được nữa — UC-19] → da_huy (hoàn 100%, mục 7 — chuyến không bao giờ bị hủy vì lý do ít khách hay vì hết xe thay thế, mục 1)
   ├─ [Ngoại lệ: chuyến gặp sự cố do lỗi nhà xe giữa đường, đang chờ xử lý, khách chủ động không muốn/không thể chờ — UC-41] → da_huy (hoàn 100%)
   ├─ [Ngoại lệ: chuyến đang "hoãn" trước giờ chạy do hết xe thay thế (mục 3.3), khách chủ động không muốn/không thể chờ — UC-41] → da_huy (hoàn 100%)
@@ -244,7 +244,7 @@ da_thanh_toan   ← từ đây KHÔNG còn đường quay lại het_han/hủy do
 - **Chờ thanh toán VNPay (bổ sung khi cài đặt)**: bấm "Thanh toán" bằng VNPay là **đặt vé thành công ở trạng thái chờ thanh toán** — khách có **5 phút** để trả (vẫn nằm trong giỏ hàng, quay lại trả tiếp được trong hạn); không trả hoặc thoát thì cả lượt đặt hết hạn và ghế mở lại. Hạn giữ vé trên hệ thống dài hơn hạn của cổng **2 phút** (`HAN_DE_DUNG_TRE_IPN_PHUT`) để thông báo IPN — đi qua mạng nên luôn tới trễ vài giây — vẫn tìm thấy vé còn hiệu lực khi khách trả sát giờ cuối; cổng thanh toán vốn đã từ chối mọi giao dịch sau mốc 5 phút.
 - **Hạn giữ chỗ chỉ áp dụng cho "thanh toán ngay"** — "thanh toán tại quầy" **không có hạn nào cả**:
   - **Thanh toán ngay**: hạn mặc định **5 phút** (đủ thời gian cho 1 lượt thanh toán qua cổng online thật — chuyển hướng sang app ngân hàng/ví điện tử, nhập OTP, quay lại — thực tế thường lâu hơn 1 phút), tính từ lúc khách **tới màn hình thanh toán** (mục 3.4 bước 6) — không tính từ lúc khóa ghế (bước 4) hay lúc chọn điểm đón/trả (bước 5). **Không cần đợi tới hết 5 phút mới biết kết quả**: khi cổng thanh toán gọi webhook/callback báo giao dịch thành công hoặc thất bại/hủy, hệ thống xử lý **ngay lập tức** (chuyển `da_thanh_toan` hoặc `het_han` luôn, không chờ hết hạn) — 5 phút chỉ là **hạn chót an toàn** cho trường hợp khách bỏ dở mà không có tín hiệu gì trả về (đóng tab, mất mạng...). Quá hạn chưa thanh toán → chuyển `het_han`, đoạn hành trình đó mở lại. `quan_ly` cấu hình được giá trị 5 phút này.
-  - **Thanh toán tại quầy khi nhận vé**: **coi như đặt vé thành công ngay lập tức, không có mốc chốt/hạn giữ nào** — ghế/đoạn hành trình đó thuộc về khách này liên tục cho tới giờ khởi hành tại điểm đón, bất kể bao lâu. Chỉ có đúng 2 cách kết thúc: (1) khách chủ động hủy trước khi thanh toán **và trước mốc chốt lên xe tại điểm đón** (mục 7) → mở đoạn ngay; qua mốc chốt đó không tự hủy được nữa; (2) đến giờ lên xe tại điểm đón mà khách chưa ra quầy trả tiền → chuyển thẳng `khong_den` (mục 9), **không** qua trạng thái `het_han` vì không có "hạn" nào để hết. Đây là điểm khác biệt cố ý so với "thanh toán ngay": không đặt áp lực thời gian nào lên khách chọn trả sau, đổi lại rủi ro chiếm ghế lâu dài được xử lý bằng cơ chế đặt cọc (mục 3.4) + đếm vi phạm no-show (mục 9), không phải bằng 1 mốc chốt cứng.
+  - **Thanh toán tại quầy khi nhận vé**: **coi như đặt vé thành công ngay lập tức, không có mốc chốt/hạn giữ nào** — ghế/đoạn hành trình đó thuộc về khách này liên tục cho tới giờ khởi hành tại điểm đón, bất kể bao lâu. Chỉ có đúng 2 cách kết thúc: (1) khách chủ động hủy trước khi thanh toán **và trước mốc chốt lên xe tại điểm đón** (mục 7) → mở đoạn ngay; qua mốc chốt đó không tự hủy được nữa; (2) xe rời điểm đón mà khách chưa trả tiền, phụ xe xác nhận khách không đến → chuyển thẳng `khong_den` (mục 9; trước đó, kể cả khi xe trễ/hoãn, khách vẫn trả tiền tại quầy được), **không** qua trạng thái `het_han` vì không có "hạn" nào để hết. Đây là điểm khác biệt cố ý so với "thanh toán ngay": không đặt áp lực thời gian nào lên khách chọn trả sau, đổi lại rủi ro chiếm ghế lâu dài được xử lý bằng cơ chế đặt cọc (mục 3.4) + đếm vi phạm no-show (mục 9), không phải bằng 1 mốc chốt cứng.
 - Khách mua tại quầy (`nhan_vien_quay_ve`) đi thẳng `giu_cho` → `da_thanh_toan` gần như ngay lập tức, không áp dụng hạn giữ chỗ nào ở trên (tiền mặt trả ngay tại chỗ).
 - **Điểm đón/trả hợp lệ**: `diem_don`/`diem_tra` phải nằm trong tập điểm của đúng tuyến chuyến đó chạy qua (`tuyen_diem_don_tra`), `diem_don` phải có `loai = 'van_phong'`, và `diem_don` phải đứng trước `diem_tra` theo `thu_tu` — Service chặn nếu khách gửi lên cặp điểm không hợp lệ (ví dụ điểm trả đứng trước điểm đón, điểm không thuộc tuyến, hoặc chọn điểm đón là `diem_dung`).
 
@@ -297,8 +297,8 @@ Phụ xe là **người duy nhất trong đội vận hành thao tác trực ti�
 2. **Bến mở 15 phút trước giờ chạy**: từ lúc đó phụ xe mới cho khách lên xe và chất hàng tại điểm đầu tuyến. **Xuất phát chỉ được từ đúng giờ chạy** bằng nút "Xuất phát" (không còn bước "xác nhận xuất phát" riêng) → chuyến chuyển `dang_chay` và xe vào pha **đang di chuyển** tới điểm kế tiếp.
 3. **Khi khách lên xe**: khách xuất trình **vé cứng** (đã lấy tại văn phòng — mục 8.1 điểm 5) cho phụ xe → phụ xe xác nhận trên hệ thống → đánh dấu `da_len_xe`.
 4. **Khi khách xuống xe**: phụ xe **chủ động xác nhận trên hệ thống** khi khách xuống đúng điểm trả (không chỉ nhắc miệng) → đánh dấu `da_xuong_xe` — giúp phụ xe đối chiếu đúng số khách còn lại trên xe sau mỗi điểm dừng, tránh sót khách ngủ quên/xuống nhầm điểm.
-5. **Mỗi điểm có 2 pha: đang dừng rồi đang di chuyển.** Xe đang dừng thì lên/xuống xe, chất/dỡ hàng; muốn đi tiếp phải bấm **"Bắt đầu di chuyển"** — **bị chặn** nếu còn khách phải xuống hoặc hàng phải dỡ tại điểm đó, **cảnh báo** (phụ xe xác nhận mới đi) nếu còn khách chưa lên hoặc hàng chưa chất. Trong lúc di chuyển không lên/xuống xe, chất/dỡ hàng được. Khi tới nơi, **xác nhận đã đến từng điểm trung gian** (không chỉ điểm cuối) → ghi nhận giờ thực tế, dùng để cập nhật ETA cho khách đang chờ đón ở các điểm phía sau (báo qua WebSocket, mục 8.1) và mở lại danh sách lên/xuống của điểm đó (điểm 1). Khách chưa lên xe ở điểm vừa rời bị đánh dấu `khong_den` ngay lúc xe tới điểm kế tiếp. Xe chỉ xuống khách tại **đúng điểm xe đang đứng** — đã rời điểm trả thì không xác nhận xuống được nữa (báo điều độ viên).
-6. (Job dự phòng) Trước giờ khởi hành tại **điểm đón của từng khách** X phút (cấu hình được, VD 5 phút), với **mọi vé chưa `da_len_xe` tại điểm đó** — dù đã `da_thanh_toan` hay đang `giu_cho` (chọn "thanh toán tại quầy" nhưng chưa từng ra quầy trả tiền) — → đánh dấu `khong_den` (mục 9). **Cùng mốc X phút này cũng là hạn chót để khách tự hủy giữ chỗ** (mục 7, mục 8.1 điểm 6) — qua mốc đó khách không tự hủy được nữa.
+5. **Mỗi điểm có 2 pha: đang dừng rồi đang di chuyển.** Xe đang dừng thì lên/xuống xe, chất/dỡ hàng; muốn đi tiếp phải bấm **"Bắt đầu di chuyển"** — **bị chặn** nếu còn khách phải xuống hoặc hàng phải dỡ tại điểm đó, **cảnh báo** (phụ xe xác nhận mới đi) nếu còn khách chưa lên hoặc hàng chưa chất. Trong lúc di chuyển không lên/xuống xe, chất/dỡ hàng được. Khi tới nơi, **xác nhận đã đến từng điểm trung gian** (không chỉ điểm cuối) → ghi nhận giờ thực tế, dùng để cập nhật ETA cho khách đang chờ đón ở các điểm phía sau (báo qua WebSocket, mục 8.1) và mở lại danh sách lên/xuống của điểm đó (điểm 1). Khách chưa lên xe ở điểm đang rời bị đánh dấu `khong_den` ngay lúc phụ xe xác nhận và bấm "Bắt đầu di chuyển" (điểm 6). Xe chỉ xuống khách tại **đúng điểm xe đang đứng** — đã rời điểm trả thì không xác nhận xuống được nữa (báo điều độ viên).
+6. **Không đến (`khong_den`) — chỉ do phụ xe xác nhận, KHÔNG có job tự đánh dấu theo giờ** (chốt 27/11/2026): khi bấm "Bắt đầu di chuyển" mà còn khách chưa lên ở điểm đó, phụ xe phải **tích xác nhận từng người**; ngay lúc đó vé của họ — `da_thanh_toan`, hoặc `giu_cho` trả tại quầy chưa trả tiền — chuyển `khong_den` (mục 9). Vé đang giữ tạm có hạn (khách đang thanh toán dở) không bị tính, tự `het_han`. Phụ xe **linh động đợi khách** bao lâu tùy tình hình; chuyến chưa chạy / đang hoãn thì không ai bị tính và vé giữ chỗ **không bị hủy** vì qua giờ khởi hành. **Chặn đi sớm:** ở điểm đón dọc đường, còn khách chưa lên thì chưa được rời trước giờ đón dự kiến của điểm đó. **Hoàn tác:** tích nhầm hoặc khách đuổi kịp xe thì phụ xe hoàn tác được (vé đã trả tiền → `da_len_xe`, gỡ vi phạm, gỡ hạn chế nếu hạn chế do chính lần này) **khi xe chưa tới điểm kế tiếp**. Mốc "X phút trước giờ đón dự kiến" vẫn là hạn chót để khách tự hủy giữ chỗ (mục 7, mục 8.1 điểm 6).
 7. **Báo sự cố giữa đường** (hỏng xe, tai nạn, tắc đường nghiêm trọng — theo thông tin tài xế cung cấp, phụ xe là người thao tác trên hệ thống) → chuyến chuyển `gap_su_co`, điều độ viên nhận cảnh báo ngay; báo các bất thường khác chưa tới mức sự cố cho điều độ viên khi cần.
 8. Xác nhận đến điểm cuối cùng của tuyến → chuyến chuyển `hoan_thanh`.
 9. Xác nhận đã chất/dỡ hàng gửi (`don_hang`, mục 10) tại từng điểm dừng, song song với soát vé hành khách — báo thất lạc/hư hỏng nếu có.
@@ -393,7 +393,7 @@ Phạm vi **toàn hệ thống** (không gắn văn phòng, giống `ke_toan`/`q
 
 ## 9. Cơ chế no-show và hạn chế
 
-- **1 loại vi phạm duy nhất** cho `khach_hang` (vé vãng lai tại quầy không tính, vì không gắn tài khoản để theo dõi được): đến giờ khởi hành tại điểm đón mà vé vẫn chưa `da_len_xe` → chuyển `khong_den` (mục 8.2 điểm 6). Áp dụng như nhau cho cả 2 trường hợp — vé đã `da_thanh_toan` nhưng không lên xe, lẫn vé chọn "thanh toán tại quầy" nhưng chưa từng ra quầy trả tiền (vì không còn `het_han` cho trường hợp này, mục 3.4/5/6 — thẳng tới `khong_den`).
+- **1 loại vi phạm duy nhất** cho `khach_hang` (vé vãng lai tại quầy không tính, vì không gắn tài khoản để theo dõi được): xe rời điểm đón mà khách chưa lên, phụ xe tích xác nhận khách không đến → chuyển `khong_den` (mục 8.2 điểm 6). Áp dụng như nhau cho cả 2 trường hợp — vé đã `da_thanh_toan` nhưng không lên xe, lẫn vé chọn "thanh toán tại quầy" nhưng chưa từng ra quầy trả tiền (vì không còn `het_han` cho trường hợp này, mục 3.4/5/6 — thẳng tới `khong_den`).
 - Đủ N lần trong M ngày gần nhất (mặc định 3 lần / 30 ngày, `quan_ly` cấu hình) → tự động **khóa lựa chọn "thanh toán tại quầy"** — khách chỉ còn được đặt vé với **"thanh toán ngay"** (hạn giữ 5 phút), không thể đặt vé "chiếm chỗ tự do không hạn" nữa; **khóa** tài khoản nếu vi phạm nghiêm trọng hơn ngưỡng thứ 2 (hệ thống tự khóa, không ai mở lại — khách bị khóa coi như mất tài khoản).
 - **Không ai gỡ**: hệ thống tự áp dụng luật trên; `quan_ly` và `quan_ly_nhan_su` **không khóa, không mở khóa, không gỡ hạn chế** tài khoản khách hàng (UC-37 chỉ áp dụng cho cán bộ).
 
@@ -704,7 +704,7 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
 
 ### UC-12. Xác nhận khách lên xe *(gồm cơ chế UC-14 cũ)*
 
-*Khách không lên xe đúng giờ bị hệ thống tự đánh dấu "không đến" (cơ chế UC-14 cũ, ghi ở cuối mục này và mục 9).*
+*Khách không lên xe bị ghi "không đến" khi phụ xe xác nhận lúc rời điểm (thay cơ chế tự động UC-14 cũ, ghi ở cuối mục này và mục 9).*
 
 - **Actor**: Phụ xe.
 - **Tiền điều kiện**: Chuyến `dang_chay`, vé `da_thanh_toan`.
@@ -718,14 +718,17 @@ Mỗi use case dưới đây viết theo cùng khuôn: **Actor / Tiền điều 
   - Tại bước 4: hợp lệ → hệ thống đánh dấu `da_len_xe`.
 - **Hậu điều kiện**: Vé `da_len_xe`, sẵn sàng cho UC-13.
 
-#### Nhánh kèm theo — trước đây là UC-14 (Đánh dấu no-show tự động)
+#### Nhánh kèm theo — trước đây là UC-14 (Đánh dấu khách không đến)
 
-- **Actor**: Hệ thống (job quét theo thời gian — không phải actor người dùng).
-- **Tiền điều kiện**: Đến X phút trước giờ khởi hành tại điểm đón của 1 vé (mục 8.2 điểm 6).
-- **Luồng chính** (mục 9):
-  1. Quét mọi vé chưa `da_len_xe` tại điểm đón đó.
-  2. Với mỗi vé — dù `da_thanh_toan` hay đang `giu_cho` (chọn "thanh toán tại quầy" nhưng chưa từng trả tiền, UC-05 nhánh B) — đánh dấu `khong_den`.
-  3. Ghi nhận 1 lần vi phạm no-show cho khách hàng đó (nếu có tài khoản).
+- **Actor**: Phụ xe (không còn job tự động theo giờ — chốt 27/11/2026).
+- **Tiền điều kiện**: Xe đang dừng ở điểm đón, còn vé chưa `da_len_xe` tại điểm đó. Ở điểm dọc đường phải đã tới giờ đón dự kiến.
+- **Luồng chính** (mục 8.2 điểm 6, mục 9):
+  1. Phụ xe bấm "Bắt đầu di chuyển"; hệ thống liệt kê khách chưa lên.
+  2. Phụ xe tích xác nhận từng người không đến, rồi xác nhận đi.
+  3. Vé của họ (`da_thanh_toan`, hoặc `giu_cho` trả tại quầy chưa trả) chuyển `khong_den`; ghi 1 lần vi phạm cho khách có tài khoản và báo khách.
+- **Luồng rẽ nhánh**:
+  - Phụ xe chọn "Ở lại xử lý tiếp" → không ai bị tính.
+  - Tích nhầm / khách đuổi kịp, xe chưa tới điểm kế tiếp → phụ xe hoàn tác (chỉ vé đã trả tiền): vé `da_len_xe`, gỡ vi phạm.
 - **Hậu điều kiện**: Vé `khong_den`; bộ đếm vi phạm no-show cập nhật.
 
 ### UC-13. Xác nhận khách xuống xe

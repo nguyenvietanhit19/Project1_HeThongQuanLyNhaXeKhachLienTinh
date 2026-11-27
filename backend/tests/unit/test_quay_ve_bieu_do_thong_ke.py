@@ -88,4 +88,5 @@ def test_kenh_ban_chi_dem_ve_da_thanh_toan_nhu_doanh_thu(monkeypatch):
     repo.thong_ke("vp-a", date(2026, 10, 1), date(2026, 10, 27))
     sql = cur.execute.call_args.args[0]
     for channel in ("tai_quay", "hotline", "IS NULL"):
-        assert "v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe', 'khong_den') AND v.kenh_ban " + ("= '" + channel + "'" if channel != "IS NULL" else channel) in sql
+        da_ban = "(v.trang_thai IN ('da_thanh_toan', 'da_len_xe', 'da_xuong_xe') OR (v.trang_thai = 'khong_den' AND v.gio_thanh_toan IS NOT NULL))"
+        assert da_ban + " AND v.kenh_ban " + ("= '" + channel + "'" if channel != "IS NULL" else channel) in sql

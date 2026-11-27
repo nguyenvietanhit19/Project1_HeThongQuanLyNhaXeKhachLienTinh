@@ -95,7 +95,8 @@ class HanhKhachResponse(BaseModel):
     loai_hinh_thanh_toan: str
     gio_len_xe: datetime | None = None
     gio_xuong_xe: datetime | None = None
-    da_hoan_tac: bool = False  # phụ xe đã tự tay sửa vé này → job no-show bỏ qua
+    da_hoan_tac: bool = False  # phụ xe đã tự tay hoàn tác trên vé này
+    da_tra_tien: bool = False  # đã thu tiền — chỉ vé này mới hoàn tác được "Không đến"
 
 
 class HangHoaResponse(BaseModel):

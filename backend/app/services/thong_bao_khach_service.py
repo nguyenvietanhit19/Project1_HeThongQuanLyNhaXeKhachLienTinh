@@ -5,7 +5,7 @@ WebSocket; (2) các hàm dựng nội dung (hàm thuần, unit test được). T
 ra ngoài, vì lỗi thông báo không được làm hỏng nghiệp vụ chính (VD phản hồi IPN cho cổng thanh toán, job quét vé).
 
 Các sự kiện do service/job tương ứng gọi: chốt trả tại quầy (dat_ve_service), thanh toán thành công/không thành công
-(thanh_toan_service), hết hạn giữ chỗ (jobs/quet_ve_het_han), không đến (jobs/quet_no_show), sắp đến giờ đón
+(thanh_toan_service), hết hạn giữ chỗ (jobs/quet_ve_het_han), không đến (khong_den_service), sắp đến giờ đón
 (jobs/quet_nhac_sap_di). Thông báo về xe/sự cố do phụ xe và điều độ viên gửi ở chuyen_xe_service.
 """
 
@@ -105,8 +105,8 @@ def nd_het_han(ma_dat_cho: str, danh_sach_ghe: list[str]) -> str:
     return f"Mã đặt chỗ {ma_dat_cho} (ghế {_ghe(danh_sach_ghe)}) đã hết hạn giữ chỗ, ghế được nhả cho người khác. Bạn có thể đặt lại."
 
 
-def nd_huy_ve_qua_gio_chay(ma_dat_cho: str, danh_sach_ghe: list[str]) -> str:
-    return f"Mã đặt chỗ {ma_dat_cho} (ghế {_ghe(danh_sach_ghe)}) đã tự hủy vì chưa thanh toán khi chuyến quá giờ khởi hành."
+def nd_hoan_tac_khong_den(ma_ve: str, so_ghe: str) -> str:
+    return f"Vé {ma_ve} (ghế {so_ghe}) đã được ghi nhận lại là đã lên xe — lần ghi \"không đến\" trước đó được hủy, không tính vi phạm."
 
 
 def nd_khong_den(ma_ve: str, so_ghe: str, so_lan: int, nguong: int, so_ngay: int) -> str:

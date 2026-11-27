@@ -4,7 +4,8 @@ import datetime
 
 import pytest
 
-from app.jobs import quet_nhac_sap_di, quet_no_show, quet_ve_het_han
+from app.jobs import quet_nhac_sap_di, quet_ve_het_han
+from app.services import khong_den_service
 from app.services import dat_ve_service as dv
 from app.services import thanh_toan_service as tt
 from app.services import thong_bao_khach_service as tbk
@@ -194,32 +195,37 @@ def test_job_het_han_khong_co_gi_thi_khong_bao(monkeypatch, da_gui_thong_bao):
     assert quet_ve_het_han.chay() == 0 and not da_gui_thong_bao
 
 
-def test_job_khong_den_bao_khach_kem_so_lan(monkeypatch, da_gui_thong_bao):
-    monkeypatch.setattr(quet_no_show.ve_repo, "tim_ve_qua_gio_len_xe", lambda x: [{"id": "v1", "khach_hang_id": "kh1", "ma_ve": "VE000001", "so_ghe": "A1"}])
-    monkeypatch.setattr(quet_no_show.ve_repo, "danh_dau_khong_den", lambda i: None)
-    monkeypatch.setattr(quet_no_show.ve_repo, "dem_vi_pham_no_show", lambda kh, ngay: 2)
+def _gia_khong_den(monkeypatch, so_lan, da_sua=True):
+    monkeypatch.setattr(khong_den_service.ve_repo, "danh_dau_khong_den", lambda i: da_sua)
+    monkeypatch.setattr(khong_den_service.ve_repo, "dem_vi_pham_no_show", lambda kh, ngay: so_lan)
     khoa = []
-    monkeypatch.setattr(quet_no_show.ho_so_repo, "khoa_thanh_toan_tai_quay", lambda kh: khoa.append(kh))
-    quet_no_show.chay()
-    assert da_gui_thong_bao == [("kh1", tbk.nd_khong_den("VE000001", "A1", 2, quet_no_show.NGUONG_SO_LAN_VI_PHAM, quet_no_show.NGUONG_SO_NGAY_VI_PHAM), "v1")]
+    monkeypatch.setattr(khong_den_service.ho_so_repo, "khoa_thanh_toan_tai_quay", lambda kh: khoa.append(kh))
+    return khoa
+
+
+def test_khong_den_bao_khach_kem_so_lan(monkeypatch, da_gui_thong_bao):
+    khoa = _gia_khong_den(monkeypatch, 2)
+    assert khong_den_service.danh_dau_khong_den({"id": "v1", "khach_hang_id": "kh1", "ma_ve": "VE000001", "so_ghe": "A1"})
+    assert da_gui_thong_bao == [("kh1", tbk.nd_khong_den("VE000001", "A1", 2, 3, 30), "v1")]
     assert not khoa  # mới 2 lần, chưa tới ngưỡng
 
 
-def test_job_khong_den_du_nguong_khoa_va_bao_khoa(monkeypatch, da_gui_thong_bao):
-    monkeypatch.setattr(quet_no_show.ve_repo, "tim_ve_qua_gio_len_xe", lambda x: [{"id": "v1", "khach_hang_id": "kh1", "ma_ve": "VE000001", "so_ghe": "A1"}])
-    monkeypatch.setattr(quet_no_show.ve_repo, "danh_dau_khong_den", lambda i: None)
-    monkeypatch.setattr(quet_no_show.ve_repo, "dem_vi_pham_no_show", lambda kh, ngay: 3)
-    khoa = []
-    monkeypatch.setattr(quet_no_show.ho_so_repo, "khoa_thanh_toan_tai_quay", lambda kh: khoa.append(kh))
-    quet_no_show.chay()
+def test_khong_den_du_nguong_khoa_va_bao_khoa(monkeypatch, da_gui_thong_bao):
+    khoa = _gia_khong_den(monkeypatch, 3)
+    khong_den_service.danh_dau_khong_den({"id": "v1", "khach_hang_id": "kh1", "ma_ve": "VE000001", "so_ghe": "A1"})
     assert khoa == ["kh1"] and "chỉ được thanh toán ngay" in da_gui_thong_bao[0][1]
 
 
-def test_job_khong_den_khach_vang_lai_khong_bao(monkeypatch, da_gui_thong_bao):
-    monkeypatch.setattr(quet_no_show.ve_repo, "tim_ve_qua_gio_len_xe", lambda x: [{"id": "v1", "khach_hang_id": None, "ma_ve": "VE000001", "so_ghe": "A1"}])
-    monkeypatch.setattr(quet_no_show.ve_repo, "danh_dau_khong_den", lambda i: None)
-    quet_no_show.chay()
+def test_khong_den_khach_vang_lai_khong_bao(monkeypatch, da_gui_thong_bao):
+    _gia_khong_den(monkeypatch, 0)
+    assert khong_den_service.danh_dau_khong_den({"id": "v1", "khach_hang_id": None, "ma_ve": "VE000001", "so_ghe": "A1"})
     assert not da_gui_thong_bao
+
+
+def test_khong_den_ve_da_doi_trang_thai_thi_khong_phat(monkeypatch, da_gui_thong_bao):
+    khoa = _gia_khong_den(monkeypatch, 5, da_sua=False)
+    assert khong_den_service.danh_dau_khong_den({"id": "v1", "khach_hang_id": "kh1", "ma_ve": "VE000001", "so_ghe": "A1"}) is False
+    assert not khoa and not da_gui_thong_bao
 
 
 def test_job_nhac_sap_di_gop_theo_luot_va_danh_dau_da_nhac(monkeypatch, da_gui_thong_bao):

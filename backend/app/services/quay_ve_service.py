@@ -162,10 +162,13 @@ def _dung_ve(v: dict, dang_cho_dat_coc: bool = False, luot_co_dat_coc: bool = Fa
     refund_allowed = v["trang_thai"] == "da_thanh_toan" and (
         v["dang_hoan"] or (v["trang_thai_chuyen"] == "gap_su_co" and v.get("loai_su_co") == "loi_nha_xe")
     )
+    # Thu tiền mặt không phụ thuộc giờ trên lịch (xe trễ / hoãn): chỉ cần vé còn giữ chỗ và chuyến chưa kết thúc
+    con_thu_duoc = (v["trang_thai"] == "giu_cho" and v.get("trang_thai_chuyen") not in ("hoan_thanh", "da_huy")
+                    and (v.get("han_giu_cho_den") is None or v["han_giu_cho_den"] > now))
     return {
         **v,
         "co_the_in": v["trang_thai"] == "da_thanh_toan",
-        "co_the_thanh_toan": unpaid_hold and before_cutoff and (not luot_co_dat_coc or dat_coc_da_thanh_toan)
+        "co_the_thanh_toan": con_thu_duoc and (not luot_co_dat_coc or dat_coc_da_thanh_toan)
             and v["loai_hinh_thanh_toan"] == "thanh_toan_tai_quay",
         "co_the_tao_qr": unpaid_hold and before_cutoff and not (luot_co_dat_coc and not dang_cho_dat_coc)
             and v.get("kenh_ban") in ("tai_quay", "hotline"),
@@ -236,10 +239,9 @@ def thu_tien(nguoi_dung, ma_dat_cho: str, phuong_thuc: str) -> dict:
     now = datetime.datetime.now(MUI_GIO)
     if any(v.get("han_giu_cho_den") and v["han_giu_cho_den"] <= now for v in held):
         raise GiaTriLoi("Đã hết hạn giữ vé")
-    if any(v["gio_khoi_hanh"] <= now for v in held):
-        raise GiaTriLoi("Chuyến đã qua giờ khởi hành; vé chờ thanh toán sẽ tự hủy")
-    if any(not dat_ve_service.con_truoc_moc_chot(v["gio_don_du_kien"], now) for v in held):
-        raise GiaTriLoi("Đã qua thời điểm nhận thanh toán trước giờ khởi hành")
+    # Không chặn theo giờ trên lịch: xe trễ / hoãn thì khách vẫn trả tiền được; xe đã bỏ khách lại thì vé đã thành "không đến"
+    if any(v.get("trang_thai_chuyen") in ("hoan_thanh", "da_huy") for v in held):
+        raise GiaTriLoi("Chuyến đã kết thúc hoặc đã hủy, không thu tiền được")
     updated = lock_repo.thanh_toan_ve_quay(ma_dat_cho, str(vp["id"]), str(nguoi_dung.id), phuong_thuc, len(held))
     if updated != len(held):
         raise GiaTriLoi("Một số vé đã thay đổi trạng thái; tải lại danh sách trước khi thu tiền")

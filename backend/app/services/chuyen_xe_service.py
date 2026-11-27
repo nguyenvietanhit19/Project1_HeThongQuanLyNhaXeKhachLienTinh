@@ -14,7 +14,6 @@ chung 1 file vì cùng đang xây tuần tự).
 import logging
 from datetime import datetime, timedelta, timezone
 
-from app.jobs import quet_no_show
 from app.repositories import chuyen_xe_repository as chuyen_xe_repo
 from app.repositories import dia_diem_repository as dia_diem_repo
 from app.repositories import nguoi_dung_repository as nguoi_dung_repo
@@ -86,6 +85,14 @@ class XeDangDiChuyen(GiaTriLoi):
 
     def __init__(self) -> None:
         super().__init__("Xe đang di chuyển tới điểm kế tiếp — chờ xe tới nơi rồi mới thao tác được")
+
+
+def gio_du_kien_tai_diem(chuyen: dict, diem_list: list[dict], diem: dict) -> datetime:
+    """Giờ dự kiến xe tới 1 điểm: chiều xuôi = giờ khởi hành + mốc của điểm; chiều ngược = + (mốc cuối tuyến − mốc của điểm)."""
+    phut = diem["thoi_gian_du_kien_phut"]
+    if chuyen["chieu"] != "xuoi":
+        phut = max(d["thoi_gian_du_kien_phut"] for d in diem_list) - phut
+    return chuyen["gio_khoi_hanh"] + timedelta(minutes=phut)
 
 
 def diem_hien_tai(chuyen: dict) -> dict:
@@ -247,14 +254,6 @@ def hanh_trinh(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
     chuyen = lay_chuyen_cua_phu_xe(chuyen_id, nguoi_dung_id)
     diem_list = diem_theo_chieu(chuyen)
     da_xac_nhan = {d["diem_don_tra_id"]: d["gio_thuc_te"] for d in chuyen_xe_repo.lay_diem_da_xac_nhan(chuyen_id)}
-    # Giờ dự kiến tới từng điểm — cùng công thức với job no-show (ve_repository.tim_ve_qua_gio_len_xe):
-    # chiều xuôi = mốc của điểm; chiều ngược = mốc cuối tuyến trừ mốc của điểm.
-    moc_cuoi = max((d["thoi_gian_du_kien_phut"] for d in diem_list), default=0)
-
-    def gio_du_kien(diem):
-        phut = diem["thoi_gian_du_kien_phut"]
-        return chuyen["gio_khoi_hanh"] + timedelta(minutes=phut if chuyen["chieu"] == "xuoi" else moc_cuoi - phut)
-
     return [
         {
             "diem_don_tra_id": diem["diem_don_tra_id"],
@@ -262,7 +261,7 @@ def hanh_trinh(chuyen_id: str, nguoi_dung_id: str) -> list[dict]:
             "thu_tu": vi_tri,  # thứ tự THEO HƯỚNG ĐI (1 = điểm xuất phát), không phải thu_tu gốc của tuyến
             "da_toi": diem["diem_don_tra_id"] in da_xac_nhan,
             "gio_thuc_te": da_xac_nhan.get(diem["diem_don_tra_id"]),
-            "gio_du_kien": gio_du_kien(diem),
+            "gio_du_kien": gio_du_kien_tai_diem(chuyen, diem_list, diem),
             "loai": diem.get("loai"),  # van_phong | diem_dung
             "ten_khu_vuc": diem.get("ten_khu_vuc"),
         }
@@ -294,14 +293,8 @@ def xac_nhan_toi_diem(chuyen_id: str, diem_don_tra_id: str, nguoi_dung_id: str) 
     if not con_lai or diem_muc_tieu["diem_don_tra_id"] != con_lai[0]["diem_don_tra_id"]:
         raise GiaTriLoi("Phải xác nhận lần lượt theo đúng thứ tự các điểm trên tuyến")
 
-    diem_vua_roi = diem_xe_vua_roi_hoac_dung(chuyen)  # điểm xe vừa rời (lấy TRƯỚC khi ghi điểm mới)
-
     if not chuyen_xe_repo.them_lich_su_diem_dung(chuyen_id, diem_don_tra_id):
         raise GiaTriLoi("Điểm này đã được xác nhận đến trước đó")
-
-    # Xe đã tới điểm kế tiếp → không còn quay lại điểm vừa rời: khách ở đó vẫn chưa lên xe là "không đến"
-    for ve in ve_repo.tim_ve_chua_len_tai_diem(chuyen_id, str(diem_vua_roi["diem_don_tra_id"])):
-        quet_no_show.danh_dau_khong_den(ve)
 
     diem_cuoi_tuyen = diem_list[-1]["diem_don_tra_id"]
     da_hoan_thanh = diem_don_tra_id == diem_cuoi_tuyen

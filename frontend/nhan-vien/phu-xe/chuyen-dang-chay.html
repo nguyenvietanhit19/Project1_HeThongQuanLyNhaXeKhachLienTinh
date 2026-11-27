@@ -255,6 +255,10 @@
       return apiPost(`/phu-xe/chuyen/${chuyenId}/bat-dau-di-chuyen`, { bo_qua_canh_bao: boQuaCanhBao });
     }
 
+    function hoanTacKhongDen(veId) {
+      return apiPost(`/phu-xe/chuyen/${chuyenId}/ve/${veId}/hoan-tac-khong-den`, {});
+    }
+
     function lenXe(veId) {
       return apiPost(`/phu-xe/chuyen/${chuyenId}/ve/${veId}/len-xe`, {});
     }
@@ -375,6 +379,11 @@
 
     // Hoàn tác khi bấm nhầm: chỉ khi xe CÒN ĐỨNG ở điểm đó (xe đã đi thì backend cũng từ chối).
     function hoanTacKhach(v, phia, diem) {
+      // "Không đến" sửa được khi xe VỪA RỜI điểm đón và chưa tới điểm kế tiếp; chỉ với vé đã trả tiền
+      if (dangDiChuyen && phia === "len" && diem.diem_don_tra_id === diemHienTaiId && trangThaiChuyen === "dang_chay"
+          && v.trang_thai === "khong_den" && v.da_tra_tien) {
+        return { nhan: "Hoàn tác, khách đã lên xe", hoi: `Hoàn tác: ${v.ho_ten} ĐÃ LÊN XE (bỏ ghi nhận "Không đến")?`, chay: () => hoanTacKhongDen(v.ve_id) };
+      }
       if (dangDiChuyen || diem.diem_don_tra_id !== diemHienTaiId) return null;
       if (phia === "len" && benDaMo() && v.trang_thai === "da_len_xe") {
         return { nhan: "Hoàn tác lên xe", hoi: `Hoàn tác: ${v.ho_ten} CHƯA lên xe?`, chay: () => hoanTacLenXe(v.ve_id) };
@@ -392,7 +401,7 @@
       const viTri = thuTuDiem.get(diem.diem_don_tra_id), viTriXe = thuTuDiem.get(diemHienTaiId);
       const suCo = trangThaiChuyen === "gap_su_co" ? "Chuyến đang gặp sự cố, tạm dừng thao tác" : "";
       if (phia === "len") {
-        if (v.trang_thai === "khong_den") return 'Hệ thống đã đánh dấu "Không đến"';
+        if (v.trang_thai === "khong_den") return 'Đã ghi nhận "Không đến" khi xe rời điểm';
         if (v.trang_thai === "giu_cho") return "Chưa trả tiền — thu tiền tại quầy trước khi cho lên xe";
         if (v.trang_thai !== "da_thanh_toan") return "";
         if (suCo) return suCo;
@@ -987,6 +996,8 @@
             // Trước giờ mở bến: chưa có gì để kiểm. Từ khi bến mở: hiện danh sách kiểm; nút chỉ bật khi hết chặn VÀ (nếu chưa chạy) đã tới giờ.
             const xuatPhat = giaiDoan !== "dang_chay";
             const khoaGio = giaiDoan === "chua_mo_ben" || giaiDoan === "ben_mo";
+            // Điểm đón dọc đường: còn khách chưa lên thì chưa được rời trước giờ đón dự kiến (backend cũng chặn)
+            const choGioDon = i > 0 && !!d.gio_du_kien && new Date() < new Date(d.gio_du_kien) && khachSeKhongDen(d.diem_don_tra_id).length > 0;
             const nhanNut = xuatPhat ? `Xuất phát → ${esc(keTiep.ten_diem)}` : `Bắt đầu di chuyển → ${esc(keTiep.ten_diem)}`;
             const ghiChu = dangHoan ? "Chuyến đang hoãn — chờ điều độ viên xử lý."
               : giaiDoan === "chua_mo_ben" ? `Bến mở lúc ${gioNgan(gioMoBen)} (15 phút trước giờ chạy) — từ đó mới cho khách lên xe và chất hàng. Xuất phát lúc ${gioNgan(gioKhoiHanh)}.`
@@ -994,8 +1005,9 @@
               : "";
             // Danh sách việc (khách/hàng lên-xuống) đã nằm ở khối "Việc tại điểm này" — ở đây chỉ còn lý do bị chặn + nút đi
             thanPhu = (ghiChu ? `<p class="hint">${ghiChu}</p>` : "") +
+              (choGioDon ? `<p class="viec-ly-do">Còn ${khachSeKhongDen(d.diem_don_tra_id).length} khách chưa lên xe — đi được từ giờ đón dự kiến ${gioNgan(d.gio_du_kien)}.</p>` : "") +
               (bi_chan ? `<p class="viec-ly-do">Chưa thể đi: ${[viec.choXuong ? `còn ${viec.choXuong} khách chưa xuống xe` : "", viec.choDo ? `còn ${viec.choDo} đơn hàng chưa dỡ` : ""].filter(Boolean).join(", ")}.</p>` : "") +
-              `<button class="btn-primary nut-di-chuyen" ${bi_chan || khoaGio || dangHoan ? "disabled" : ""} onclick="batDauDiChuyen()">${nhanNut}</button>`;
+              `<button class="btn-primary nut-di-chuyen" ${bi_chan || khoaGio || dangHoan || choGioDon ? "disabled" : ""} onclick="batDauDiChuyen()">${nhanNut}</button>`;
           } else if (laKeTiep && dangDiChuyen) {
             thanPhu = `<div class="trang-thai-di-chuyen">Xe đang di chuyển tới đây</div>
               <button class="btn-confirm nut-di-chuyen" data-tieu-de="Xe đã đến điểm?" data-nhan="Đã đến" data-hoi="${esc(`Xác nhận xe đã đến ${d.ten_diem}?`)}" onclick="hoiRoiChay(this, () => xacNhanToiDiem('${esc(d.diem_don_tra_id)}'))">Xác nhận đã đến đây</button>`;
@@ -1016,6 +1028,12 @@
         .join("");
     }
 
+    // Khách ở 1 điểm đón sẽ bị ghi "Không đến" nếu xe rời đi (khớp backend khong_den_service.se_bi_danh_dau; vé đang giữ tạm
+    // có hạn — khách đang thanh toán dở — thì backend tự bỏ qua)
+    function khachSeKhongDen(diemId) {
+      return duLieuKhach.filter((v) => v.diem_don_id === diemId && ["da_thanh_toan", "giu_cho"].includes(v.trang_thai));
+    }
+
     // Bấm "Bắt đầu di chuyển": còn khách chưa xuống / hàng chưa dỡ đã bị nút khóa; còn khách chưa lên /
     // hàng chưa chất thì hỏi lại trong hộp thoại trước khi đi (server cũng kiểm tra lại, không tin giao diện).
     async function batDauDiChuyen() {
@@ -1032,7 +1050,7 @@
           <span><b>${esc(v.so_ghe)}</b> ${esc(v.ho_ten)}
           <small class="xn-phu">SĐT ${esc(v.so_dien_thoai)}</small>
           ${v.trang_thai === "giu_cho" ? '<small class="xn-phu xn-phu--tien">Chưa trả tiền</small>' : ""}
-          <small>Xác nhận khách KHÔNG ĐẾN (sẽ bị đánh dấu "Không đến")</small></span></label>`).join("");
+          <small>Xác nhận khách KHÔNG ĐẾN — bị ghi "Không đến" ngay khi xe rời điểm</small></span></label>`).join("");
       const dongHang = dsHangChoChat.map((d) => `
         <label class="xn-dong"><input type="checkbox" data-nhom="hang" />
           <span><b>${esc(d.ma_van_don)}</b> → ${esc(d.ten_diem_nhan)}
@@ -1136,8 +1154,8 @@
     }, 15000);
 
     // ---------- Cảnh báo giờ (chỉ khi chuyến đang chạy) ----------
-    // Mốc no-show = giờ dự kiến tại điểm đón − 5 phút (khớp job quet_no_show.py ở backend).
-    const PHUT_NO_SHOW_TRUOC = 5;
+    // Mốc để nhắc = đúng giờ đón dự kiến tại điểm đón
+    const PHUT_NO_SHOW_TRUOC = 0;
     const PHUT_BAO_TRE = 10;     // xe trễ từ ngần này phút mới báo, tránh báo lặt vặt
     const PHUT_BAO_SAP_NO_SHOW = 10;
 
@@ -1161,21 +1179,21 @@
         if (qua >= PHUT_BAO_TRE) dong.push(`Đã quá giờ dự kiến tới ${esc(ke.ten_diem)} <b>${chuoiPhut(qua)}</b>.`);
       }
 
-      // 2) Khách chưa lên sắp bị hệ thống tự đánh dấu "Không đến" → gọi trước
+      // 2) Khách chưa lên mà sắp / đã tới giờ đón → nhắc phụ xe gọi khách (hệ thống KHÔNG tự đánh dấu "Không đến")
       const gioDuKien = Object.fromEntries(hanhTrinh.map((d, i) => [d.diem_don_tra_id, { gio: d.gio_du_kien, i }]));
       const sapNoShow = duLieuKhach
-        .filter((v) => v.trang_thai === "da_thanh_toan" && !v.da_hoan_tac && gioDuKien[v.diem_don_id] && gioDuKien[v.diem_don_id].i >= viTri)
+        .filter((v) => v.trang_thai === "da_thanh_toan" && gioDuKien[v.diem_don_id] && gioDuKien[v.diem_don_id].i >= viTri)
         .map((v) => ({ v, con: -phutChenh(bayGio, new Date(new Date(gioDuKien[v.diem_don_id].gio) - PHUT_NO_SHOW_TRUOC * 60000)) }))
         .filter((x) => x.con <= PHUT_BAO_SAP_NO_SHOW)
         .sort((a, b) => a.con - b.con);
       sapNoShow.slice(0, 5).forEach(({ v, con }) => {
-        const han = con > 0 ? `còn ${con} phút nữa` : "đã tới mốc";
+        const han = con > 0 ? `còn ${con} phút nữa tới giờ đón` : "đã tới giờ đón";
         dong.push(
-          `Khách <b>${esc(v.ho_ten)}</b> (ghế ${esc(v.so_ghe)}, đón tại ${esc(v.ten_diem_don)}) chưa lên xe — ${han} hệ thống sẽ đánh dấu "Không đến". ` +
+          `Khách <b>${esc(v.ho_ten)}</b> (ghế ${esc(v.so_ghe)}, đón tại ${esc(v.ten_diem_don)}) chưa lên xe — ${han}, hãy gọi khách. ` +
           `SĐT ${window.sdtSaoChep(v.so_dien_thoai)}`
         );
       });
-      if (sapNoShow.length > 5) dong.push(`… và ${sapNoShow.length - 5} khách khác cũng sắp tới mốc.`);
+      if (sapNoShow.length > 5) dong.push(`… và ${sapNoShow.length - 5} khách khác cũng sắp tới giờ đón.`);
 
       return dong.length ? `<div class="status-banner status-banner--warning">${dong.map((d) => `<div>⏰ ${d}</div>`).join("")}</div>` : "";
     }

@@ -179,6 +179,7 @@ def du_lieu_in_ve(ve_id: UUID, nguoi_dung: NhanVienQuayVe):
     ve = repo.ve_va_chuyen(str(ve_id), str(vp["id"]))
     if not ve:
         raise KhongTimThay("Không tìm thấy vé thuộc văn phòng này")
-    if ve["trang_thai"] not in ("da_thanh_toan", "da_len_xe", "da_xuong_xe", "khong_den"):
+    da_thu_tien = ve["trang_thai"] in ("da_thanh_toan", "da_len_xe", "da_xuong_xe") or (ve["trang_thai"] == "khong_den" and ve.get("gio_thanh_toan"))
+    if not da_thu_tien:
         raise GiaTriLoi("Chỉ được in vé đã thanh toán")
     return ve

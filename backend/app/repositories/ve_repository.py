@@ -29,7 +29,7 @@ def tim_theo_id(ve_id: str) -> dict | None:
             cur.execute(
                 """
                 SELECT id, chuyen_id, so_ghe, diem_don_id, diem_tra_id, khach_hang_id,
-                       ten_khach_vang_lai, sdt_khach_vang_lai, trang_thai
+                       ten_khach_vang_lai, sdt_khach_vang_lai, trang_thai, ma_ve, gio_thanh_toan
                 FROM ve WHERE id = %s
                 """,
                 (ve_id,),
@@ -97,7 +97,8 @@ def tim_hanh_khach_cua_chuyen(chuyen_id: str) -> list[dict]:
                        COALESCE(nd.so_dien_thoai, v.sdt_khach_vang_lai) AS so_dien_thoai,
                        dd.ten AS ten_diem_don, dt.ten AS ten_diem_tra,
                        v.gia, v.loai_hinh_thanh_toan, v.gio_len_xe, v.gio_xuong_xe,
-                       (v.gio_hoan_tac IS NOT NULL) AS da_hoan_tac
+                       (v.gio_hoan_tac IS NOT NULL) AS da_hoan_tac,
+                       (v.gio_thanh_toan IS NOT NULL) AS da_tra_tien
                 FROM ve v
                 LEFT JOIN nguoi_dung nd ON nd.id = v.khach_hang_id
                 JOIN diem_don_tra dd ON dd.id = v.diem_don_id
@@ -113,63 +114,36 @@ def tim_hanh_khach_cua_chuyen(chuyen_id: str) -> list[dict]:
         release_connection(conn)
 
 
-def tim_ve_qua_gio_len_xe(x_phut: int) -> list[dict]:
-    """UC-14 (⏱) — vé chưa lên xe nhưng đã quá X phút trước giờ dự kiến
-    tại đúng điểm đón của nó (NGHIEP_VU.md mục 8.2 điểm 6). Vé chưa thanh
-    toán được hủy khi chuyến chạy, không tính là khách không đến.
-
-    Bỏ qua vé mà xe đang DỪNG đúng điểm đón của nó (chưa bấm "Bắt đầu di chuyển"): lúc đó phụ xe còn đang cho
-    khách lên xe. Khách chưa lên khi xe rời điểm sẽ được đánh dấu lúc xe tới điểm kế tiếp
-    (chuyen_xe_service.xac_nhan_toi_diem)."""
+def danh_dau_khong_den(ve_id: str) -> bool:
+    """Vé đã trả tiền, hoặc vé trả tại quầy chưa trả (không có hạn giữ) → `khong_den`. False nếu vé không còn ở trạng thái đó."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                """
-                SELECT v.id, v.khach_hang_id, v.ma_ve, v.so_ghe
-                FROM ve v
-                JOIN chuyen_xe cx ON cx.id = v.chuyen_id
-                JOIN tuyen_diem_don_tra tdt
-                    ON tdt.tuyen_id = cx.tuyen_id AND tdt.diem_don_tra_id = v.diem_don_id
-                WHERE v.trang_thai = 'da_thanh_toan'
-                  AND cx.trang_thai != 'da_huy'
-                  AND v.gio_hoan_tac IS NULL
-                  AND NOT (
-                        cx.trang_thai IN ('chua_khoi_hanh', 'dang_chay') AND NOT cx.dang_di_chuyen
-                        AND v.diem_don_id = COALESCE(
-                            (SELECT ls.diem_don_tra_id
-                               FROM lich_su_diem_dung_chuyen ls
-                               JOIN tuyen_diem_don_tra t3
-                                 ON t3.tuyen_id = cx.tuyen_id AND t3.diem_don_tra_id = ls.diem_don_tra_id
-                              WHERE ls.chuyen_id = cx.id
-                              ORDER BY CASE WHEN cx.chieu = 'xuoi' THEN t3.thu_tu ELSE -t3.thu_tu END DESC
-                              LIMIT 1),
-                            (SELECT t4.diem_don_tra_id
-                               FROM tuyen_diem_don_tra t4
-                              WHERE t4.tuyen_id = cx.tuyen_id
-                              ORDER BY CASE WHEN cx.chieu = 'xuoi' THEN t4.thu_tu ELSE -t4.thu_tu END ASC
-                              LIMIT 1))
-                  )
-                  AND cx.gio_khoi_hanh + (
-                        CASE WHEN cx.chieu = 'xuoi' THEN tdt.thoi_gian_du_kien_phut
-                             ELSE (SELECT MAX(t2.thoi_gian_du_kien_phut) FROM tuyen_diem_don_tra t2 WHERE t2.tuyen_id = cx.tuyen_id)
-                                  - tdt.thoi_gian_du_kien_phut
-                        END || ' minutes')::interval
-                        - (%s || ' minutes')::interval <= now()
-                """,
-                (x_phut,),
+                """UPDATE ve SET trang_thai = 'khong_den'
+                   WHERE id = %s AND (trang_thai = 'da_thanh_toan' OR (trang_thai = 'giu_cho' AND han_giu_cho_den IS NULL))""",
+                (ve_id,),
             )
-            return _thanh_list(cur, cur.fetchall())
+            da_sua = cur.rowcount > 0
+        conn.commit()
+        return da_sua
     finally:
         release_connection(conn)
 
 
-def danh_dau_khong_den(ve_id: str) -> None:
+def hoan_tac_khong_den(ve_id: str) -> bool:
+    """khong_den → da_len_xe, CHỈ với vé đã trả tiền (có gio_thanh_toan) — vé chưa trả tiền không được ghi nhận lên xe."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("UPDATE ve SET trang_thai = 'khong_den' WHERE id = %s AND trang_thai = 'da_thanh_toan'", (ve_id,))
+            cur.execute(
+                """UPDATE ve SET trang_thai = 'da_len_xe', gio_len_xe = now(), gio_hoan_tac = now()
+                   WHERE id = %s AND trang_thai = 'khong_den' AND gio_thanh_toan IS NOT NULL""",
+                (ve_id,),
+            )
+            da_sua = cur.rowcount > 0
         conn.commit()
+        return da_sua
     finally:
         release_connection(conn)
 
@@ -310,7 +284,7 @@ def tim_ve_chua_len_tai_diem(chuyen_id: str, diem_don_id: str) -> list[dict]:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT v.id, v.id AS ve_id, v.khach_hang_id, v.ma_ve, v.so_ghe, v.trang_thai,
+                SELECT v.id, v.id AS ve_id, v.khach_hang_id, v.ma_ve, v.so_ghe, v.trang_thai, v.ma_dat_cho, v.han_giu_cho_den,
                        COALESCE(nd.ho_ten, v.ten_khach_vang_lai) AS ho_ten
                 FROM ve v
                 LEFT JOIN nguoi_dung nd ON nd.id = v.khach_hang_id

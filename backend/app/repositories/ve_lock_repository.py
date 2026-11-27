@@ -274,7 +274,7 @@ def thanh_toan_ve_quay(ma_dat_cho: str, van_phong_id: str, nhan_vien_id: str, ph
                            AND coc.trang_thai <> 'da_thanh_toan'
                      )
                      AND EXISTS (SELECT 1 FROM chuyen_xe c
-                                 WHERE c.id = v.chuyen_id AND c.gio_khoi_hanh > now())
+                                 WHERE c.id = v.chuyen_id AND c.trang_thai NOT IN ('hoan_thanh', 'da_huy'))
                      AND d.loai = 'van_phong'""",
                 (phuong_thuc, nhan_vien_id, van_phong_id, ma_dat_cho),
             )
@@ -482,8 +482,6 @@ def danh_dau_het_han_qua_han() -> list[dict]:
                 """
                 UPDATE ve SET trang_thai = 'het_han'
                 WHERE trang_thai = 'giu_cho' AND han_giu_cho_den IS NOT NULL AND han_giu_cho_den <= now()
-                  AND EXISTS (SELECT 1 FROM chuyen_xe c
-                              WHERE c.id = ve.chuyen_id AND c.gio_khoi_hanh > now())
                 RETURNING id, ma_dat_cho, so_ghe, khach_hang_id
                 """
             )
@@ -493,24 +491,3 @@ def danh_dau_het_han_qua_han() -> list[dict]:
     finally:
         release_connection(conn)
 
-
-def huy_ve_chua_thanh_toan_qua_gio_chay() -> list[dict]:
-    """Hủy vé còn giữ chỗ khi chuyến đã qua giờ khởi hành; không đụng vé đã thanh toán."""
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """UPDATE ve v SET trang_thai = 'da_huy', gio_huy = now()
-                   FROM chuyen_xe c
-                   WHERE v.chuyen_id = c.id AND v.trang_thai = 'giu_cho'
-                     AND c.gio_khoi_hanh <= now()
-                   RETURNING v.id, v.ma_dat_cho, v.so_ghe, v.khach_hang_id"""
-            )
-            da_huy = _thanh_list(cur, cur.fetchall())
-        conn.commit()
-        return da_huy
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        release_connection(conn)
