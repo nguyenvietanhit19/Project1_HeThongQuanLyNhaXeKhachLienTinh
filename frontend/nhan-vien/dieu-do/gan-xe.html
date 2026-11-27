@@ -42,13 +42,23 @@
         <section class="gx-cc" id="gx-can-chu-y" hidden></section>
 
         <div class="kv-thanh-cong gx-loc">
+          <label class="kv-tim gx-tim">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input type="search" id="loc-tim" placeholder="Tìm mã chuyến, biển số, tuyến, điểm đi/đến..." aria-label="Tìm chu trình" autocomplete="off" />
+          </label>
           <select class="input-field tb-select" id="loc-tuyen" aria-label="Lọc theo tuyến" hidden></select>
+          <select class="input-field tb-select" id="loc-loai-xe" aria-label="Lọc theo loại xe"></select>
           <select class="input-field tb-select" id="loc-cua-so" aria-label="Khoảng ngày cần gán">
             <option value="3">3 ngày tới</option>
             <option value="5">5 ngày tới</option>
             <option value="7">7 ngày tới</option>
           </select>
+          <select class="input-field tb-select" id="loc-ngay" aria-label="Lọc theo ngày khởi hành"></select>
+        </div>
+        <div class="kv-thanh-cong gx-loc gx-loc--chips">
           <div class="dd-chips" id="loc-chips"></div>
+          <button type="button" class="gx-xoa-loc" id="loc-xoa" hidden>✕ Xóa lọc</button>
+          <span class="gx-ket-qua" id="loc-ket-qua"></span>
         </div>
 
         <div id="gx-ds">Đang tải...</div>

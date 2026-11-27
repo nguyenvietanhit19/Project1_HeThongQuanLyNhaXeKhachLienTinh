@@ -40,12 +40,28 @@ const khoaNgay = (iso) => { const p = phanGioVN(iso); return `${p.nam}-${pad2(p.
 let dsChuTrinh = [];
 let dsSuCo = []; // chuyến đang gặp sự cố thuộc phạm vi của tôi (GET /dieu-do/su-co)
 let dsTuyen = []; // tuyến người đăng nhập làm việc được (điều độ viên: tuyến được phân công; quản lý: mọi tuyến)
-let locTuyen = ""; // "" = tất cả tuyến của tôi
-let locChiChuaGan = false;
+// Các lọc theo tình trạng (chip). Một chu trình có thể thuộc nhiều nhóm (VD vừa "Đang hoãn" vừa "Chưa gán xe").
+const LOC_TINH_TRANG = [
+  { khoa: "tat_ca", nhan: "Tất cả", khop: () => true },
+  { khoa: "can_chu_y", nhan: "Cần chú ý", khop: (ct) => ct.can_chu_y.some((v) => v.muc_do !== "thong_tin") },
+  { khoa: "chua_gan", nhan: "Chưa gán xe", khop: (ct) => ct.trang_thai_gan !== "da_gan" },
+  { khoa: "dang_hoan", nhan: "Đang hoãn", khop: (ct) => ct.cac_chuyen.some((c) => c.dang_hoan) },
+  { khoa: "da_gan", nhan: "Đã gán xe", khop: (ct) => ct.trang_thai_gan === "da_gan" },
+  { khoa: "xe_thay", nhan: "Xe chạy thay", khop: (ct) => ct.cac_chuyen.some((c) => c.xe_thuc_te_id) },
+];
+
 const ttTrang = TrangThaiTrang.doc();
+const chuoi = (v) => (typeof v === "string" ? v : "");
 let soNgay = ["3", "5", "7"].includes(String(ttTrang.soNgay)) ? String(ttTrang.soNgay) : "3";
-locChiChuaGan = ttTrang.chiChuaGan === true;
-locTuyen = typeof ttTrang.tuyen === "string" ? ttTrang.tuyen : "";
+let locTuyen = chuoi(ttTrang.tuyen); // "" = tất cả tuyến của tôi
+let locLoaiXe = chuoi(ttTrang.loaiXe);
+let locNgay = chuoi(ttTrang.ngay); // "YYYY-MM-DD" theo ngày khởi hành của chuyến đầu chu trình
+let tuKhoa = chuoi(ttTrang.tuKhoa);
+let locTinhTrang = LOC_TINH_TRANG.some((l) => l.khoa === ttTrang.tinhTrang) ? ttTrang.tinhTrang : "tat_ca";
+
+function luuBoLoc() {
+  TrangThaiTrang.luu({ tuyen: locTuyen, loaiXe: locLoaiXe, ngay: locNgay, tuKhoa, tinhTrang: locTinhTrang });
+}
 
 const gxDs = document.getElementById("gx-ds");
 
@@ -57,30 +73,92 @@ function hienThongBao(noiDung) {
   hienThongBao.hen = setTimeout(() => (el.hidden = true), 5000);
 }
 
-// ---------- Danh sách ----------
-// Chu trình đang xem sau khi lọc theo tuyến (chưa tính ô "Chưa gán xe")
-function chuTrinhTheoTuyen() {
-  return locTuyen ? dsChuTrinh.filter((c) => String(c.tuyen_id) === locTuyen) : dsChuTrinh;
+// ---------- Tìm kiếm & lọc ----------
+// Bỏ dấu tiếng Việt, chữ thường: "Bắc Hà" khớp "bac ha"
+const khongDau = (s) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+const chiChuSo = (s) => khongDau(s).replace(/[^a-z0-9]/g, "");
+
+// Mọi từ gõ vào đều phải khớp. So thêm bản chỉ còn chữ + số để "29k177777" khớp biển "29K1 - 77777", "t0020800" khớp mã chuyến.
+function khopTuKhoa(vanBan) {
+  const tu = khongDau(tuKhoa).split(/\s+/).filter(Boolean);
+  if (!tu.length) return true;
+  const thuong = vanBan.map(khongDau).join(" | ");
+  const gon = vanBan.map(chiChuSo).join("|");
+  const caCum = chiChuSo(tuKhoa);
+  return (caCum.length >= 4 && gon.includes(caCum)) || tu.every((t) => thuong.includes(t) || (chiChuSo(t) && gon.includes(chiChuSo(t))));
+}
+
+function vanBanCuaChuTrinh(ct) {
+  return [
+    ct.ten_tuyen, ct.ma_tuyen, ct.ten_loai_xe,
+    ...ct.cac_chuyen.flatMap((c) => [c.ma, c.bien_so_xe, c.bien_so_xe_thuc_te, c.ten_diem_di, c.ten_diem_den]),
+  ].filter(Boolean);
+}
+
+const ngayCuaChuTrinh = (ct) => khoaNgay(ct.cac_chuyen[0].gio_khoi_hanh);
+
+// Chu trình sau khi lọc theo từ khóa + tuyến + loại xe + ngày (CHƯA tính chip tình trạng — số trên chip và mục "Cần chú ý" dựa vào đây)
+function chuTrinhDaLoc() {
+  return dsChuTrinh.filter(
+    (ct) =>
+      (!locTuyen || String(ct.tuyen_id) === locTuyen) &&
+      (!locLoaiXe || String(ct.loai_xe_id) === locLoaiXe) &&
+      (!locNgay || ngayCuaChuTrinh(ct) === locNgay) &&
+      khopTuKhoa(vanBanCuaChuTrinh(ct))
+  );
+}
+
+const coLocPhu = () => Boolean(tuKhoa.trim() || locTuyen || locLoaiXe || locNgay);
+const coLoc = () => coLocPhu() || locTinhTrang !== "tat_ca";
+
+function xoaLoc() {
+  tuKhoa = "";
+  locTuyen = "";
+  locLoaiXe = "";
+  locNgay = "";
+  locTinhTrang = "tat_ca";
+  document.getElementById("loc-tim").value = "";
+  document.getElementById("loc-tuyen").value = "";
+  luuBoLoc();
+}
+
+// Ô loại xe và ô ngày lấy lựa chọn từ chính danh sách đang tải. Giá trị đang chọn không còn trong danh sách thì tự bỏ.
+function renderOLoc() {
+  const loaiXe = new Map(dsChuTrinh.map((ct) => [String(ct.loai_xe_id), ct.ten_loai_xe]));
+  if (locLoaiXe && !loaiXe.has(locLoaiXe)) locLoaiXe = "";
+  const oLoai = document.getElementById("loc-loai-xe");
+  oLoai.innerHTML = '<option value="">Mọi loại xe</option>' + [...loaiXe].sort((a, b) => a[1].localeCompare(b[1], "vi"))
+    .map(([id, ten]) => `<option value="${esc(id)}">${esc(ten)}</option>`).join("");
+  oLoai.value = locLoaiXe;
+
+  const ngay = [...new Set(dsChuTrinh.map(ngayCuaChuTrinh))].sort();
+  if (locNgay && !ngay.includes(locNgay)) locNgay = "";
+  const oNgay = document.getElementById("loc-ngay");
+  oNgay.innerHTML = '<option value="">Mọi ngày khởi hành</option>' + ngay
+    .map((k) => {
+      const [y, m, d] = k.split("-").map(Number);
+      return `<option value="${k}">${TEN_THU_DAY_DU[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]} ${pad2(d)}/${pad2(m)}</option>`;
+    }).join("");
+  oNgay.value = locNgay;
 }
 
 function renderChips() {
-  const theoTuyen = chuTrinhTheoTuyen();
-  const chuaGan = theoTuyen.filter((c) => c.trang_thai_gan !== "da_gan").length;
+  const nen = chuTrinhDaLoc();
   const o = document.getElementById("loc-chips");
-  o.innerHTML = [
-    [false, "Tất cả", theoTuyen.length],
-    [true, "Chưa gán xe", chuaGan],
-  ]
-    .map(([gt, nhan, so]) => `<button type="button" class="dd-chip${locChiChuaGan === gt ? " is-active" : ""}" data-chi-chua-gan="${gt}">${nhan} <span>${so}</span></button>`)
-    .join("");
-  o.querySelectorAll("[data-chi-chua-gan]").forEach((b) =>
+  o.innerHTML = LOC_TINH_TRANG.map((l) => {
+    const dem = nen.filter(l.khop).length;
+    return `<button type="button" class="dd-chip${locTinhTrang === l.khoa ? " is-active" : ""}${dem ? "" : " gx-chip--rong"}" data-tinh-trang="${l.khoa}">${l.nhan} <span>${dem}</span></button>`;
+  }).join("");
+  o.querySelectorAll("[data-tinh-trang]").forEach((b) =>
     b.addEventListener("click", () => {
-      locChiChuaGan = b.dataset.chiChuaGan === "true";
-      TrangThaiTrang.luu({ chiChuaGan: locChiChuaGan });
+      locTinhTrang = b.dataset.tinhTrang;
+      luuBoLoc();
       hienThiDanhSach();
     })
   );
-  document.getElementById("stat-chua-gan").textContent = chuaGan;
+  document.getElementById("loc-xoa").hidden = !coLoc();
+  // Số "chờ gán xe" ở đầu trang chỉ theo tuyến đang chọn, không đổi theo từ khóa tìm kiếm
+  document.getElementById("stat-chua-gan").textContent = dsChuTrinh.filter((c) => (!locTuyen || String(c.tuyen_id) === locTuyen) && c.trang_thai_gan !== "da_gan").length;
 }
 
 function tieuDeNgay(khoa, soChuTrinh, soChuaGan) {
@@ -195,14 +273,22 @@ const THU_TU_MUC_DO = { khan: 0, canh_bao: 1, thong_tin: 2 };
 
 function gomViecCanChuY() {
   const viec = [];
-  chuTrinhTheoTuyen().forEach((ct) => {
+  const nen = chuTrinhDaLoc();
+  nen.forEach((ct) => {
     ct.can_chu_y.forEach((v) =>
       viec.push({ muc_do: v.muc_do, ma: v.ma, noi_dung: v.noi_dung, chu_trinh_id: ct.chu_trinh_id, tuyen: ct.ten_tuyen, gio: v.gio_khoi_hanh || ct.cac_chuyen[0].gio_khoi_hanh, ma_chuyen: v.ma_chuyen ? [v.ma_chuyen] : ct.cac_chuyen.map((c) => c.ma) })
     );
   });
-  const trongHienTai = new Set(chuTrinhTheoTuyen().map((c) => String(c.chu_trinh_id)));
+  const trongHienTai = new Set(nen.map((c) => String(c.chu_trinh_id)));
+  const maTuyenDangChon = dsTuyen.find((t) => String(t.id) === locTuyen)?.ma;
+  // Chuyến gặp sự cố đã khởi hành nên thường không còn trong danh sách chu trình → lọc riêng theo tuyến, ngày và từ khóa
   dsSuCo
-    .filter((s) => !locTuyen || dsChuTrinh.some((c) => String(c.chu_trinh_id) === String(s.chu_trinh_id)) || !s.chu_trinh_id)
+    .filter(
+      (s) =>
+        trongHienTai.has(String(s.chu_trinh_id)) ||
+        ((!locTuyen || s.ma_tuyen === maTuyenDangChon) && !locLoaiXe && (!locNgay || khoaNgay(s.gio_khoi_hanh) === locNgay) &&
+          khopTuKhoa([s.ma, s.ma_tuyen, s.ten_tuyen, s.bien_so_xe].filter(Boolean)))
+    )
     .forEach((s) =>
       viec.push({
         muc_do: "khan",
@@ -256,16 +342,20 @@ function renderCanChuY() {
 }
 
 function hienThiDanhSach() {
+  renderOLoc();
   renderChips();
   renderCanChuY();
-  const theoTuyen = chuTrinhTheoTuyen();
-  const ds = locChiChuaGan ? theoTuyen.filter((c) => c.trang_thai_gan !== "da_gan") : theoTuyen;
+  const nen = chuTrinhDaLoc();
+  const ds = nen.filter(LOC_TINH_TRANG.find((l) => l.khoa === locTinhTrang).khop);
+  document.getElementById("loc-ket-qua").textContent = coLoc() ? `Đang hiện ${ds.length} / ${dsChuTrinh.length} chu trình` : "";
   if (!ds.length) {
-    let thongDiep = theoTuyen.length ? "Mọi chu trình đã có xe." : "Không có chu trình nào khởi hành trong khoảng này.";
+    let thongDiep = coLoc() ? "Không có chu trình nào khớp bộ lọc." : "Không có chu trình nào khởi hành trong khoảng này.";
     if (!dsTuyen.length) {
       thongDiep = nguoiDung.vaiTro === "quan_ly" ? "Chưa có tuyến nào." : "Bạn chưa được phân công phụ trách tuyến nào — hãy liên hệ quản lý để được phân công.";
     }
-    gxDs.innerHTML = `<div class="kv-trong">${thongDiep}</div>`;
+    const moRong = dsTuyen.length && coLoc() && soNgay !== String(CUA_SO_TOI_DA_NGAY);
+    gxDs.innerHTML = `<div class="kv-trong">${thongDiep}${moRong ? `<br><button type="button" class="nv-btn-secondary gx-mo-rong" id="gx-mo-rong">Tìm trong ${CUA_SO_TOI_DA_NGAY} ngày tới</button>` : ""}</div>`;
+    document.getElementById("gx-mo-rong")?.addEventListener("click", () => doiCuaSo(String(CUA_SO_TOI_DA_NGAY)));
     return;
   }
   const theoNgay = new Map(); // giữ đúng thứ tự API (đã theo giờ khởi hành)
@@ -299,6 +389,13 @@ async function taiTuyen() {
   o.innerHTML = '<option value="">Tất cả tuyến</option>' + dsTuyen.map((t) => `<option value="${esc(t.id)}">${esc(t.ma)} · ${esc(t.ten)}</option>`).join("");
   o.value = locTuyen;
   o.hidden = dsTuyen.length < 2;
+}
+
+function doiCuaSo(giaTri) {
+  soNgay = giaTri;
+  document.getElementById("loc-cua-so").value = soNgay;
+  TrangThaiTrang.luu({ soNgay });
+  return taiDanhSach();
 }
 
 // imLang = true: tải lại ngầm (định kỳ) — không hiện "Đang tải...", lỗi thì giữ nguyên màn hình cũ
@@ -371,10 +468,8 @@ async function nhayToiChuTrinh(id) {
     return;
   }
   if (!tim()) {
-    // bị lọc ẩn: bỏ lọc tuyến/"chưa gán xe" để thẻ hiện ra
-    locTuyen = "";
-    locChiChuaGan = false;
-    document.getElementById("loc-tuyen").value = "";
+    // bị lọc ẩn: bỏ mọi bộ lọc để thẻ hiện ra
+    xoaLoc();
     hienThiDanhSach();
   }
   const the = tim();
@@ -393,16 +488,24 @@ if (nguoiDung) {
   renderSidebar(document.getElementById("nv-sidebar"), "/nhan-vien/dieu-do/gan-xe.html", menuDieuDoCho(nguoiDung.vaiTro), "Điều độ");
   const selectCuaSo = document.getElementById("loc-cua-so");
   selectCuaSo.value = soNgay;
-  selectCuaSo.addEventListener("change", () => {
-    soNgay = selectCuaSo.value;
-    TrangThaiTrang.luu({ soNgay });
-    taiDanhSach();
+  selectCuaSo.addEventListener("change", () => doiCuaSo(selectCuaSo.value));
+  // Mỗi ô lọc đổi thì vẽ lại ngay (lọc trên dữ liệu đã tải, không gọi lại máy chủ)
+  const ganOLoc = (id, suKien, gan) =>
+    document.getElementById(id).addEventListener(suKien, (e) => {
+      gan(e.target.value);
+      luuBoLoc();
+      hienThiDanhSach();
+    });
+  ganOLoc("loc-tuyen", "change", (v) => (locTuyen = v));
+  ganOLoc("loc-loai-xe", "change", (v) => (locLoaiXe = v));
+  ganOLoc("loc-ngay", "change", (v) => (locNgay = v));
+  const oTim = document.getElementById("loc-tim");
+  oTim.value = tuKhoa;
+  ganOLoc("loc-tim", "input", (v) => (tuKhoa = v));
+  oTim.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && oTim.value) { oTim.value = ""; tuKhoa = ""; luuBoLoc(); hienThiDanhSach(); }
   });
-  document.getElementById("loc-tuyen").addEventListener("change", (e) => {
-    locTuyen = e.target.value;
-    TrangThaiTrang.luu({ tuyen: locTuyen });
-    hienThiDanhSach();
-  });
+  document.getElementById("loc-xoa").addEventListener("click", () => { xoaLoc(); hienThiDanhSach(); });
   taiTuyen().then(() => taiDanhSach()).then(() => {
     const id = idChuTrinhTuUrl(location.search);
     if (id) {

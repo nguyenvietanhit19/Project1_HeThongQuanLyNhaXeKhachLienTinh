@@ -5,7 +5,62 @@
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.gx-loc .gx-tim {
+  flex: 2 1 300px;
+  max-width: none;
+}
+
+.gx-loc .tb-select {
+  flex: 1 1 170px;
+  max-width: 240px;
+}
+
+.gx-loc .tb-select[hidden] {
+  display: none;
+}
+
+.gx-loc--chips {
   margin-bottom: 16px;
+}
+
+.gx-chip--rong:not(.is-active) {
+  opacity: 0.55;
+}
+
+.gx-xoa-loc {
+  height: 46px;
+  padding: 0 16px;
+  border: 1.5px dashed #C9C5D8;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.gx-xoa-loc:hover {
+  border-color: #DC2626;
+  color: #DC2626;
+}
+
+.gx-xoa-loc[hidden] {
+  display: none;
+}
+
+.gx-ket-qua {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.gx-mo-rong {
+  margin-top: 12px;
 }
 
 .gx-thong-bao {
